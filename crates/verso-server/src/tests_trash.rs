@@ -405,3 +405,35 @@ fn the_sweep_keeps_the_bin_under_the_size_cap_oldest_first_and_only_the_bin() {
         assert!(in_bin(&r, ".trash/nova.md"));
     });
 }
+
+/// I5 (ADR 0080, decided 2026-11-01): a deletion that alone passes the size
+/// cap is not purged by the sweep while it is younger than a day, and the
+/// window is told the cap in the capabilities, to warn before.
+#[test]
+fn an_entry_younger_than_a_day_outlives_the_size_cap_and_the_cap_is_told() {
+    block_on(async {
+        let r = crate::tests::start_with(|c| c.trash_max = Some(100)).await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = opened(&r, &b, &id).await;
+        let caps = call(&mut ws, 2, "capabilities", json!({})).await;
+        assert_eq!(caps["ok"]["trash_cap"], 100.0, "{caps}");
+        call(
+            &mut ws,
+            3,
+            "create_note",
+            json!({ "name": "enorme", "text": "x".repeat(500) }),
+        )
+        .await;
+        call(&mut ws, 4, "delete_note", json!({ "path": "enorme.md" })).await;
+        let s = std::sync::Arc::clone(&r.server);
+        let f = id.clone();
+        let swept = tokio::task::spawn_blocking(move || crate::trash::sweep(&s, &f))
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(swept.removed.is_empty());
+        assert!(in_bin(&r, ".trash/enorme.md"));
+        assert!(!actions(&r, &id).contains(&"trash_over_cap".to_owned()));
+    });
+}

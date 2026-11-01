@@ -19,6 +19,7 @@ import { allFiles, allNotes } from "./folder";
 import { closedTabs, recents } from "./history";
 import { forgetDrawn, images } from "./images";
 import { Pane } from "./layout/pane";
+import { binWarning } from "./trashWarn";
 import { dropLimitMb } from "./attachName";
 import { settings } from "./settings";
 import { imp } from "./importStrings";
@@ -325,7 +326,7 @@ export async function deleteEntry(path: string, kind: Kind): Promise<void> {
   if (!deletable([path])) return;
   const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
   // Deleting a shared folder ends its shares, said first (ADR 0081 item 13).
-  const question = kind === "folder" ? `${t.confirmDeleteFolder(label)}${sharedUnder(path) ? ` ${sh.deleteEndsShares}` : ""}` : t.confirmDelete(label);
+  const question = [kind === "folder" ? `${t.confirmDeleteFolder(label)}${sharedUnder(path) ? ` ${sh.deleteEndsShares}` : ""}` : t.confirmDelete(label), binWarning([path])].filter(Boolean).join(" ");
   if (!(await ask(question, { yes: t.deleteEntry, no: t.cancel }))) return;
   // What goes to the bin goes with its last words: saved first, or not moved.
   const unsaved = await flushed(leavesUnder(path));
@@ -441,7 +442,7 @@ export async function moveEntries(paths: string[], folder: string): Promise<bool
 /** Several entries to the bin, asked once. */
 export async function deleteEntries(paths: string[]): Promise<void> {
   if (!deletable(paths)) return;
-  if (!(await ask(t.selection.confirmDelete(paths.length), { yes: t.deleteEntry, no: t.cancel }))) return;
+  if (!(await ask([t.selection.confirmDelete(paths.length), binWarning(paths)].filter(Boolean).join(" "), { yes: t.deleteEntry, no: t.cancel }))) return;
   // Inside a folder also given: it goes with the folder.
   const top = paths.filter((p) => !paths.some((q) => q !== p && p.startsWith(`${q}/`)));
   let gone = 0;

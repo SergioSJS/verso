@@ -1939,6 +1939,13 @@ export type Capabilities_Deserialize = {
 	 *  folder is the person's own.
 	 */
 	access?: FolderAccess | null,
+	/**
+	 *  The most a folder's bin may hold on this server, in bytes (ADR 0080,
+	 *  `VERSO_TRASH_MAX`): the window warns before a deletion that alone
+	 *  would pass it, since the bin would then let it go for good. None: no
+	 *  cap, or a host whose bin is the person's own.
+	 */
+	trash_cap?: number | null,
 };
 
 export type Capabilities_Serialize = {
@@ -1956,6 +1963,13 @@ export type Capabilities_Serialize = {
 	 *  folder is the person's own.
 	 */
 	access?: FolderAccess | null,
+	/**
+	 *  The most a folder's bin may hold on this server, in bytes (ADR 0080,
+	 *  `VERSO_TRASH_MAX`): the window warns before a deletion that alone
+	 *  would pass it, since the bin would then let it go for good. None: no
+	 *  cap, or a host whose bin is the person's own.
+	 */
+	trash_cap?: number | null,
 };
 
 /**

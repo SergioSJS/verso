@@ -205,6 +205,7 @@ pub(super) fn capabilities(server: &Server, who: &Who, client: &str) -> Capabili
         can,
         latency_ms: None,
         access: door.map(|d| d.folder_access()),
+        trash_cap: server.config.trash_max.map(|c| c as f64),
     }
 }
 

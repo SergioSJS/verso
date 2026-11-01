@@ -548,6 +548,7 @@ async fn handle(
                 cap: verso_contract::AccessCap::Read,
                 table: false,
             }),
+            trash_cap: None,
         }),
         // A visitor walks nothing: a run takes the session's lock and
         // tells every window on the folder, the owner's too. It is

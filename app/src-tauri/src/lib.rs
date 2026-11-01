@@ -654,6 +654,7 @@ fn capabilities<R: tauri::Runtime>(
         can,
         latency_ms: live,
         access,
+        trash_cap: None,
     })
 }
 

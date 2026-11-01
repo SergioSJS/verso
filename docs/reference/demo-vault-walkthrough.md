@@ -485,6 +485,11 @@ point 13).
    `crates/verso-core/tests/trash.rs` (the sweep's guardrail, the quota's
    guard), `crates/verso-fs/src/trashbin/tests.rs` (no symlink followed);
    A: the files on disk and the log's lines (`manual-checks.md`).
+   Amendment 2026-11-01 (I5): on a server whose bin cap (`VERSO_TRASH_MAX`) a
+   folder passes by itself, "Mover para a lixeira" adds *Atenção: isto tem …,
+   mais que o limite da lixeira do servidor … sem poder ser restaurado*; it
+   stays in the bin a day at least (E: `trash-cap-warning.spec.mjs`; S: the
+   `due` and server-sweep tests).
 12. Note 14, "O Histórico de Versões" ([ADR 0091](../adr/0091-version-history.md)):
    open a note, type a line, wait for its save, and open *Histórico de
    versões* from the palette, the tab's menu, the tree's menu or the clock

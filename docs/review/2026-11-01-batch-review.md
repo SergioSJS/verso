@@ -138,6 +138,8 @@ a recommendation: never purge by the cap an entry younger than a day (or
 the newest entry), the cap counting it but waiting; or refuse/warn before a
 deletion that alone passes the cap ("this will not be restorable").
 
+*Fixed in COMMIT_I5: the maintainer chose both (2026-11-01, "c"): `due` never removes by the cap an entry younger than a day (counts, waits); capabilities carry `trash_cap` and the confirm adds the warning when the paths alone pass it. ADR 0080 amendment.*
+
 **I6 — A live share started from a synced folder's window is not ended on
 the server when that window closes.** Verified in code; not run (no sharer
 UI yet, S6).

@@ -1449,3 +1449,8 @@ On the real engines, which the harness's stubbed `play()` does not reach (notes 
 1. **The long press on a real phone** (A, iPhone Safari and Android Chrome): a held finger on a panel tab opens its menu (touch.ts makes it where iOS fires no `contextmenu`); **Ocultar esta aba** hides it; the tab bar's tabs are 44 px and reachable with a thumb; **⋯** brings it back.
 2. **VoiceOver / TalkBack** (A): the tab list is read as a list of tabs; the **⋯** menu names the hidden tabs (**Mostrar “…”**); in Settings each row's switch is named *Mostrar a aba …* and the arrows *Mover … para cima/baixo*.
 3. **The mouse drag in the real WKWebView** (A, macOS) and WebView2 (A, Windows): a tab drag lifts and reorders; the order survives closing the app.
+
+## The trash's size cap (ADR 0080 amendment, 2026-11-01)
+
+1. **A real server** (A, a UniVerso with `VERSO_TRASH_MAX=50MB`): in a browser delete a folder holding 60 MB: the question warns *Atenção: isto tem … sem poder ser restaurado*; confirm; wait a minute: the folder is still in *Lixeira* (it is younger than a day); the next day's sweep removes it.
+

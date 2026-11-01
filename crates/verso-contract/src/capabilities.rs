@@ -106,7 +106,7 @@ impl Can {
     ];
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct Capabilities {
     pub host: Host,
     pub can: Vec<Can>,
@@ -119,6 +119,12 @@ pub struct Capabilities {
     /// folder is the person's own.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access: Option<FolderAccess>,
+    /// The most a folder's bin may hold on this server, in bytes (ADR 0080,
+    /// `VERSO_TRASH_MAX`): the window warns before a deletion that alone
+    /// would pass it, since the bin would then let it go for good. None: no
+    /// cap, or a host whose bin is the person's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trash_cap: Option<f64>,
 }
 
 #[cfg(test)]
