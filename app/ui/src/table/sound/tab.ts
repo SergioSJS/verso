@@ -253,6 +253,10 @@ class MusicView {
     if (m.durationMs) {
       this.bar.value = String(Math.round((at / m.durationMs) * 1000));
       this.bar.setAttribute("aria-valuetext", st.positionText(clockText(at), clockText(m.durationMs)));
+    } else {
+      // The length not known yet: the bar at its start, not a range's middle.
+      this.bar.value = "0";
+      this.bar.setAttribute("aria-valuetext", clockText(at));
     }
   }
 
