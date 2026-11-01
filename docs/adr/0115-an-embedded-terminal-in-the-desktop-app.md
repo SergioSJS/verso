@@ -462,7 +462,7 @@ host, the window, then T2 and the documents.
   the home directory (Q2, Q4), the last 256 KiB kept for a reloaded window
   (Q6), the window's "behind" signal pausing the reader (item 8), a hang-up
   of the process groups then a kill on Unix — of the groups and of every process still in the shell's session, found by `getsid` with no `/proc` read, since `sh`/dash does not hang up its background jobs (seen on Linux, 2026-10-31) — a Job Object with
-  kill-on-close on Windows, the AppImage's variables stripped on Linux.
+  kill-on-close on Windows, the AppImage's variables stripped on Linux, and ConPTY's opening cursor question (`ESC[6n`, on which it waits before starting the shell) answered by the host itself, so a detection with no window and a reloaded window both work on Windows.
   Three dependencies, each replacing `unsafe` of our own:
   `portable-pty` 0.9, `nix` (already in the tree) with `signal`, and
   `win32job` 2; `cargo deny check` passes.
