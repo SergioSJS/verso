@@ -56,6 +56,12 @@ struct Entry {
 pub(crate) struct Terminals {
     /// The person's switch, as the window last said it (item 7).
     on: AtomicBool,
+    /// The person said yes, on a native dialog the window cannot click, to
+    /// a terminal in this run (item 21). Reset when the switch goes off.
+    confirmed: AtomicBool,
+    /// Tests answer the dialog here instead of showing it.
+    #[cfg(test)]
+    pub(crate) answer: Mutex<Option<bool>>,
     /// This run's mark in every id: a layout brought back after a restart
     /// names no terminal of this run.
     run: String,
@@ -70,6 +76,9 @@ impl Default for Terminals {
             .finish();
         Self {
             on: AtomicBool::new(false),
+            confirmed: AtomicBool::new(false),
+            #[cfg(test)]
+            answer: Mutex::new(None),
             run: format!("{mark:016x}"),
             next: AtomicU64::new(1),
             open: Mutex::new(HashMap::new()),
@@ -82,10 +91,15 @@ impl Terminals {
         self.on.load(Ordering::SeqCst)
     }
 
+    pub(crate) fn confirmed(&self) -> bool {
+        self.confirmed.load(Ordering::SeqCst)
+    }
+
     /// The switch: off ends every terminal, as the window closes their tabs.
     pub(crate) fn set_enabled(&self, on: bool) {
         self.on.store(on, Ordering::SeqCst);
         if !on {
+            self.confirmed.store(false, Ordering::SeqCst);
             self.end_all();
         }
     }
@@ -240,6 +254,23 @@ impl Terminals {
         }
     }
 
+    /// The app exits: every terminal is hung up, then — once for all of
+    /// them, on this thread, because the process ends right after — the
+    /// grace passes and what survived is killed with its session (item 13).
+    /// `end_all` alone leaves that to a thread the exit would not wait for.
+    pub(crate) fn end_all_before_exit(&self) {
+        let ended: Vec<Entry> = lock(&self.open).drain().map(|(_, e)| e).collect();
+        if ended.is_empty() {
+            return;
+        }
+        let hung: Vec<crate::pty::Hung> = ended.iter().map(|e| e.pty.hang_up()).collect();
+        #[cfg(unix)]
+        std::thread::sleep(crate::pty::EXIT_GRACE);
+        for h in hung {
+            h.finish();
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn count(&self) -> usize {
         lock(&self.open).len()
@@ -265,6 +296,87 @@ fn allowed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -> Result<
         ));
     }
     Ok(())
+}
+
+/// What the window may do with a terminal that exists: the switch is on and
+/// the person has said yes in this run (item 21).
+fn allowed_confirmed<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> Result<(), ContractError> {
+    allowed(app, label)?;
+    if !app.state::<App>().terminals.confirmed() {
+        return Err(refused("the terminal was not confirmed in this run"));
+    }
+    Ok(())
+}
+
+/// What starts a shell: as `allowed`, and the first time in a run the
+/// person is asked on a native dialog, which script in the web view cannot
+/// answer (item 21). The switch the window pushes only *removes* a
+/// terminal; it cannot grant one.
+pub(crate) async fn allowed_asking<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> Result<(), ContractError> {
+    allowed(app, label)?;
+    let terminals = &app.state::<App>().terminals;
+    if terminals.confirmed() {
+        return Ok(());
+    }
+    let handle = app.clone();
+    let yes = tauri::async_runtime::spawn_blocking(move || ask_native(&handle))
+        .await
+        .map_err(|e| failed(e.to_string()))?;
+    if !yes {
+        return Err(refused("the terminal was not allowed"));
+    }
+    // The switch may have gone off while the dialog was open.
+    if terminals.enabled() {
+        terminals.confirmed.store(true, Ordering::SeqCst);
+    }
+    allowed_confirmed(app, label)
+}
+
+/// The words of the native dialog ("en", or anything else for pt-BR).
+#[cfg(not(test))]
+fn ask_words(lang: &str) -> (&'static str, &'static str, &'static str, &'static str) {
+    if lang == "en" {
+        (
+            "Verso",
+            "Allow a terminal in this session? It runs commands on this computer as you. Choose Cancel if you did not ask for one.",
+            "Allow",
+            "Cancel",
+        )
+    } else {
+        (
+            "Verso",
+            "Permitir um terminal nesta sessão? Ele executa comandos neste computador como você. Escolha Cancelar se você não pediu um.",
+            "Permitir",
+            "Cancelar",
+        )
+    }
+}
+
+#[cfg(not(test))]
+fn ask_native<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+    let lang = crate::lock(&app.state::<App>().menu_language).clone();
+    let (title, body, yes, no) = ask_words(&lang);
+    app.dialog()
+        .message(body)
+        .title(title)
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            yes.to_owned(),
+            no.to_owned(),
+        ))
+        .blocking_show()
+}
+
+#[cfg(test)]
+fn ask_native<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
+    lock(&app.state::<App>().terminals.answer).unwrap_or(false)
 }
 
 /// Where a window's shell starts (Q2, Q4): the folder's root, or `folder`
@@ -327,7 +439,7 @@ pub(crate) async fn terminal_open<R: tauri::Runtime>(
     start: TerminalStart,
     output: Channel<TerminalOutput>,
 ) -> Result<TerminalOpened, ContractError> {
-    allowed(&app, window.label())?;
+    allowed_asking(&app, window.label()).await?;
     let (dir, at) = place(&app, window.label(), start.folder.as_deref())?;
     let begin = Start {
         dir,
@@ -354,7 +466,7 @@ pub(crate) fn terminal_attach<R: tauri::Runtime>(
     id: TerminalId,
     output: Channel<TerminalOutput>,
 ) -> Result<TerminalOpened, ContractError> {
-    allowed(&app, window.label())?;
+    allowed_confirmed(&app, window.label())?;
     let live = |label: &str| app.get_window(label).is_some();
     app.state::<App>()
         .terminals
@@ -370,7 +482,7 @@ pub(crate) fn terminal_write<R: tauri::Runtime>(
     id: TerminalId,
     data: String,
 ) -> Result<(), ContractError> {
-    allowed(&app, window.label())?;
+    allowed_confirmed(&app, window.label())?;
     app.state::<App>()
         .terminals
         .write(window.label(), &id, data)
@@ -430,7 +542,9 @@ pub(crate) fn terminal_close<R: tauri::Runtime>(
 }
 
 /// The person's switch (item 7, Q5), pushed by the window at its start and
-/// on every change.
+/// on every change. It can only take a terminal away: what lets one start
+/// is the person's yes on a native dialog, asked by the host itself at the
+/// first `terminal_open` of a run (item 21, as amended 2026-11-01).
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn set_terminal_enabled<R: tauri::Runtime>(app: tauri::AppHandle<R>, on: bool) {
@@ -447,7 +561,7 @@ pub(crate) async fn terminal_detect<R: tauri::Runtime>(
     shell: Option<TerminalShell>,
     locale: Option<String>,
 ) -> Result<Vec<AiCliFound>, ContractError> {
-    allowed(&app, window.label())?;
+    allowed_asking(&app, window.label()).await?;
     let (dir, _) = place(&app, window.label(), None)?;
     let start = Start {
         dir,

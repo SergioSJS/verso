@@ -346,6 +346,13 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       openPage.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        // WebKit (the Mac app's web view) does not focus a clicked button,
+        // and starts Tab from where the click landed while the focus sits on
+        // the row around it: Tab then skipped the button, and a later focus
+        // on the row did not move that point. The button takes the focus
+        // itself, as Chromium gives it (ADR 0069 item 8, the same in both
+        // engines), so Tab and Shift+Tab go from where the person is.
+        if (e.detail > 0) openPage.focus();
         openFolder(full);
       });
       s.append(openPage);

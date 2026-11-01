@@ -17,7 +17,7 @@ use verso_contract::{TerminalAt, TerminalId, TerminalOutput, TerminalShell, Term
 
 use super::*;
 use crate::pty::{self, Pty, Start};
-use crate::terminal::{Terminals, lang_of, place};
+use crate::terminal::{Terminals, allowed_asking, lang_of, place};
 use crate::tests::{app, app_with, call, note};
 
 /// What a terminal printed, and whether it ended.
@@ -204,6 +204,47 @@ fn a_closed_terminal_leaves_no_process_of_its_tree() {
     assert!(gone(shell), "the shell {shell} is still running");
     assert!(gone(child), "the shell's program {child} is still running");
     assert!(wait_for(&heard, 10, |h| h.ended.is_some()));
+}
+
+/// Quitting ends every shell and what it started before the process goes
+/// (item 13): a program that ignores the hang-up is killed in the exit path
+/// itself, not by a thread the exit would not wait for.
+#[cfg(unix)]
+#[test]
+fn quitting_kills_what_ignores_the_hang_up_before_it_returns() {
+    let dir = tempfile::tempdir().unwrap();
+    let terminals = Arc::new(Terminals::default());
+    terminals.set_enabled(true);
+    let heard = Arc::new(Mutex::new(Heard::default()));
+    let opened = terminals
+        .open(
+            "main",
+            TerminalAt::Folder,
+            start(Some(dir.path().to_path_buf())),
+            sink(&heard),
+        )
+        .unwrap();
+    terminals
+        .write("main", &opened.id, COMPUTE.to_owned())
+        .unwrap();
+    assert!(wait_for(&heard, 30, |h| h.text.contains("verso-42")));
+    terminals
+        .write(
+            "main",
+            &opened.id,
+            "nohup sleep 1000 >/dev/null 2>&1 & echo bg:$!\r".to_owned(),
+        )
+        .unwrap();
+    assert!(wait_for(&heard, 30, |h| background_pid(&h.text).is_some()));
+    let child = background_pid(&heard.lock().unwrap().text).unwrap();
+    assert!(!gone(child));
+    terminals.end_all_before_exit();
+    // No waiting: the exit path has already done it.
+    assert!(
+        gone(child),
+        "the program that ignores SIGHUP outlived the exit path"
+    );
+    assert_eq!(terminals.count(), 0);
 }
 
 /// The quit question's answer (item 13): a program in the foreground makes
@@ -439,6 +480,17 @@ fn the_terminal_is_a_capability_and_the_switch_gates_it() {
     assert_eq!(err["kind"], "refused");
     call(&webview, "set_terminal_enabled", json!({"on": true})).unwrap();
     assert!(app.state::<App>().terminals.enabled());
+    // The window's switch alone grants nothing (item 21): the person's yes
+    // on the host's own dialog does.
+    let err = call(
+        &webview,
+        "terminal_write",
+        json!({"id": id, "data": "ls\r"}),
+    )
+    .unwrap_err();
+    assert_eq!(err["kind"], "refused");
+    *lock(&app.state::<App>().terminals.answer) = Some(true);
+    tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).unwrap();
     let err = call(
         &webview,
         "terminal_write",
@@ -469,4 +521,39 @@ fn a_server_folders_window_has_the_terminal_and_the_server_never_does() {
             .iter()
             .any(|c| c == "terminal")
     );
+}
+
+/// Script in the web view that pushes the switch on cannot start a shell
+/// (ADR 0115 item 21): the host asks the person on a native dialog, and a
+/// no (or no answer) leaves the terminal refused; the switch going off takes
+/// the yes back.
+#[test]
+fn the_window_cannot_grant_a_terminal_by_pushing_the_switch() {
+    let (app, webview) = app();
+    call(&webview, "set_terminal_enabled", json!({"on": true})).unwrap();
+    let terminals = Arc::clone(&app.state::<App>().terminals);
+    assert!(!terminals.confirmed());
+    // The dialog says no.
+    let err = tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).unwrap_err();
+    assert_eq!(err.kind, verso_contract::ErrorKind::Refused);
+    assert!(!terminals.confirmed());
+    let err = call(
+        &webview,
+        "terminal_write",
+        json!({"id": "x-1", "data": "ls"}),
+    )
+    .unwrap_err();
+    assert_eq!(err["kind"], "refused");
+    // The dialog says yes: once, for the run.
+    *lock(&terminals.answer) = Some(true);
+    tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).unwrap();
+    assert!(terminals.confirmed());
+    *lock(&terminals.answer) = Some(false);
+    tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).unwrap();
+    // Off takes it back, and pushing on again does not restore it.
+    call(&webview, "set_terminal_enabled", json!({"on": false})).unwrap();
+    assert!(!terminals.confirmed());
+    call(&webview, "set_terminal_enabled", json!({"on": true})).unwrap();
+    assert!(!terminals.confirmed());
+    assert!(tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).is_err());
 }

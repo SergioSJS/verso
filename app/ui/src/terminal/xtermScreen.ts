@@ -15,6 +15,7 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
+import { linkHandler } from "./links";
 import { type RGB, parseComputed } from "../theme/color";
 import { type Semantic, type TerminalTheme, terminalTheme } from "./palette";
 
@@ -114,6 +115,7 @@ export class TerminalView {
       fontFamily: getComputedStyle(host).fontFamily || "ui-monospace, Menlo, monospace",
       fontSize: 13,
       lineHeight: 1.15,
+      linkHandler: linkHandler(opts.openLink),
       macOptionIsMeta: opts.meta,
       screenReaderMode: opts.reader,
       scrollback: 5000,
@@ -124,10 +126,7 @@ export class TerminalView {
     const unicode = new Unicode11Addon();
     this.term.loadAddon(unicode);
     this.term.unicode.activeVersion = "11";
-    this.term.loadAddon(new WebLinksAddon((e, uri) => {
-      e.preventDefault();
-      opts.openLink(uri);
-    }));
+    this.term.loadAddon(new WebLinksAddon(linkHandler(opts.openLink).activate));
     this.term.attachCustomKeyEventHandler((e) => (e.type === "keydown" ? opts.key(e, this.term.hasSelection()) : true));
     this.term.open(host);
     // The GPU's renderer when the engine gives a context; the DOM's when it

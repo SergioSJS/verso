@@ -8,7 +8,7 @@ import * as esbuild from "esbuild";
 
 await esbuild.build({
   stdin: {
-    contents: `export * from "./src/terminal/keys"; export * from "./src/terminal/flow"; export * from "./src/terminal/palette"; export * from "./src/terminal/prefs"; export { contrast, parseColor } from "./src/theme/color";`,
+    contents: `export * from "./src/terminal/keys"; export * from "./src/terminal/flow"; export * from "./src/terminal/palette"; export * from "./src/terminal/prefs"; export * from "./src/terminal/links"; export { contrast, parseColor } from "./src/theme/color";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -19,7 +19,7 @@ await esbuild.build({
   logLevel: "error",
 });
 const m = await import("./.bundles/terminal.test-bundle.mjs");
-const { routeKey, APP_KEYS, LEAVE_KEYS, Flow, terminalTheme, contrast, parseColor, FLOOR, readPrefs } = m;
+const { routeKey, APP_KEYS, LEAVE_KEYS, Flow, terminalTheme, linkHandler, httpUrl, contrast, parseColor, FLOOR, readPrefs } = m;
 
 test("the app keeps the tab, palette, settings, search and close keys on every system", () => {
   for (const mac of [true, false]) {
@@ -102,4 +102,20 @@ test("the terminal's settings read back safely", () => {
   assert.deepEqual(readPrefs(undefined), { shell: "powershell", meta: false, reader: false, noticed: [] });
   assert.deepEqual(readPrefs({ shell: "cmd", meta: true, reader: "yes", noticed: ["a", 1, "b"] }), { shell: "cmd", meta: true, reader: false, noticed: ["a", "b"] });
   assert.equal(readPrefs({ shell: "bash" }).shell, "powershell");
+});
+
+test("a link printed in a terminal opens through openUrl, http(s) only (OSC 8, item 21)", () => {
+  const opened = [];
+  let prevented = 0;
+  const h = linkHandler((u) => opened.push(u));
+  assert.equal(h.allowNonHttpProtocols, false);
+  const event = { preventDefault: () => prevented++ };
+  h.activate(event, "https://example.com/a?b=1");
+  h.activate(event, "http://example.com");
+  for (const bad of ["javascript:alert(1)", "file:///etc/passwd", "vscode://x", "data:text/html,x", "ftp://x/y", "not a url", ""]) {
+    h.activate(event, bad);
+  }
+  assert.deepEqual(opened, ["https://example.com/a?b=1", "http://example.com/"]);
+  assert.equal(prevented, 9);
+  assert.equal(httpUrl("HTTPS://Example.com"), "https://example.com/");
 });

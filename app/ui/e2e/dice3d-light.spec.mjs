@@ -28,7 +28,34 @@ const seeded = () => {
   Math.random = () => ((a = (a * 1664525 + 1013904223) >>> 0) / 4294967296);
 };
 
-async function roll(app, page, name, theme) {
+/** Of a picture's opaque pixels (the dice, on a transparent page): the share
+ *  that is near-white (every channel > 235: a coloured die turned up to white
+ *  has lost its face; the white die and the numbers are the few that are
+ *  white on purpose, so the guard is made on the violet and the yellow), and
+ *  the share that is pale (HSL lightness above 0.8: a washed-out body). */
+async function share(b64) {
+  const img = new Image();
+  img.src = "data:image/png;base64," + b64;
+  await img.decode();
+  const k = document.createElement("canvas");
+  k.width = img.width;
+  k.height = img.height;
+  const x = k.getContext("2d");
+  x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, k.width, k.height).data;
+  let white = 0;
+  let pale = 0;
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 220) continue;
+    n++;
+    if (d[i] > 235 && d[i + 1] > 235 && d[i + 2] > 235) white++;
+    if ((Math.max(d[i], d[i + 1], d[i + 2]) + Math.min(d[i], d[i + 1], d[i + 2])) / 510 > 0.8) pale++;
+  }
+  return n ? { white: white / n, pale: pale / n } : { white: 0, pale: 0 };
+}
+
+async function roll(app, page, name, theme, rolls) {
   await page.addInitScript(seeded);
   await page.addInitScript((look) => {
     globalThis.__dice3dEnv = true;
@@ -41,58 +68,62 @@ async function roll(app, page, name, theme) {
   await app.folderChanged(["Mesa.md"], true);
   await app.quickOpen("Mesa");
   await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
-  await page.locator(".preview:visible").getByRole("button", { name: /^Rolar (4dF|de novo)$/ }).first().click();
   const c = page.locator("canvas.dice3d-canvas");
-  await expect(c).toHaveAttribute("data-state", "resting", { timeout: 9000 });
-  const box = await c.boundingBox();
-  const png = await page.screenshot({ clip: box });
-  // The dice alone, on a transparent page: the share of their opaque pixels
-  // that are near-white (every channel > 235). A coloured die turned up to
-  // white has lost its face; the white die and the numbers are the few that
-  // are white on purpose, so the guard is made on the violet and the yellow.
-  await page.addStyleTag({ content: "html,body,body *{background:transparent!important} body *:not(canvas.dice3d-canvas){visibility:hidden!important}" });
-  const bare = await page.screenshot({ clip: box, omitBackground: true });
-  const white = await page.evaluate(async (b64) => {
-    const img = new Image();
-    img.src = "data:image/png;base64," + b64;
-    await img.decode();
-    const k = document.createElement("canvas");
-    k.width = img.width;
-    k.height = img.height;
-    const x = k.getContext("2d");
-    x.drawImage(img, 0, 0);
-    const d = x.getImageData(0, 0, k.width, k.height).data;
-    let w = 0;
-    let n = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i + 3] < 220) continue;
-      n++;
-      if (d[i] > 235 && d[i + 1] > 235 && d[i + 2] > 235) w++;
+  const measures = [];
+  let png = null;
+  for (let i = 0; i < rolls; i++) {
+    if (i > 0) {
+      // The dice stay until the person touches something: Escape sends them away.
+      await page.keyboard.press("Escape");
+      await expect(c).toHaveCount(0);
     }
-    return n ? w / n : 0;
-  }, bare.toString("base64"));
-  return { png, white };
+    await page.locator(".preview:visible").getByRole("button", { name: /^Rolar (4dF|de novo)$/ }).first().click();
+    await expect(c).toHaveAttribute("data-state", "resting", { timeout: 9000 });
+    const box = await c.boundingBox();
+    png ??= await page.screenshot({ clip: box });
+    // The dice alone, on a transparent page.
+    const style = await page.addStyleTag({ content: "html,body,body *{background:transparent!important} body *:not(canvas.dice3d-canvas){visibility:hidden!important}" });
+    const bare = await page.screenshot({ clip: box, omitBackground: true });
+    await style.evaluate((e) => e.remove());
+    measures.push(await page.evaluate(share, bare.toString("base64")));
+  }
+  const median = (key) => measures.map((m) => m[key]).sort((p, q) => p - q)[Math.floor(measures.length / 2)];
+  return { png, measures, white: median("white"), pale: median("pale") };
 }
 
 const dir = process.env.DICE3D_SHEET;
+const GUARDED = ["violeta", "amarelo"];
 
 for (const theme of ["light", "dark"]) {
   for (const name of Object.keys(STYLES)) {
     test(`light: ${name} dice on the ${theme} theme`, async ({ app, page }, info) => {
-      const r = await roll(app, page, name, theme);
-      info.annotations.push({ type: "near-white share", description: r.white.toFixed(4) });
+      const r = await roll(app, page, name, theme, GUARDED.includes(name) ? 5 : 1);
+      info.annotations.push({ type: "near-white share", description: r.white.toFixed(4) }, { type: "pale share", description: r.pale.toFixed(4) });
       if (dir) {
         mkdirSync(dir, { recursive: true });
         writeFileSync(`${dir}/${name}-${theme}.png`, r.png);
       }
-      // The violet die on the light theme is the maintainer's case.
-      // The share is not a fixed number: the dice fall by real frame times and
-      // land differently on each run, and the white numeral's anti-aliasing
-      // alone moves it. The violet on light read 0.034 to 0.082 in seven runs
-      // on a Mac's GPU, and the violet on dark 0.129 in one Docker run under
-      // load (2026-11-01). A washed die reads far higher (the white one 0.66
-      // to 0.73), so the line is 0.15.
-      if (name === "violeta" || name === "amarelo") expect(r.white, `${name} on ${theme}`).toBeLessThan(0.15);
+      // The violet die is the maintainer's case (91e65dad6), the yellow its
+      // twin. The dice land differently on every roll and the share moves with
+      // how they land, so the guarded styles roll five times and the MEDIAN
+      // is judged. Two measures, from what the dice are:
+      //  - near-white (every channel > 235, the clipped die), median < 0.15.
+      //    The lighting from before 91e65dad6, in Docker (SwiftShader,
+      //    chromium, 12 single rolls a style, 2026-11-01), read 0.024-0.125 on
+      //    the violet and 0.000-0.219 on the yellow: it only catches a die
+      //    clipped to white, which that renderer rarely made.
+      //  - pale (opaque pixels with HSL lightness above 0.8, a washed-out
+      //    body), median of five < PALE. Single rolls overlap (a good violet
+      //    reached 0.58 on its own); the medians of five do not. Before the
+      //    fix (the same renderer, 6 medians a style): violet 0.58-0.63,
+      //    yellow 0.25-0.47. After it: violet 0.10-0.25, yellow 0.00-0.10.
+      //    The lines sit in the gap: 0.40 for the violet, 0.17 for the yellow.
+      //  Not measured on a real GPU (the Mac's was 0.034-0.082 near-white).
+      const PALE = { violeta: 0.4, amarelo: 0.17 };
+      if (GUARDED.includes(name)) {
+        expect(r.white, `${name} on ${theme}: near-white`).toBeLessThan(0.15);
+        expect(r.pale, `${name} on ${theme}: pale`).toBeLessThan(PALE[name]);
+      }
     });
   }
 }

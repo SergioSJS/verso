@@ -109,16 +109,33 @@ pub fn audio_share_start<R: tauri::Runtime>(
             "this window has no connection to a server to share on",
         ));
     };
-    app.state::<App>()
-        .shares
+    let shares = &app.state::<App>().shares;
+    let sender = std::sync::Arc::clone(&connection);
+    let started = shares
         .start(
             window.label(),
             chosen,
             bitrate_kbps,
             share,
-            Box::new(move |frame| connection.send_audio(frame)),
+            Box::new(move |frame| sender.send_audio(frame)),
         )
-        .map_err(failed)
+        .map_err(failed)?;
+    shares.on_window_gone(window.label(), farewell(connection));
+    Ok(started)
+}
+
+/// The window went with its share running: the server is told on the same
+/// connection, so the players see it stop (ADR 0116 item 16). A synced
+/// folder's link stays up for other windows, so the connection's closing
+/// would never say it.
+pub(crate) fn farewell(connection: std::sync::Arc<remote::Remote>) -> session::Farewell {
+    Box::new(move || {
+        tauri::async_runtime::spawn(async move {
+            let _ = connection
+                .call("table_share_stop", serde_json::json!({}))
+                .await;
+        });
+    })
 }
 
 /// Stop capturing.
@@ -128,6 +145,6 @@ pub fn audio_share_stop<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
 ) -> Result<(), ContractError> {
-    app.state::<App>().shares.end_of(window.label());
+    app.state::<App>().shares.stop_of(window.label());
     Ok(())
 }

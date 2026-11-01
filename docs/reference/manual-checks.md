@@ -34,6 +34,7 @@ The harness has no pseudo-terminal (its shell is scripted); the host tests run a
 - [ ] **macOS privacy prompt** (A, macOS): the first `ls ~/Documents` in a terminal shows the system's prompt naming **Verso**; refusing it gives the shell's own "Operation not permitted", nothing of Verso's breaks.
 - [ ] **Windows shells** (A, Windows): with PowerShell 7 installed, the line says `pwsh`; without it, `powershell`; Ajustes › Terminal e agentes › Shell do terminal › Prompt de Comando starts `cmd`; no console window flashes on open or on **Ferramentas de IA**.
 - [ ] **Linux AppImage** (A, VM 104): in the AppImage build, `echo $LD_LIBRARY_PATH $APPDIR` in a terminal prints nothing of the AppImage, and `git`, `python3` run as from the desktop's terminal; with `$SHELL` unset by the display manager the shell is the account's own (or `bash`).
+- [ ] **The native confirmation** (A, each system): with the switch on, the first new terminal (or **Ferramentas de IA**) of a run shows the system's own dialog "Permitir um terminal nesta sessão?"; Cancelar leaves the tab with a refusal and no shell; Permitir starts it, and later terminals in the run ask nothing; turning the switch off and on again asks once more.
 - [ ] **A server's folder** (A): a desktop window on a server's folder not synced here opens the terminal in the home folder with its line; a synced one opens at the folder's root.
 
 ### A Markdown file opened without its folder (ADR 0114, feat/single-file, 2026-10-30)
@@ -67,6 +68,7 @@ Per system — macOS, Windows (VM 103) and Linux (VM 104), on the installed pack
 - [ ] **A folder opened from Finder with another window open: both stay** (A): with a window showing a folder, run `open -a "Verso Beta" <another folder>` (or drop a folder on the app's icon); the folder opens in a window of its own and the first window stays open with its folder. Do it again with a folder already open: that window comes forward, no third window. Repeat with the first window on a server's folder.
 ### The tree's folder row with a mouse, and a note above 16 MiB (B15, B7, 2026-10-31)
 
+- [ ] **Mouse, then Tab, on the folder button** (A, macOS app): click the small folder button at a folder row's end (the page opens), then press Tab and Shift+Tab: the focus goes to the neighbours of the button, not nowhere, and the button shows its ring on keyboard focus.
 - [ ] **The folder button, by hand** (A): on the installed app with a mouse, a click on a folder's name opens/closes it; the small folder button at the row's end appears on hover, opens the folder's page, and appears when reached with Tab; it looks right on every theme (contrast of the faint icon).
 - [ ] **A real 17 MiB note** (A): in an opened folder, the notice shows above the text; search does not find a word inside it; the app stays responsive while it opens.
 

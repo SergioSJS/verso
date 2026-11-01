@@ -271,7 +271,10 @@ one — not consulted, and nothing of Obsidian's internals is claimed
     the core; with this feature, `terminal_write` lets anything that
     executes in the app's web view run arbitrary commands as the person.
     That is the one new security consideration, and the defences are: the
-    CSP (`default-src 'self'`, no inline script); notes render no script
+    CSP (`default-src 'self'`, no inline script, and `'wasm-unsafe-eval'`
+    since [0116](0116-music-and-sound-at-the-table-heard-by-everyone.md)
+    item 18 — the terminal depends on this policy; see the amendment of
+    2026-11-01); notes render no script
     ([0114](0114-opening-one-markdown-file-without-a-folder.md) item 24);
     embedded web pages are *child* web views with no IPC to these commands
     (item 5); the commands are refused where the capability is absent and
@@ -489,6 +492,33 @@ host, the window, then T2 and the documents.
   accents in a TUI, screen readers, the renderer, the Windows shells, the
   AppImage), the tutorial is note 35 in both demo vaults, and the
   pitfalls are §7 of [the cross-platform checklist](../reference/cross-platform-checklist.md).
+
+**Amendment (2026-11-01, batch review findings I1 and I4)** — the author's
+choices, for the maintainer to confirm; no new decision of his:
+
+- **I1, the switch is not a defence by itself.** The switch lives in the
+  web view's own storage, so the host cannot read it, and
+  `set_terminal_enabled` is a command any script in that view can call. As
+  built now, the window's switch can only *take a terminal away* (off ends
+  every shell and refuses the commands). What lets a shell start is the
+  person's **yes on a native dialog the host itself shows** at the first
+  `terminal_open` (or `terminal_detect`) of a run, which script in the web
+  view cannot click; the yes lasts for the run and the switch going off
+  takes it back. The narrowest design that keeps the Settings switch
+  working and adds no stored host-side setting (the host reads no file of
+  the person's, ADR 0029); the cost is one dialog the first time in each
+  run. `terminal_attach` and `terminal_write` refuse until that yes. Item
+  21's list of defences therefore reads: the CSP, no script from a note,
+  child web views without IPC, **the native confirmation**, and the switch
+  (which hides and ends, and does not grant).
+- **I4, the terminal depends on the CSP.** Item 21's first defence is the
+  page policy, and since ADR 0116 item 18 the policy also carries
+  `'wasm-unsafe-eval'` in `script-src` (`app/src-tauri/tauri.conf.json`,
+  `crates/verso-server/src/http.rs` `page_policy`), for the Opus decoder.
+  The keyword is the narrowest one that lets WebAssembly compile; it allows
+  no `eval`, no inline script and no script from elsewhere, so the defence
+  against injected script is unchanged — compiling WebAssembly already
+  needs a script that runs.
 
 ### Open questions
 
