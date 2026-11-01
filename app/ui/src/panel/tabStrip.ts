@@ -216,10 +216,20 @@ export class TabStrip {
     const chosen = tabs.findIndex((b) => b.dataset["tab"] === this.current());
     const keep = new Set<number>();
     let used = 0;
-    // The chosen tab is kept first, then the rest in the bar's order.
+    // The chosen tab is kept first, then the tabs of the game at the table
+    // (`data-keep`: the Table's and the Music's, ADR 0116 as amended
+    // 2026-10-31 — on a phone they are what the panel is opened for), then
+    // the rest in the bar's order. The bar still shows them in its order.
     if (chosen >= 0) {
       keep.add(chosen);
       used = widths[chosen] ?? 0;
+    }
+    for (let i = 0; i < tabs.length; i++) {
+      if (keep.has(i) || !tabs[i]?.hasAttribute("data-keep")) continue;
+      const w = (widths[i] ?? 0) + (keep.size ? gap : 0);
+      if (used + w > budget) break;
+      keep.add(i);
+      used += w;
     }
     for (let i = 0; i < tabs.length; i++) {
       if (keep.has(i)) continue;

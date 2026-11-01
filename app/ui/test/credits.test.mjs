@@ -51,7 +51,7 @@ test("every acknowledgement has a name, a line in both languages and a link", ()
     assert.ok(c.name && c.line.pt && c.line.en, c.id);
     assert.match(c.link, url, c.id);
   }
-  for (const id of ["igor", "fractal", "rolai", "fantasy-statblocks", "obsidian"]) assert.ok(C.CREDITS.some((c) => c.id === id), id);
+  for (const id of ["igor", "fractal", "rolai", "fantasy-statblocks", "obsidian", "randommind"]) assert.ok(C.CREDITS.some((c) => c.id === id), id);
 });
 
 test("Igor Téuri's credit links to Dados Críticos, not to Fractal's page", () => {

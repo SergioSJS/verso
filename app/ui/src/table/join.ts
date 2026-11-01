@@ -40,6 +40,9 @@ import { noticeKey, reachOf, rejoin, tryServerTable, type Reach, type SyncDetail
 import { paceWait } from "./send";
 import { openServerTable, type Api } from "./server";
 import { tt } from "./strings";
+import { serverSound, type SoundApi } from "./sound/source";
+import { setSoundSource } from "./sound/run";
+import { soundError } from "./sound/words";
 
 /** The last join was answered "unavailable": a synced folder out of its server's reach. */
 let unavailable = false;
@@ -63,6 +66,28 @@ const api: Api = {
   clear: (keepPinned, table) => commands.tableClear(keepPinned, table),
   listen: async (event, fn) => listen<never>(event, (e) => fn(e.payload as never)),
 };
+
+/** The table's music commands (ADR 0116). */
+const soundApi: SoundApi = {
+  play: (path, o, table) => commands.tablePlay(path, "music", o.positionMs ?? null, o.looping ?? null, o.durationMs ?? null, o.ask ?? null, table),
+  change: (wish, revision, value, looping, table) => commands.tableSound(wish, revision, "music", value, looping, table),
+  time: (table) => commands.tableTime(table),
+  cannot: (revision, table) => commands.tableCannotPlay(revision, "music", table),
+  listen: async (event, fn) => listen<never>(event, (e) => fn(e.payload as never)),
+};
+
+/** The music of the table joined, or this window's own when there is none. */
+async function joinSound(table: ServerTable | null, folder: string | null): Promise<void> {
+  if (!table) {
+    setSoundSource(null, folder);
+    return;
+  }
+  const { play, playback } = table.joinedSound();
+  setSoundSource(
+    await serverSound({ api: soundApi, table: table.table, controls: play, playback, explain: soundError }),
+    folder,
+  );
+}
 
 let current: ServerTable | null = null;
 let attempt = 0;
@@ -105,11 +130,13 @@ async function rejoinNow(): Promise<void> {
   setPick({ roots, current: choice.kind === "table" ? choice.root : null, choosing: choice.kind === "choose" });
   if (!tableOn() || !currentFolder) {
     setTableSource(local);
+    void joinSound(null, currentFolder);
     return;
   }
   // No note says which table and none was chosen: the panel lists them.
   if (choice.kind === "choose") {
     setTableSource(local);
+    void joinSound(null, currentFolder);
     return;
   }
   // A synced folder out of its server's reach has no table: its own rolls
@@ -117,6 +144,7 @@ async function rejoinNow(): Promise<void> {
   if (!tryServerTable(reach)) {
     local.setNotice(noticeText(noticeKey(reach, false)));
     setTableSource(local);
+    void joinSound(null, currentFolder);
     return;
   }
   unavailable = false;
@@ -141,6 +169,7 @@ async function rejoinNow(): Promise<void> {
   current = table;
   if (!table) local.setNotice(noticeText(noticeKey(reach, unavailable)));
   setTableSource(table ?? local);
+  await joinSound(table, currentFolder);
 }
 
 function noticeText(key: "syncOffline" | "syncPaused" | null): string | null {

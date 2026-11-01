@@ -85,7 +85,7 @@ pub const COMMANDS: [&str; 10] = [
 /// The commands of the table, including the page of history.
 #[must_use]
 pub fn is_command(cmd: &str) -> bool {
-    cmd == "table_history" || COMMANDS.contains(&cmd)
+    cmd == "table_history" || COMMANDS.contains(&cmd) || crate::table_sound::is_command(cmd)
 }
 
 struct Member {
@@ -261,7 +261,7 @@ fn scoped(entry: Option<TableEntry>, root: Option<&str>) -> Option<TableEntry> {
 
 /// The account and role (in the table's log, [`crate::access::log_role`])
 /// of window `client` in `folder` now.
-fn viewer_of(
+pub(crate) fn viewer_of(
     server: &Server,
     client: &str,
     folder: &str,
@@ -285,6 +285,11 @@ fn viewer_of(
 
 fn key_of(folder: &str, table: &str) -> Key {
     (folder.to_owned(), table.to_owned())
+}
+
+/// The windows at `table` of `folder`.
+pub(crate) fn members(server: &Server, folder: &str, table: &str) -> Vec<String> {
+    member_clients(server, folder, table)
 }
 
 fn member_clients(server: &Server, folder: &str, table: &str) -> Vec<String> {
@@ -373,6 +378,7 @@ pub fn gone(server: &Server, client: &str) {
 /// when none is named.
 fn leave(server: &Server, client: &str, only: Option<(&str, &str)>) {
     let mut left = Vec::new();
+    let mut emptied = Vec::new();
     {
         let mut map = lock(&server.tables.map);
         map.retain(|key, members| {
@@ -380,8 +386,16 @@ fn leave(server: &Server, client: &str, only: Option<(&str, &str)>) {
             if named && members.remove(client).is_some() {
                 left.push(key.clone());
             }
+            if members.is_empty() {
+                emptied.push(key.clone());
+            }
             !members.is_empty()
         });
+    }
+    // The last window left: the table's music goes with it (ADR 0116 item
+    // 8); the game master's leaving alone does not stop it (Q8 a).
+    for (folder, table) in &emptied {
+        crate::table_sound::dropped(server, (folder, table));
     }
     for (folder, table) in left {
         tell_roster(server, &folder, &table);
@@ -730,6 +744,10 @@ pub async fn command(
     {
         return Err(refused("join the table first"));
     }
+    if crate::table_sound::is_command(cmd) {
+        return crate::table_sound::command(&s, who, client, &door, (&folder, &table), cmd, &args)
+            .await;
+    }
     match cmd {
         "table_join" => {
             let color: Option<String> = arg(&args, "color")?;
@@ -768,6 +786,10 @@ pub async fn command(
             joined.files = door
                 .may(Action::SendFile { image: false }, &table, Kind::Table)
                 .allowed();
+            joined.play = door.may(Action::Play, &table, Kind::Table).allowed();
+            let (s, c, f, t) = (Arc::clone(server), client.to_owned(), folder, table);
+            joined.playback =
+                blocking(move || Ok(crate::table_sound::joined(&s, &c, (&f, &t)))).await?;
             to_value(joined)
         }
         "table_leave" => {
@@ -1069,6 +1091,8 @@ fn join(
         roster: roster(server, folder, table),
         images: false,
         files: false,
+        play: false,
+        playback: Vec::new(),
     })
 }
 

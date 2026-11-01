@@ -47,6 +47,8 @@ import { installScreen } from "./screen/frame";
 import { installNotify } from "./notify";
 import { installSources } from "./notify/sources";
 import { installServerTable } from "./table/join";
+import { installTableSound } from "./table/sound/run";
+import { installStatusItem } from "./table/sound/status";
 import { hearAccess, mayHere, may } from "./access";
 import { can, loadCan } from "./can";
 import { copyFilesInto, newUntitled } from "./files";
@@ -447,6 +449,8 @@ installNotify(() => settingsDialog.show("notify"));
 installDropHost();
 installSources();
 installServerTable();
+installTableSound();
+installStatusItem();
 window.addEventListener("verso:open-statblock-settings", () => {
   settingsDialog.show("statblocks");
 });

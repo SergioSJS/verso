@@ -1,0 +1,120 @@
+---
+title: Sound and Music at the Table
+date: 2026-10-31
+tags:
+  - rpg
+  - table
+  - sound
+status: active
+---
+
+# Sound and Music at the Table
+
+In a session, music is half the mood: the noisy tavern, the road at night, the battle. In Verso, **the game master presses play and everyone at the table hears the same thing, at the same point**, each with their own volume. Music has a tab of its own, **Music**, in the right panel, beside the **Table** ([[31 - The Table]]); it works on a UniVerso ([[32 - Running a Table]]) and in the desktop app that serves the folder.
+
+No sound crosses the network: each window plays **its own copy** of the file, and only "what plays and where" is shared, by the server's clock. So the quality is the file's, and nobody lags behind. Nothing of it is written to any file: what is playing lives in the server's memory and goes away when the last person leaves the table.
+
+---
+
+## Turn it on
+
+**Settings › Features › RPG and tabletop › Table sound**. It is on whenever the **Table** is on; off, there is no Music tab, no button and no status-bar item, and nothing is loaded. Until the first track plays, nothing of the player is loaded either.
+
+---
+
+## The Music tab
+
+Open the right panel and choose **Music** (the music note, beside the Table's die; on a phone, **Panel** in the bottom bar, and the tab opens as a sheet from the bottom). From top to bottom:
+
+1. **Now playing**: the track's name, the list it came from (*From: Music*, *From: Soundtrack › Tavern*), the **Position** bar and the time.
+2. For the game master, the buttons: **Previous track**, **Pause** / **Resume**, **Next track**, **Stop** and **Loop** — one click loops **this track**; the second, **the list**; the third turns it off. And the **Table volume**, everyone's at once.
+3. For everyone: **Your volume**, **Mute** and **Follow the table** (see below).
+4. **Filter tracks**: type part of a name (accents and capitals do not matter) and only the tracks that match stay.
+5. **Up next**: the list the playing track came from, with it marked; it is what **Next** and **Previous** walk.
+6. **Folders**: **every folder that holds sound files is a list**, with nothing to set up. Put your MP3s in a `Music` folder and it shows here.
+7. **Playlists**: **every note with sound links is a playlist**, one block per heading (see below).
+
+A click on a track plays it for everyone — for the game master only. Players see the same lists, with no play button: *Only the game master plays and changes the tracks; you control your own volume.* The server refuses the command of anyone who is not the game master, whatever their window shows. With no sound file in the folder, the tab says how to begin.
+
+---
+
+## In the Table tab: one row only
+
+While something plays, the **Table** tab shows **one slim row** at its top: the track's name and, for the game master, **Previous track**, **Pause** and **Next track**; for everyone, **Volume**, which opens your volume and **Mute**. A click on the name opens the Music tab. When nothing plays, the row goes and the chat has all the room.
+
+---
+
+## A note is a playlist
+
+Nothing special is needed: **any link to a sound file in a note gets a play button** beside it, for the game master, and the note shows under **Playlists**. The heading above a list of such links is a **scene**, and **Next** and **Previous** walk it. Try it with the two sample tracks that come with this tutorial:
+
+### Tavern
+
+- [[assets/sons/taverna.mp3|The tavern]]
+- [[assets/sons/estrada.mp3|The road]]
+
+### Road
+
+- [[assets/sons/estrada.mp3|The road, again]]
+
+Press the button beside **The tavern**: the track plays, *From: 36 - Sound and Music at the Table › Tavern*, and **Next track** goes to **The road**. At the end of the list, Next is greyed out; with **Loop: the list**, it goes back to the first. When a track ends without looping, the game master's window plays the next of the list, or stops.
+
+In Obsidian, this same note is an ordinary list of links: no new code, nothing Obsidian does not read.
+
+---
+
+## What each person controls
+
+Everyone — game master and players — has, on their own device:
+
+- **Your volume**, yours only;
+- **Mute** / **Unmute**;
+- **Follow the table**: off, only your window goes silent. Nobody else is muted, and the music goes on for the others.
+
+None of it is sent to anyone.
+
+---
+
+## Who hears: whoever sees the file
+
+At a table, every file starts **hidden** until the game master releases it ([[32 - Running a Table]]), and the music follows the same rule: **whoever sees the file hears it**. A player who does not see it is told only that *a track you do not see* is playing, and why — not even its name reaches them, nor its bytes.
+
+When the game master plays a file some players do not see, Verso asks first, with the names: *"2 players do not see this file (Ana, Bruno). Release it to the table and play?"*
+
+- **Release and play** gives the whole table *sees* on that file and plays it;
+- **Play without them** plays it, and whoever does not see it does not hear it;
+- **Cancel** plays nothing.
+
+While it plays, the game master's Music tab says who is not hearing. To release a whole folder of music at once, right-click the folder › **Access…** › *Whole table: sees*; from then on every new file in it is seen as it arrives.
+
+---
+
+## Formats
+
+Each window plays what its browser can play; Verso converts nothing. **MP3** or **AAC** (`.m4a`) play everywhere, phones included; OGG does not play on an iPhone or a Mac; WAV and FLAC play, but weigh a lot: everyone at the table downloads the whole file. When a window cannot play a track, it says so to whoever uses it, and the game master sees who cannot.
+
+---
+
+## Arriving late, and the first touch
+
+Whoever joins while music is playing starts **at the same point** as the others. Browsers play sound only after a touch on the page: when that is the case, a **Hear the table** button shows — one click, or any touch in the window, and the music comes in.
+
+If the game master closes their window, **the music goes on** for the others; it ends when everyone leaves the table.
+
+---
+
+## With the tabs closed
+
+While something plays and neither the **Table** nor the **Music** tab is on screen, the status bar shows a small music note with the track's name; a click opens the Music tab.
+
+---
+
+## Alone, with no table
+
+In a folder of this computer alone there is no table, but the Music tab works the same way, **for you only**: it says *In this window only: the folder has no table*, and nothing is sent to anyone.
+
+---
+
+The two sample tracks (`assets/sons/`) are by **RandomMind**, in the public domain (CC0 1.0): `taverna.mp3` is “The Old Tower Inn” (<https://opengameart.org/content/medieval-the-old-tower-inn>) and `estrada.mp3` is “The Bard's Tale” (<https://opengameart.org/content/medieval-the-bards-tale>), their loop versions, re-encoded in mono to weigh little.
+
+Go on to [[37 - Compatibility with Obsidian]], or back to [[34 - UniVerso on a Free Oracle Server]] or to [[31 - The Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].

@@ -130,3 +130,64 @@ pub fn table_clear(keep_pinned: Option<bool>, table: Option<String>) -> Result<(
     let _ = (keep_pinned, table);
     Err(no_table())
 }
+
+/// Play a sound file of the folder for everyone at the table (ADR 0116
+/// section A): the game master's alone. `channel` is `music` (none: it);
+/// with `ask`, nothing plays when some players of the table do not see the
+/// file, and the answer names them. A folder of this computer alone has no
+/// table: its window plays the file by itself.
+#[tauri::command]
+#[specta::specta]
+pub fn table_play(
+    path: String,
+    channel: Option<String>,
+    position_ms: Option<f64>,
+    looping: Option<bool>,
+    duration_ms: Option<f64>,
+    ask: Option<bool>,
+    table: Option<String>,
+) -> Result<verso_contract::TablePlayed, ContractError> {
+    let _ = (path, channel, position_ms, looping, duration_ms, ask, table);
+    Err(no_table())
+}
+
+/// Change what plays at the table, as the game master: `wish` is `pause`,
+/// `resume`, `seek` (`value`: the position, ms), `stop`, `master` (`value`:
+/// the volume, 0 to 100), `loop` (`looping`) or `duration` (`value`: the
+/// track's length, ms), made on the state at `revision` (an older one is
+/// refused).
+#[tauri::command]
+#[specta::specta]
+pub fn table_sound(
+    wish: String,
+    revision: f64,
+    channel: Option<String>,
+    value: Option<f64>,
+    looping: Option<bool>,
+    table: Option<String>,
+) -> Result<Option<verso_contract::TablePlayback>, ContractError> {
+    let _ = (wish, revision, channel, value, looping, table);
+    Err(no_table())
+}
+
+/// The server's clock, for the window to keep its offset from it (ADR 0116
+/// item 10).
+#[tauri::command]
+#[specta::specta]
+pub fn table_time(table: Option<String>) -> Result<verso_contract::TableTime, ContractError> {
+    let _ = table;
+    Err(no_table())
+}
+
+/// This window cannot play the track at `revision`: the game master is told
+/// who (ADR 0116 item 13).
+#[tauri::command]
+#[specta::specta]
+pub fn table_cannot_play(
+    revision: f64,
+    channel: Option<String>,
+    table: Option<String>,
+) -> Result<(), ContractError> {
+    let _ = (revision, channel, table);
+    Err(no_table())
+}

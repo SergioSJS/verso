@@ -180,6 +180,47 @@ fn a_reader_synced_to_the_folder_is_at_the_table_with_a_readers_powers() {
     }
 }
 
+/// The table's music (ADR 0116 section A) over the sync's link: the
+/// owner's synced window plays a file and controls it; a browser at the
+/// table hears the state with the server's clock; a reader's window has
+/// the clock and none of the controls.
+#[test]
+fn a_synced_folders_window_plays_music_at_the_servers_table() {
+    let r = serve(&[("Sessao.md", "# Sessao\n"), ("taverna.mp3", "ID3 a song")]);
+    let (d, _l) = linked(&r, &r.owner);
+    let mut web = browser(&r, &r.reader);
+    web.call("table_join", json!({})).unwrap();
+    let joined = cmd(&d, "table_join", json!({ "color": null, "styles": null })).unwrap();
+    assert_eq!(joined["play"], true, "{joined}");
+    assert_eq!(joined["playback"], json!([]));
+    let played = cmd(
+        &d,
+        "table_play",
+        json!({ "path": "taverna.mp3", "channel": "music", "positionMs": 0, "looping": false, "durationMs": 1000, "ask": true }),
+    )
+    .unwrap();
+    assert_eq!(played["playback"]["state"], "playing", "{played}");
+    let heard_web = web.event("table-playback");
+    assert_eq!(heard_web["source"]["path"], "taverna.mp3", "{heard_web}");
+    let paused = cmd(
+        &d,
+        "table_sound",
+        json!({ "wish": "pause", "revision": 1, "channel": "music" }),
+    )
+    .unwrap();
+    assert_eq!(paused["state"], "paused", "{paused}");
+    assert_eq!(heard(&d, "table-playback", 2).len(), 2);
+    let now = web.call("table_time", json!({})).unwrap();
+    assert!(now["now_ms"].as_f64().is_some_and(|t| t > 0.0), "{now}");
+    let e = web
+        .call(
+            "table_sound",
+            json!({ "wish": "resume", "revision": 2, "channel": "music" }),
+        )
+        .unwrap_err();
+    assert_eq!(e["kind"], "refused", "{e}");
+}
+
 #[test]
 fn the_campaign_controls_act_on_the_synced_server_folder_for_its_owner() {
     let r = serve(&[("Sessao.md", "# Sessao\n")]);

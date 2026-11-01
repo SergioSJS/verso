@@ -1036,6 +1036,9 @@ pub fn refresh(
     close_out(server, folder);
     crate::campaign_sync::refresh_readers(server, folder, key, false);
     crate::collab::readers::veil_changed(server, key);
+    // The table's music is told again: who sees the track may have changed
+    // (ADR 0116 item 9).
+    crate::table_sound::retell(server, folder);
     let ids: Vec<String> = lock(&server.clients)
         .iter()
         .filter(|(_, c)| c.folder.as_ref().is_some_and(|(f, _)| f == folder))

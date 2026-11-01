@@ -89,6 +89,11 @@ pub const READ: &[&str] = &[
     "table_roll",
     "table_pin",
     "table_delete",
+    // The table's music (ADR 0116): a phone listens — the server's clock,
+    // and "this phone cannot play that track"; the controls are the game
+    // master's, which no phone is.
+    "table_time",
+    "table_cannot_play",
     "campaign_status",
     "collab_awareness",
     "collab_present",
@@ -222,6 +227,8 @@ pub const REFUSED: &[&str] = &[
     "read_link_secrets",
     "log_read",
     "table_clear",
+    "table_play",
+    "table_sound",
     // A table is a server's and its game master's (ADR 0110): no phone runs
     // the commands that change one; the status is read below.
     "campaign_make",

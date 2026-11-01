@@ -75,6 +75,7 @@ pub mod sync;
 pub mod table;
 pub mod table_image;
 pub mod table_look;
+pub mod table_sound;
 pub mod texts;
 pub mod tls;
 pub mod transfers;
@@ -525,6 +526,8 @@ mod tests_sync;
 mod tests_table;
 #[cfg(test)]
 mod tests_table_images;
+#[cfg(test)]
+mod tests_table_sound;
 #[cfg(test)]
 mod tests_threats;
 #[cfg(test)]
