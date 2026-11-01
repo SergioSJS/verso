@@ -61,12 +61,15 @@ test("with Windows' own buttons the tabs stay clear of them, keep their size, an
   const menu = page.locator(".menu:not([hidden])");
   await more.click();
   await expect(menu).toBeVisible();
-  const folded = await menu.getByRole("menuitem").count();
+  // The menu lists the folded tabs, then the way back to the hidden ones
+  // (right-tabs-hide.spec.mjs): reset, tab settings.
+  const foldedItems = menu.getByRole("menuitem").filter({ hasNotText: /^(Restaurar abas|Ajustar abas|Mostrar )/ });
+  const folded = await foldedItems.count();
   expect(folded).toBeGreaterThan(0);
   expect((await shown(page)).length - 1 + folded).toBe((await ids(page)).length);
   await page.screenshot({ path: shot("66-abas-direita-windows-lista") });
   // Choosing a folded tab chooses it and keeps it in the bar.
-  await menu.getByRole("menuitem").last().click();
+  await foldedItems.last().click();
   const chosen = await page.locator('#right-tabs [role="tab"][aria-selected="true"]').getAttribute("data-tab");
   await expect(page.locator(`#right-tabs [data-tab="${chosen}"]`)).toBeVisible();
   await noOverlap(page);
