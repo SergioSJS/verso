@@ -1180,7 +1180,9 @@ export const commands = {
 	terminalClose: (id: TerminalId) => __TAURI_INVOKE<void>("terminal_close", { id }),
 	/**
 	 *  The person's switch (item 7, Q5), pushed by the window at its start and
-	 *  on every change.
+	 *  on every change. It can only take a terminal away: what lets one start
+	 *  is the person's yes on a native dialog, asked by the host itself at the
+	 *  first `terminal_open` of a run (item 21, as amended 2026-11-01).
 	 */
 	setTerminalEnabled: (on: boolean) => __TAURI_INVOKE<void>("set_terminal_enabled", { on }),
 	/**
