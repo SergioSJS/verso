@@ -41,6 +41,7 @@ use verso_contract::{
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
+mod audio_share;
 mod boards;
 mod campaign;
 mod cli;
@@ -628,6 +629,8 @@ fn capabilities<R: tauri::Runtime>(
         can.retain(|c| !matches!(c, Can::Reveal | Can::CopyPath));
     } else {
         can.extend_from_slice(Can::FOLDER);
+        // Capture is the desktop host's alone (ADR 0116 item 27).
+        can.push(Can::AudioShare);
     }
     // A folder of this computer alone is the person's own: no seat to tell.
     // A synced one carries the server's answer for it (ADR 0113 S8), the
@@ -888,6 +891,11 @@ macro_rules! commands_for {
                 table::table_sound,
                 table::table_time,
                 table::table_cannot_play,
+                table::table_share_start,
+                table::table_share_stop,
+                audio_share::audio_sources_list,
+                audio_share::audio_share_start,
+                audio_share::audio_share_stop,
                 campaign::campaign_status,
                 campaign::campaign_make,
                 campaign::campaign_unmake,
@@ -996,6 +1004,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::TablePinned>()
             .typ::<verso_contract::TableRemoved>()
             .typ::<verso_contract::TableCleared>()
+            .typ::<verso_contract::AudioShareStopped>()
             .typ::<verso_contract::CampaignChanged>()
             .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()

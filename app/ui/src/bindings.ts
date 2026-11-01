@@ -724,6 +724,25 @@ export const commands = {
 	 */
 	tableCannotPlay: (revision: number | null, channel: string | null, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_cannot_play", { revision, channel, table })),
 	/**
+	 *  Start sharing live audio to the table, as the game master (ADR 0116
+	 *  section B). The server's side is a later task: refused until it is built.
+	 */
+	tableShareStart: (share: AudioShareStart, table: string | null) => typedError<AudioShare, ContractError>(__TAURI_INVOKE("table_share_start", { share, table })),
+	/**  Stop the table's live share, as the game master who started it. */
+	tableShareStop: (table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_share_stop", { table })),
+	/**
+	 *  What this computer can capture: applications by their display name,
+	 *  pages open in Verso, the system (never a window title).
+	 */
+	audioSourcesList: () => typedError<AudioSource[], ContractError>(__TAURI_INVOKE("audio_sources_list")),
+	/**
+	 *  Capture the source `id` and encode it with Opus at `bitrate_kbps`
+	 *  (64 to 128), handing the frames to the window.
+	 */
+	audioShareStart: (id: string, bitrateKbps: number) => typedError<AudioCaptureStarted, ContractError>(__TAURI_INVOKE("audio_share_start", { id, bitrateKbps })),
+	/**  Stop capturing. */
+	audioShareStop: () => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_stop")),
+	/**
 	 *  What the folder's tables are, to this window: a folder of this computer
 	 *  alone has none.
 	 */
@@ -1264,6 +1283,109 @@ export type AppInfo = {
 	device: string | null,
 };
 
+/**
+ *  What `audio_share_start` answers once the host captures and encodes: the
+ *  source and the shape of the frames it will hand the window.
+ */
+export type AudioCaptureStarted = {
+	source: AudioSource,
+	bitrate_kbps: number,
+	sample_rate: number,
+	channels: number,
+	frame_ms: number,
+};
+
+/**
+ *  A table's live share as everyone at the table sees it (events
+ *  `table-share-started` and `table-share-state`, `TableJoin.share`, the
+ *  answer of `table_share_start`). The server stamps it.
+ */
+export type AudioShare = {
+	/**
+	 *  The table: its folder inside the server's folder, `""` for the
+	 *  folder itself (as `TableEntry.table`).
+	 */
+	table: string,
+	/**
+	 *  The share's number, in every binary frame's header. Never reused by
+	 *  a table in one server run.
+	 */
+	id: number,
+	/**  The source's name, as the sharer's host gave it. */
+	name: string,
+	kind: AudioSourceKind,
+	/**  Who shares: the name and the opaque account, stamped by the server. */
+	by: string,
+	by_id: string,
+	/**  When it started, the server's clock, Unix milliseconds. */
+	started_ms: number | null,
+	bitrate_kbps: number,
+	/**
+	 *  To the sharer only (none to everyone else): how many windows are
+	 *  receiving.
+	 */
+	listeners: number | null,
+	/**  To the sharer only: the rate leaving the server for them, in bit/s. */
+	rate_bps: number | null,
+};
+
+/**  Why a share ended. */
+export type AudioShareEnd = 
+/**  The sharer pressed Stop. */
+"stopped" | 
+/**  The sharer's window disconnected. */
+"sharer_left" | 
+/**  The last window left the table. */
+"table_empty" | 
+/**  The sharer started another source in its place. */
+"replaced";
+
+/**
+ *  The sharer's window asks the server to start a share (`table_share_start`):
+ *  what to call it, what kind of source it is, the bitrate it encodes at.
+ *  The server checks the closed form ([`name_ok`], [`bitrate_ok`]) and
+ *  `may(Broadcast)`; one share per table, and `replace` says the sharer
+ *  agrees to end the table's current one (item 16).
+ */
+export type AudioShareStart = {
+	name: string,
+	kind: AudioSourceKind,
+	bitrate_kbps: number,
+	replace?: boolean,
+};
+
+/**  A share ended (event `table-share-stopped`). */
+export type AudioShareStopped = {
+	table: string,
+	id: number,
+	reason: AudioShareEnd,
+};
+
+/**
+ *  One thing the host can capture (`audio_sources_list`). `id` is the
+ *  host's own opaque handle, good for the host's next `audio_share_start`
+ *  and meaningless elsewhere; `name` is at most [`SOURCE_NAME_MOST`]
+ *  characters of plain text, an application's display name, never a window
+ *  title.
+ */
+export type AudioSource = {
+	id: string,
+	name: string,
+	kind: AudioSourceKind,
+};
+
+/**  What kind of thing a source is. */
+export type AudioSourceKind = 
+/**  An application (the Spotify app, a browser). */
+"app" | 
+/**  A page open in Verso itself (a child web view, ADR 0056). */
+"page" | 
+/**
+ *  Everything this computer plays (minus Verso's own sounds where the
+ *  system allows it).
+ */
+"system";
+
 /**  Who a version names (item 4). */
 export type AuthorKind = 
 /**  An account of the server, by its name. */
@@ -1670,7 +1792,15 @@ export type Can =
 /**  The table: rolls and chat (ADR 0107). */
 "table" | 
 /**  Boards and drawings (ADR 0057). */
-"board";
+"board" | 
+/**
+ *  Share the sound of an application, a page or the system with the
+ *  table (ADR 0116 section B, item 27): captured by the desktop host
+ *  only. Not in [`Can::FOLDER`]: a server, a phone and a window of loose
+ *  files never list it, and where it is absent *Share audio…* is not
+ *  drawn.
+ */
+"audio_share";
 
 export type Capabilities = Capabilities_Serialize | Capabilities_Deserialize;
 
@@ -4030,6 +4160,16 @@ export type TableJoin = {
 	 *  item 8): a joiner and a reconnecting window start from the truth.
 	 */
 	playback?: TablePlayback[],
+	/**
+	 *  Whether this window's person may share live audio to the table: the
+	 *  game master (ADR 0116 item 22, `may(Broadcast)`).
+	 */
+	broadcast?: boolean,
+	/**
+	 *  The table's live share now, if any (ADR 0116 section B): a joiner
+	 *  and a reconnecting window start from the truth.
+	 */
+	share?: AudioShare | null,
 };
 
 /**  Who is at the table: one per account, however many windows. */

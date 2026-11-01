@@ -99,11 +99,15 @@ fn only_the_game_master_controls_the_music_and_the_server_keeps_the_clock() {
             .call("table_join", json!({ "color": null, "styles": null }))
             .await;
         assert_eq!(joined["ok"]["play"], false, "{joined}");
+        // And who may share live audio (ADR 0116 item 22): the same seat.
+        assert_eq!(joined["ok"]["broadcast"], false, "{joined}");
+        assert!(joined["ok"]["share"].is_null(), "{joined}");
         let joined = m
             .owner
             .call("table_join", json!({ "color": null, "styles": null }))
             .await;
         assert_eq!(joined["ok"]["play"], true, "{joined}");
+        assert_eq!(joined["ok"]["broadcast"], true, "{joined}");
         let before = crate::table_sound::now_ms();
         let played = play(&mut m.owner, OPEN, false).await;
         let pb = played["ok"]["playback"].clone();

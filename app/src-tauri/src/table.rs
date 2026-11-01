@@ -9,7 +9,7 @@
 //! has no table, and the window shows the rolls of this run itself.
 
 use super::*;
-use verso_contract::{DiceStyles, TableEntry, TableJoin, TablePage};
+use verso_contract::{AudioShare, AudioShareStart, DiceStyles, TableEntry, TableJoin, TablePage};
 
 fn no_table() -> ContractError {
     refused("the table is a server's; a folder of this computer alone has none")
@@ -190,4 +190,24 @@ pub fn table_cannot_play(
 ) -> Result<(), ContractError> {
     let _ = (revision, channel, table);
     Err(no_table())
+}
+
+/// Start sharing live audio to the table, as the game master (ADR 0116
+/// section B). The server's side is a later task: refused until it is built.
+#[tauri::command]
+#[specta::specta]
+pub fn table_share_start(
+    share: AudioShareStart,
+    table: Option<String>,
+) -> Result<AudioShare, ContractError> {
+    let _ = (share, table);
+    Err(refused("sharing audio is not built yet"))
+}
+
+/// Stop the table's live share, as the game master who started it.
+#[tauri::command]
+#[specta::specta]
+pub fn table_share_stop(table: Option<String>) -> Result<(), ContractError> {
+    let _ = table;
+    Err(refused("sharing audio is not built yet"))
 }

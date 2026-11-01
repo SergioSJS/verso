@@ -83,6 +83,8 @@ fn a_file_handed_to_the_running_app_opens_in_the_loose_window() {
         "table",
         "board",
         "reveal",
+        // No table, so nothing to share audio to (ADR 0116 item 27).
+        "audio_share",
     ] {
         assert!(!can.iter().any(|c| c == gone), "{gone} in {can:?}");
     }
@@ -99,6 +101,14 @@ fn a_file_handed_to_the_running_app_opens_in_the_loose_window() {
     assert!(!app.state::<App>().service.is_loose("main"));
     let can = call(&webview, "capabilities", json!({})).unwrap();
     assert!(can["can"].as_array().unwrap().iter().any(|c| c == "index"));
+    // A window of a folder is the desktop host's: it lists the capture.
+    assert!(
+        can["can"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c == "audio_share")
+    );
 }
 
 /// A file inside a folder a window shows is that window's tab (ADR 0114

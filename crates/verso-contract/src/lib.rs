@@ -46,6 +46,15 @@ pub use campaign::{
     CampaignAccess, CampaignAudience, CampaignChanged, CampaignGrant, CampaignInvite, CampaignNote,
     CampaignPerson, CampaignPlayer, CampaignStatus, CampaignTable,
 };
+mod capabilities;
+pub use capabilities::{Can, Capabilities, Host};
+mod audio_share;
+pub use audio_share::{
+    AudioCaptureStarted, AudioShare, AudioShareEnd, AudioShareStart, AudioShareStopped,
+    AudioSource, AudioSourceKind, BITRATE_DEFAULT, BITRATE_LEAST, BITRATE_MOST, CHANNELS,
+    FRAME_HEADER_LEN, FRAME_MOST, FRAME_MS, FRAMES_PER_SECOND_MOST, FrameError, FrameHeader,
+    SAMPLE_RATE, SOURCE_NAME_MOST, bitrate_ok, name_ok,
+};
 mod table;
 pub use table::{
     DiceStyle, DiceStyles, PlaybackSource, TableCleared, TableEntry, TableImages, TableJoin,
@@ -633,104 +642,6 @@ pub struct FolderSpace {
     /// The folder's index, kept beside the configuration (not inside the
     /// folder).
     pub index: f64,
-}
-
-/// Which side the window talks to (ADR 0027, ADR 0073 item 2): the app on
-/// this computer, or a server.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
-#[serde(rename_all = "snake_case")]
-pub enum Host {
-    Desktop,
-    Server,
-}
-
-/// What the side the window talks to can do (ADR 0027; ADR 0076 item 11):
-/// the window hides what is absent instead of showing it and failing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
-#[serde(rename_all = "snake_case")]
-pub enum Can {
-    /// Change the open folder (a reader on a server cannot).
-    Write,
-    /// Show a file in the system's file manager.
-    Reveal,
-    /// Copy a file's full path.
-    CopyPath,
-    /// Open windows of the app: a note in one of its own, a new window.
-    Windows,
-    /// Show web pages inside the window (child web views).
-    WebViews,
-    /// The command line and the agents of the settings (ADR 0054).
-    Agents,
-    /// The app's own updates (ADR 0055).
-    Updates,
-    /// The window's console.
-    Devtools,
-    /// Open folders from this computer's disk.
-    LocalFolders,
-    /// An account signed in on a server: the account's page.
-    Account,
-    /// The account is the server's admin: the admin page.
-    Admin,
-    /// Several people editing one note at once (ADR 0073 item 7).
-    Collab,
-    /// The side shows a folder, with its index: the tree, the graph, the
-    /// bases, the tags, the files. Absent for one file opened without a
-    /// folder (ADR 0114 items 18 and 25), as are the rest below.
-    Index,
-    /// Full-text search over the folder.
-    Search,
-    /// Backlinks and unlinked mentions.
-    Backlinks,
-    /// New notes, files and folders.
-    Create,
-    /// Renaming and moving entries.
-    Rename,
-    /// Deleting entries (into the bin).
-    Delete,
-    /// The folder's bin (ADR 0080).
-    Trash,
-    /// Version history (ADR 0091).
-    History,
-    /// Sync with a server or a cloud (ADR 0079, ADR 0104).
-    Sync,
-    /// The table: rolls and chat (ADR 0107).
-    Table,
-    /// Boards and drawings (ADR 0057).
-    Board,
-}
-
-impl Can {
-    /// What a side that shows a whole folder can do, and a side that shows
-    /// one file cannot (ADR 0114 items 18 and 25): every host that opens
-    /// folders adds all of these.
-    pub const FOLDER: &[Can] = &[
-        Can::Index,
-        Can::Search,
-        Can::Backlinks,
-        Can::Create,
-        Can::Rename,
-        Can::Delete,
-        Can::Trash,
-        Can::History,
-        Can::Sync,
-        Can::Table,
-        Can::Board,
-    ];
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct Capabilities {
-    pub host: Host,
-    pub can: Vec<Can>,
-    /// The round trip to the side, in milliseconds, when it is across a
-    /// network (the desktop app on a server's folder, ADR 0073 item 2): the
-    /// window learns how far the core is (ADR 0026 rule 2).
-    pub latency_ms: Option<u32>,
-    /// Who the person is at the open folder's table (ADR 0113): the one
-    /// source of "who am I here". A host with no server says nothing: the
-    /// folder is the person's own.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub access: Option<FolderAccess>,
 }
 
 /// What a room holds (ADR 0082 item 12, decided 2026-10-12): a `text` —

@@ -203,6 +203,9 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
         !has("reveal") && !has("copy_path") && !has("agents"),
         "{caps}"
     );
+    // The desktop host captures audio for the table, whatever the folder's
+    // side (ADR 0116 item 27).
+    assert!(has("audio_share"), "{caps}");
     // How far the server is, measured on this side.
     assert!(caps["latency_ms"].is_u64(), "{caps}");
     let note = call(&main, "read_note", json!({ "path": "Sessao.md" })).unwrap();
@@ -489,6 +492,7 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
         "updates",
         "devtools",
         "local_folders",
+        "audio_share",
         // An old server never says it: a folder window by default.
         "index",
         "search",
@@ -509,5 +513,5 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
     }
     // Asked twice, nothing is added twice.
     remote::with_app_abilities(&mut caps);
-    assert_eq!(caps["can"].as_array().unwrap().len(), 7 + 11);
+    assert_eq!(caps["can"].as_array().unwrap().len(), 8 + 11);
 }

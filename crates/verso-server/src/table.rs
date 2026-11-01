@@ -787,6 +787,7 @@ pub async fn command(
                 .may(Action::SendFile { image: false }, &table, Kind::Table)
                 .allowed();
             joined.play = door.may(Action::Play, &table, Kind::Table).allowed();
+            joined.broadcast = door.may(Action::Broadcast, &table, Kind::Table).allowed();
             let (s, c, f, t) = (Arc::clone(server), client.to_owned(), folder, table);
             joined.playback =
                 blocking(move || Ok(crate::table_sound::joined(&s, &c, (&f, &t)))).await?;
@@ -1093,6 +1094,8 @@ fn join(
         files: false,
         play: false,
         playback: Vec::new(),
+        broadcast: false,
+        share: None,
     })
 }
 
