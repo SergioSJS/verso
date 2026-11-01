@@ -15,7 +15,9 @@ import { showMusic } from "./tab";
 
 export function installStatusItem(): void {
   const bar = document.querySelector(".status-bar");
-  const before = document.getElementById("report-bug");
+  // Before the notifications bell when it is already there: the bell stays
+  // just before the report button (ADR 0084 item 4), this item before both.
+  const before = document.querySelector(".notify-bell-bar") ?? document.getElementById("report-bug");
   if (!bar) return;
   const item = h("button", "ghost status-sound");
   item.type = "button";
