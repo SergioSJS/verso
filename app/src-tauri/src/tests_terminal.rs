@@ -206,6 +206,47 @@ fn a_closed_terminal_leaves_no_process_of_its_tree() {
     assert!(wait_for(&heard, 10, |h| h.ended.is_some()));
 }
 
+/// Quitting ends every shell and what it started before the process goes
+/// (item 13): a program that ignores the hang-up is killed in the exit path
+/// itself, not by a thread the exit would not wait for.
+#[cfg(unix)]
+#[test]
+fn quitting_kills_what_ignores_the_hang_up_before_it_returns() {
+    let dir = tempfile::tempdir().unwrap();
+    let terminals = Arc::new(Terminals::default());
+    terminals.set_enabled(true);
+    let heard = Arc::new(Mutex::new(Heard::default()));
+    let opened = terminals
+        .open(
+            "main",
+            TerminalAt::Folder,
+            start(Some(dir.path().to_path_buf())),
+            sink(&heard),
+        )
+        .unwrap();
+    terminals
+        .write("main", &opened.id, COMPUTE.to_owned())
+        .unwrap();
+    assert!(wait_for(&heard, 30, |h| h.text.contains("verso-42")));
+    terminals
+        .write(
+            "main",
+            &opened.id,
+            "nohup sleep 1000 >/dev/null 2>&1 & echo bg:$!\r".to_owned(),
+        )
+        .unwrap();
+    assert!(wait_for(&heard, 30, |h| background_pid(&h.text).is_some()));
+    let child = background_pid(&heard.lock().unwrap().text).unwrap();
+    assert!(!gone(child));
+    terminals.end_all_before_exit();
+    // No waiting: the exit path has already done it.
+    assert!(
+        gone(child),
+        "the program that ignores SIGHUP outlived the exit path"
+    );
+    assert_eq!(terminals.count(), 0);
+}
+
 /// The quit question's answer (item 13): a program in the foreground makes
 /// the terminal busy, an idle shell does not (Unix); Windows cannot tell,
 /// so a live terminal is busy there.
@@ -496,7 +537,12 @@ fn the_window_cannot_grant_a_terminal_by_pushing_the_switch() {
     let err = tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).unwrap_err();
     assert_eq!(err.kind, verso_contract::ErrorKind::Refused);
     assert!(!terminals.confirmed());
-    let err = call(&webview, "terminal_write", json!({"id": "x-1", "data": "ls"})).unwrap_err();
+    let err = call(
+        &webview,
+        "terminal_write",
+        json!({"id": "x-1", "data": "ls"}),
+    )
+    .unwrap_err();
     assert_eq!(err["kind"], "refused");
     // The dialog says yes: once, for the run.
     *lock(&terminals.answer) = Some(true);

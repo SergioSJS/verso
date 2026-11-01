@@ -1350,7 +1350,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             // The port closes and the goodbye is sent (ADR 0096 item 8).
             local_server::stop_on_exit(app);
             // No shell outlives the app (ADR 0115 item 13).
-            app.state::<App>().terminals.end_all();
+            app.state::<App>().terminals.end_all_before_exit();
             app.state::<App>().shares.end_all();
             log::write("INFO", "host", "exiting");
         }

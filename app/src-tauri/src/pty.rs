@@ -482,6 +482,19 @@ impl Pty {
     /// hang up its jobs (`sh`/dash, or a job that ignores the hang-up) is
     /// in a group of its own; on Windows the job's whole tree.
     pub(crate) fn end(&self) {
+        let hung = self.hang_up();
+        #[cfg(unix)]
+        std::thread::spawn(move || {
+            std::thread::sleep(GRACE);
+            hung.finish();
+        });
+        #[cfg(not(unix))]
+        hung.finish();
+    }
+
+    /// The first half of `end`: the hang-up, the channel and the master
+    /// closed. What is left to do after the grace is `Hung::finish`.
+    pub(crate) fn hang_up(&self) -> Hung {
         lock(&self.input).take();
         #[cfg(unix)]
         let shell = self.pid.and_then(|p| i32::try_from(p).ok());
@@ -496,16 +509,43 @@ impl Pty {
         drop(lock(&self.job).take());
         drop(lock(&self.master).take());
         self.set_behind(false);
-        #[cfg(unix)]
-        std::thread::spawn(move || {
-            std::thread::sleep(GRACE);
-            signal_groups(&groups, nix::sys::signal::Signal::SIGKILL);
-            if let Some(session) = shell {
-                end_session(session);
-            }
-        });
+        Hung {
+            #[cfg(unix)]
+            shell,
+            #[cfg(unix)]
+            groups,
+        }
     }
 }
+
+/// A terminal that was hung up and may still hold processes that ignored it
+/// (item 13): after a grace they are killed, the shell's group and every
+/// process left in its session.
+pub(crate) struct Hung {
+    #[cfg(unix)]
+    shell: Option<i32>,
+    #[cfg(unix)]
+    groups: Vec<i32>,
+}
+
+impl Hung {
+    /// The kill, and the sweep of the session (a no-op on Windows, where the
+    /// job object already ended the tree).
+    pub(crate) fn finish(self) {
+        #[cfg(unix)]
+        {
+            signal_groups(&self.groups, nix::sys::signal::Signal::SIGKILL);
+            if let Some(session) = self.shell {
+                end_session(session);
+            }
+        }
+    }
+}
+
+/// How long the app waits, once for all its terminals, between the hang-up
+/// and the kill when it exits.
+#[cfg(unix)]
+pub(crate) const EXIT_GRACE: Duration = GRACE;
 
 /// A signal to each process group (a group already gone is no error).
 #[cfg(unix)]

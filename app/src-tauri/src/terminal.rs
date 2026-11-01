@@ -254,6 +254,23 @@ impl Terminals {
         }
     }
 
+    /// The app exits: every terminal is hung up, then — once for all of
+    /// them, on this thread, because the process ends right after — the
+    /// grace passes and what survived is killed with its session (item 13).
+    /// `end_all` alone leaves that to a thread the exit would not wait for.
+    pub(crate) fn end_all_before_exit(&self) {
+        let ended: Vec<Entry> = lock(&self.open).drain().map(|(_, e)| e).collect();
+        if ended.is_empty() {
+            return;
+        }
+        let hung: Vec<crate::pty::Hung> = ended.iter().map(|e| e.pty.hang_up()).collect();
+        #[cfg(unix)]
+        std::thread::sleep(crate::pty::EXIT_GRACE);
+        for h in hung {
+            h.finish();
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn count(&self) -> usize {
         lock(&self.open).len()
@@ -349,7 +366,10 @@ fn ask_native<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
         .message(body)
         .title(title)
         .kind(MessageDialogKind::Warning)
-        .buttons(MessageDialogButtons::OkCancelCustom(yes.to_owned(), no.to_owned()))
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            yes.to_owned(),
+            no.to_owned(),
+        ))
         .blocking_show()
 }
 
