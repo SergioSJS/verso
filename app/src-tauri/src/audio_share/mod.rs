@@ -66,6 +66,8 @@ fn link<R: tauri::Runtime>(
 pub(crate) mod hear;
 #[cfg(test)]
 mod tests_hear;
+#[cfg(test)]
+mod tests_e2e;
 
 /// What this computer can capture: applications by their display name,
 /// pages open in Verso, the system (never a window title).
