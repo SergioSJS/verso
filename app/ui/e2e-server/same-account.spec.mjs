@@ -6,6 +6,8 @@
 
 import { expect, test } from "@playwright/test";
 
+import { nameAGpu } from "./software-gl.mjs";
+
 const ADMIN = { email: "admin@verso.test", password: "uma senha bem longa" };
 const RED = "#c0392b";
 const LOOK = { body: RED, number: "#ffffff", outline: "#222222", texture: "none", material: "plastic" };
@@ -42,6 +44,7 @@ async function api(page, method, path, data) {
 
 /** The player's own dice (red) and the 3D switch on, before the window loads. */
 async function withDice(context) {
+  await nameAGpu(context);
   await context.addInitScript(
     ([look]) => {
       const s = JSON.parse(localStorage.getItem("verso.settings") ?? "{}");

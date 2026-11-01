@@ -16,6 +16,8 @@ import { deflateSync } from "node:zlib";
 
 import { expect, test } from "@playwright/test";
 
+import { nameAGpu } from "./software-gl.mjs";
+
 const ADMIN = { email: "admin@verso.test", password: "uma senha bem longa" };
 /** A 1x1 PNG, made here: the bytes are what the window checks, and the picture must decode. */
 const PNG = (() => {
@@ -81,6 +83,7 @@ const invoke = (page, cmd, args = {}) =>
 
 /** The player's own dice (red) and the 3D switch on, before the window loads. */
 async function withDice(context) {
+  await nameAGpu(context);
   await context.addInitScript(
     ([look]) => {
       const s = JSON.parse(localStorage.getItem("verso.settings") ?? "{}");
