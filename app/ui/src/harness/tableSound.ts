@@ -42,12 +42,9 @@ export class TableSound {
     private readonly table: Table,
   ) {
     const h = core.handlers;
-    const join = h["table_join"]!;
-    h["table_join"] = (a) => {
-      const joined = join(a) as Record<string, unknown>;
-      const root = String(joined["table"] ?? "");
+    this.table.joinExtra = (root) => {
       const c = this.channels.get(root);
-      return { ...joined, play: this.table.role === "owner", playback: c ? [this.view(root, c)] : [] };
+      return { play: this.table.role === "owner", playback: c ? [this.view(root, c)] : [] };
     };
     h["table_time"] = (a) => {
       this.table.at(a["table"]);

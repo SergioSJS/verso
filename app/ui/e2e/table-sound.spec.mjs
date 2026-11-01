@@ -41,13 +41,14 @@ const SCENE = "# Trilha\n\n## Taverna\n\n- [[Música/taverna.wav]]\n- [[Música/
 /** The element's play and pause, stubbed: a test reads what the window asked. */
 async function stubPlay(page, { refuseFirst = false } = {}) {
   await page.addInitScript((refuse) => {
-    let refused = !refuse;
+    // As an engine does: no sound before the person's first gesture on the page.
+    let touched = !refuse;
+    for (const t of ["pointerdown", "keydown"]) addEventListener(t, () => (touched = true), true);
+    // A late joiner: the window opened (the tab clicked), the page then seen as untouched.
+    window.__untouched = () => (touched = !refuse);
     window.__plays = [];
     HTMLMediaElement.prototype.play = function () {
-      if (!refused) {
-        refused = true;
-        return Promise.reject(new DOMException("no gesture", "NotAllowedError"));
-      }
+      if (!touched) return Promise.reject(new DOMException("no gesture", "NotAllowedError"));
       window.__plays.push(this.getAttribute("src"));
       this.__on = true;
       this.dispatchEvent(new Event("playing"));
@@ -157,10 +158,10 @@ test("a file some players do not see: the game master is asked, names named, and
   await atTable(app, page, "owner");
   await page.evaluate(() => {
     window.__harness.tableSound.unheardOf = (p) => (p.includes("batalha") && !window.__released ? ["Ana", "Bia"] : []);
-    const set = window.__harness.core.handlers.access_set;
-    window.__harness.core.handlers.access_set = (a) => {
+    // The server's answer to the release (the harness's own refuses outside a campaign).
+    window.__harness.core.handlers.access_set = () => {
       window.__released = true;
-      return set ? set(a) : { changed: 1 };
+      return { changed: 1 };
     };
   });
   const strip = await openTable(page);
@@ -219,6 +220,7 @@ test("a late joiner whose engine waits for a gesture is offered Hear the table, 
   await stubPlay(page, { refuseFirst: true });
   await atTable(app, page, "reader");
   const strip = await openTable(page);
+  await page.evaluate(() => window.__untouched());
   await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 2000 }));
   const hear = strip.getByRole("button", { name: "Ouvir a mesa" });
   await expect(hear).toBeVisible();

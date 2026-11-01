@@ -37,7 +37,7 @@ for (const [lang, general, rpgNav, all, none, link, rpgLine] of [
     await expect(page.locator('.settings-nav-item[aria-current="true"]')).toContainText(rpgNav);
 
     const rpg = body.getByRole("group", { name: rpgNav, exact: true });
-    expect(await rpg.locator("> .setting input[type=checkbox]").count()).toBe(7);
+    expect(await rpg.locator("> .setting input[type=checkbox]").count()).toBe(8);
     await expect(body.getByRole("group", { name: /RPG e mesa|RPG and tabletop/ })).toBeVisible();
     await rpg.getByRole("button", { name: none, exact: true }).click();
     await expect(rpg.locator("input[type=checkbox]:checked")).toHaveCount(0);
