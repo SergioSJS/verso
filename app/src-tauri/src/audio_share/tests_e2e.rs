@@ -20,8 +20,8 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_tungstenite::tungstenite::Message;
 use verso_contract::{FRAME_MOST, FrameHeader, SAMPLE_RATE};
 
-use super::Shares;
 use super::tone::{HZ, TestTone};
+use super::{Shares, farewell};
 use crate::remote::{self, Heard, Remote};
 use crate::tests_sync::{Running, serve};
 
@@ -202,6 +202,28 @@ fn the_sharers_window_going_away_ends_the_share_for_the_listener() {
         .collect();
     assert_eq!(ended.len(), 1, "{events:?}");
     assert_eq!(ended[0].1["reason"], "sharer_left");
+}
+
+/// A window of a synced folder closing while it shares: the link stays up
+/// (another window, the sync), so the connection's going says nothing; the
+/// host tells the server itself and the players see the share stop.
+#[test]
+fn a_sharer_window_closing_on_a_link_that_stays_up_ends_the_share_for_the_listener() {
+    let r = serve(&[]);
+    let (master, shares, _id) = master_sharing(&r);
+    shares.on_window_gone("master-window", farewell(Arc::clone(&master)));
+    let (_l, mut heard) = listener(&r);
+    let (frames, _) = hear_for(&mut heard, 300);
+    assert!(!frames.is_empty());
+    // The window goes; the connection is kept (held by `master`).
+    shares.end_of("master-window");
+    let (_, events) = hear_for(&mut heard, 2000);
+    let ended: Vec<_> = events
+        .iter()
+        .filter(|(n, _)| n == "table-share-stopped")
+        .collect();
+    assert_eq!(ended.len(), 1, "{events:?}");
+    drop(master);
 }
 
 #[test]

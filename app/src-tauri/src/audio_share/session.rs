@@ -65,7 +65,13 @@ struct Active {
     owner: String,
     /// Dropped outside the lock: it waits for the source's thread.
     _running: Running,
+    /// Tells the server the share is over when its window goes without
+    /// having stopped it (the server knows the connection, not the window).
+    farewell: Option<Farewell>,
 }
+
+/// What the host does at the server when it ends a share on its own.
+pub type Farewell = Box<dyn FnOnce() + Send>;
 
 /// The share of this run of the app, if any.
 #[derive(Default)]
@@ -104,6 +110,7 @@ impl Shares {
         *lock(&self.active) = Some(Active {
             owner: owner.to_owned(),
             _running: running,
+            farewell: None,
         });
         Ok(AudioCaptureStarted {
             source: described,
@@ -122,17 +129,40 @@ impl Shares {
             .is_some_and(|a| a.owner == owner)
     }
 
-    /// End the share of window `owner`, if it has one.
+    /// What to tell the server if window `owner`'s running share ends
+    /// because the window went (`end_of`), so its listeners see it stop
+    /// (ADR 0116 item 16) while the link stays up for other windows.
+    pub fn on_window_gone(&self, owner: &str, farewell: Farewell) {
+        if let Some(a) = lock(&self.active).as_mut().filter(|a| a.owner == owner) {
+            a.farewell = Some(farewell);
+        }
+    }
+
+    /// End the share of window `owner`, if it has one, because the window
+    /// is gone: the capture stops, then the server is told.
     pub fn end_of(&self, owner: &str) {
-        let ended = {
-            let mut active = lock(&self.active);
-            if active.as_ref().is_some_and(|a| a.owner == owner) {
-                active.take()
-            } else {
-                None
+        if let Some(mut ended) = self.take_of(owner) {
+            let farewell = ended.farewell.take();
+            drop(ended);
+            if let Some(tell) = farewell {
+                tell();
             }
-        };
-        drop(ended);
+        }
+    }
+
+    /// End the share of window `owner`, if it has one, because the person
+    /// pressed Stop: the window stops it at the server itself.
+    pub fn stop_of(&self, owner: &str) {
+        drop(self.take_of(owner));
+    }
+
+    fn take_of(&self, owner: &str) -> Option<Active> {
+        let mut active = lock(&self.active);
+        if active.as_ref().is_some_and(|a| a.owner == owner) {
+            active.take()
+        } else {
+            None
+        }
     }
 
     /// End the share, whoever's it is.
