@@ -12,6 +12,9 @@
 .terminal-line button { margin-left: .4rem; }
 .terminal-host { flex: 1; min-height: 0; min-width: 0; padding: .35rem .2rem .2rem .55rem; font-family: var(--mono); background: var(--paper); position: relative; }
 .terminal-host .xterm { height: 100%; }
+/* xterm's sheet paints its viewport black (#000), which shows as a bar
+   below the last row when the box is not a whole number of rows. */
+.terminal-host .xterm .xterm-viewport { background-color: var(--paper); }
 /* A visible ring while the terminal has the keyboard. */
 .terminal-host:focus-within { outline: 2px solid var(--brass-ink); outline-offset: -2px; border-radius: 3px; }
 .terminal-host .load-failure { margin: 1rem; }
