@@ -18,6 +18,7 @@ import type { SyntaxNode } from "@lezer/common";
 import { tableArrows, type TableEditorOptions } from "./tableEditor";
 import { heldImage } from "./sanitize";
 import { hasCapability } from "./capabilities";
+import { audioTarget } from "./audio/state";
 import { ImageWidget, HeldImageWidget, TaskCheckboxWidget, CodeCopyWidget, DiagramButtonWidget, IframeWidget } from "./live/widgets";
 import { inlineText, mathSpans, aloneInParagraph, InlineMathWidget } from "./live/math";
 import { blankGaps } from "./live/gaps";
@@ -80,6 +81,9 @@ export type LiveOptions = {
   roll?: { resolve: (target: string, from: string) => string | null; open: (path: string) => void };
   /** A `dice:` code drawn as its die (ADR 0088), or null. */
   dice?: (code: string, occ?: number) => WidgetType | null;
+  /** The player in place of an embed of a sound file (ADR 0116, amendment
+   *  of 2026-11-01), or null when the target names none of the folder. */
+  audio?: (target: string) => WidgetType | null;
   /** The play button after a link to a sound file (ADR 0116 item 15), or null. */
   sound?: (target: string, at: number) => WidgetType | null;
   /** The die a code's text names (its notation, or its table), or null when
@@ -475,6 +479,12 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const m1 = marks[1];
             if (m0 && m1) alt = doc.sliceString(m0.to, m1.from);
             const size = sizeOf(alt);
+            // `![](sons/a.mp3)`: the player, as for `![[a.mp3]]` (spec Q20).
+            const player = audioTarget(rawUrl) ? opts.audio?.(rawUrl) : null;
+            if (player) {
+              out.push({ from: node.from, to: node.to, deco: Decoration.replace({ widget: player }) });
+              return;
+            }
             const src = /^https?:\/\//i.test(rawUrl) ? rawUrl : opts.imageUrl(rawUrl);
             if (src && heldImage(src)) {
               // Remote content off: a link, as in the reading view (the
@@ -515,9 +525,17 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       if (math.some((r) => start < r.to && end > r.from)) continue;
       const target = (inner.split("|")[0] ?? "").split("#")[0] ?? "";
       const alias = inner.includes("|") ? (inner.split("|")[1] ?? "") : null;
-      const shown = embed && IMAGE.test(target)
+      const sound = embed && audioTarget(target);
+      const shown = embed && (IMAGE.test(target) || sound)
         ? view.state.selection.ranges.some((r) => r.empty && r.from <= end && r.to >= start && !(r.from === r.to && (r.from === start || r.from === end)))
         : touched(start, end);
+      if (sound && !shown) {
+        const player = opts.audio?.(target);
+        if (player) {
+          out.push({ from: start, to: end, deco: Decoration.replace({ widget: player }) });
+          continue;
+        }
+      }
       if (embed && IMAGE.test(target) && !shown) {
         const url = opts.imageUrl(target);
         if (url) {
