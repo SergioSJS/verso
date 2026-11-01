@@ -112,9 +112,6 @@ let blocked = false;
 let failed = false;
 let cannotHere = false;
 let player: Player | null = null;
-/** The table's music lowered while an embed plays for this person alone
- *  (src/audio/player.ts, ADR 0116 amendment of 2026-11-01): 1 is the gain as set. */
-let duck = 1;
 let loading: Promise<void> | null = null;
 export function playerState(): { blocked: boolean; failed: boolean; cannotHere: boolean } {
   return { blocked, failed, cannotHere };
@@ -171,7 +168,7 @@ function apply(): void {
   const want = {
     music: soundOn() ? m : null,
     url: playable && m?.path ? urlOf(m.path) : null,
-    gain: m ? gain(m.master, own.volume, own.muted, own.follow) * duck : 0,
+    gain: m ? gain(m.master, own.volume, own.muted, own.follow) : 0,
     serverNow: () => active.serverNow(),
   };
   if (player) {
@@ -315,24 +312,6 @@ export function watchMusicOnScreen(fn: () => boolean): void {
 }
 export function musicOnScreen(): boolean {
   return soundOn() && musicShown();
-}
-
-export function setDuck(factor: number): void {
-  if (factor === duck) return;
-  duck = factor;
-  apply();
-}
-
-/** Whether this window plays its own music, the folder having no table joined. */
-export function soundAlone(): boolean {
-  return active === local;
-}
-
-/** Whether the table's music is heard in this window now: a track this
- *  person sees, playing, the switch on, not muted or unfollowed. */
-export function tableAudible(): boolean {
-  const m = active.music();
-  return soundOn() && !!m?.path && m.state === "playing" && !cannotHere && !failed && gain(m.master, own.volume, own.muted, own.follow) > 0;
 }
 
 /** For the tests and the harness: the player's element, if loaded. */

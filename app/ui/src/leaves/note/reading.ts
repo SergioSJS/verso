@@ -44,8 +44,7 @@ import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
 import { diceBox, wireDice } from "../../dice/card";
-import { headingAbove, wireSound } from "../../table/sound/links";
-import { audioImages, audioTarget, placeAudio } from "../../audio/embed";
+import { wireSound } from "../../table/sound/links";
 import { wireSwatches } from "../../colour/reading";
 import { fitWhenSizeless } from "../../imageFit";
 import { diagramLang, openBlockDiagram } from "../../datagraph/block";
@@ -1041,7 +1040,6 @@ export function toggleTask(this: NoteLeaf, line: number, box: HTMLInputElement):
 /** `source`: the note the embeds are written in — an embedded note's
  *  own path for what it embeds in turn (spec Q12). */
 export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLElement = this.preview, source = forPath): Promise<void> {
-  audioImages(root);
   const spans = Array.from(root.querySelectorAll<HTMLElement>("span.embed"));
   const targets = new Set(spans.map((e) => parsePdfSpec(e.dataset["target"] ?? "").file));
   const found = new Map<string, string | null>();
@@ -1128,11 +1126,6 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
       span.replaceWith(box);
       this.embeds.push(view);
       void view.load(convertFileSrc(rel, "verso"), spec.page);
-    } else if (audioTarget(rel)) {
-      // A player, as Obsidian draws an audio embed (ADR 0116, amendment of 2026-11-01).
-      const host = { path: () => source, text: () => (source === this.path ? (this.note?.text ?? "") : "") };
-      const heading = headingAbove(span, root);
-      placeAudio(span, rel, host, () => heading, openNote);
     } else {
       span.classList.add("file");
       span.title = rel;

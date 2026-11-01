@@ -99,9 +99,6 @@ export type BoardHost = {
   /** Show the PDF at `path` inside `el` (ADR 0057 point 3); the function
    *  returned takes it down. */
   renderPdf: (el: HTMLElement, path: string) => () => void;
-  /** The player of the sound file at `path` inside `el` (ADR 0116,
-   *  amendment of 2026-11-01); the function returned takes it down. */
-  renderAudio?: (el: HTMLElement, path: string) => () => void;
   prompt: (label: string, initial: string, multiline: boolean) => Promise<string | null>;
   /** Write the relation into the source note, after showing the diff;
    *  true when it was written. */
