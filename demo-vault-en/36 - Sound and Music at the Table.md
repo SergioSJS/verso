@@ -10,7 +10,7 @@ status: active
 
 # Sound and Music at the Table
 
-In a session, music is half the mood: the noisy tavern, the road at night, the battle. In Verso, **the game master presses play and everyone at the table hears the same thing, at the same point**, each with their own volume. It sits at the top of the **Table** panel ([[31 - The Table]]), and works on a UniVerso ([[32 - Running a Table]]) and in the desktop app that serves the folder.
+In a session, music is half the mood: the noisy tavern, the road at night, the battle. In Verso, **the game master presses play and everyone at the table hears the same thing, at the same point**, each with their own volume. Music has a tab of its own, **Music**, in the right panel, beside the **Table** ([[31 - The Table]]); it works on a UniVerso ([[32 - Running a Table]]) and in the desktop app that serves the folder.
 
 No sound crosses the network: each window plays **its own copy** of the file, and only "what plays and where" is shared, by the server's clock. So the quality is the file's, and nobody lags behind. Nothing of it is written to any file: what is playing lives in the server's memory and goes away when the last person leaves the table.
 
@@ -18,27 +18,35 @@ No sound crosses the network: each window plays **its own copy** of the file, an
 
 ## Turn it on
 
-**Settings › Features › RPG and tabletop › Table sound**. It is on whenever the **Table** is on; off, there is no music, no button and no status-bar item, and nothing is loaded. Until the first track plays, nothing of the player is loaded either.
+**Settings › Features › RPG and tabletop › Table sound**. It is on whenever the **Table** is on; off, there is no Music tab, no button and no status-bar item, and nothing is loaded. Until the first track plays, nothing of the player is loaded either.
 
 ---
 
-## Play a file
+## The Music tab
 
-1. Open the **Table** panel. At the top, the game master sees **Play a file…**.
-2. Choose a sound file of the folder (MP3, M4A, OGG, WAV or FLAC). It starts playing for everyone.
-3. The track shows at the top of the panel, with its position and time. The game master has:
-   - **Previous track of the scene**, **Pause** / **Resume**, **Next track of the scene** and **Stop**;
-   - the **Position** bar, to jump to another point;
-   - **Loop**: one click loops **this track**; the second, **the scene** (see below); the third turns it off;
-   - **Table volume**: everyone's volume at once.
+Open the right panel and choose **Music** (the music note, beside the Table's die; on a phone, **Panel** in the bottom bar, and the tab opens as a sheet from the bottom). From top to bottom:
 
-Only the game master controls it — which track, play, pause, skip, loop. Players do not see those buttons, and the server refuses the command of anyone who is not the game master, whatever their window shows.
+1. **Now playing**: the track's name, the list it came from (*From: Music*, *From: Soundtrack › Tavern*), the **Position** bar and the time.
+2. For the game master, the buttons: **Previous track**, **Pause** / **Resume**, **Next track**, **Stop** and **Loop** — one click loops **this track**; the second, **the list**; the third turns it off. And the **Table volume**, everyone's at once.
+3. For everyone: **Your volume**, **Mute** and **Follow the table** (see below).
+4. **Filter tracks**: type part of a name (accents and capitals do not matter) and only the tracks that match stay.
+5. **Up next**: the list the playing track came from, with it marked; it is what **Next** and **Previous** walk.
+6. **Folders**: **every folder that holds sound files is a list**, with nothing to set up. Put your MP3s in a `Music` folder and it shows here.
+7. **Playlists**: **every note with sound links is a playlist**, one block per heading (see below).
+
+A click on a track plays it for everyone — for the game master only. Players see the same lists, with no play button: *Only the game master plays and changes the tracks; you control your own volume.* The server refuses the command of anyone who is not the game master, whatever their window shows. With no sound file in the folder, the tab says how to begin.
 
 ---
 
-## A note is the soundboard
+## In the Table tab: one row only
 
-Nothing special is needed: **any link to a sound file in a note gets a play button** beside it, for the game master. The heading above a list of such links is a **scene**, and **Next** and **Previous** walk it. Try it with the two sample tracks that come with this tutorial:
+While something plays, the **Table** tab shows **one slim row** at its top: the track's name and, for the game master, **Previous track**, **Pause** and **Next track**; for everyone, **Volume**, which opens your volume and **Mute**. A click on the name opens the Music tab. When nothing plays, the row goes and the chat has all the room.
+
+---
+
+## A note is a playlist
+
+Nothing special is needed: **any link to a sound file in a note gets a play button** beside it, for the game master, and the note shows under **Playlists**. The heading above a list of such links is a **scene**, and **Next** and **Previous** walk it. Try it with the two sample tracks that come with this tutorial:
 
 ### Tavern
 
@@ -49,7 +57,7 @@ Nothing special is needed: **any link to a sound file in a note gets a play butt
 
 - [[assets/sons/estrada.mp3|The road, again]]
 
-Press the button beside **The tavern**: the track plays, and **Next track of the scene** goes to **The road**. At the end of the scene, Next is greyed out; with **Loop: the scene**, it goes back to the first. When a track ends without looping, the game master's window plays the next of the scene, or stops.
+Press the button beside **The tavern**: the track plays, *From: 36 - Sound and Music at the Table › Tavern*, and **Next track** goes to **The road**. At the end of the list, Next is greyed out; with **Loop: the list**, it goes back to the first. When a track ends without looping, the game master's window plays the next of the list, or stops.
 
 In Obsidian, this same note is an ordinary list of links: no new code, nothing Obsidian does not read.
 
@@ -69,7 +77,7 @@ None of it is sent to anyone.
 
 ## Who hears: whoever sees the file
 
-At a table, every file starts **hidden** until the game master releases it ([[32 - Running a Table]]), and the music follows the same rule: **whoever sees the file hears it**. A player who does not see it is told only that *a track you do not see* is playing — not even its name reaches them, nor its bytes.
+At a table, every file starts **hidden** until the game master releases it ([[32 - Running a Table]]), and the music follows the same rule: **whoever sees the file hears it**. A player who does not see it is told only that *a track you do not see* is playing, and why — not even its name reaches them, nor its bytes.
 
 When the game master plays a file some players do not see, Verso asks first, with the names: *"2 players do not see this file (Ana, Bruno). Release it to the table and play?"*
 
@@ -77,7 +85,7 @@ When the game master plays a file some players do not see, Verso asks first, wit
 - **Play without them** plays it, and whoever does not see it does not hear it;
 - **Cancel** plays nothing.
 
-While it plays, the top of the game master's panel says who is not hearing. To release a whole folder of music at once, right-click the folder › **Access…** › *Whole table: sees*; from then on every new file in it is seen as it arrives.
+While it plays, the game master's Music tab says who is not hearing. To release a whole folder of music at once, right-click the folder › **Access…** › *Whole table: sees*; from then on every new file in it is seen as it arrives.
 
 ---
 
@@ -95,15 +103,15 @@ If the game master closes their window, **the music goes on** for the others; it
 
 ---
 
-## With the panel closed
+## With the tabs closed
 
-While something plays and the **Table** panel is not on screen, the status bar shows a small music note with the track's name; a click opens the panel. On a phone, the player is the first row of the Table's sheet, with every button.
+While something plays and neither the **Table** nor the **Music** tab is on screen, the status bar shows a small music note with the track's name; a click opens the Music tab.
 
 ---
 
 ## Alone, with no table
 
-In a folder of this computer alone there is no table, but the player works the same way, **for you only**: the panel says *In this window only: the folder has no table*, and nothing is sent to anyone.
+In a folder of this computer alone there is no table, but the Music tab works the same way, **for you only**: it says *In this window only: the folder has no table*, and nothing is sent to anyone.
 
 ---
 

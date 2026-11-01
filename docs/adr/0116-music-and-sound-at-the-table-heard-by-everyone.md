@@ -727,10 +727,36 @@ Q8 (a), Q9 (a).
 | Q3 | Bytes of a file to a player who does not see it | (a) `may(See)` only: the master releases the file or folder, asked at play time; (b) a *hear-only* lease while it plays | **(a)**: one model (0113 item 1); (b) is a second door and a leak by the reviews' rule |
 | Q4 | The ambience layer in V1 | (a) one file channel *Music* plus the live share in V1; *Ambience* (a loop under the music), crossfade and one-shot effects after — the author's reading of "later polish", the contract already carrying the list of channels; (b) *Music* and *Ambience* in V1 (about two more days; the share can play under either) | **(a)**, unless *"tudo"* includes the layer — then (b) |
 | Q5 | The soundboard | (a) a play button on any audio link in a note, headings as scenes, next/previous over the scene; (b) a `soundboard` fenced block with a grammar; (c) a `.base` | **(a)** |
-| Q6 | Where the player lives | (a) a strip at the top of the Table panel plus a status-bar item when closed (phone: first row of the sheet); (b) a floating mini-player; (c) status bar only | **(a)** |
+| Q6 | Where the player lives | (a) a strip at the top of the Table panel plus a status-bar item when closed (phone: first row of the sheet); (b) a floating mini-player; (c) status bar only | **(a)** — **replaced** by the amendment below (a Music tab of its own, one slim row in the Table tab) |
 | Q7 | The switch | (a) its own switch *Table sound*, on by default where the Table is on; (b) part of the Table's switch | **(a)**: 0103 item 1 |
 | Q8 | The master's window closes (file mode) | (a) the music goes on; the state is the server's until stopped or the table empties; (b) it stops | **(a)**; a live share necessarily ends with its sharer's connection |
 | Q9 | `unsafe` for Windows process capture, if no safe wrapper crate exists | (a) a second declared exception beside `web_clip`: `app/src-tauri/src/audio_share/{macos,windows,linux}.rs` with `SAFETY:` comments, listed in `CLAUDE.md` §3 and `check-unsafe.mjs`; (b) no process capture on Windows — device loopback (everything) only; (c) a wrapper crate of our own in a separate repository | **(a)**, with the PR showing first that no safe wrapper serves; (c) is the zero-bypass rule broken by another name; (b) loses the one-application share on Windows |
+
+### Amendment (2026-10-31): the player gets a tab of its own
+
+The maintainer, in chat, on the first build of phase 1 (the strip at the top
+of the Table panel), in pt-BR: *"curti muito não, crie uma aba nova so para
+musica, ai vai poder ter playlists ou listas de pastas com as musicas e tal.
+na aba de chat pode até ter algum bem simples de player com volume avançar e
+voltar e pause, estou com receio de ocupar de mais espaço com isso,
+especialmente no celular. de toda forma, UX na veia"* (didn't like it much;
+make a new tab just for music, where there can be playlists or lists of
+folders with the music and so on; in the chat tab at most a very simple
+player with volume, next, previous and pause; worried about it taking too
+much space, especially on the phone; in any case, UX first). This **replaces
+Q6 (a)** and item 24's "a compact strip at the top of the Table panel":
+
+- a right-panel tab **Música** / **Music**, beside the Table's, where the
+  *Table sound* switch is on (on a phone, the panel's sheet): now playing,
+  the queue, the libraries — every folder that holds sound files is a list,
+  with nothing to set up; every note that links sound files is a playlist,
+  its headings the scenes (Q5 (a) unchanged) — and a filter;
+- in the Table (chat) tab, only a one-row mini-player while something plays:
+  the name, previous, play/pause, next and a volume control;
+- the status-bar item stays, shown while neither tab is on screen.
+
+Only the game master controls, each person their own volume (item 6,
+unchanged).
 
 ### As built (phase 1, 2026-10-31)
 
@@ -769,10 +795,24 @@ decided that the record leaves open.
 - *The element* (item 12): one `<audio>` (`sound/player.ts`, a lazy chunk,
   item 30), through a GainNode on the dice's audio context when the file is
   of the page's origin (`/f/`; iOS), through `volume` otherwise.
-- *The player* (items 24–26, Q6 a): the strip at the top of the Table panel
-  (`sound/strip.ts`), the first row of the phone's sheet; the status-bar
-  item; *Ouvir a mesa* / *Hear the table*; a polite region; named controls;
-  ranges with their text; 40 px targets on a phone.
+- *The player* (items 24–26, as amended above): the **Music tab**
+  (`sound/tab.ts`, `sound/library.ts`): *Tocando agora* / *Now playing* (the
+  track, *De:* / *From:* the list it came from, the position; the game
+  master's previous, play/pause, next, stop, loop — the track, then the
+  list — and the table's volume; everyone's own volume, mute and *Follow the
+  table*), *Filtrar músicas* / *Filter tracks* (words, accents and case
+  aside), *Na fila* / *Up next* (the list the track came from), *Pastas* /
+  *Folders* (a list per folder of sound files) and *Playlists* (the notes
+  that link sound files, found by the files' backlinks and the note open
+  now, a list per heading); on a phone a sheet, 44 px targets. The **Table
+  tab's mini-player** (`sound/mini.ts`): one row of 32 px (40 on a phone),
+  only while something plays — the name (it opens the Music tab), the game
+  master's previous, play/pause and next, and *Volume*, a popover with the
+  person's own volume and mute (Escape and a click outside close it). The
+  status-bar item (`sound/status.ts`) opens the Music tab. *Ouvir a mesa* /
+  *Hear the table* takes the focus when it appears; a polite region; named
+  controls; ranges with their text. A refusal is said in the window's
+  language (`sound/words.ts`), never the server's English.
 - *The soundboard* (item 15, Q5 a): a play button after every link or embed
   of a sound file in the reading view (wikilinks, embeds, Markdown links)
   and after every wikilink in Live Preview; scenes by heading
@@ -810,12 +850,22 @@ decided that the record leaves open.
 - *The length* is told by the game master's window once its element reads
   it (`wish: "duration"`), so a play needs no probe first.
 - *The status item* has no red dot: there is no share in phase 1.
+- *Next and previous* walk the list the track came from — a note's scene, or
+  a folder's list in the Music tab; a track played from *Play a file…* has
+  none.
+- *A player's view of a hidden file* (the amendment's "greyed, with why"):
+  a player's library lists only what the veil lets them see, so a hidden
+  file is never listed; the one that plays is named *a track you do not
+  see*, in italics, with the sentence why. The game master's library marks
+  no per-file audience (it would cost an access read per file); the release
+  question names who does not see the file at play time.
 - *The desktop's `verso://`* adds no `Access-Control-Allow-Origin`: the
   desktop uses `volume`, as item 12 allows.
 
 **Not built in phase 1.** Section B (the live share: capture, Opus, the
 relay, the WASM decoder, the picker, `Can::AudioShare`, the responsibility
-line, the TCC prompt) — the contract leaves room for it: a share is its own
+line, the TCC prompt; the Music tab's empty state will lead to *Share
+audio…* there, and no button for it is drawn now) — the contract leaves room for it: a share is its own
 event beside `table-playback`, and `PlaybackSource.kind` tells a file from
 anything else. The measurements of item 28 on VM 107 and `server-install.md`
 §15. The manual checks of section E on the real engines and phones
