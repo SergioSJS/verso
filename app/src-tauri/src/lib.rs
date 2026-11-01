@@ -901,6 +901,7 @@ macro_rules! commands_for {
                 table::table_cannot_play,
                 table::table_share_start,
                 table::table_share_stop,
+                table::table_share_listen,
                 audio_share::audio_sources_list,
                 audio_share::audio_share_start,
                 audio_share::audio_share_stop,
@@ -1023,6 +1024,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::TableRemoved>()
             .typ::<verso_contract::TableCleared>()
             .typ::<verso_contract::AudioShareStopped>()
+            .typ::<verso_contract::AudioShareBehind>()
             .typ::<verso_contract::CampaignChanged>()
             .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()

@@ -163,6 +163,7 @@
     "allow-table-cannot-play",
     "allow-table-share-start",
     "allow-table-share-stop",
+    "allow-table-share-listen",
     "allow-audio-sources-list",
     "allow-audio-share-start",
     "allow-audio-share-stop",
