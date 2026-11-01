@@ -850,6 +850,13 @@ decided that the record leaves open.
 - *The length* is told by the game master's window once its element reads
   it (`wish: "duration"`), so a play needs no probe first.
 - *The status item* has no red dot: there is no share in phase 1.
+- *The right panel's bar* holds eight tabs now: a bar a little short draws
+  them 2rem wide (`tabStrip.ts`, `.compact`) before any leaves for the "⋯",
+  so the Table and Music tabs stay in the bar of a phone's and a tablet's
+  panel.
+- *The lesson's samples* are two CC0 loops by RandomMind (OpenGameArt),
+  embedded once (`demoVault.ts`, about 1 MB of base64), credited in the
+  lesson and Settings › Credits (`docs/reference/demo-vault-sounds.md`).
 - *Next and previous* walk the list the track came from — a note's scene, or
   a folder's list in the Music tab; a track played from *Play a file…* has
   none.
