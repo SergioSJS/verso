@@ -168,6 +168,10 @@ gtk = "0.18"
 webkit2gtk = { version = "2", features = ["v2_20"] }
 
 [dev-dependencies]
+# The tests read back what a command wrote through the one crate that reads
+# a folder (ADR 0029: std::fs stays out of this crate, tests included). In
+# the tree already, under verso-core; it replaces nothing of ours.
+verso-fs = { path = "../../crates/verso-fs" }
 # The fakes of a WebDAV server and an S3 service the sync tests run against
 # (ADR 0104, Consequences: no test reaches a real provider).
 verso-cloud = { path = "../../crates/verso-cloud", features = ["fake"] }

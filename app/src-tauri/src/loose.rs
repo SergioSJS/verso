@@ -758,8 +758,15 @@ mod tests {
         // the loose window, and every kind it opens is in the list.
         let dir = tempfile::tempdir().unwrap();
         for ext in PICKER_EXTENSIONS {
-            let file = dir.path().join(format!("arquivo.{}", ext.to_uppercase()));
-            std::fs::write(&file, "x").unwrap();
+            let file = tempfile::Builder::new()
+                .prefix("arquivo")
+                .suffix(&format!(".{}", ext.to_uppercase()))
+                .rand_bytes(0)
+                .tempfile_in(dir.path())
+                .unwrap()
+                .into_temp_path()
+                .keep()
+                .unwrap();
             let kind = verso_core::kind_of(&file);
             assert!(
                 matches!(

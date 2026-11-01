@@ -6334,6 +6334,7 @@ dependencies = [
  "verso-cloud",
  "verso-contract",
  "verso-core",
+ "verso-fs",
  "verso-server",
  "verso-service",
  "webkit2gtk",

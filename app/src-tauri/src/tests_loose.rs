@@ -259,7 +259,14 @@ fn a_data_file_handed_opens_loose_and_is_read_and_written_as_text() {
     .unwrap();
     assert_eq!(written["path"], "Inventário.json");
     assert_eq!(
-        std::fs::read_to_string(dir.path().join("Inventário.json")).unwrap(),
+        {
+            // Read back through verso-fs, the one crate that reads a folder (ADR 0029).
+            let mut root = verso_fs::Root::open(dir.path(), Vec::new()).unwrap();
+            let handle = root
+                .handle(std::path::Path::new("Inventário.json"))
+                .unwrap();
+            String::from_utf8(root.read(handle).unwrap().0).unwrap()
+        },
         "{\"itens\": [1, 2, 3]}\n"
     );
     // Over the old revision: refused, nothing written (invariant 11).
@@ -298,9 +305,14 @@ fn a_data_file_handed_opens_loose_and_is_read_and_written_as_text() {
     let said = lock(&refused).clone();
     assert!(said.len() == 1 && said[0].contains("\"other\""), "{said:?}");
     // Nothing beside the files but the files.
-    let mut names: Vec<String> = std::fs::read_dir(dir.path())
-        .unwrap()
-        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+    // Through verso-fs (ADR 0029): what the walk lists, and no temporary left.
+    let mut root = verso_fs::Root::open(dir.path(), Vec::new()).unwrap();
+    assert!(root.temporaries().unwrap().is_empty());
+    let mut names: Vec<String> = root
+        .walk()
+        .entries
+        .into_iter()
+        .map(|e| e.relative.to_string_lossy().into_owned())
         .collect();
     names.sort();
     assert_eq!(
