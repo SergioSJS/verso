@@ -917,7 +917,19 @@ bytes (item 9). A player at a table never receives the embed of a file they
 do not see: the server veils it to the locked placeholder *🔒 (ainda não
 revelado)* in the text it sends (`campaign_text.rs`), and a board's card of
 it to a locked card (`board_sight.rs`) — no name, no player, no request for
-its bytes (`e2e-server/audio-embed.spec.mjs`).
+its bytes (`e2e-server/audio-embed.spec.mjs`). Which files a player does
+not see is 0113's: an attachment with no access of its own follows the notes
+that embed it (K.3), so a sound file embedded in a note the players see is
+heard by them unless the game master hides it explicitly; the lesson says so.
+
+**A leak found and closed on the way (BLOCKING by the rule of 2026-10-24).**
+The server's answer to `links` for a player veiled only the links the index
+resolves — notes; an embed of an attachment the player does not see (a
+picture, a sound file) went through with its name, though the note's text
+had the placeholder. It is now reached as the text's veil reaches it
+(`campaign_serve.rs`, `fate`), and veiled the same; test
+`tests_campaign::a_link_or_embed_of_an_attachment_hidden_from_a_player_names_nothing_in_the_links_answer`,
+seen failing first.
 
 **At a table.** Whoever controls the table's music (the game master; alone
 in a folder of this computer, the person) gets **Tocar para a mesa** in the
