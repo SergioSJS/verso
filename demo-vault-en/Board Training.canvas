@@ -15,6 +15,7 @@
 		{"id":"l-mapas","type":"group","x":0,"y":4400,"width":1300,"height":900,"label":"13 · Maps"},
 		{"id":"l-paginas","type":"group","x":1500,"y":4400,"width":1300,"height":900,"label":"14 · Web pages"},
 		{"id":"l-dados","type":"group","x":3000,"y":4400,"width":1300,"height":900,"label":"15 · Data files"},
+		{"id":"l-som","type":"group","x":0,"y":5500,"width":1300,"height":900,"label":"16 · Sound on a card"},
 		{"id":"n-beta","type":"file","file":"projects/Project Beta.md","x":2220,"y":1270,"width":260,"height":300},
 		{"id":"n-pesquisa","type":"file","file":"projects/Research and Findings.md","x":2520,"y":1620,"width":260,"height":300},
 		{"id":"n-maca","type":"text","text":"🍎 Apple","x":3730,"y":1240,"width":180,"height":60,"color":"1"},
@@ -35,7 +36,8 @@
 			"height":420,
 			"verso":{"page":true}
 		},
-		{"id":"n-dados","type":"file","file":"Sample Data/campaign-npcs.json","x":3720,"y":4560,"width":540,"height":460}
+		{"id":"n-dados","type":"file","file":"Sample Data/campaign-npcs.json","x":3720,"y":4560,"width":540,"height":460},
+		{"id":"n-som","type":"file","file":"assets/sons/taverna.mp3","x":720,"y":5660,"width":420,"height":140}
 	],
 	"edges":[],
 	"verso":{
@@ -386,6 +388,29 @@
 				]
 			},
 			{"id":"d-dados-desafio-t","type":"text","x":3055,"y":5120,"width":550,"height":120,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-dados","text":"Challenge: switch the card to Diagram, enter it, drag the background to move the diagram and leave with Esc. Then go back to Text.","originalText":"Challenge: switch the card to Diagram, enter it, drag the background to move the diagram and leave with Esc. Then go back to Text.","fontSize":24,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-dados-desafio","lineHeight":1.25},
+			{"id":"d-som-titulo","type":"text","x":40,"y":5536,"width":411.4,"height":55,"strokeColor":"#0c8599","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-som","text":"🎵 Sound on a card","originalText":"🎵 Sound on a card","fontSize":44,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-som-texto","type":"text","x":40,"y":5620,"width":580,"height":453.6,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-som","text":"A sound file of the folder — MP3, M4A, AAC, OGG, WAV or FLAC — is a card with a player.\n• Drag the file from the tree onto the board, or use Note or file of the folder…; a sound file dragged from the computer goes into the folder and becomes the card.\n• Play, Pause, the bar with the time, Mute and the Volume work right on the card, without entering it. It plays for you only.\n• The card moves by its header or its edges, and resizes like the others.\n• At a table, the game master has Play for the table: the track goes to the Music tab and everyone hears it (note 36).","originalText":"A sound file of the folder — MP3, M4A, AAC, OGG, WAV or FLAC — is a card with a player.\n• Drag the file from the tree onto the board, or use Note or file of the folder…; a sound file dragged from the computer goes into the folder and becomes the card.\n• Play, Pause, the bar with the time, Mute and the Volume work right on the card, without entering it. It plays for you only.\n• The card moves by its header or its edges, and resizes like the others.\n• At a table, the game master has Play for the table: the track goes to the Music tab and everyone hears it (note 36).","fontSize":24,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
+			{
+				"id":"d-som-desafio",
+				"type":"rectangle",
+				"x":40,
+				"y":6200,
+				"width":580,
+				"height":160,
+				"strokeColor":"#f08c00",
+				"backgroundColor":"#ffec99",
+				"fillStyle":"solid",
+				"strokeWidth":1,
+				"strokeStyle":"solid",
+				"roughness":1,
+				"opacity":100,
+				"roundness":{"type":3},
+				"frameId":"l-som",
+				"boundElements":[
+					{"id":"d-som-desafio-t","type":"text"}
+				]
+			},
+			{"id":"d-som-desafio-t","type":"text","x":55,"y":6235,"width":550,"height":90,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-som","text":"Challenge: play the track, drag the bar to the middle and mute it. Then make the card bigger by its corner.","originalText":"Challenge: play the track, drag the bar to the middle and mute it. Then make the card bigger by its corner.","fontSize":24,"fontFamily":5,"textAlign":"center","verticalAlign":"middle","containerId":"d-som-desafio","lineHeight":1.25},
 			{"id":"d-titulo","type":"text","x":0,"y":-560,"width":924,"height":150,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"Board Training","originalText":"Board Training","fontSize":120,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-sub","type":"text","x":6,"y":-390,"width":1298,"height":50,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"Excalidraw lessons: read on the left, practice on the right","originalText":"Excalidraw lessons: read on the left, practice on the right","fontSize":40,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-como","type":"text","x":1800,"y":-560,"width":1500,"height":75.6,"strokeColor":"#343a40","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"Each frame is a lesson. This board is yours to mess up: ⌘Z undoes and ⌘⇧Z redoes.\nTo go to a lesson, open the Outline, at the top right, and click it. ⇧1 shows everything again.","originalText":"Each frame is a lesson. This board is yours to mess up: ⌘Z undoes and ⌘⇧Z redoes.\nTo go to a lesson, open the Outline, at the top right, and click it. ⇧1 shows everything again.","fontSize":28,"fontFamily":6,"textAlign":"left","verticalAlign":"top","lineHeight":1.35,"autoResize":false},
@@ -1119,9 +1144,11 @@
 			{"id":"d-pag-nota","type":"text","x":2220,"y":5030,"width":554.4,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-paginas","text":"swap the address for a site of yours","originalText":"swap the address for a site of yours","fontSize":28,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-dad-w","type":"text","x":3720,"y":4480,"width":369.6,"height":40,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-dados","text":"a data file on a card","originalText":"a data file on a card","fontSize":32,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-dad-nota","type":"text","x":3720,"y":5070,"width":569.8,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-dados","text":"swap the file for another: Swap file…","originalText":"swap the file for another: Swap file…","fontSize":28,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-som-w","type":"text","x":720,"y":5580,"width":387.2,"height":40,"strokeColor":"#868e96","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-som","text":"a sound file on a card","originalText":"a sound file on a card","fontSize":32,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-som-nota","type":"text","x":720,"y":5850,"width":877.8,"height":35,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-som","text":"put another: drag estrada.mp3 from the folder assets/sons","originalText":"put another: drag estrada.mp3 from the folder assets/sons","fontSize":28,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
 			{"id":"d-tesouro","type":"text","x":4140,"y":790,"width":96.8,"height":20,"strokeColor":"#e67700","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"frameId":"l-desenhar","text":"🗝️ treasure","originalText":"🗝️ treasure","fontSize":16,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
-			{"id":"d-estrela","type":"text","x":4420,"y":5360,"width":44,"height":100,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"⭐","originalText":"⭐","fontSize":80,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
-			{"id":"d-estrela-w","type":"text","x":4530,"y":5385,"width":217.8,"height":45,"strokeColor":"#e8590c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"found it! 🎉","originalText":"found it! 🎉","fontSize":36,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25}
+			{"id":"d-estrela","type":"text","x":4420,"y":6460,"width":44,"height":100,"strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"⭐","originalText":"⭐","fontSize":80,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25},
+			{"id":"d-estrela-w","type":"text","x":4530,"y":6485,"width":217.8,"height":45,"strokeColor":"#e8590c","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,"strokeStyle":"solid","roughness":1,"opacity":100,"text":"found it! 🎉","originalText":"found it! 🎉","fontSize":36,"fontFamily":5,"textAlign":"left","verticalAlign":"top","lineHeight":1.25}
 		]
 	}
 }

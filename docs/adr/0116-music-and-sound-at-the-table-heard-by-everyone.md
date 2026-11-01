@@ -879,3 +879,78 @@ event beside `table-playback`, and `PlaybackSource.kind` tells a file from
 anything else. The measurements of item 28 on VM 107 and `server-install.md`
 §15. The manual checks of section E on the real engines and phones
 (`docs/reference/manual-checks.md`).
+
+### Amendment (2026-11-01): audio embeds with a player, in notes and on boards
+
+The maintainer, in chat, on 2026-11-01, in pt-BR: *"seria massa ser
+possível embedar música em notas e em boards, sendo possível ter o player e
+tal"* (it would be great to embed music in notes and on boards, with the
+player and so on), with his standing ask for this feature: *"UX na veia"*
+(UX first). Built the same day on the branch of this amendment; what the
+maintainer did not say is marked **the build's choice**, for him to confirm.
+
+**What it is.** An embed of a sound file — `![[taverna.mp3]]`, and the
+Markdown embed `![](sons/taverna.mp3)` (spec Q20: `![](…)` is an embed) —
+of the extensions the table plays (`mp3 m4a aac ogg oga opus wav flac`) is
+drawn as a **player**, in the reading view and in Live Preview (the caret
+inside the embed shows its text, as for a picture; Source mode shows the
+text). Obsidian draws an audio embed as a player: this is compatibility, not
+an extension (invariant 12). Rendering only: the parser, the index and the
+note's text are untouched; no fixture is added or changed (invariants 7, 14).
+
+**The player** (`app/ui/src/audio/`), Verso's look, not the engine's
+controls: play/pause; a bar with the position and the length (`0:12 / 1:23`,
+`aria-valuetext` *"0:12 de 1:23"*); **Silenciar** and **Volume** — the
+person's own, kept on this device (`verso:audio-embed`), never sent, the same
+for every embed; the file's name, which opens it (beside with ⌘/Ctrl) in a tab
+of its own that is the same player (`leaves/audio.ts`; a sound file opened
+from the tree too, where a text tab could only say it is not text). A
+named group, named buttons and ranges, the keyboard's own (Tab, Space,
+arrows); both themes from the tokens; on touch every control 44 px and the
+volume range not drawn — the device's buttons are the volume, and iOS keeps
+an element's `volume` read-only (item 12) — while mute stays. A format the
+engine refuses says so in the player (item 13's words).
+
+**It plays for this person only**, from the file's own address (`/f/` on a
+server, `verso://` on the desktop): the server's access rules decide the
+bytes (item 9). A player at a table never receives the embed of a file they
+do not see: the server veils it to the locked placeholder *🔒 (ainda não
+revelado)* in the text it sends (`campaign_text.rs`), and a board's card of
+it to a locked card (`board_sight.rs`) — no name, no player, no request for
+its bytes (`e2e-server/audio-embed.spec.mjs`).
+
+**At a table.** Whoever controls the table's music (the game master; alone
+in a folder of this computer, the person) gets **Tocar para a mesa** in the
+player — the soundboard's play button of item 15 (`playForTable`): the same
+`may(Play)`, the scene of the heading above, the release question for a file
+some players do not see. Alone, it reads **Tocar na aba Música**. The
+soundboard's separate play button is not drawn beside an embed any more: the
+player holds it.
+
+**A local embed and the table's music — the build's choice.** They do not
+fight unseen: (a) an embed started while the table's music is heard
+**lowers the table's music to a quarter** of its gain (`DUCK`, never
+silenced: the table is still there) until the embed stops, and the player
+says *"A música da mesa fica mais baixa enquanto isto toca."*; (b) the
+table's music **starting** — played, resumed, another track; not a seek or
+the table's volume — **pauses** the embed, which says *"Pausado: a música da
+mesa começou."*; (c) **one embed at a time**: starting one pauses the
+others. Pure rules in `audio/state.ts`, tested.
+
+**Drawn again, the sound goes on.** A note's block or a card drawn anew (a
+save, a change from elsewhere, Reading ↔ Editar) hands the playing element
+to the fresh player of the same file shown in its place; one whose player
+left the page and found none stops after about 1.5 s (a tab in the
+background plays on).
+
+**On a board** a sound file's card is the same player under the card's head
+(which names the file), 380 × 132 when put there, resized like any card; its
+buttons and sliders are pressed and dragged through the board
+(`useCardButtons`), so the card does not have to be entered and the rest of
+it still moves the card. A sound file dragged from the computer is taken like
+a picture or a PDF (saved in the folder, or by the server for a player,
+`table_attach` already accepts audio). The same in edit and view modes and in
+a shared board's room: the card is drawn from the node, nothing is sent.
+
+**Not built.** A media fragment (`#t=30`) is not read, and there is no
+volume per embed. No contract change.

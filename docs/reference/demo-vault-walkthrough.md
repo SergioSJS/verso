@@ -1832,3 +1832,16 @@ On a UniVerso folder made a table, with the game master's window (the desktop ap
 7. Close the master's window: the music goes on for the player; the player reloads: it lands where it was. Everyone leaves and comes back: nothing plays. Level: A; E: `tests_table_sound.rs`.
 8. With both the Mesa and Música tabs closed, the status bar shows the note glyph and the track's name; a click opens Música. On a phone (390 × 844) Música is a sheet, every button 44 px and reachable. Level: A; E: `table-sound.spec.mjs` (`@layout`).
 9. A folder of this computer alone: the Música tab plays for this window and says *Só nesta janela: a pasta não tem mesa*. Level: A; E: `table-sound.spec.mjs`.
+
+## Audio embeds with a player (ADR 0116 amendment, notes 06 and 36, 2026-11-01)
+
+In either vault, in the desktop app and in a browser of a UniVerso folder:
+
+1. Open note 06, section *Som na Nota* / *Sound in the Note*: `![[assets/sons/taverna.mp3]]` is a player — a round play button, the file's name, `0:00 / 0:49`, the bar, **Silenciar** and **Volume**, and **Tocar na aba Música** (a folder of this computer) — not the engine's own controls. Play: the button becomes **Pausar**, the bar moves; drag it, or Tab to it and press the arrows. Level: A; E: `e2e/audio-embed.spec.mjs`.
+2. **Editar**: the player stands where the embed is written; put the caret inside `![[…]]` and the text shows. **Fonte**: only the text. Switch modes while it plays: the sound goes on in the player of the mode shown. The note's file is unchanged (`git diff` of the vault: nothing). Level: A; E: `audio-embed.spec.mjs`.
+3. Start the second sample (`![](assets/sons/estrada.mp3)` in note 06's list): the first pauses. **Silenciar** on one mutes both; the volume set on one is the other's too, and after a reload. Level: A; E: `audio-embed.spec.mjs`, `audioEmbed.test.mjs`.
+4. A click on the name **taverna.mp3** opens a tab of its own with the same player (so does the file in the tree). Level: A; E: `audio-embed.spec.mjs`.
+5. Training board, lesson **16 · Som num cartão**: the card is the player; play, drag the bar and mute right on the card without entering it; the card still moves by its head and resizes by its corner. Drag `estrada.mp3` from the tree, and an MP3 from Finder or Explorer: each becomes a card. Level: A; E: `audio-embed.spec.mjs` (the card, the bar dragged through the board).
+6. At a table, as the game master, note 36 *Um player na nota*: **Tocar para a mesa** plays it in the Music tab for everyone, from the scene above; a file some players do not see asks the release question. With the table's music playing, play an embed: the table's music goes lower and the player says so; play another track from the Music tab: the embed pauses with *Pausado: a música da mesa começou.* Level: A; E: `audio-embed.spec.mjs`.
+7. As a player of that table: an embed of a file you see plays for you alone, with no **Tocar para a mesa**; the embed of a hidden file is *🔒 (ainda não revelado)* and its board card is locked; the page holds no trace of its name. Level: A; E: `e2e-server/audio-embed.spec.mjs`.
+8. On a phone (390 × 844): every control of the player is 44 px, there is no volume slider (the phone's buttons), **Silenciar** works; the board's card plays from a tap. Level: A; E: `audio-embed.spec.mjs` (`@layout`).

@@ -328,6 +328,24 @@ const LESSONS = [
       b.write("d-dad-nota", x + 20, y + 610, "troque o arquivo por outro: Trocar arquivo…", { size: 28, color: INK, frame: f });
     },
   },
+  {
+    id: "som",
+    label: "16 · Som num cartão",
+    title: "🎵 Som num cartão",
+    color: TEAL,
+    text:
+      "Um arquivo de som da pasta — MP3, M4A, AAC, OGG, WAV ou FLAC — é um cartão com um player.\n" +
+      "• Arraste o arquivo da árvore para o board, ou use Nota ou arquivo da pasta…; um arquivo de som arrastado do computador entra na pasta e vira o cartão.\n" +
+      "• Tocar, Pausar, a barra com o tempo, Silenciar e o Volume funcionam direto no cartão, sem entrar nele. Toca só para você.\n" +
+      "• O cartão se move pelo cabeçalho ou pelas bordas, e se redimensiona como os outros.\n" +
+      "• Numa mesa, o mestre tem Tocar para a mesa: a faixa vai para a aba Música e todos ouvem (nota 36).",
+    challenge: "Desafio: toque a faixa, arraste a barra até a metade e silencie. Depois aumente o cartão pelo canto.",
+    practice(b, x, y, f) {
+      b.write("d-som-w", x + 20, y + 20, "um arquivo de som num cartão", { size: 32, color: GREY, frame: f });
+      b.file("n-som", "assets/sons/taverna.mp3", x + 20, y + 100, 420, 140);
+      b.write("d-som-nota", x + 20, y + 290, "ponha outro: arraste estrada.mp3 da pasta assets/sons", { size: 28, color: INK, frame: f });
+    },
+  },
 ];
 
 /** The board. */
