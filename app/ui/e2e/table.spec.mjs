@@ -320,6 +320,10 @@ for (const [name, others, falls] of [
     await app.open();
     await inRoom(app, page);
     await openNote(app);
+    // The window hears a room's rolls once it has joined the note's room (the
+    // listener is set up on the way, asynchronously): a roll the harness emits
+    // before that is lost, as on a loaded Mac (seen 3 in 10 runs, 2026-11-01).
+    await expect.poll(async () => (await app.calls("collab_join")).length).toBeGreaterThan(0);
     await page.evaluate((n) => window.__harness.rooms.roll(n, "Bia", "1d20+3", null, [14]), NOTE);
     // The line is on the table either way (the log is not the fall).
     const view = await openTable(page);

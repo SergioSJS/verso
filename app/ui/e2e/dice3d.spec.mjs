@@ -178,6 +178,9 @@ test("an exploding roll falls in 3D: the extra dice are thrown in waves, and the
       for (const r of records) if (r.attributeName === "data-die-widths") window.__widths = r.target.dataset.dieWidths;
     }).observe(document.body, { subtree: true, attributes: true });
   });
+  // The window hears a room's rolls once it has joined the note's room: a roll
+  // the harness emits before that is lost (a loaded Mac, 2026-11-01).
+  await expect.poll(async () => (await app.calls("collab_join")).length).toBeGreaterThan(0);
   await page.evaluate((n) => window.__harness.rooms.roll(n, "Bia", "3d6!", null, [6, 4, 1, 6, 2]), NOTE);
   await expect(page.locator(".dice-said")).toContainText("3d6!: 19");
   const c = canvas(page);
