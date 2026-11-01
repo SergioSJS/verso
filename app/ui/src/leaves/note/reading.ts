@@ -44,6 +44,7 @@ import { tableWidths, wireColumnGrips } from "../../tableWidths";
 import { currentFolder } from "../../folder";
 import { embeddedHtml } from "../../blockEmbed";
 import { diceBox, wireDice } from "../../dice/card";
+import { wireSound } from "../../table/sound/links";
 import { wireSwatches } from "../../colour/reading";
 import { fitWhenSizeless } from "../../imageFit";
 import { diagramLang, openBlockDiagram } from "../../datagraph/block";
@@ -546,6 +547,7 @@ export function paintBlocks(this: NoteLeaf, path: string, html: string, sig: str
   this.wireCodeBlocks(wrap);
   wireSwatches(wrap);
   wireDice(wrap, { path: () => this.path, follow: (target) => this.follow(target) });
+  wireSound(wrap, { path: () => this.path, text: () => this.note?.text ?? "" }, false);
   this.wirePreviewImages(wrap);
   this.wireHeadingFolds(wrap);
   this.wireListFolds(wrap);
@@ -611,6 +613,7 @@ export function paintWhole(this: NoteLeaf, path: string, html: string, sig: stri
   this.wireCodeBlocks(this.preview);
   wireSwatches(this.preview);
   wireDice(this.preview, { path: () => this.path, follow: (target) => this.follow(target) });
+  wireSound(this.preview, { path: () => this.path, text: () => this.note?.text ?? "" });
   this.wirePreviewImages(this.preview);
   this.wireHeadingFolds(this.preview);
   this.wireListFolds(this.preview);

@@ -37,6 +37,7 @@ import { openCampaignDialog } from "../campaignDialog";
 import { cp } from "../campaignStrings";
 import { mayShare } from "../shares";
 import { gate } from "../panel/gate";
+import { SoundStrip } from "./sound/strip";
 
 /** A colour as the server checked it (`#rrggbb`), or none: nothing else reaches a style. */
 const safeColour = (c: string): string => (/^#[0-9a-f]{6}$/i.test(c) ? c : "");
@@ -121,6 +122,8 @@ class TableView {
   private readonly pinList = h("ul", "table-pin-list");
   private readonly older = button("ghost table-older", tt.older);
   private readonly compose = new Compose();
+  /** The table's music, the panel's first row (ADR 0116 item 24). */
+  private readonly sound = new SoundStrip();
   private readonly note = h("p", "table-note");
   private readonly make = h("div", "table-make");
   private readonly hiddenLine = h("p", "table-hidden");
@@ -173,7 +176,7 @@ class TableView {
     this.title.hidden = true;
     this.choose.hidden = true;
     this.head.append(this.title, this.top);
-    this.el.append(this.head, this.choose, this.note, this.make, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
+    this.el.append(this.sound.el, this.head, this.choose, this.note, this.make, this.hiddenLine, this.pins, this.older, this.list, this.toEnd, this.said, this.compose.el);
     // Images pasted or dropped on the panel go to the table (a server's only).
     this.el.addEventListener("paste", (e) => {
       if (this.compose.takeTransfer(e.clipboardData)) e.preventDefault();

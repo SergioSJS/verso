@@ -128,6 +128,17 @@ const PATHS: Record<string, string> = {
   info: "M8 14.25a6.25 6.25 0 1 0 0-12.5 6.25 6.25 0 0 0 0 12.5zM8 7.25v4M8 4.9v.2",
   alert: "M8 14.25a6.25 6.25 0 1 0 0-12.5 6.25 6.25 0 0 0 0 12.5zM8 4.5v4.25M8 10.9v.2",
   history: "M2.5 8a5.5 5.5 0 1 0 1.6-3.9M2.5 2.5v2.5H5M8 5v3l2 1.5",
+  // The table's music (ADR 0116).
+  play: "M5 3.5v9l7-4.5z",
+  pause: "M5 3.5v9M11 3.5v9",
+  stop: "M4 4h8v8H4z",
+  skipBack: "M4 3.5v9M12 3.5v9L6 8z",
+  skipForward: "M12 3.5v9M4 3.5v9L10 8z",
+  repeat: "M3 7V6a2 2 0 0 1 2-2h7.5M10.5 2l2 2-2 2M13 9v1a2 2 0 0 1-2 2H3.5M5.5 14l-2-2 2-2",
+  repeatOne: "M3 7V6a2 2 0 0 1 2-2h7.5M10.5 2l2 2-2 2M13 9v1a2 2 0 0 1-2 2H3.5M5.5 14l-2-2 2-2M8 6.5v3",
+  volume: "M2.5 6h2.5L8.5 3v10L5 10H2.5zM10.5 5.5a3.5 3.5 0 0 1 0 5M12 3.5a6 6 0 0 1 0 9",
+  volumeOff: "M2.5 6h2.5L8.5 3v10L5 10H2.5zM10.5 6l3 4M13.5 6l-3 4",
+  music: "M6 12V3.5l7-1.5V10.5M6 12a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 6 12zM13 10.5a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0z",
 };
 
 /** A decorative line icon drawn by CSS — a mask over the text color — not

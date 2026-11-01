@@ -198,7 +198,7 @@ describe("Features switches (ADR 0103)", () => {
     m.settings.features = { ...allOn(), oracles: false };
     const toWriting = shortcutChanges("writing");
     assert.equal(toWriting.on.length, 0);
-    assert.equal(toWriting.off.length, 7);
+    assert.equal(toWriting.off.length, 8);
     const toAll = shortcutChanges("everything");
     assert.equal(toAll.on.length, 1);
     assert.equal(toAll.off.length, 0);

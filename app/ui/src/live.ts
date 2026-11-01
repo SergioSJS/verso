@@ -80,6 +80,8 @@ export type LiveOptions = {
   roll?: { resolve: (target: string, from: string) => string | null; open: (path: string) => void };
   /** A `dice:` code drawn as its die (ADR 0088), or null. */
   dice?: (code: string, occ?: number) => WidgetType | null;
+  /** The play button after a link to a sound file (ADR 0116 item 15), or null. */
+  sound?: (target: string, at: number) => WidgetType | null;
   /** The die a code's text names (its notation, or its table), or null when
    *  it is no die drawn here: identical dice are counted by it. */
   diceKey?: (code: string) => string | null;
@@ -529,6 +531,8 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         to: end,
         deco: Decoration.mark({ class: embed ? "cm-lp-wikilink cm-lp-embed" : "cm-lp-wikilink", attributes: { "data-target": target } }),
       });
+      const play = opts.sound?.(target, start);
+      if (play) out.push({ from: end, to: end, deco: Decoration.widget({ widget: play, side: 1 }) });
       if (!shown) {
         // Hide "[[" (or "![["), the "target|" before an alias, and "]]".
         hide(start, start + (embed ? 3 : 2));

@@ -163,6 +163,14 @@ export class Table {
     return found;
   }
 
+  /** The table a command names, when the window is at it; refused otherwise (as `need`). */
+  at(table: unknown): string {
+    if (!this.up) refuse("the table is a server's; a folder of this computer alone has none");
+    const root = this.named(table);
+    if (!this.slot(root).joined) refuse("join the table first");
+    return root;
+  }
+
   private slot(root: string): Slot {
     let s = this.slots.get(root);
     if (!s) this.slots.set(root, (s = { log: [], joined: false, others: new Map(), roles: new Map() }));

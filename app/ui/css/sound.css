@@ -1,0 +1,39 @@
+/* The table's music (ADR 0116 item 24): a strip at the top of the Table panel, the first row of the phone's sheet. */
+.table-sound { flex: none; display: flex; flex-direction: column; gap: .25rem; padding: .3rem .4rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2, var(--paper)); font-size: .8rem; color: var(--ink-2); min-width: 0; }
+.table-sound[hidden] { display: none; }
+.table-sound:focus { outline: none; }
+.table-sound-row, .table-sound-own { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .35rem; min-width: 0; }
+.table-sound-own[hidden] { display: none; }
+.table-sound .iconic { width: 1.9rem; height: 1.9rem; min-width: 1.9rem; display: inline-grid; place-items: center; padding: 0; border-radius: 6px; }
+.table-sound .iconic[aria-pressed="true"] { color: var(--seal); background: var(--seal-wash); }
+.table-sound .iconic:disabled { opacity: .4; }
+.table-sound-name { flex: 1 1 6rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 600; }
+.table-sound-time { flex: none; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+.table-sound-bar { flex: 1 0 100%; min-width: 0; margin: 0; accent-color: var(--seal); }
+.table-sound-master, .table-sound-volume { flex: 1 1 5rem; min-width: 4rem; max-width: 9rem; accent-color: var(--seal); }
+.table-sound-label { color: var(--ink-3); font-size: .74rem; }
+.table-sound-follow-box { display: inline-flex; align-items: center; gap: .25rem; margin-left: auto; }
+.table-sound-notes:empty { display: none; }
+.table-sound-note { margin: 0; color: var(--ink-3); font-size: .74rem; }
+.table-sound-note.quiet { font-style: italic; }
+.table-sound-nothing { color: var(--ink-3); }
+.table-sound-hear { align-self: flex-start; }
+.table-sound-pick-button { display: inline-flex; align-items: center; gap: .35rem; }
+/* The play button beside a sound link in a note (item 15). */
+.table-sound-play { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; min-width: 1.5em; padding: 0; margin: 0 .15em; vertical-align: -.25em; border-radius: 50%; color: var(--seal); }
+.table-sound-play:hover { background: var(--seal-wash); }
+/* "Play a file…": the folder's sound files. */
+.table-sound-pick { max-height: min(70vh, 32rem); display: flex; flex-direction: column; }
+.table-sound-pick h2 { margin: 0 0 .5rem; font-size: 1rem; }
+.table-sound-pick-list { list-style: none; margin: 0; padding: 0; overflow: auto; min-height: 0; }
+.table-sound-pick-item { display: block; width: 100%; text-align: left; padding: .45rem .6rem; }
+/* The status bar's item while the panel is closed. */
+.status-sound { flex: 0 1 auto; display: inline-flex; align-items: center; gap: .3rem; min-width: 0; max-width: 14rem; padding: .1rem .4rem; font: inherit; color: var(--ink-2); }
+.status-sound[hidden] { display: none; }
+.status-sound-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) {
+  /* A phone: every control 40 px, nothing hidden (390 x 844). */
+  .table-sound .iconic { width: 40px; height: 40px; min-width: 40px; }
+  .table-sound-master, .table-sound-volume { flex: 1 1 6rem; max-width: none; }
+  .table-sound-play { width: 2.2em; height: 2.2em; min-width: 2.2em; }
+}

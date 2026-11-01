@@ -21,6 +21,7 @@ import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
 import { Table } from "./harness/table";
+import { TableSound } from "./harness/tableSound";
 import { Campaign } from "./harness/campaign";
 import { projectBoard } from "./harness/maps";
 import { Versions } from "./harness/history";
@@ -176,6 +177,7 @@ const rooms = onServer ? null : new Rooms(core);
 // The folder's table (ADR 0107): a server's, played here when a test says it
 // is up; it wraps the room's rolls, so it comes after the rooms.
 const table = onServer ? null : new Table(core);
+const tableSound = table ? new TableSound(core, table) : null;
 // A window on a server joins the table when a folder is shown; this harness does
 // not play that table, and answers as a side with none does.
 if (onServer)
@@ -197,7 +199,7 @@ if (table) table.roots = () => (campaign.up ? campaign.tables.map((t) => t.root)
 if (table) table.mayImage = (root) => campaign.up && campaign.viewer === "player" && campaign.rightFor(root, "images");
 if (table) table.mayFile = (root) => campaign.up && campaign.viewer === "player" && campaign.rightFor(root, "files");
 campaign.linked = link;
-for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_invite", "access_get", "access_set", "table_rights_set"]) {
+for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "table_play", "table_sound", "table_time", "table_cannot_play", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_invite", "access_get", "access_set", "table_rights_set"]) {
   const own = core.handlers[cmd];
   if (!own) continue;
   const linked = (a: Parameters<typeof own>[0]) => {
@@ -369,6 +371,8 @@ const harness = {
   rooms,
   /** The folder's table (ADR 0107): the server's commands and events, played in the page. */
   table,
+  /** The table's music (ADR 0116): what the window's person sees, the game master's plays. */
+  tableSound,
   /** A table is a campaign folder (ADR 0110): the server's state and commands, played in the page. */
   campaign,
   /** The files' version histories (ADR 0091). */
