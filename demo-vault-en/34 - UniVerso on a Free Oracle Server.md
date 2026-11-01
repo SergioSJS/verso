@@ -97,4 +97,4 @@ In the phone's browser, open the `https://…` address the installer printed, si
 > [!NOTE] Oracle may take the machine back
 > A free machine that Oracle judges idle (low CPU, network and memory use over seven days) may be reclaimed by it. A notes server for a few people can look idle: **keep backups off the machine**.
 
-Go back to [[33 - Open a Single File]]. For what to do with the server up, see [[23 - Verso on a Server]]; for the game table, [[32 - Running a Table]]. Go back to the [[00 - Welcome to Verso|Home Page]] or open the [[Verso Tour.canvas|Verso Tour]].
+Go on to [[36 - Sound and Music at the Table]], or back to [[33 - Open a Single File]]. For what to do with the server up, see [[23 - Verso on a Server]]; for the game table, [[32 - Running a Table]]. Go back to the [[00 - Welcome to Verso|Home Page]] or open the [[Verso Tour.canvas|Verso Tour]].

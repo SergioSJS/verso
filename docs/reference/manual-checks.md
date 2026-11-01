@@ -1388,3 +1388,14 @@ them; if they still happen, a step that makes them happen is enough.
 - [ ] The container's memory limit (B9) on a real 1 GB server: `docker stats universo` shows a limit of 768 MiB; send a note far bigger than that and see the container restart by itself while the machine and its SSH session stay up.
 - [ ] The trash's size cap (B11) on a real server: with `VERSO_TRASH_MAX=50MB`, delete a few large files from a desktop folder synced to it; the oldest leave the server's trash first, the folder's own files stay, and the console's folder page shows the trash under 50 MB.
 - [ ] The old-address page (B13) on a real server behind HTTPS: open its IP address from a phone and a computer, with the browser in Portuguese and in English; the right language is first, the link opens the HTTPS address, and the page reads well in dark mode and at 390 px. Say whether a screen reader reads the link.
+
+## Music at the table (ADR 0116 phase 1, 2026-10-31)
+
+On the real engines, which the harness's stubbed `play()` does not reach; a UniVerso table with the master in the desktop app and players in browsers and phones (note 36):
+
+1. **iOS volume** (A, iPhone Safari): the player's **Seu volume** and the master's **Volume da mesa** change the loudness (the GainNode path; `HTMLMediaElement.volume` is read-only on iOS). **Silenciar** silences; the side buttons still set the phone's own volume.
+2. **Autoplay** (A, each engine: WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux, Safari iOS, Chrome Android): a window that joins while a track plays either plays at once or shows **Ouvir a mesa** focused; one tap anywhere starts it at the others' point.
+3. **Formats** (A, the table of item 13): MP3, M4A (AAC), WAV, FLAC, OGG on each engine; one that refuses says *Esta janela não toca este formato…* and the master's strip names the person. On Linux, AAC in `.m4a` needs `gst-plugins-bad` or `gst-libav`: note what a plain Ubuntu desktop does.
+4. **Drift** (A): a 60-minute loop of a 3-minute track on two windows stays within a beat of each other (a clap test at the start and at the end); a reconnect of the player (Wi-Fi off and on) lands back in step.
+5. **The desktop's own files** (A, macOS / Windows): in a folder of this computer alone, a track plays from `verso://` (the element's volume, not the gain); in a synced folder at the server's table, the master's desktop plays the local copy.
+6. **The master's window closes** (A): the music goes on in the players' windows; the last window leaving ends it (a new join shows nothing playing).

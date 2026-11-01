@@ -685,7 +685,9 @@ streamed to the table — independent of the files**
 
 **Accepted** (2026-10-31; revised the same day). Items 1–6 are the
 maintainer's decisions; items 7–31 are the author's proposal, accepted with
-the nine questions below, decided as recommended. Nothing is built.
+the nine questions below, decided as recommended. Phase 1 (section A, the
+files, with the shared parts of C, D and E) is built: see *As built (phase
+1)* below. Section B, the live *Share audio*, is not.
 
 **Decided by the maintainer, 2026-10-31, in session**, on the first text and
 on the revision (in pt-BR):
@@ -729,3 +731,92 @@ Q8 (a), Q9 (a).
 | Q7 | The switch | (a) its own switch *Table sound*, on by default where the Table is on; (b) part of the Table's switch | **(a)**: 0103 item 1 |
 | Q8 | The master's window closes (file mode) | (a) the music goes on; the state is the server's until stopped or the table empties; (b) it stops | **(a)**; a live share necessarily ends with its sharer's connection |
 | Q9 | `unsafe` for Windows process capture, if no safe wrapper crate exists | (a) a second declared exception beside `web_clip`: `app/src-tauri/src/audio_share/{macos,windows,linux}.rs` with `SAFETY:` comments, listed in `CLAUDE.md` §3 and `check-unsafe.mjs`; (b) no process capture on Windows — device loopback (everything) only; (c) a wrapper crate of our own in a separate repository | **(a)**, with the PR showing first that no safe wrapper serves; (c) is the zero-bypass rule broken by another name; (b) loses the one-application share on Windows |
+
+### As built (phase 1, 2026-10-31)
+
+Section A and what C, D and E say of it, on the branch of the 2026-10-31
+round. What differs from the text above is said, with why; nothing was
+decided that the record leaves open.
+
+**Built.**
+
+- *The state* (item 8): in the server's memory beside the roster
+  (`crates/verso-server/src/table_sound.rs`, `Server.sounds`), per table and
+  channel, never in the database or a file; dropped when the last window
+  leaves (`table.rs` `leave`); the game master's window closing does not stop
+  it (Q8 a). `TableJoin` gains `play` (`may(Play)`) and `playback`; the event
+  is `table-playback`. One channel, `music` (Q4 a); another is refused.
+- *The contract* (`crates/verso-contract/src/table.rs`): `TablePlayback`
+  { `table`, `channel`, `revision`, `source: { kind: "file", path } | null`,
+  `unseen`, `state` (`playing` | `paused` | `stopped`), `position_ms`,
+  `anchor_ms`, `master`, `looping`, `duration_ms`, `by`, `by_id`, `unheard`,
+  `cannot` }, `TablePlayed` { `playback`, `unheard` }, `TableTime`
+  { `now_ms` }. Four commands, in `build.rs` and `capabilities/default.json`;
+  a folder of this computer alone answers "no table".
+- *Who controls* (items 6, 22): `Action::Play` in `may()`, the game master's
+  whatever the credential, in the exhaustive vectors (`access-vectors.json`,
+  action `play`); a phone, never the owner, never controls (`local/allow.rs`:
+  the phones' list has the clock and the "cannot play" mark only).
+- *Who hears* (item 9, Q3 a): each window is told the state as its person
+  may know it, by `campaign_serve::is_hidden` — the judgement of `/f/`, no
+  second door: a player who does not see the file gets `source: null`,
+  `unseen: true`, no name; `/f/` still answers *not found*. Told again when
+  access changes (`campaign_cmds::refresh`). The game master is told
+  `unheard` (the table's players who do not see it) and `cannot`.
+- *The clock and the drift* (items 10, 11): `table_time`, eight samples at
+  the join and one a minute, the smallest round trip, the median of the best
+  half; 60 ms / 400 ms / 3 % in `app/ui/src/table/sound/sync.ts`.
+- *The element* (item 12): one `<audio>` (`sound/player.ts`, a lazy chunk,
+  item 30), through a GainNode on the dice's audio context when the file is
+  of the page's origin (`/f/`; iOS), through `volume` otherwise.
+- *The player* (items 24–26, Q6 a): the strip at the top of the Table panel
+  (`sound/strip.ts`), the first row of the phone's sheet; the status-bar
+  item; *Ouvir a mesa* / *Hear the table*; a polite region; named controls;
+  ranges with their text; 40 px targets on a phone.
+- *The soundboard* (item 15, Q5 a): a play button after every link or embed
+  of a sound file in the reading view (wikilinks, embeds, Markdown links)
+  and after every wikilink in Live Preview; scenes by heading
+  (`sound/scene.ts`).
+- *The switch* (item 27, Q7 a): *Som da mesa* / *Table sound*, in the RPG
+  group, on by default; off, nothing is drawn or loaded.
+- *Solo* (item 4): the window's own state (`localSound`), nothing sent.
+- *Bounds* (item 28): the controls paced as messages (`table_pace`), the
+  clock on its own key; a track is a path inside the folder ending in a
+  sound file's extension, never a URL; nothing of a track is logged.
+
+**Different from the text, and why.**
+
+- *The commands.* Item 8 names `table_play`, `table_pause`, `table_resume`,
+  `table_seek`, `table_stop`, `table_master`, `table_next` and
+  `table_previous`. Built: `table_play`, one `table_sound` for the changes
+  (`wish`: `pause`, `resume`, `seek`, `stop`, `master`, `loop`, `duration`,
+  with `value`), `table_time` and `table_cannot_play`. One command for the
+  changes keeps one revision check and one pace for all of them, and four
+  registrations instead of nine. **Next and previous are the game master's
+  window's**, over the scene of the note it played from, sent as a
+  `table_play`: a list kept by the server would hold the names of files the
+  players do not see, and the scene is a note only the master's window reads.
+- *The anchor* is `anchor_ms` (Unix milliseconds), not an RFC 3339 string:
+  the window's arithmetic is in milliseconds.
+- *The path* is relative to the folder the window opened (a share's root for
+  a window on a share), as `TableEntry.image` is, not to the table's root.
+- *The release question* (item 9) has three answers: **Liberar e tocar**
+  (the file's access set to *Whole table: sees*, `access_set`), **Tocar sem
+  eles** (it plays; who does not see it does not hear it, as item 9's "a
+  listener at level `none`… hears nothing" already allows), **Cancelar**.
+  Releasing a folder is the Access dialog's, named in the lesson.
+- *Loop* is off, the track (`looping`, synced), or the scene (the master's
+  window wraps the scene; not in the state).
+- *The length* is told by the game master's window once its element reads
+  it (`wish: "duration"`), so a play needs no probe first.
+- *The status item* has no red dot: there is no share in phase 1.
+- *The desktop's `verso://`* adds no `Access-Control-Allow-Origin`: the
+  desktop uses `volume`, as item 12 allows.
+
+**Not built in phase 1.** Section B (the live share: capture, Opus, the
+relay, the WASM decoder, the picker, `Can::AudioShare`, the responsibility
+line, the TCC prompt) — the contract leaves room for it: a share is its own
+event beside `table-playback`, and `PlaybackSource.kind` tells a file from
+anything else. The measurements of item 28 on VM 107 and `server-install.md`
+§15. The manual checks of section E on the real engines and phones
+(`docs/reference/manual-checks.md`).

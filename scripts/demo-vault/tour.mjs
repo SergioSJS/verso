@@ -378,6 +378,7 @@ const STOPS = [
       ["n-diagrama", "28 - Dados Estruturados como Diagrama.md", 600],
       ["n-cores", "30 - Amostras de Cor.md", 600],
       ["n-mesa", "31 - A Mesa.md", 600],
+      ["n-som", "36 - Som e Música na Mesa.md", 600],
     ],
     tip:
       "Um arquivo JSON, YAML, TOML, XML ou CSV tem o seletor Texto | Diagrama: caixas para mover, recolher e buscar, sem tocar no arquivo. " +
@@ -386,7 +387,7 @@ const STOPS = [
       "Numa nota compartilhada quem rola é o servidor, e todos veem quem rolou. Rolar dados…, na paleta, rola sem nota. " +
       "Um callout `> [!secret]` é o segredo do mestre: num UniVerso, quem só lê a nota a recebe sem ele; Ver como leitor mostra como. " +
       "Um código de cor — `#1d9e75`, `rgb()`, `hsl()` — ganha um quadradinho da cor, e no editor um clique nele abre o seletor. " +
-      "A aba Mesa, no painel da direita, junta toda rolagem, sorteio e pergunta ao oráculo: quem fez, quando e de qual nota. Numa pasta de UniVerso é a mesa de todos: quem está lá, mensagens, imagens, rolagem secreta, linhas fixadas e o registro guardado no servidor.",
+      "A aba Mesa, no painel da direita, junta toda rolagem, sorteio e pergunta ao oráculo: quem fez, quando e de qual nota. Numa pasta de UniVerso é a mesa de todos: quem está lá, mensagens, imagens, rolagem secreta, linhas fixadas e o registro guardado no servidor. No topo dela, a mestra toca um arquivo de som da pasta, ou um link de som numa nota, e todos da mesa ouvem no mesmo ponto, cada um com o seu volume (nota 36).",
   },
   {
     id: "mundos-rpg",

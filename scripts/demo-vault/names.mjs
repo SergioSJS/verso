@@ -45,6 +45,7 @@ export const NAMES = {
   "32 - Rodando uma Mesa.md": "32 - Running a Table.md",
   "33 - Abrir um Arquivo Avulso.md": "33 - Open a Single File.md",
   "34 - UniVerso num Servidor Grátis da Oracle.md": "34 - UniVerso on a Free Oracle Server.md",
+  "36 - Som e Música na Mesa.md": "36 - Sound and Music at the Table.md",
   "Tour do Verso.canvas": "Verso Tour.canvas",
   "Treino do Board.canvas": "Board Training.canvas",
   "Board de Demonstração.canvas": "Demo Board.canvas",

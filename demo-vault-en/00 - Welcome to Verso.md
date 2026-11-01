@@ -83,6 +83,7 @@ Explore the modules below to see each feature in detail:
 32. [[32 - Running a Table]] — A campaign folder on a UniVerso: inviting the players, notes hidden until you release them, links to what has not appeared yet drawn with a padlock, who edits what, and the table's limits.
 33. [[33 - Open a Single File]] — A double-click on an `.md` opens the file alone, with no folder, in a window with no tree or index and nothing written beside it; and how to make Verso the default app for `.md` on each system.
 34. [[34 - UniVerso on a Free Oracle Server]] — The route for someone who has never set up a server: a free Oracle machine, the installer's menu, HTTPS with a free name, the first admin and the phone.
+36. [[36 - Sound and Music at the Table]] — The game master plays a sound file and everyone at the table hears it at the same point, each with their own volume; a note of sound links becomes the soundboard, and whoever does not see the file does not hear it.
 
 ---
 

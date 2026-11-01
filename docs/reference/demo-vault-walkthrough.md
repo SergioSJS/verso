@@ -1795,3 +1795,16 @@ On a UniVerso, with the owner's account and an editor's (two browsers, or the br
 5. As the share's receiver (editor of `Mesa`): no delete offered either. Level: A; E: `tests_owner_deletes.rs`.
 6. On the editor's desktop, the folder synced here: delete a note in Finder, wait for a pass: the note is back, and Ajustes › Sincronizar lists "Um arquivo apagado aqui voltou…". Move a note out of `Mesa` in Finder: after a pass it is back in `Mesa`, listed as "Um arquivo tirado aqui de uma pasta compartilhada voltou para ela". Level: A; E: `tests_sync_access.rs`.
 7. As the owner, every delete is offered and works; inside a table nothing changed (a player still never deletes, the game master does). Level: A; E: `access-vectors.json`.
+
+## Music at the table (ADR 0116 phase 1, note 36, 2026-10-31)
+
+On a UniVerso folder made a table, with the game master's window (the desktop app or a browser) and a player's (a second browser, or a phone), as in note 36. Copy `assets/sons/taverna.mp3` and `assets/sons/estrada.mp3` into the table's folder, or play them from the demo vault's own copy of note 36:
+
+1. Ajustes › Recursos › RPG e mesa has **Som da mesa**, on. In the master's **Mesa** panel the top row is **Tocar um arquivo…**; in the player's, **Nada tocando**. No `<audio>` element exists in either window yet (item 30). Level: A; E: `e2e/table-sound.spec.mjs`.
+2. As the master, **Tocar um arquivo…** › *taverna*: both windows show *taverna* and its time; the player's has no play, pause, next, stop or table volume, only **Seu volume**, **Silenciar** and **Seguir a mesa**. Both hear it at the same point (a clap test: under half a second apart). Level: A; E: `e2e-server/table-sound.spec.mjs`.
+3. **Pausar**, the **Posição** bar, **Volume da mesa** at 40: the player's window follows each within a second. The player's **Seguir a mesa** off: their window goes silent, the master's still plays. Level: A; E: `table-sound.spec.mjs`.
+4. Open note 36: a play button beside each sound link, for the master only; **Tocar** beside *A taverna*, then **Próxima faixa da cena**: *A estrada*; Next is greyed at the scene's end; **Repetir** twice (*a cena*): Next goes back to the first. Let a track end: the master's window plays the next of the scene. Level: A; E: `table-sound.spec.mjs`, `tableSound.test.mjs`.
+5. A file no player sees (leave it hidden): **Tocar** asks "N jogadores não veem este arquivo (names). Liberar para a mesa e tocar?"; **Tocar sem eles**: the player's strip says *uma faixa que você não vê*, and the browser's Network tab shows no request for the file; the master's strip says who does not hear. **Liberar e tocar** on another: the player hears it. Level: A; E: `tests_table_sound.rs`, `e2e-server/table-sound.spec.mjs`.
+6. Close the master's window: the music goes on for the player; the player reloads: it lands where it was. Everyone leaves and comes back: nothing plays. Level: A; E: `tests_table_sound.rs`.
+7. With the Mesa panel closed, the status bar shows the note glyph and the track's name; a click opens the panel. On a phone (390 × 844) the strip is the sheet's first row and every button is reachable. Level: A; E: `table-sound.spec.mjs` (`@layout`).
+8. A folder of this computer alone: the strip plays for this window and says *Só nesta janela: a pasta não tem mesa*. Level: A; E: `table-sound.spec.mjs`.
