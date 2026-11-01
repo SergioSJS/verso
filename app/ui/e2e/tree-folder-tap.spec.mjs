@@ -50,6 +50,12 @@ test("a folder's row: a tap toggles it, a button at its end opens the page, a lo
     // The keyboard: the button is a Tab stop of its own and shows on focus,
     // even with the pointer away.
     await page.mouse.move(0, 0);
+    // WebKit on macOS starts Tab from where the last mouse click landed, and
+    // that was the button, which the tree drew again when the page opened:
+    // a focus() on the row that is already focused does not move that
+    // starting point, and Tab goes nowhere (seen on a Mac, 2026-11-01: the
+    // same press reached the button after a blur). Blur first.
+    await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
     await z.focus();
     await page.keyboard.press("Tab");
     await expect(button).toBeFocused();
@@ -76,6 +82,8 @@ test("a folder's row: a tap toggles it, a button at its end opens the page, a lo
   await expect(page.locator(".sheet")).toBeVisible();
   await expect(z).toHaveAttribute("aria-expanded", "true");
   // The keyboard: Enter toggles the row, the button is a Tab stop of its own.
+  // (Blur first: see the mouse branch above, WebKit on macOS.)
+  await page.evaluate(() => document.activeElement instanceof HTMLElement && document.activeElement.blur());
   await z.focus();
   await page.keyboard.press("Enter");
   await expect(z).toHaveAttribute("aria-expanded", "false");
