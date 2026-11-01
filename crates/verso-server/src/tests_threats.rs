@@ -179,7 +179,7 @@ fn every_answer_carries_the_whole_set_of_headers() {
     const FILE_CSP: &str = "sandbox; default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:";
     let page_csp = |ws: &str| {
         format!(
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
+            "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; \
              img-src 'self' data: blob: https:; media-src 'self' blob: https:; \
              frame-src 'self' https:; object-src 'none'; connect-src 'self' {ws}; \
              worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; \

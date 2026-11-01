@@ -522,3 +522,39 @@ fn the_same_account_on_two_devices_hears_each_others_rolls_at_the_folders_table(
 fn the_same_account_on_two_devices_hears_each_others_rolls_at_a_subfolders_table() {
     same_account_hears_the_other_device("Mapa");
 }
+
+#[test]
+fn the_sharers_connection_carries_the_frames_of_its_share_and_the_listener_hears_it_end() {
+    let r = serve(&[("Sessao.md", "# Sessao\n")]);
+    let sharer = browser(&r, &r.owner);
+    let mut listener = browser(&r, &r.reader);
+    sharer.call("table_join", json!({})).unwrap();
+    listener.call("table_join", json!({})).unwrap();
+    let share = sharer
+        .call(
+            "table_share_start",
+            json!({ "share": { "name": "Test tone", "kind": "system", "bitrate_kbps": 96, "replace": false } }),
+        )
+        .unwrap();
+    let id = u32::try_from(share["id"].as_u64().unwrap()).unwrap();
+    assert!(verso_contract::is_audio_frame(&id.to_be_bytes()), "{share}");
+    let started = listener.event("table-share-started");
+    assert_eq!(started["id"], share["id"], "{started}");
+
+    // Frames as the host frames them, on the sharer's own connection.
+    for n in 0..25_u32 {
+        let header = verso_contract::FrameHeader {
+            share: id,
+            sequence: n,
+            timestamp_ms: n * 20,
+        };
+        let frame = header.frame(&[7; 200]).unwrap();
+        assert!(sharer.remote.send_audio(frame));
+    }
+    // The connection still answers after them: audio never wedged it.
+    assert!(sharer.call("table_time", json!({})).is_ok());
+
+    sharer.call("table_share_stop", json!({})).unwrap();
+    let stopped = listener.event("table-share-stopped");
+    assert_eq!(stopped["id"], share["id"], "{stopped}");
+}

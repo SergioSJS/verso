@@ -202,7 +202,7 @@ pub(crate) struct Remote {
     /// The last command's round trip, in milliseconds.
     latency: std::sync::atomic::AtomicU32,
     pending: Pending,
-    tx: mpsc::Sender<Message>,
+    pub(crate) tx: mpsc::Sender<Message>,
     /// Told when the connection is taken as closed without either task
     /// seeing it close: the reader ends, as on a close.
     dead: Arc<tokio::sync::Notify>,
@@ -240,6 +240,18 @@ impl Remote {
     pub(crate) fn hang_up(&self) {
         close(&self.pending);
         self.dead.notify_one();
+    }
+
+    /// One frame of a live share (ADR 0116 item 19) as a binary message on
+    /// this connection, the sharer's own: no id, no answer. Audio is real
+    /// time, so a full queue drops the frame (a listener's jitter buffer
+    /// absorbs one lost frame) and never takes the connection for dead, as a
+    /// question does. False once the connection is closed.
+    pub(crate) fn send_audio(&self, frame: Vec<u8>) -> bool {
+        match self.tx.try_send(Message::Binary(frame.into())) {
+            Ok(()) | Err(mpsc::error::TrySendError::Full(_)) => true,
+            Err(mpsc::error::TrySendError::Closed(_)) => false,
+        }
     }
 
     /// A command of the contract, answered by the server.
@@ -831,6 +843,8 @@ pub(crate) enum Heard {
     Gone(Value, Option<String>),
     /// The account's role in the folder changed: `owner`, `editor`, `reader`.
     Role(String),
+    /// A live share's audio frame, as it came (ADR 0116, `audio_share::hear`).
+    Audio(Vec<u8>),
     /// The connection closed.
     Closed,
 }
@@ -1116,6 +1130,11 @@ pub(crate) async fn dial_hello(
             // (sync 2): its header, then the piece as it is.
             let (parsed, piece) = match message {
                 Message::Text(text) => (serde_json::from_str::<Value>(&text).ok(), None),
+                // Or an audio frame, told by its first byte, for the window.
+                Message::Binary(bytes) if crate::audio_share::hear::is_frame(&bytes) => {
+                    let _ = heard_tx.send(Heard::Audio(bytes.to_vec()));
+                    continue;
+                }
                 Message::Binary(bytes) => match verso_core::sync::unframe(&bytes) {
                     Some((header, piece)) => (
                         serde_json::from_slice::<Value>(header).ok(),
@@ -1210,6 +1229,9 @@ async fn connect<R: tauri::Runtime>(
                 // again when it reconnects; the role is the server's to
                 // enforce meanwhile.
                 Heard::Role(_) => {}
+                Heard::Audio(frame) => {
+                    crate::audio_share::hear::deliver(std::slice::from_ref(&label_r), &frame);
+                }
                 Heard::Closed => break,
             }
         }

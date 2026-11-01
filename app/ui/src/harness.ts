@@ -194,8 +194,8 @@ const rooms = onServer ? null : new Rooms(core);
 // is up; it wraps the room's rolls, so it comes after the rooms.
 const table = onServer ? null : new Table(core);
 const tableSound = table ? new TableSound(core, table) : null;
-// Share audio (ADR 0116 section B): the contract's answers, nothing captured yet.
-installAudioShare(core);
+// Share audio (ADR 0116 section B): nothing captured; a share heard as the server sends it.
+const audioShare = installAudioShare(core, table);
 // A window on a server joins the table when a folder is shown; this harness does
 // not play that table, and answers as a side with none does.
 if (onServer)
@@ -391,6 +391,8 @@ const harness = {
   table,
   /** The table's music (ADR 0116): what the window's person sees, the game master's plays. */
   tableSound,
+  /** A live share at the table (ADR 0116 section B): the server's part, a test the game master. */
+  audioShare,
   /** A table is a campaign folder (ADR 0110): the server's state and commands, played in the page. */
   campaign,
   /** The files' version histories (ADR 0091). */

@@ -55,3 +55,39 @@ describe("the audio frame header", () => {
     assert.deepEqual([...back.packet], [42]);
   });
 });
+
+describe("an audio frame told from the other binary message", () => {
+  test("the share numbers start where Rust's SHARE_ID_FIRST does", () => {
+    assert.equal(m.SHARE_ID_FIRST, 0x80000000);
+  });
+
+  test("the first byte's top bit, as is_audio_frame reads it", () => {
+    // The vectors of `an_audio_frame_is_told_from_a_piece_of_a_file_by_its_first_byte`.
+    const first = m.encodeFrame({ share: m.SHARE_ID_FIRST, sequence: 0, timestampMs: 0 }, new Uint8Array([1]));
+    assert.deepEqual([...first.subarray(0, 4)], [0x80, 0, 0, 0]);
+    assert.equal(m.isAudioFrame(first), true);
+    assert.equal(m.isAudioFrame(new Uint8Array([0xff, 0xff, 0xff, 0xff])), true);
+    // A piece's header length (verso_core::sync::frame): 48 MiB still has the bit clear.
+    assert.equal(m.isAudioFrame(new Uint8Array([0x03, 0x00, 0x00, 0x00])), false);
+    assert.equal(m.isAudioFrame(new Uint8Array([0x7f, 0xff, 0xff, 0xff])), false);
+    assert.equal(m.isAudioFrame(new Uint8Array(0)), false);
+  });
+
+  test("the socket's messages sorted: text to the JSON path, audio to the listener, the rest to the sync path", () => {
+    assert.deepEqual(m.sortMessage('{"id":1,"ok":null}'), { kind: "text", text: '{"id":1,"ok":null}' });
+    const audio = m.encodeFrame({ share: 0x80000003, sequence: 9, timestampMs: 180 }, new Uint8Array([7, 7]));
+    const a = m.sortMessage(audio.buffer);
+    assert.equal(a.kind, "audio");
+    assert.deepEqual([...a.bytes], [...audio]);
+    const piece = new Uint8Array([0, 0, 0, 2, 0x7b, 0x7d, 1, 2, 3]);
+    const p = m.sortMessage(piece.buffer);
+    assert.equal(p.kind, "binary");
+    assert.deepEqual([...p.bytes], [...piece]);
+    // A view of a larger buffer is read where it lies.
+    const big = new Uint8Array(20);
+    big.set(audio, 4);
+    assert.equal(m.sortMessage(big.subarray(4, 4 + audio.length)).kind, "audio");
+    assert.equal(m.sortMessage(new Uint8Array(0)).kind, "binary");
+    assert.equal(m.sortMessage(42), null, "nothing a socket gives");
+  });
+});

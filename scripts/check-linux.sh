@@ -403,7 +403,7 @@ if [ "${1:-}" = "--inside" ]; then
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -qq >/dev/null
   apt-get install -y -qq libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
-    libayatana-appindicator3-dev librsvg2-dev >/dev/null
+    libayatana-appindicator3-dev librsvg2-dev cmake >/dev/null
   rustup show >/dev/null
   id ci >/dev/null 2>&1 || useradd -m -u 1000 ci
   chown -R ci "$CARGO_TARGET_DIR" /usr/local/cargo /usr/local/rustup

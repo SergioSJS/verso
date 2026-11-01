@@ -158,6 +158,7 @@ fn main() {
         "audio_sources_list",
         "audio_share_start",
         "audio_share_stop",
+        "audio_share_hear",
         "campaign_status",
         "campaign_make",
         "campaign_unmake",

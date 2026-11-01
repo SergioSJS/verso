@@ -192,6 +192,8 @@ pub struct App {
     pub(crate) local_server: local_server::LocalSlot,
     /// The embedded terminal's shells (ADR 0115).
     pub(crate) terminals: Arc<terminal::Terminals>,
+    /// The share of audio this computer sends, if any (ADR 0116 item 17).
+    pub(crate) shares: audio_share::Shares,
 }
 
 impl App {
@@ -232,6 +234,7 @@ impl App {
             started: std::sync::atomic::AtomicBool::new(false),
             local_server: local_server::LocalSlot::default(),
             terminals: Arc::default(),
+            shares: audio_share::Shares::default(),
         }
     }
 }
@@ -901,10 +904,11 @@ macro_rules! commands_for {
                 table::table_cannot_play,
                 table::table_share_start,
                 table::table_share_stop,
+                audio_share::audio_sources_list::<$runtime>,
+                audio_share::audio_share_start::<$runtime>,
+                audio_share::audio_share_stop::<$runtime>,
                 table::table_share_listen,
-                audio_share::audio_sources_list,
-                audio_share::audio_share_start,
-                audio_share::audio_share_stop,
+                audio_share::hear::audio_share_hear::<$runtime>,
                 campaign::campaign_status,
                 campaign::campaign_make,
                 campaign::campaign_unmake,
@@ -1332,6 +1336,10 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             app.state::<App>().service.release(label);
             // Its terminals end with it; a reload keeps them (ADR 0115 Q6).
             app.state::<App>().terminals.end_of(label);
+            // So does its share of audio (ADR 0116 item 17).
+            app.state::<App>().shares.end_of(label);
+            // No live share's frames for a window that is gone (ADR 0116).
+            audio_share::hear::forget(label);
             files::drop_picks(label);
             remote::release(app, label);
             loose::window_gone(app, label);
@@ -1343,6 +1351,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             local_server::stop_on_exit(app);
             // No shell outlives the app (ADR 0115 item 13).
             app.state::<App>().terminals.end_all();
+            app.state::<App>().shares.end_all();
             log::write("INFO", "host", "exiting");
         }
         _ => {}

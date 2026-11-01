@@ -177,8 +177,8 @@ export interface ServerTable extends TableSource {
   /** The table this log is of, as the server named it: its folder inside the open folder, `""` for the folder itself. */
   readonly table: string;
   role(): Role;
-  /** What the join said of the table's music (ADR 0116): whether this person controls it, and what plays. */
-  joinedSound(): { play: boolean; playback: readonly import("../bindings").TablePlayback[] };
+  /** What the join said of the table's music (ADR 0116): whether this person controls it, what plays, the live share. */
+  joinedSound(): { play: boolean; playback: readonly import("../bindings").TablePlayback[]; share: import("../bindings").AudioShare | null };
   /** Who is at the table now, in the server's order. */
   roster(): readonly Member[];
   /** Pinned entries, oldest first; always shown, whatever was hidden. */

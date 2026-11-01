@@ -737,6 +737,20 @@ export const commands = {
 	 */
 	tableShareStop: (table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_share_stop", { table })),
 	/**
+	 *  What this computer can capture: applications by their display name,
+	 *  pages open in Verso, the system (never a window title).
+	 */
+	audioSourcesList: () => typedError<AudioSource[], ContractError>(__TAURI_INVOKE("audio_sources_list")),
+	/**
+	 *  Capture the source `id` and encode it with Opus at `bitrate_kbps`
+	 *  (64 to 128), sending each frame to the server on the window's own
+	 *  connection under `share`, the number the server gave the share
+	 *  (`table_share_start`'s answer, which the window asks first).
+	 */
+	audioShareStart: (id: string, bitrateKbps: number, share: number) => typedError<AudioCaptureStarted, ContractError>(__TAURI_INVOKE("audio_share_start", { id, bitrateKbps, share })),
+	/**  Stop capturing. */
+	audioShareStop: () => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_stop")),
+	/**
 	 *  Receive the table's live share (`listen`), or no longer: a window that
 	 *  asks gets the last two seconds, then the live frames, as binary messages
 	 *  on its connection; one that fell ten seconds behind is told
@@ -745,17 +759,11 @@ export const commands = {
 	 */
 	tableShareListen: (listen: boolean, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_share_listen", { listen, table })),
 	/**
-	 *  What this computer can capture: applications by their display name,
-	 *  pages open in Verso, the system (never a window title).
+	 *  This window's live-share frames come on `frames`, as the server sends
+	 *  them, once it listens (`table_share_listen`). Any window may hear: no
+	 *  capability is needed to listen (item 27).
 	 */
-	audioSourcesList: () => typedError<AudioSource[], ContractError>(__TAURI_INVOKE("audio_sources_list")),
-	/**
-	 *  Capture the source `id` and encode it with Opus at `bitrate_kbps`
-	 *  (64 to 128), handing the frames to the window.
-	 */
-	audioShareStart: (id: string, bitrateKbps: number) => typedError<AudioCaptureStarted, ContractError>(__TAURI_INVOKE("audio_share_start", { id, bitrateKbps })),
-	/**  Stop capturing. */
-	audioShareStop: () => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_stop")),
+	audioShareHear: (frames: Channel<ArrayBuffer>) => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_hear", { frames })),
 	/**
 	 *  What the folder's tables are, to this window: a folder of this computer
 	 *  alone has none.
