@@ -29,18 +29,18 @@ const NOTE = `# Sessão 3 — A Torre
 
 ## Chegada na cidade
 
-- [[Kraghammer]]
-- [[Dingy Tavern - Fast]]
+- [[Kraghammer.mp3]]
+- [[Dingy Tavern - Fast.mp3]]
 
 ## A emboscada
 
-- [[Frost and Steel - Ambient]]
-- [[The Atropal]]
+- [[Frost and Steel - Ambient.mp3]]
+- [[The Atropal.mp3]]
 
 ## Na masmorra
 
-- [[Echoes from the Abyss - Ambient]]
-- [[Dreamer’s Ziggurat]]
+- [[Echoes from the Abyss - Ambient.mp3]]
+- [[Dreamer’s Ziggurat.mp3]]
 `;
 
 async function shot(page, name, info) {
