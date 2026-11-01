@@ -80,16 +80,24 @@ pub(crate) async fn open(
         .get(client)
         .map(|c| c.account.clone())
         .unwrap_or_default();
-    let owner = scope.is_none()
-        && server
-            .db
-            .role(&folder.id, &account)
-            .ok()
-            .flatten()
-            .is_some_and(|r| r == Role::Owner);
+    // A folder served in part belongs to the computer's holder account, and
+    // its owner's phone holds only a share of it: the computer's owner is
+    // still the folder's owner (ADR 0096 item 12 and ADR 0113 B8, amended
+    // 2026-11-01: "celular do dono apaga sempre").
+    let owns = server
+        .db
+        .role(&folder.id, &account)
+        .ok()
+        .flatten()
+        .is_some_and(|r| r == Role::Owner)
+        || (scope.is_some()
+            && server.local.is_some()
+            && server.db.local_owner().is_ok_and(|a| a.id == account));
+    let owner = scope.is_none() && owns;
     if let Some(c) = lock(&server.clients).get_mut(client) {
         c.folder = Some((folder.id.clone(), role));
         c.owner = owner;
+        c.owns = owns;
         c.scope.clone_from(&scope);
         let _ = c.tx.send(&said);
     }

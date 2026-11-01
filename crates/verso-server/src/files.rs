@@ -49,7 +49,13 @@ pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> Api
     };
     let owner =
         scope.is_none() && crate::campaign::is_master(&ctx.server, &found.id, &who.account.id);
-    let door = crate::access::Door::build(&ctx.server, who, (found.id.clone(), role, owner), scope);
+    let door = crate::access::Door::build(
+        &ctx.server,
+        who,
+        (found.id.clone(), role, owner),
+        owner,
+        scope,
+    );
     // One who is told the projections is sent no note, under any name: a
     // link to one is refused as the note is (ADR 0087 item 4).
     let reads_only = door.projects();

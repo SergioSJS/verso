@@ -278,6 +278,10 @@ pub struct Client {
     /// 6), whatever the credential. The role above is the window's
     /// ceiling; this is who it is.
     pub owner: bool,
+    /// Whether the account is the folder's owner, through a share too (a
+    /// phone served a part of the folder): who deletes outside a table (ADR
+    /// 0113 B8, amended 2026-11-01). Never a game master's seat by itself.
+    pub owns: bool,
     /// Whether the window is a paired phone's.
     pub phone: bool,
     pub tx: Outbox,
@@ -669,6 +673,7 @@ impl Server {
                         Some(r) => {
                             c.folder = Some((folder.to_owned(), r));
                             c.owner = r == Role::Owner;
+                            c.owns = c.owner;
                             c.tx.send(&serde_json::json!({ "role": r }));
                             if !r.writes() {
                                 demoted.push(id.clone());

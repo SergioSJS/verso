@@ -352,6 +352,10 @@ pub struct Asker {
     /// A read link's visitor (0105).
     pub link: bool,
     pub admin: bool,
+    /// The account is the folder's owner, though the window holds a share's
+    /// role (a phone served a part of the folder): the owner's seat for a
+    /// deletion outside a table, not for a table (ADR 0113 B8, 2026-11-01).
+    pub owns_folder: bool,
 }
 
 /// The seat at a table, from the role alone.
@@ -711,7 +715,7 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
                 // Outside a table the folder's editor moves, and only the
                 // folder's owner deletes (section B, amended 2026-10-31:
                 // "apenas o dono da pasta pode apagar").
-                if action == Delete {
+                if action == Delete && !who.owns_folder {
                     Deny(NotMaster)
                 } else {
                     needs_write()
@@ -840,6 +844,7 @@ mod tests {
             phone: false,
             link: false,
             admin: false,
+            owns_folder: false,
         }
     }
 

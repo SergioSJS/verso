@@ -1454,3 +1454,6 @@ On the real engines, which the harness's stubbed `play()` does not reach (notes 
 
 1. **A real server** (A, a UniVerso with `VERSO_TRASH_MAX=50MB`): in a browser delete a folder holding 60 MB: the question warns *Atenção: isto tem … sem poder ser restaurado*; confirm; wait a minute: the folder is still in *Lixeira* (it is younger than a day); the next day's sweep removes it.
 
+## The owner's phone deletes on a folder served in part (ADR 0113 amendment, 2026-11-01)
+
+1. **A real phone** (A, iPhone Safari or Android Chrome, a Mac serving one chosen folder): pair with *Pode editar as notas*, delete a note from the tree's menu: it goes, shows in the Mac's *Lixeira*, and a table's notes (if the folder has one) behave as before. A second phone paired as reader is not offered the menu item.

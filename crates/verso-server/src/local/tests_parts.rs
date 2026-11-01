@@ -601,10 +601,11 @@ const VERDICTS: &[(&str, &str, bool)] = &[
         true,
     ),
     ("create_folder", r#"{"path":"Pasta"}"#, true),
-    // A phone is an editor of the chosen folder: outside a table only the
-    // folder's owner deletes (ADR 0113 section B, amended 2026-10-31;
-    // provisional for a phone, see there).
-    ("delete_note", r#"{"path":"a.md"}"#, false),
+    // A phone is an editor of the chosen folder, signed in as the folder's
+    // owner: outside a table the owner deletes, even on a folder served in
+    // part (ADR 0113 section B, amended 2026-11-01: "celular do dono apaga
+    // sempre").
+    ("delete_note", r#"{"path":"a.md"}"#, true),
     ("rename_note", r#"{"from":"a.md","to":"b.md"}"#, true),
     (
         "rename_entry",
@@ -616,7 +617,7 @@ const VERDICTS: &[(&str, &str, bool)] = &[
         r#"{"folder":"Sub","paths":["img.png"]}"#,
         true,
     ),
-    ("delete_entry", r#"{"path":"img.png"}"#, false),
+    ("delete_entry", r#"{"path":"img.png"}"#, true),
     (
         "write_text",
         r#"{"path":"a.md","text":"t","revision":"{rev}"}"#,

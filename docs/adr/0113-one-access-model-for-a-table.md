@@ -1277,3 +1277,35 @@ shared folder is the owner's too (the amendment under the table, with its
 two cases decided the same day and how it was built). Recorded as an amendment; [the ADR index](README.md)
 asks that a change to an Accepted decision be a new ADR superseding it, which
 stays the maintainer's call.
+
+### Amended 2026-11-01: the owner's phone deletes on a folder served in part
+
+Provisional 2 of the B8 build above (a phone paired to "This app is a server"
+on a folder served in part is an editor of a share and no longer deletes) was
+put to the maintainer as item 7, with the recommendation *a* (accept it: a
+folder served in part is a share). He answered, against the recommendation:
+*"Se tiver logado com a conta do dono, deveria sim ser B"* (if it is signed in
+with the owner's account, it should be b), b being *the owner's phone deletes
+always*. So:
+
+- The rule is **the owner's seat, not the share role**. `Asker` gains
+  `owns_folder`: the account is the folder's owner **though the window holds a
+  share's role**. `may(Delete)` outside a table allows it (with a credential
+  that writes), exactly as it allows the owner's seat; **inside a table it does
+  not** (the game master's seat is the role Owner, and a share-role window never
+  gets it), and no other action changes.
+- On a folder served in part (ADR 0096 item 2) the vault belongs to the
+  computer's holder account and the phone holds a share of it, signed in as the
+  computer's owner: the window records `owns` for that account when it opens
+  the share (`rpc_open.rs`). A phone paired as a **reader** still deletes
+  nothing (its credential only reads), an editor **who is not the owner** (a
+  share given to another person) still does not, and ADR 0096 item 12's "never
+  an owner" is unchanged for everything else: the phone has no owner's seat, no
+  access dialog, no share, no invitation.
+- The window is told with `FolderAccess.role = "owner"` beside a player's seat
+  (no new field): `decide` offers the deletion outside a table, and the vectors
+  (`app/ui/test/access-vectors.json`, regenerated, four new people "editor-owns")
+  carry the rule for the server's matrix and the window's guard alike.
+- Recorded as an amendment, not as a new ADR, for the reason of the section
+  above (item 9 of the same list, answered *"Todas pode seguir sua
+  recomendação"*: keep the amendment).
