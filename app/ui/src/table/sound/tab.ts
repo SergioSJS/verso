@@ -97,8 +97,6 @@ class MusicView {
   private readonly playlists = h("section", "music-section music-playlists");
   private readonly none = h("p", "music-empty");
   private seeking = false;
-  /** The table's volume is between its first `input` and its `change`: a state heard in between must not move the thumb back. */
-  private adjusting = false;
   private timer: ReturnType<typeof setInterval> | null = null;
   private libraryKey = "";
   private open = new Map<string, boolean>();
@@ -153,14 +151,8 @@ class MusicView {
       const m = sound().music();
       if (m?.durationMs) void control("seek", (Number(this.bar.value) / 1000) * m.durationMs).then(said);
     });
-    this.master.addEventListener("change", () => {
-      this.adjusting = false;
-      void control("master", Number(this.master.value)).then(said);
-    });
-    this.master.addEventListener("input", () => {
-      this.adjusting = true;
-      this.master.setAttribute("aria-valuetext", st.volumeText(Number(this.master.value)));
-    });
+    this.master.addEventListener("change", () => void control("master", Number(this.master.value)).then(said));
+    this.master.addEventListener("input", () => this.master.setAttribute("aria-valuetext", st.volumeText(Number(this.master.value))));
     // The person's own.
     this.mine.addEventListener("input", () => setOwn({ volume: Number(this.mine.value), muted: false }));
     this.mute.addEventListener("click", () => setOwn({ muted: !ownSound().muted }));
@@ -218,10 +210,8 @@ class MusicView {
       const mode = loopMode();
       relabel(this.loop, mode === "track" ? st.loopTrack : mode === "scene" ? st.loopScene : st.loopOff, mode === "track" ? "repeatOne" : "repeat");
       this.loop.setAttribute("aria-pressed", mode === "off" ? "false" : "true");
-      if (!this.adjusting) {
-        this.master.value = String(m.master);
-        this.master.setAttribute("aria-valuetext", st.volumeText(m.master));
-      }
+      this.master.value = String(m.master);
+      this.master.setAttribute("aria-valuetext", st.volumeText(m.master));
       this.bar.disabled = !master || !m.durationMs;
       const mine = ownSound();
       this.mine.value = String(mine.volume);
