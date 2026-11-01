@@ -65,9 +65,9 @@ fn link<R: tauri::Runtime>(
 /// Listening: the frames the server sends a window, handed to it.
 pub(crate) mod hear;
 #[cfg(test)]
-mod tests_hear;
-#[cfg(test)]
 mod tests_e2e;
+#[cfg(test)]
+mod tests_hear;
 
 /// What this computer can capture: applications by their display name,
 /// pages open in Verso, the system (never a window title).

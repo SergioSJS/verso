@@ -146,7 +146,10 @@ fn a_listener_hears_the_tone_and_a_late_joiner_gets_the_ring_then_live_frames() 
         frames.len()
     );
     let seq = sequences(&frames);
-    assert!(seq.windows(2).all(|w| w[1] == w[0] + 1), "in order: {seq:?}");
+    assert!(
+        seq.windows(2).all(|w| w[1] == w[0] + 1),
+        "in order: {seq:?}"
+    );
     let pcm = decode(&frames);
     let tone = share_at(&pcm[pcm.len() / 4..], HZ as f64);
     let off = share_at(&pcm[pcm.len() / 4..], 1000.0);
@@ -167,7 +170,10 @@ fn a_listener_hears_the_tone_and_a_late_joiner_gets_the_ring_then_live_frames() 
         late_seq[0],
         seq.last().unwrap()
     );
-    assert!(late_seq.windows(2).all(|w| w[1] == w[0] + 1), "{late_seq:?}");
+    assert!(
+        late_seq.windows(2).all(|w| w[1] == w[0] + 1),
+        "{late_seq:?}"
+    );
     assert!(
         late_seq.len() > 30,
         "ring then live: {} frames",
