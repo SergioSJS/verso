@@ -39,7 +39,10 @@ fn the_service_worker_is_the_servers_own_file_never_kept_by_the_browsers_cache()
         // Under the window's strict policy: scripts and connections from the
         // server only, workers from it (and blobs), nothing else.
         let csp = header("content-security-policy");
-        assert!(csp.contains("script-src 'self';"), "{csp}");
+        assert!(
+            csp.contains("script-src 'self' 'wasm-unsafe-eval';"),
+            "{csp}"
+        );
         assert!(csp.contains("worker-src 'self' blob:;"), "{csp}");
         assert!(csp.contains("default-src 'self';"), "{csp}");
         // The page that registers it has the same policy, so that the
