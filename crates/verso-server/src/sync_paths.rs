@@ -8,6 +8,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use serde_json::Value;
 use verso_contract::{ContractError, ErrorKind};
 
 use super::{Author, LARGEST, listed_sizes, one_name, quick_of, read_file, record_changes};
@@ -124,7 +125,7 @@ pub(super) fn reconcile_paths(
         (folder, key),
         by,
         (&known, &gone),
-        created,
+        (created, &HashMap::new()),
         &quick_only,
     )?;
     // Whoever made a change the walk recorded first, with no author (seen
@@ -184,4 +185,57 @@ fn as_spelled(
         }
     }
     Ok(out)
+}
+
+/// The files a window's moves moved, new path → old: each pair itself, and
+/// for a folder's, every file the log knows under the old folder, under
+/// the new one (ADR 0079, decided 2026-10-31, B12).
+pub(crate) fn files_moved(known: &[String], moved: &[(String, String)]) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    for (from, to) in moved {
+        if from == to {
+            continue;
+        }
+        let under = format!("{from}/");
+        for p in known {
+            if p == from {
+                out.insert(to.clone(), p.clone());
+            } else if let Some(rest) = p.strip_prefix(&under) {
+                out.insert(format!("{to}/{rest}"), p.clone());
+            }
+        }
+    }
+    out
+}
+
+/// The moves a window's command made, old path → new, read from its
+/// answer: a rename's entry and what moved with it (a folder's note, ADR
+/// 0060), the several entries of `move_entries`. None for any other
+/// command.
+pub(crate) fn moves_of(name: &str, args: &Value, answer: &Value) -> Vec<(String, String)> {
+    let pairs = |list: &Value| -> Vec<(String, String)> {
+        list.as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|m| Some((m["from"].as_str()?.to_owned(), m["to"].as_str()?.to_owned())))
+            .collect()
+    };
+    let mut out = match name {
+        "rename_note" | "rename_entry" => {
+            let (Some(from), Some(to)) = (args["from"].as_str(), answer["path"].as_str()) else {
+                return Vec::new();
+            };
+            // A note named without its `.md`, as `rename_note` takes it.
+            let from = if name == "rename_note" && !from.ends_with(".md") {
+                format!("{from}.md")
+            } else {
+                from.to_owned()
+            };
+            vec![(from, to.to_owned())]
+        }
+        "move_entries" => pairs(&answer["moved"]),
+        _ => return Vec::new(),
+    };
+    out.extend(pairs(&answer["also"]));
+    out
 }

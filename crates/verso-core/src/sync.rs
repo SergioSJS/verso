@@ -432,6 +432,34 @@ pub fn plan(
     folds: bool,
     copy_name: &dyn Fn(&str, &BTreeSet<String>) -> String,
 ) -> Plan {
+    plan_moved(
+        local,
+        remote,
+        state,
+        confirmed,
+        folds,
+        &BTreeMap::new(),
+        copy_name,
+    )
+}
+
+/// [`plan`], told what the server's log says was renamed since the base:
+/// `moved` maps a name there now to the name the base knows it by (a chain
+/// of renames already followed back to its start). A rename the log names
+/// is a rename here even when its bytes changed too, which no pairing by
+/// hash can tell from a deletion and a new file (decided 2026-10-31, B12:
+/// a rename in the server's change log is applied on the device as one
+/// rename, never as a delete and a create).
+#[must_use]
+pub fn plan_moved(
+    local: &Files,
+    remote: &Files,
+    state: &State,
+    confirmed: bool,
+    folds: bool,
+    moved: &BTreeMap<String, String>,
+    copy_name: &dyn Fn(&str, &BTreeSet<String>) -> String,
+) -> Plan {
     let first = state.base.is_empty();
     let size = local.len().max(remote.len()).max(state.base.len());
     let mut taken: BTreeSet<String> = local.keys().chain(remote.keys()).cloned().collect();
@@ -475,6 +503,19 @@ pub fn plan(
             local,
             remote,
             base,
+            &mut done,
+            &mut taken,
+            copy_name,
+            &mut actions,
+        );
+    }
+
+    // The renames the server's log names, first: followed whatever the
+    // bytes did since.
+    if !first {
+        moved_there(
+            (local, remote, base),
+            moved,
             &mut done,
             &mut taken,
             copy_name,
@@ -698,6 +739,74 @@ fn case_twins_there(
 
 /// One path's hashes here, there and in the base.
 type Hashes = (Option<String>, Option<String>, Option<String>);
+
+/// The key a picture holds a path under: the path itself, or its spelling
+/// in the other Unicode form (spec Q7: the pictures are under this
+/// computer's spelling, the log under the server's).
+fn key_in<'a, V>(map: &'a BTreeMap<String, V>, path: &str) -> Option<&'a String> {
+    if let Some((k, _)) = map.get_key_value(path) {
+        return Some(k);
+    }
+    let name = folded_form(path);
+    map.keys().find(|k| !k.is_ascii() && folded_form(k) == name)
+}
+
+/// The renames the server's log names (`moved`: the name there now → the
+/// name the base knows), carried out here as renames (decided 2026-10-31,
+/// B12): the file here is moved to the new name, and then planned there as
+/// one file from its base — the server's newer bytes fetched, an edit made
+/// here sent over the server's file as the base left it (invariant 11), two
+/// edits a conflict under the new name (item 8). Nothing is followed that
+/// could lose a file: the old name still on the server, the new name taken
+/// here or known to the base, the file gone here — those are left to the
+/// rules below (a name taken here keeps both, as a conflict's copy).
+fn moved_there(
+    (local, remote, base): (&Files, &Files, &BTreeMap<String, String>),
+    moved: &BTreeMap<String, String>,
+    done: &mut BTreeSet<String>,
+    taken: &mut BTreeSet<String>,
+    copy_name: &dyn Fn(&str, &BTreeSet<String>) -> String,
+    actions: &mut Vec<Action>,
+) {
+    for (to, from) in moved {
+        // Only the accents' form changing: one name, one file (spec Q7).
+        if folded_form(to) == folded_form(from) {
+            continue;
+        }
+        let (Some(old), Some(new)) = (key_in(base, from), key_in(remote, to)) else {
+            continue;
+        };
+        let (old, new) = (old.clone(), new.clone());
+        let usable = !done.contains(&old)
+            && !done.contains(&new)
+            && !remote.contains_key(&old)
+            && !base.contains_key(&new)
+            && !local.contains_key(&new)
+            // Where names fold, a new name another file here holds in
+            // another case is taken too.
+            && !local.keys().any(|p| *p != old && folded(p) == folded(&new));
+        let (Some(here), Some(b), Some(theirs)) =
+            (local.get(&old), base.get(&old), remote.get(&new))
+        else {
+            continue;
+        };
+        if !usable {
+            continue;
+        }
+        actions.push(Action::RenameLocal {
+            from: old.clone(),
+            to: new.clone(),
+        });
+        let hashes = (
+            Some(here.hash.clone()),
+            Some(theirs.hash.clone()),
+            Some(b.clone()),
+        );
+        decide(&new, hashes, false, taken, copy_name, actions);
+        done.insert(old);
+        done.insert(new);
+    }
+}
 
 /// What one path's hashes — here, there, in the base — say to do, renames
 /// set aside.
@@ -943,5 +1052,7 @@ pub fn save(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_moved;
 #[cfg(test)]
 mod vectors;

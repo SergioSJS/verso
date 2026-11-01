@@ -1109,7 +1109,18 @@ rest below and in `manual-checks.md`.
    `sync.spec.mjs`). What crosses — first sync, two devices, a deletion, a
    rename, a conflict, a mass deletion, a 9 MiB file, a reader, offline —
    the host's Rust tests against a real server (`tests_sync.rs`); two
-   real computers, by hand (`manual-checks.md`). With the server down,
+   real computers, by hand (`manual-checks.md`). A note edited in the
+   server's window and renamed there (or its folder renamed, or moved
+   with others) arrives on this computer as a rename — *renomeado aqui*
+   in *Atividade recente*, never *apagado aqui*, nothing in `.trash/` —
+   with the window's bytes, and an open tab of it follows it to its new
+   name (*Renomeada ou movida em outro aparelho: … A aba foi junto.*); an
+   edit made here meanwhile goes with it to the new name, a name taken
+   here keeps both (the host's tests against a real server,
+   `tests_sync_rename.rs`, a seeded property among them; the engine's,
+   `sync/tests_moved.rs`; the server's log naming each file's own old path,
+   `tests_sync.rs`, `a_window_move_names_each_files_own_old_path_in_the_log`;
+   the real Mac and server, by hand, `manual-checks.md`). With the server down,
    *Sincronizar esta pasta*, the list of its folders in *Servidores* and the
    folder switcher say *Não foi possível alcançar o servidor
    localhost:7351 — ele está fora do ar ou sem rede.* where the person

@@ -995,13 +995,15 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         st.base = base;
         st
     });
-    // A yes counts for the deletions the person saw, no more, and once.
-    let mut plan = engine::plan(
+    // A yes counts for the deletions the person saw, no more, and once;
+    // the log's renames are renames here, whatever the bytes did (B12).
+    let mut plan = engine::plan_moved(
         planned_on.as_ref().unwrap_or(&local),
         &known.files,
         planned_from.as_ref().unwrap_or(&state),
         false,
         engine::FOLDS_NAMES,
+        &known.moved,
         &copy_name,
     );
     // A name's other Unicode form held by another file (spec Q7), or a
@@ -1182,6 +1184,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         });
     }
     save(ctx, s, &mut state, known);
+    known.settle(&state.base); // the log's renames done, or moot
     let (apart, cloud_only) = cloud_only::split(apart, &known.files);
     let conflicts: Vec<String> = ctx
         .service

@@ -1382,3 +1382,5 @@ mod tests_sync1;
 mod tests_sync_access;
 #[cfg(test)]
 mod tests_sync_data;
+#[cfg(test)]
+mod tests_sync_rename;
