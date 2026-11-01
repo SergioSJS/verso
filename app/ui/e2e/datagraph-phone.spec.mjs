@@ -63,7 +63,21 @@ test("on a phone the toolbar is one slim row of icons and a menu @layout", async
 
   // The overflow menu: collapse all changes the boxes, expand all brings them back.
   const boxes = page.locator(".dg-box");
-  const all = await boxes.count();
+  // The boxes are drawn on the next frame after a pan, a zoom or a fold, and
+  // only the ones near the view: a count read at once is the last frame's
+  // (a Mac's slower frames showed 13 for the view's 8). Read it once it
+  // holds still for a few frames.
+  const drawn = async () => {
+    let last = -1;
+    for (let same = 0; same < 4; ) {
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+      const n = await boxes.count();
+      same = n === last ? same + 1 : 0;
+      last = n;
+    }
+    return last;
+  };
+  const all = await drawn();
   await page.locator(".leaf:visible .dg-overflow").click();
   const menu = page.locator("ul.menu");
   for (const name of ["Recolher tudo", "Expandir tudo", "Expandir até o nível…", "Arrumar de novo"]) {
@@ -72,7 +86,7 @@ test("on a phone the toolbar is one slim row of icons and a menu @layout", async
   await shot(page, `${process.env.DG_TAG ?? "x"}-phone-menu`);
   await menu.getByRole("menuitem", { name: "Recolher tudo" }).click();
   await expect.poll(() => boxes.count()).toBeLessThan(all);
-  const folded = await boxes.count();
+  const folded = await drawn();
   await page.locator(".leaf:visible .dg-overflow").click();
   await menu.getByRole("menuitem", { name: "Expandir tudo" }).click();
   await expect.poll(() => boxes.count()).toBeGreaterThan(folded);
