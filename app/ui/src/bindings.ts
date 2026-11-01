@@ -737,9 +737,9 @@ export const commands = {
 	audioSourcesList: () => typedError<AudioSource[], ContractError>(__TAURI_INVOKE("audio_sources_list")),
 	/**
 	 *  Capture the source `id` and encode it with Opus at `bitrate_kbps`
-	 *  (64 to 128), handing the frames to the window.
+	 *  (64 to 128), handing the frames to the window on `frames`.
 	 */
-	audioShareStart: (id: string, bitrateKbps: number) => typedError<AudioCaptureStarted, ContractError>(__TAURI_INVOKE("audio_share_start", { id, bitrateKbps })),
+	audioShareStart: (id: string, bitrateKbps: number, frames: Channel<Frame>) => typedError<AudioCaptureStarted, ContractError>(__TAURI_INVOKE("audio_share_start", { id, bitrateKbps, frames })),
 	/**  Stop capturing. */
 	audioShareStop: () => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_stop")),
 	/**
@@ -2763,6 +2763,15 @@ export type FoundServer = {
 	/**  The version it announced; empty when it said none. */
 	version: string,
 };
+
+/**
+ *  One frame (header and Opus packet) on its way to the window. It goes as
+ *  raw bytes (an `ArrayBuffer` in the window), not as a JSON array of
+ *  numbers; the generated bindings type the channel's message as a byte
+ *  list, which is what the type says and not what arrives, so the window
+ *  reads it as bytes (`share.ts`).
+ */
+export type Frame = number[];
 
 /**  A heading of a note, for citing and for the outline. */
 export type Heading = {

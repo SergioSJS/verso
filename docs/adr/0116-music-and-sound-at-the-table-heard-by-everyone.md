@@ -373,6 +373,17 @@ streamed to the table — independent of the files**
     percent of one core. Why not WebCodecs or `MediaRecorder` in the web
     view for encoding: unsupported or unconfirmed in WKWebView and
     WebKitGTK; the host has the samples anyway.
+
+    *Built in S4 (2026-11-01), recorded for the review:* the encoder is the
+    `opus` crate 0.4 (MIT or Apache-2.0) over `opusic-sys` (BSD-3-Clause),
+    which builds libopus from source with **cmake** — a build prerequisite
+    on every machine and CI image that builds the app. A **test tone** (a
+    440 Hz sine, `audio_sources_list` id `test-tone`) is the first source so
+    the whole path runs without capture; it is listed only in debug builds or
+    a build with the cargo feature `test-tone` (no workflow sets it), so the
+    shipped app never shows it. Until the server answers, frames carry share
+    number 0 and the window writes the real number over the header's first
+    word before sending.
 19. **Transport: the server relays over the existing WebSocket; no
     WebRTC.** The host hands each frame to its window over a Tauri channel
     (bytes, as 0115 item 5 does for terminal output), and the window sends it

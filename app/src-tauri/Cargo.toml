@@ -108,6 +108,13 @@ verso-server = { path = "../../crates/verso-server" }
 # muda 0.19.3 are already in the lockfile); it replaces nothing of ours. The
 # mark is shipped as raw RGBA, so that `image-png` and the `image` crate it
 # pulls in stay out of the tree.
+# The Opus encoder of Share audio (ADR 0116 item 18): safe Rust bindings to
+# libopus (MIT OR Apache-2.0; libopus itself BSD-3-Clause, built from source
+# by its -sys crate, no system package needed). It replaces nothing of ours:
+# the app had no audio codec. The decoder in the window is WASM; this crate's
+# decoder is used by the host tests only.
+opus = "0.4"
+
 [target.'cfg(any(target_os = "macos", windows))'.dependencies]
 tauri = { version = "2", features = ["unstable", "devtools", "tray-icon"] }
 
@@ -221,3 +228,9 @@ expect_used = "forbid"
 disallowed_methods = "forbid"
 undocumented_unsafe_blocks = "forbid"
 multiple_unsafe_ops_per_block = "forbid"
+
+[features]
+# Lists the audio-sharing test tone (a 440 Hz sine, ADR 0116 item 17) in a
+# release build too. Debug builds list it already. No workflow sets this:
+# the shipped app never shows a test source.
+test-tone = []
