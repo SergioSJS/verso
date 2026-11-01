@@ -1414,3 +1414,57 @@ fn a_locked_card_of_a_board_a_player_reads_is_the_same_whatever_the_reason() {
         assert_eq!(strip(&nodes[0]), strip(&nodes[2]), "hidden vs not there");
     });
 }
+
+#[test]
+fn a_link_or_embed_of_an_attachment_hidden_from_a_player_names_nothing_in_the_links_answer() {
+    // ADR 0116, amendment of 2026-11-01 (audio embeds): a note a player sees
+    // embeds a file the game master hides explicitly (ADR 0113 K.3: an
+    // explicit access wins over the notes that embed it). The text is veiled;
+    // the `links` answer, built from the index, must be too — an attachment's
+    // link resolves to no note, so it was let through with its name.
+    block_on(async {
+        let mut m = mesa().await;
+        let text = "# Galeria\n\n![[zqfechado.png]]\n\n[a outra](Anexos/zqfechado.png)\n\n![[aberto.png]]\n";
+        let made = m
+            .owner
+            .call("create_note", json!({ "name": "Galeria", "text": text }))
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let none =
+            json!({ "kind": "set", "set": { "whole": "none", "rows": [] }, "secret_name": null });
+        let see =
+            json!({ "kind": "set", "set": { "whole": "see", "rows": [] }, "secret_name": null });
+        for (paths, change) in [
+            (json!(["Anexos/zqfechado.png"]), none),
+            (json!(["Galeria.md", "Anexos/aberto.png"]), see),
+        ] {
+            let done = m
+                .owner
+                .call("access_set", json!({ "paths": paths, "change": change }))
+                .await;
+            assert!(done.get("ok").is_some(), "{done}");
+        }
+        // `ask` fails on any message that holds a word the player must not hear.
+        let note = m
+            .ana
+            .ask("read_note", json!({ "path": "Galeria.md" }))
+            .await;
+        assert!(
+            note["ok"]["text"].as_str().unwrap().contains("🔒 ("),
+            "{note}"
+        );
+        let links = m.ana.ask("links", json!({ "path": "Galeria.md" })).await;
+        let list = links["ok"].as_array().unwrap();
+        assert!(
+            list.iter()
+                .any(|l| l["embed"] == true
+                    && l["target"].as_str().is_some_and(|t| t.starts_with("🔒"))),
+            "the hidden embed is the placeholder: {links}"
+        );
+        assert!(
+            list.iter()
+                .any(|l| l["target"].as_str() == Some("aberto.png")),
+            "a seen attachment keeps its name: {links}"
+        );
+    });
+}

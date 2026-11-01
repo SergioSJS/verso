@@ -86,6 +86,9 @@ test("a player's note and board play the sound file they see, and the one they d
     for (const path of ["Música/taverna.wav", `Cripta/${SECRET}.wav`]) expect(await invoke(gm, "create_file", { path, base64: WAV })).toBe(path);
     await invoke(gm, "reindex", {});
     await s.set(["Trilha.md", "Mesa.canvas", "Música/taverna.wav"], "see");
+    // An attachment with no access of its own follows the notes that embed it
+    // (ADR 0113 K.3): this one the game master keeps hidden, explicitly.
+    await s.set([`Cripta/${SECRET}.wav`], "none");
     for (const c of s.contexts) await stub(c);
     const ana = s.ana.page;
     const seen = watch(ana);
@@ -109,9 +112,8 @@ test("a player's note and board play the sound file they see, and the one they d
     await openNoteBy(ana, "Mesa");
     await expect(ana.locator(".board-card-audio .audio-embed")).toHaveCount(1, { timeout: 30_000 });
     await expect(ana.locator(".board-card-audio").getByRole("group", { name: "Áudio: taverna.wav" })).toBeVisible();
-    await expect
-      .poll(() => ana.evaluate(() => (window.__VERSO_TEST__?.board?.getSceneElements() ?? []).find((e) => e.id === "cripta")?.locked === true))
-      .toBe(true);
+    // The other card: the locked text every hidden card is, no player, no name.
+    await expect(ana.locator(".board-card", { hasText: "🔒 (ainda não revelado)" })).toHaveCount(1);
 
     // The game master: every embed a player, and the hidden one asks before it plays for the table.
     await openFolder(gm, s.folder.id);
