@@ -147,7 +147,9 @@ test("the game master's Music tab: the folder's tracks as a list, play, pause, t
   const master = view.getByRole("slider", { name: "Volume da mesa" });
   await master.fill("40");
   await master.dispatchEvent("change");
-  await expect.poll(async () => (await app.calls("table_sound")).at(-1)).toEqual(expect.objectContaining({ wish: "master", value: 40 }));
+  // (`fill` already fires the slider's change; the second one above can read the volume the table's
+  // earlier state put back, so the call is looked for, not taken to be the last.)
+  await expect.poll(async () => (await app.calls("table_sound")).some((c) => c.wish === "master" && c.value === 40)).toBe(true);
   await now(view).getByRole("button", { name: "Repetir: desligado" }).click();
   await expect(now(view).getByRole("button", { name: "Repetir: esta faixa" })).toBeVisible();
   await now(view).getByRole("button", { name: "Repetir: esta faixa" }).click();

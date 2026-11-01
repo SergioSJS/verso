@@ -775,7 +775,8 @@ test("the dice sound: the recordings are decoded before the first roll, and each
       offsets.push(`${time} f${h.frame} ${(h.audioMs - h.visualMs).toFixed(1)}`);
       // A software renderer's slow frame shows the picture late, not the sound: that frame is judged against the moment it was due.
       if (h.gapMs <= 50) expect(Math.abs(h.audioMs - h.visualMs), `${time}: frame ${h.frame}`).toBeLessThan(50);
-      expect(Math.abs(h.audioMs - h.dueMs), `${time}: frame ${h.frame} against its due moment`).toBeLessThan(50);
+      // The sound is placed at its due moment, or up to HIT_LATE_MS (60, src/dice3d/timeline.ts) after it when the frame that carried it came late.
+      expect(Math.abs(h.audioMs - h.dueMs), `${time}: frame ${h.frame} against its due moment`).toBeLessThanOrEqual(60);
       // Never later than its own moment by more than the lateness allowed, and none after the rest.
       expect(h.audioMs - h.dueMs, `${time}: frame ${h.frame} late`).toBeLessThanOrEqual(60);
       expect(h.dueMs, `${time}: frame ${h.frame} after the rest`).toBeLessThanOrEqual(run.settleMs);
