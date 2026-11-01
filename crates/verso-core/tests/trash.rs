@@ -172,6 +172,34 @@ fn the_oldest_go_first_while_the_bin_passes_the_size_cap() {
     );
 }
 
+/// I5 (ADR 0080, decided 2026-11-01): the size cap counts an entry younger
+/// than a day but never removes it; the age cap is unchanged.
+#[test]
+fn the_size_cap_waits_for_an_entry_younger_than_a_day() {
+    let now = 10 * DAY;
+    let items = vec![
+        item(".trash/velha", now - 3 * DAY, 40),
+        item(".trash/enorme", now - 60, 500),
+    ];
+    // The newest alone passes the cap: it stays; the older one still goes.
+    assert_eq!(
+        due(&items, now, 30, None, Some(100)),
+        vec![(".trash/velha".to_owned(), Why::OverCap)]
+    );
+    // Only the newest in the bin: nothing goes.
+    assert!(due(&items[1..], now, 30, None, Some(100)).is_empty());
+    // A day later it is fair game.
+    assert_eq!(
+        due(&items[1..], now + DAY, 30, None, Some(100)),
+        vec![(".trash/enorme".to_owned(), Why::OverCap)]
+    );
+    // The age cap is unchanged: past the retention it goes at once.
+    assert_eq!(
+        due(&items[1..], now + 31 * DAY, 30, None, Some(100)),
+        vec![(".trash/enorme".to_owned(), Why::Expired)]
+    );
+}
+
 #[test]
 fn a_restored_name_beside_says_when_in_the_persons_language() {
     assert_eq!(
