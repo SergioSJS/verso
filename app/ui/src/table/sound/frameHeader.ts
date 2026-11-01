@@ -40,3 +40,22 @@ export function encodeFrame(header: FrameHeader, packet: Uint8Array): Uint8Array
   out.set(packet, FRAME_HEADER_LEN);
   return out;
 }
+
+/** The first number the server gives a share (`SHARE_ID_FIRST` in Rust): every share's number has its top bit set, and so has every audio frame's first byte. */
+export const SHARE_ID_FIRST = 0x8000_0000;
+
+/** Whether a binary message is an audio frame rather than a piece of a file (sync 2, whose first four bytes are a JSON header's length, far below 2^31): its first byte's top bit, as `is_audio_frame` reads it. Says nothing of whether it is a good one (`decodeFrame`). */
+export function isAudioFrame(bytes: Uint8Array): boolean {
+  return bytes.length > 0 && (bytes[0]! & 0x80) !== 0;
+}
+
+/** A message of the table's WebSocket, sorted before anything else of it is read: text for the JSON path, an audio frame for the listener, any other binary message for the sync path as before. */
+export type Sorted = { kind: "text"; text: string } | { kind: "audio"; bytes: Uint8Array } | { kind: "binary"; bytes: Uint8Array };
+
+/** Sort what a socket's `message` event carries (a string, or bytes with `binaryType = "arraybuffer"`); null for anything else. */
+export function sortMessage(data: unknown): Sorted | null {
+  if (typeof data === "string") return { kind: "text", text: data };
+  const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data instanceof Uint8Array ? data : null;
+  if (!bytes) return null;
+  return isAudioFrame(bytes) ? { kind: "audio", bytes } : { kind: "binary", bytes };
+}
