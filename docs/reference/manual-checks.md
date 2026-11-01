@@ -68,6 +68,7 @@ Per system — macOS, Windows (VM 103) and Linux (VM 104), on the installed pack
 - [ ] **A folder opened from Finder with another window open: both stay** (A): with a window showing a folder, run `open -a "Verso Beta" <another folder>` (or drop a folder on the app's icon); the folder opens in a window of its own and the first window stays open with its folder. Do it again with a folder already open: that window comes forward, no third window. Repeat with the first window on a server's folder.
 ### The tree's folder row with a mouse, and a note above 16 MiB (B15, B7, 2026-10-31)
 
+- [ ] **Mouse, then Tab, on the folder button** (A, macOS app): click the small folder button at a folder row's end (the page opens), then press Tab and Shift+Tab: the focus goes to the neighbours of the button, not nowhere, and the button shows its ring on keyboard focus.
 - [ ] **The folder button, by hand** (A): on the installed app with a mouse, a click on a folder's name opens/closes it; the small folder button at the row's end appears on hover, opens the folder's page, and appears when reached with Tab; it looks right on every theme (contrast of the faint icon).
 - [ ] **A real 17 MiB note** (A): in an opened folder, the notice shows above the text; search does not find a word inside it; the app stays responsive while it opens.
 
