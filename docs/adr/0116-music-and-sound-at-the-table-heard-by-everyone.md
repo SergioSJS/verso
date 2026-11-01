@@ -855,7 +855,10 @@ decided that the record leaves open.
   after the chosen tab, the Table's and the Music's (`data-keep`,
   `tabStrip.ts`) before the others, which fold into the "⋯" — so on a phone
   and a tablet the panel's two tabs of the game stay in the bar. The
-  author's choice, to be confirmed by the maintainer.
+  author's choice, to be confirmed by the maintainer. With the tabs now hidden
+  and reordered by the person ([0072](0072-window-controls-in-the-app.md),
+  amendment of 2026-11-01), the fold follows the person's order after the
+  chosen tab and these two.
 - *The lesson's samples* are two CC0 loops by RandomMind (OpenGameArt),
   embedded once (`demoVault.ts`, about 1 MB of base64), credited in the
   lesson and Settings › Credits (`docs/reference/demo-vault-sounds.md`).

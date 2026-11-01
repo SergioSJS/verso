@@ -1408,3 +1408,9 @@ On the real engines, which the harness's stubbed `play()` does not reach; a UniV
 5. **The desktop's own files** (A, macOS / Windows): in a folder of this computer alone, a track plays from `verso://` (the element's volume, not the gain); in a synced folder at the server's table, the master's desktop plays the local copy.
 6. **The master's window closes** (A): the music goes on in the players' windows; the last window leaving ends it (a new join shows nothing playing).
 7. **The Music tab on a phone** (A, iPhone Safari and Android Chrome, 390 × 844 class): Painel › Música opens the sheet; every button is reachable with a thumb; the filter's keyboard does not cover the now-playing card; back to Mesa, the mini-player is one row and the chat input stays where it was.
+
+## The right panel's tabs hidden, reordered, brought back (ADR 0072 amendment, 2026-11-01)
+
+1. **The long press on a real phone** (A, iPhone Safari and Android Chrome): a held finger on a panel tab opens its menu (touch.ts makes it where iOS fires no `contextmenu`); **Ocultar esta aba** hides it; the tab bar's tabs are 44 px and reachable with a thumb; **⋯** brings it back.
+2. **VoiceOver / TalkBack** (A): the tab list is read as a list of tabs; the **⋯** menu names the hidden tabs (**Mostrar “…”**); in Settings each row's switch is named *Mostrar a aba …* and the arrows *Mover … para cima/baixo*.
+3. **The mouse drag in the real WKWebView** (A, macOS) and WebView2 (A, Windows): a tab drag lifts and reorders; the order survives closing the app.

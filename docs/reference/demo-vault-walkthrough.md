@@ -1832,3 +1832,14 @@ On a UniVerso folder made a table, with the game master's window (the desktop ap
 7. Close the master's window: the music goes on for the player; the player reloads: it lands where it was. Everyone leaves and comes back: nothing plays. Level: A; E: `tests_table_sound.rs`.
 8. With both the Mesa and Música tabs closed, the status bar shows the note glyph and the track's name; a click opens Música. On a phone (390 × 844) Música is a sheet, every button 44 px and reachable. Level: A; E: `table-sound.spec.mjs` (`@layout`).
 9. A folder of this computer alone: the Música tab plays for this window and says *Só nesta janela: a pasta não tem mesa*. Level: A; E: `table-sound.spec.mjs`.
+
+## The right panel's tabs hidden, reordered, brought back (ADR 0072 amendment, note 13, 2026-11-01)
+
+On the app (desktop and a phone, 390 × 844), with a folder open and, for steps 5 and 6, a table with Table sound on:
+
+1. Right-click the **Links** tab (on a phone, press and hold it): the menu offers **Mover para a esquerda / direita**, **Ocultar esta aba**, **Restaurar abas** and **Ajustar abas…**. **Ocultar esta aba**: the tab leaves the bar, the status line says how to bring it back, and the **⋯** button appears even if every other tab fits. Level: H; E: `right-tabs-hide.spec.mjs`.
+2. **⋯** lists **Mostrar “Links”**; choosing it brings the tab back and opens it. Close and reopen the app: a hidden tab is still hidden, the order is kept. Level: H; E: `right-tabs-hide.spec.mjs`.
+3. With the mouse, drag a tab along the bar: it lifts and follows the pointer, the others make room; a hidden tab keeps its place in the order. Level: H; E: `right-tabs-hide.spec.mjs`, `right-tabs.spec.mjs`.
+4. **Ajustes › Aparência › Abas do painel direito**: every tab with a switch and up/down arrows; the bar follows at once; **Restaurar abas** brings the default order and every tab back. On a phone the rows and buttons are 44 px. Hide every tab but one: the last one's switch refuses. Level: H; E: `right-tabs-hide.spec.mjs`, `tabModel.test.mjs`.
+5. With **Mesa** and **Música** hidden and a track playing, the status bar still names it; a click on it opens **Música**, shown in the bar while it is the chosen tab; choosing another tab hides it again. Level: H; E: `right-tabs-hide.spec.mjs`.
+6. A narrow panel (or a phone): the tabs that do not fit are in **⋯** in your order; **Mesa** and **Música** are in the bar first. Level: H; E: `right-tabs.spec.mjs`, `tabModel.test.mjs`.
