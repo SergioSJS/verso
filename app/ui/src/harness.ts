@@ -22,6 +22,7 @@ import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
 import { Table } from "./harness/table";
 import { TableSound } from "./harness/tableSound";
+import { installAudioShare } from "./harness/audioShare";
 import { Campaign } from "./harness/campaign";
 import { projectBoard } from "./harness/maps";
 import { Versions } from "./harness/history";
@@ -178,6 +179,8 @@ const rooms = onServer ? null : new Rooms(core);
 // is up; it wraps the room's rolls, so it comes after the rooms.
 const table = onServer ? null : new Table(core);
 const tableSound = table ? new TableSound(core, table) : null;
+// Share audio (ADR 0116 section B): the contract's answers, nothing captured yet.
+installAudioShare(core);
 // A window on a server joins the table when a folder is shown; this harness does
 // not play that table, and answers as a side with none does.
 if (onServer)
