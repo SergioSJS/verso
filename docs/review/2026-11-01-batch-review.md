@@ -61,6 +61,8 @@ itself (not from a window push), or correct item 21 so that it does not count
 the switch as a defence — the maintainer's call; until then the defences that
 hold are the CSP, no script from a note, and child web views without IPC.
 
+*Fixed in d0f5eac04 (docs in the same commit): the window's switch only takes a terminal away; a shell starts after the person's yes on a native dialog the host shows at the first `terminal_open`/`terminal_detect` of a run (script cannot click it); ADR 0115 amendment of 2026-11-01 records the choice for the maintainer to confirm.*
+
 **I2 — OSC 8 hyperlinks in the terminal bypass `openUrl`.** Verified in the
 code and in xterm 6.0.0's bundle.
 `terminal/xtermScreen.ts:112-130` routes plain-text URLs through
@@ -81,6 +83,8 @@ opts.openLink(uri), allowNonHttpProtocols: false }` in the `Terminal`
 options, and an e2e that prints an OSC 8 link and checks `open_url` is called
 and no `window.open` happens.
 
+*Fixed in e3123ed94: `linkHandler` (http(s) only, `openUrl`) for OSC 8 and the web-links addon; unit test. No e2e that prints an OSC 8 link (the harness has no real xterm output path for it); not run on WebView2 or WebKitGTK.*
+
 **I3 — On macOS and Linux, quitting the app never sends the terminal's
 SIGKILL nor sweeps its session.** Verified in code; not run.
 `pty.rs:484-509` `Pty::end` sends SIGHUP to the shell's and the foreground
@@ -95,6 +99,8 @@ outlives the app"). Windows is covered by the job object (killed on close).
 Closing a tab or a window is fine (the app lives on). *Fix:* on the exit
 path, wait the grace on the calling thread (once for all terminals), then
 SIGKILL and sweep; and a host test that quits with a SIGHUP-ignoring child.
+
+*Fixed in df887eaf1: `Terminals::end_all_before_exit` hangs up all, waits the grace once on the exit thread, then kills and sweeps; host test with a `nohup` child. Mac, Linux (container) and Windows (VM) green; Windows behaviour unchanged (job object).*
 
 **I4 — The CSP change (`'wasm-unsafe-eval'`) is recorded in no ADR.**
 Verified. `tauri.conf.json:22` and `http.rs:647` (`page_policy`) add
@@ -113,6 +119,8 @@ WebAssembly already needs script to run). Narrowing it to the decoder alone
 would need the decoder in a dedicated worker whose own response carries the
 policy — possible on the server, not with Tauri's one policy; not
 recommended unless the maintainer wants it.
+
+*Fixed in 8c6f61425: ADR 0116 item 18 and ADR 0115 item 21 (and its amendment).*
 
 **I5 — The trash's size cap removes the newest entry too, at once, when it
 alone passes the cap.** Verified in code.
@@ -147,6 +155,8 @@ window did not stop (`end_of`, `end_all`, a replace), send
 `table_share_stop` on the same link; a host test with two windows on one
 synced folder.
 
+*Fixed in d91137ceb: the host sends `table_share_stop` on the share's own connection when the window goes (`Shares::on_window_gone` / `farewell`); the Stop button's path does not (the window stops it itself). Test against a real in-process server, listener sees `table-share-stopped`.*
+
 **I7 — `tree-folder-tap` works around what may be a real keyboard bug in
 WKWebView.** Verified in the test and the tree's code; not checked in the
 real app. `e2e/tree-folder-tap.spec.mjs:52-60` and `:86` blur the focused
@@ -159,6 +169,8 @@ affected. *Fix:* keep focus where the person was across the redraw (reuse
 the row's button element, or move focus explicitly to the row or the opened
 page after drawing), then drop the `blur()` from the test so it guards the
 app; add the mixed mouse-then-Tab step to `manual-checks.md` for the Mac app.
+
+*Fixed in 22d6610f8: the clicked folder button takes the focus itself (WebKit does not focus a clicked button and starts Tab from the click point while the focus sat on the row); the spec's `blur()` workaround is removed; seen failing and then passing on the Mac, WebKit, `--workers=1`, and in Docker on all projects.*
 
 **I8 — `dice3d-light` was loosened from 0.08 to 0.15 without re-measuring
 the case it guards.** Verified. `e2e/dice3d-light.spec.mjs:95`. The line
@@ -173,6 +185,8 @@ share in the comment; keep 0.15 only if the old lighting reads clearly above
 it, else find a measure with margin (e.g. the share in the die's top face
 only).
 
+
+*Fixed in b02daf094: measured (Docker, SwiftShader, old lighting reverted on a throwaway branch, never committed). The near-white share barely moves on the old lighting (violet 0.024-0.125), so 0.15 could not catch the regression; the spec now also judges the median over five rolls of the share of pixels with HSL lightness above 0.8 (old: violet 0.58-0.63, yellow 0.25-0.47; current: violet 0.10-0.25, yellow 0.00-0.10; lines 0.40 and 0.17). Single rolls overlap, hence the median. Not measured on a real GPU.*
 ## MINOR
 
 **M1 — `dice3d` allows the sound 60 ms early.** `e2e/dice3d.spec.mjs:782`
@@ -223,6 +237,8 @@ relay, decoder and jitter buffer, encoder and test tone). The task list puts
 the as-built record in S12; until then a reader of the ADR is misled.
 *Fix:* a short interim "As built (phase 2, S1–S5)" with what is merged and
 what is not (no sharer UI, no capture), naming I4 and I6.
+
+*Fixed in 8c6f61425: Status and "Not built in phase 1" say S1–S5 are built and S6–S10 are not.*
 
 **M8 — Author's choices waiting on the maintainer, to list in "depends on
 you".** ADR 0113 B8's three provisional `PROPOSED` items
