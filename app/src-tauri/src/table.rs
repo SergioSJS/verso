@@ -193,7 +193,10 @@ pub fn table_cannot_play(
 }
 
 /// Start sharing live audio to the table, as the game master (ADR 0116
-/// section B). The server's side is a later task: refused until it is built.
+/// section B): `share` names the source, its kind and the bitrate; with
+/// `replace`, the table's live share ends in its favour (without, a second
+/// share is answered `exists`). The answer carries the share's number for
+/// the frames' header, and the count and rate only the sharer is told.
 #[tauri::command]
 #[specta::specta]
 pub fn table_share_start(
@@ -201,13 +204,26 @@ pub fn table_share_start(
     table: Option<String>,
 ) -> Result<AudioShare, ContractError> {
     let _ = (share, table);
-    Err(refused("sharing audio is not built yet"))
+    Err(no_table())
 }
 
-/// Stop the table's live share, as the game master who started it.
+/// Stop the table's live share, as the game master; the sharer's window may
+/// stop it from outside the table's panel.
 #[tauri::command]
 #[specta::specta]
 pub fn table_share_stop(table: Option<String>) -> Result<(), ContractError> {
     let _ = table;
-    Err(refused("sharing audio is not built yet"))
+    Err(no_table())
+}
+
+/// Receive the table's live share (`listen`), or no longer: a window that
+/// asks gets the last two seconds, then the live frames, as binary messages
+/// on its connection; one that fell ten seconds behind is told
+/// (`table-share-behind`) and asks again. The sharer hears its source
+/// itself.
+#[tauri::command]
+#[specta::specta]
+pub fn table_share_listen(listen: bool, table: Option<String>) -> Result<(), ContractError> {
+    let _ = (listen, table);
+    Err(no_table())
 }

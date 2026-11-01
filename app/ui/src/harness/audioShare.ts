@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // Share audio (ADR 0116 section B), contract step: the harness answers the
-// host's three commands and the server's two as the app does before any
+// host's three commands and the server's three as the app does before any
 // capture is built — no source to list, a start that refuses, a stop that
 // finds nothing to stop. Nothing is drawn from them yet.
 
@@ -30,6 +30,12 @@ export function installAudioShare(core: Core): void {
     return refuse("sharing audio is not built yet");
   };
   h["table_share_stop"] = (a) => {
+    void a["table"];
+    return refuse("sharing audio is not built yet");
+  };
+  // Nothing is shared in the harness: nothing to hear.
+  h["table_share_listen"] = (a) => {
+    void a["listen"];
     void a["table"];
     return refuse("sharing audio is not built yet");
   };

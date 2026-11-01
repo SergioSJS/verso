@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Opening a folder for a window, and the capabilities it is told (split
-//! from `rpc.rs`, ADR 0067).
+//! Opening a folder for a window, the capabilities it is told, and the
+//! places its connection takes (split from `rpc.rs`, ADR 0067).
 
 use std::sync::Arc;
 
@@ -13,6 +13,7 @@ use verso_service::{lock, ops};
 
 use crate::auth::{Via, Who};
 use crate::db::{Folder, Role};
+use crate::http::{ApiError, ApiResult, Ctx};
 use crate::rpc::{blocking, role_here, to_value};
 use crate::state::Server;
 
@@ -205,4 +206,69 @@ pub(super) fn capabilities(server: &Server, who: &Who, client: &str) -> Capabili
         latency_ms: None,
         access: door.map(|d| d.folder_access()),
     }
+}
+
+/// What a connection holds while it lasts: its places, and a phone's.
+type Held = (Vec<crate::fair::Held>, Option<crate::local::PhoneGuard>);
+
+/// The connection's places among its account's and its address's
+/// (threat-model.md, gap 4), or 429; and whether it is a phone refused by
+/// the ceiling of phones connected (the number it is), to be closed with
+/// `PHONES_FULL`.
+pub(crate) fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
+    let counts = &ctx.server.fair.connections;
+    let too_many = |what: &str, most: u32| {
+        crate::log::warn(&format!(
+            "a connection refused: {what} holds {most} already"
+        ));
+        ApiError {
+            retry: Some(30),
+            ..ApiError::new(
+                axum::http::StatusCode::TOO_MANY_REQUESTS,
+                "too_many",
+                format!("too many connections at once ({most} at most)"),
+            )
+        }
+    };
+    let account = format!("account:{}", who.account.id);
+    let mut held = vec![
+        counts
+            .take(&account, crate::fair::PER_ACCOUNT)
+            .ok_or_else(|| {
+                too_many(
+                    &format!("account {}", who.account.id),
+                    crate::fair::PER_ACCOUNT,
+                )
+            })?,
+    ];
+    // This machine is the proxy in front, speaking for everyone.
+    if !ctx.peer.local {
+        let address = format!("address:{}", ctx.peer.key());
+        held.push(
+            counts
+                .take(&address, crate::fair::PER_ADDRESS)
+                .ok_or_else(|| {
+                    too_many(
+                        &format!("address {}", ctx.peer.key()),
+                        crate::fair::PER_ADDRESS,
+                    )
+                })?,
+        );
+    }
+    // "This app is a server": at most two phones connected at once (ADR
+    // 0096 item 13). A phone already connected opens another connection
+    // (a second tab) without taking another place.
+    let phone = match (&ctx.server.local, who.phone, who.session()) {
+        (Some(local), Some(_), Some(session)) => {
+            let name = local.name_of(&ctx.server, session);
+            let Some(guard) = local.enter(session, &name) else {
+                local.refused_full(&ctx.server, session, &name);
+                return Ok(((held, None), Some(local.connected_most())));
+            };
+            local.first_seen(&ctx.server, session);
+            Some(guard)
+        }
+        _ => None,
+    };
+    Ok(((held, phone), None))
 }

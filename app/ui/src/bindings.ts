@@ -725,11 +725,25 @@ export const commands = {
 	tableCannotPlay: (revision: number | null, channel: string | null, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_cannot_play", { revision, channel, table })),
 	/**
 	 *  Start sharing live audio to the table, as the game master (ADR 0116
-	 *  section B). The server's side is a later task: refused until it is built.
+	 *  section B): `share` names the source, its kind and the bitrate; with
+	 *  `replace`, the table's live share ends in its favour (without, a second
+	 *  share is answered `exists`). The answer carries the share's number for
+	 *  the frames' header, and the count and rate only the sharer is told.
 	 */
 	tableShareStart: (share: AudioShareStart, table: string | null) => typedError<AudioShare, ContractError>(__TAURI_INVOKE("table_share_start", { share, table })),
-	/**  Stop the table's live share, as the game master who started it. */
+	/**
+	 *  Stop the table's live share, as the game master; the sharer's window may
+	 *  stop it from outside the table's panel.
+	 */
 	tableShareStop: (table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_share_stop", { table })),
+	/**
+	 *  Receive the table's live share (`listen`), or no longer: a window that
+	 *  asks gets the last two seconds, then the live frames, as binary messages
+	 *  on its connection; one that fell ten seconds behind is told
+	 *  (`table-share-behind`) and asks again. The sharer hears its source
+	 *  itself.
+	 */
+	tableShareListen: (listen: boolean, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_share_listen", { listen, table })),
 	/**
 	 *  What this computer can capture: applications by their display name,
 	 *  pages open in Verso, the system (never a window title).
@@ -1380,7 +1394,7 @@ export type AudioShare = {
 	table: string,
 	/**
 	 *  The share's number, in every binary frame's header. Never reused by
-	 *  a table in one server run.
+	 *  a table in one server run; its top bit is set ([`SHARE_ID_FIRST`]).
 	 */
 	id: number,
 	/**  The source's name, as the sharer's host gave it. */
@@ -1401,13 +1415,29 @@ export type AudioShare = {
 	rate_bps: number | null,
 };
 
+/**
+ *  This window fell more than ten seconds behind the share (item 28) and
+ *  receives no more of its frames until it asks again with
+ *  `table_share_listen` (event `table-share-behind`, to that window only).
+ */
+export type AudioShareBehind = {
+	table: string,
+	id: number,
+};
+
 /**  Why a share ended. */
 export type AudioShareEnd = 
 /**  The sharer pressed Stop. */
 "stopped" | 
-/**  The sharer's window disconnected. */
+/**
+ *  The sharer's window disconnected, opened another folder or lost the
+ *  folder.
+ */
 "sharer_left" | 
-/**  The last window left the table. */
+/**
+ *  The last window left the table (the sharer's had left its panel
+ *  before, still sharing).
+ */
 "table_empty" | 
 /**  The sharer started another source in its place. */
 "replaced";

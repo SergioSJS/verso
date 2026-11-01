@@ -113,7 +113,7 @@ pub struct AudioShare {
     /// folder itself (as `TableEntry.table`).
     pub table: String,
     /// The share's number, in every binary frame's header. Never reused by
-    /// a table in one server run.
+    /// a table in one server run; its top bit is set ([`SHARE_ID_FIRST`]).
     pub id: u32,
     /// The source's name, as the sharer's host gave it.
     pub name: String,
@@ -137,9 +137,11 @@ pub struct AudioShare {
 pub enum AudioShareEnd {
     /// The sharer pressed Stop.
     Stopped,
-    /// The sharer's window disconnected.
+    /// The sharer's window disconnected, opened another folder or lost the
+    /// folder.
     SharerLeft,
-    /// The last window left the table.
+    /// The last window left the table (the sharer's had left its panel
+    /// before, still sharing).
     TableEmpty,
     /// The sharer started another source in its place.
     Replaced,
@@ -151,6 +153,31 @@ pub struct AudioShareStopped {
     pub table: String,
     pub id: u32,
     pub reason: AudioShareEnd,
+}
+
+/// This window fell more than ten seconds behind the share (item 28) and
+/// receives no more of its frames until it asks again with
+/// `table_share_listen` (event `table-share-behind`, to that window only).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct AudioShareBehind {
+    pub table: String,
+    pub id: u32,
+}
+
+/// The first number the server gives a share: every share's number has its
+/// top bit set, and so the first byte of every audio frame does. The first
+/// four bytes of the other binary message a connection carries, a piece of
+/// a file (`verso_core::sync::frame`), are the length of a JSON header, far
+/// below 2^31 — so a binary message is told apart by its first byte before
+/// anything else of it is read ([`is_audio_frame`]).
+pub const SHARE_ID_FIRST: u32 = 0x8000_0000;
+
+/// Whether a binary message is an audio frame rather than a piece of a
+/// file: its first byte's top bit ([`SHARE_ID_FIRST`]). Says nothing of
+/// whether it is a good one ([`FrameHeader::decode`]).
+#[must_use]
+pub fn is_audio_frame(bytes: &[u8]) -> bool {
+    bytes.first().is_some_and(|b| b & 0x80 != 0)
 }
 
 // The binary frame (item 19). A window sends each Opus packet on the
@@ -315,6 +342,27 @@ mod tests {
             h.frame(&vec![0; FRAME_MOST - FRAME_HEADER_LEN + 1])
                 .is_none()
         );
+    }
+
+    #[test]
+    fn an_audio_frame_is_told_from_a_piece_of_a_file_by_its_first_byte() {
+        let h = FrameHeader {
+            share: SHARE_ID_FIRST,
+            sequence: 0,
+            timestamp_ms: 0,
+        };
+        assert!(is_audio_frame(&h.frame(&[1]).unwrap_or_default()));
+        assert!(is_audio_frame(
+            &FrameHeader {
+                share: u32::MAX,
+                ..h
+            }
+            .encode()
+        ));
+        // A piece's header length, as `verso_core::sync::frame` writes it:
+        // even at the largest message (48 MiB) the top bit is clear.
+        assert!(!is_audio_frame(&(48_u32 << 20).to_be_bytes()));
+        assert!(!is_audio_frame(&[]));
     }
 
     #[test]
