@@ -397,7 +397,9 @@ for the server, option (a) of that plan:
   dated clarification there.
 - **The pre-signed URL** of a bucket ([0073](0073-self-hosted-server-first.md)
   item 4) stays `[OPEN]`, with the bucket mode. *(2026-10-31: whether it
-  waits for after V1 is to be discussed with the maintainer on 2026-11-02.)*
+  waits for after V1 is to be discussed with the maintainer on 2026-11-02.
+  Decided 2026-11-01, item 16 = b: **into V1**, after the terminal and the
+  music are polished; not built. *"12. A 13. B 14. B - Mas vamos fazer depois, quero terminal e música redondinho primeiro 15. B - (idem) 16. B - (idem)"* (12 a; 13 b; 14 b, but later, he wants the terminal and the music polished first; 15 b, likewise; 16 b, likewise).)*
 - **Symlinks on a server**: a symlink is followed only when its target
   stays inside the folder; one that leaves the folder is refused. This is
   option (b) of the symlinks memo, discarded for one person's folder

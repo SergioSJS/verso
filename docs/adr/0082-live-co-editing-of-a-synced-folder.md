@@ -531,3 +531,11 @@ item 5 and item 15 decided as recommended, in place; the board's
 co-editing was `[OPEN]`, decided and built 2026-10-12 (item 12, [0073](0073-self-hosted-server-first.md)
 item 7); merge by block of offline edits stays later, for its own ADR, as
 it needs the base's bytes (Consequences).
+
+**2026-11-01 — merge by block of offline edits (item 14 = b).** The Consequences
+and [ADR 0073](0073-self-hosted-server-first.md) item 10 kept the merge by block
+of offline edits (two people who edited one note offline end with a conflict
+copy today, nothing lost) for after V1. The maintainer moved it **into V1**,
+after the terminal and the music are polished: *"12. A 13. B 14. B - Mas vamos fazer depois, quero terminal e música redondinho primeiro 15. B - (idem) 16. B - (idem)"* (12 a; 13 b; 14 b, but later, he wants the terminal and the music polished first; 15 b, likewise; 16 b, likewise). It needs the
+base's bytes kept, not only its hash, and **its own ADR, still to be written**;
+nothing is built.

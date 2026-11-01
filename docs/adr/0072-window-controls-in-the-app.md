@@ -268,3 +268,7 @@ narrower phone will not fit them all"). So:
   A tab 34 px wide is under the 44 px a finger usually gets: the maintainer
   chose it knowing so (a "mix of a and b": the height keeps 44).
 
+The two choices marked *to confirm* in the amendment of 2026-11-01 above (a
+hidden tab that is opened shows only while open; the order and the hidden
+set stored per device) are **confirmed**, in the maintainer's answer to the
+list of 2026-11-01: *"Todas pode seguir sua recomendação com exceção: Abas no celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …, imagino que celular um pouco mais estreito não vai caber tudo; 7. Se tiver logado com a conta do dono, deveria sim ser B; 11. deveria ser vc conferindo, B"* (follow your recommendation on all of them, except: tabs on the phone are a mix of a and b; 7: signed in as the owner it should be b; 11: it should be you checking, b).

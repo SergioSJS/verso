@@ -1309,3 +1309,18 @@ always*. So:
 - Recorded as an amendment, not as a new ADR, for the reason of the section
   above (item 9 of the same list, answered *"Todas pode seguir sua
   recomendação"*: keep the amendment).
+
+**Confirmed 2026-11-01 (the B8 build's provisional choices).** The maintainer,
+asked with the recommendations (items 6, 7, 8 and 9 of the list of
+2026-11-01): *"Todas pode seguir sua recomendação com exceção: Abas no celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …, imagino que celular um pouco mais estreito não vai caber tudo; 7. Se tiver logado com a conta do dono, deveria sim ser B; 11. deveria ser vc conferindo, B"* (follow your recommendation on all of them, except: tabs on the phone are a mix of a and b; 7: signed in as the owner it should be b; 11: it should be you checking, b). So, for the three provisional choices of the
+B8 build above:
+
+1. `remove_folder_data` is the owner's alone outside a table (item 6 = a): **confirmed**.
+2. A phone paired to "This app is a server": **changed by item 7 = b**, see
+   "Amended 2026-11-01" above (the owner's phone deletes always).
+3. The desktop window of a synced folder: item 8 = a, **decided**: the window
+   offers no delete to an editor (built: `access.ts` `may` reads the sync
+   state's role, the same refusal as the server's window; the "comes back on
+   the next pass" of the build is now only for a deletion made outside Verso).
+4. B8 **stays recorded as an amendment** (item 9 = a), not a new ADR
+   superseding this section.

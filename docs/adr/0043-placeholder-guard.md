@@ -268,3 +268,7 @@ eviction never deletes): decided on 2026-10-27.
 macOS) out of V1: put to the maintainer in the list of 2026-10-31 and not
 accepted; to be discussed with the maintainer on 2026-11-02. Unchanged
 meanwhile.
+
+*2026-11-01* — `[DECIDED 2026-11-01]` (item 15 = b): the other providers
+(Dropbox, Google Drive on macOS) **enter V1**, ordered after the terminal and
+the music are polished; not built. *"12. A 13. B 14. B - Mas vamos fazer depois, quero terminal e música redondinho primeiro 15. B - (idem) 16. B - (idem)"* (12 a; 13 b; 14 b, but later, he wants the terminal and the music polished first; 15 b, likewise; 16 b, likewise).

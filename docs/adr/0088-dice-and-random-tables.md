@@ -218,3 +218,6 @@ landed on the wrong chip, and is fixed:
 Left as is, `[OPEN]` for the maintainer: translating a place to the
 projection's count, so that a reader would hear the public die of a code a
 secret block also holds — a design choice, not made here.
+*Decided 2026-11-01 (item 5 of the list of that day, a):* **keep it**: the
+reader does not hear the public die either (it fails closed, the safe side).
+*"Todas pode seguir sua recomendação com exceção: Abas no celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …, imagino que celular um pouco mais estreito não vai caber tudo; 7. Se tiver logado com a conta do dono, deveria sim ser B; 11. deveria ser vc conferindo, B"* (follow your recommendation on all of them, except: tabs on the phone are a mix of a and b; 7: signed in as the owner it should be b; 11: it should be you checking, b).
