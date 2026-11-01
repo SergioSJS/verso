@@ -1457,3 +1457,4 @@ On the real engines, which the harness's stubbed `play()` does not reach (notes 
 ## The owner's phone deletes on a folder served in part (ADR 0113 amendment, 2026-11-01)
 
 1. **A real phone** (A, iPhone Safari or Android Chrome, a Mac serving one chosen folder): pair with *Pode editar as notas*, delete a note from the tree's menu: it goes, shows in the Mac's *Lixeira*, and a table's notes (if the folder has one) behave as before. A second phone paired as reader is not offered the menu item.
+2. **A synced editor's window** (A, the installed Mac app and a real UniVerso, an account that is an editor of the folder): the tree's menu, the selection bar, the palette and `Delete` offer no delete and say who may; the owner's account on the same folder is offered it.
