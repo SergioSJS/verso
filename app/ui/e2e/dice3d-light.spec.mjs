@@ -86,7 +86,13 @@ for (const theme of ["light", "dark"]) {
         writeFileSync(`${dir}/${name}-${theme}.png`, r.png);
       }
       // The violet die on the light theme is the maintainer's case.
-      if (name === "violeta" || name === "amarelo") expect(r.white, `${name} on ${theme}`).toBeLessThan(0.08);
+      // The share is not a fixed number: the dice fall by real frame times and
+      // land differently on each run, and the white numeral's anti-aliasing
+      // alone moves it. The violet on light read 0.034 to 0.082 in seven runs
+      // on a Mac's GPU, and the violet on dark 0.129 in one Docker run under
+      // load (2026-11-01). A washed die reads far higher (the white one 0.66
+      // to 0.73), so the line is 0.15.
+      if (name === "violeta" || name === "amarelo") expect(r.white, `${name} on ${theme}`).toBeLessThan(0.15);
     });
   }
 }

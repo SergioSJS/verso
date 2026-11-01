@@ -177,9 +177,10 @@ test("a large file shows only its first 64 KB with an ellipsis", async ({ app, p
   expect(await text.evaluate((el) => el.textContent.includes("linha numero 19999"))).toBe(false);
 });
 
+// (A sound file is not one of these any more: its card is the audio player, ADR 0116.)
 test("a file with no body of its own says what it is, never an empty box", async ({ app, page }) => {
-  await openBoard(app, page, { "dados.json": NPCS, "som.mp3": "x", "tela.html": "<p>oi</p>", "outra.canvas": BOARD([]), "vista.base": "views: []\n" }, [
-    FILE("a", "som.mp3", 0),
+  await openBoard(app, page, { "dados.json": NPCS, "pacote.zip": "x", "tela.html": "<p>oi</p>", "outra.canvas": BOARD([]), "vista.base": "views: []\n" }, [
+    FILE("a", "pacote.zip", 0),
     FILE("h", "tela.html", 500),
     FILE("c", "outra.canvas", 1000),
     FILE("b", "vista.base", 1500),
