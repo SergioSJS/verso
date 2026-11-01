@@ -14,6 +14,7 @@ import { imageFileName } from "./imageRoute";
 import { mapAt } from "./maps";
 import { type CanvasNode, type El, newNode } from "./model";
 import { ext, IMAGE } from "../paths";
+import { audioTarget } from "../audio/state";
 import { BoardHost } from "./types";
 import { randomId } from "./util";
 import { Api } from "./view";
@@ -71,7 +72,8 @@ export function dropActions({ api, host, center, add, byId, pin, stair, touched 
       pin(path, [x + nth * 32, y + nth * 32], target as never);
       return;
     }
-    const size = await pictureSize(path);
+    // A sound file's card is its player: wide and low (ADR 0116, amendment of 2026-11-01).
+    const size = audioTarget(path) ? ([380, 132] as [number, number]) : await pictureSize(path);
     const node = newNode("file", path, [x + nth * 32, y + nth * 32], randomId());
     if (size) {
       node.x = Math.round(x + nth * 32 - size[0] / 2);
@@ -97,7 +99,7 @@ export function dropActions({ api, host, center, add, byId, pin, stair, touched 
     st.busy++;
     try {
       for (const f of files) {
-        if (!IMAGE.test(ext(f.name)) && ext(f.name) !== "pdf") {
+        if (!IMAGE.test(ext(f.name)) && ext(f.name) !== "pdf" && !audioTarget(f.name)) {
           host.status(s.imagesAsFiles);
           continue;
         }

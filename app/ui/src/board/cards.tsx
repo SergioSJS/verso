@@ -15,6 +15,7 @@ import { OpenIcon, SwapIcon } from "./tools";
 import { BoardHost, CardEditing } from "./types";
 import { ext, IMAGE, kindOf } from "../paths";
 import { sharpFactor } from "./sharp";
+import { audioTarget } from "../audio/state";
 
 /** A card of a picture in the folder: drawn as the picture alone, with no
  *  frame, head or title (its name is the picture's alternative text; open
@@ -144,8 +145,16 @@ export function Card({
   const readOnly = host.readOnly?.() ?? false;
   const view: CardView = !diagramOk ? "text" : readOnly ? localView : cardView(node);
   const pdf = node.type === "file" && !missing && ext(file) === "pdf";
-  const bodyless = node.type === "file" && !missing && !note && !pdf && !picture && !textFile;
+  // A sound file is its player (ADR 0116, amendment of 2026-11-01).
+  const audio = node.type === "file" && !missing && audioTarget(file) && host.renderAudio !== undefined;
+  const bodyless = node.type === "file" && !missing && !note && !pdf && !picture && !textFile && !audio;
   const pdfEl = useRef<HTMLDivElement>(null);
+  const audioEl = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = audioEl.current;
+    if (!audio || !el || !host.renderAudio) return;
+    return host.renderAudio(el, file);
+  }, [audio, file, host]);
   // A PDF card shows the PDF, in its turn, as a note shows an embedded one.
   useEffect(() => {
     const el = pdfEl.current;
@@ -317,6 +326,7 @@ export function Card({
           <p>{s.dataBinary(ext(file))}</p>
         </div>
       )}
+      {audio && <div ref={audioEl} className="board-card-audio" />}
       {pdf && (
         // Laid out at the zoom the card is shown at, not scaled with it:
         // pdf.js draws its pages at the size they are seen.
