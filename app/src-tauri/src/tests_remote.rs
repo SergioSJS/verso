@@ -517,3 +517,19 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
     remote::with_app_abilities(&mut caps);
     assert_eq!(caps["can"].as_array().unwrap().len(), 9 + 11);
 }
+
+/// Plain HTTP is a server's address from any machine, not only this
+/// one (ADR 0073 item 6, amended 2026-10-16); other schemes are not.
+#[test]
+fn http_is_a_servers_address_from_any_machine() {
+    for (given, kept) in [
+        ("http://192.168.1.20:7340/", "http://192.168.1.20:7340"),
+        ("http://zima.local:7340", "http://zima.local:7340"),
+        ("https://notas.casa/x", "https://notas.casa"),
+        ("http://localhost:7340", "http://localhost:7340"),
+    ] {
+        assert_eq!(crate::remote::server_url(given).unwrap(), kept, "{given}");
+    }
+    assert!(crate::remote::server_url("ftp://notas.casa").is_err());
+    assert!(crate::remote::server_url("notas.casa").is_err());
+}

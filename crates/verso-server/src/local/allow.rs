@@ -250,6 +250,9 @@ pub const REFUSED: &[&str] = &[
     "audio_sources_list",
     "audio_share_start",
     "audio_share_stop",
+    // A desktop window's channel for the frames it hears; a phone hears
+    // through its own page (the web bridge answers it there).
+    "audio_share_hear",
     // A table is a server's and its game master's (ADR 0110): no phone runs
     // the commands that change one; the status is read below.
     "campaign_make",

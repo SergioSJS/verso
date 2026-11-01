@@ -438,7 +438,7 @@ impl Remote {
 /// machine: the server serves it all, and what a secure context is for
 /// (offline, notifications) is said off in the window (ADR 0073 item 6,
 /// amended 2026-10-16).
-fn server_url(url: &str) -> Result<String, ContractError> {
+pub(crate) fn server_url(url: &str) -> Result<String, ContractError> {
     let parsed = reqwest::Url::parse(url.trim()).map_err(|_| refused("not an address"))?;
     let host = parsed.host_str().ok_or_else(|| refused("not an address"))?;
     match parsed.scheme() {
@@ -1478,25 +1478,4 @@ pub(crate) fn file<R: tauri::Runtime>(
     relative: &str,
 ) -> Option<Served> {
     of(app, label).map(|r| r.file(relative))
-}
-
-#[cfg(test)]
-mod tests_server_url {
-    use super::server_url;
-
-    /// Plain HTTP is a server's address from any machine, not only this
-    /// one (ADR 0073 item 6, amended 2026-10-16); other schemes are not.
-    #[test]
-    fn http_is_a_servers_address_from_any_machine() {
-        for (given, kept) in [
-            ("http://192.168.1.20:7340/", "http://192.168.1.20:7340"),
-            ("http://zima.local:7340", "http://zima.local:7340"),
-            ("https://notas.casa/x", "https://notas.casa"),
-            ("http://localhost:7340", "http://localhost:7340"),
-        ] {
-            assert_eq!(server_url(given).unwrap(), kept, "{given}");
-        }
-        assert!(server_url("ftp://notas.casa").is_err());
-        assert!(server_url("notas.casa").is_err());
-    }
 }
