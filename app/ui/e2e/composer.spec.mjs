@@ -32,11 +32,14 @@ async function setup(app, page, { server = false, role = "owner" } = {}) {
   }
   if (phone(page)) await page.locator(".bar-right").click();
   else await page.evaluate(() => document.body.classList.remove("no-right"));
-  // At 320 px the tab strip keeps the first tabs and puts the rest behind "Mais abas do painel".
-  if ((page.viewportSize()?.width ?? 1500) <= 330) {
+  // At 320 px the tab strip keeps the first tabs and puts the rest behind "Mais abas do painel"
+  // (the Music tab, ADR 0116, moved the Mesa tab into the strip): take the tab where it is.
+  const tab = page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ });
+  if (await tab.isVisible()) await tab.click();
+  else {
     await page.getByRole("button", { name: "Mais abas do painel" }).click();
     await page.getByRole("menuitem", { name: /^Mesa/ }).click();
-  } else await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
+  }
   const view = page.locator(".table-view");
   await expect(view).toBeVisible();
   // A phone keeps the dice row behind its button (fix/phone-table-space): open it first.
