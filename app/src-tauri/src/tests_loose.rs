@@ -83,10 +83,21 @@ fn a_file_handed_to_the_running_app_opens_in_the_loose_window() {
         "table",
         "board",
         "reveal",
+        "terminal",
     ] {
         assert!(!can.iter().any(|c| c == gone), "{gone} in {can:?}");
     }
     assert!(can.iter().any(|c| c == "write"));
+    // No terminal there, the switch on or not (ADR 0115 item 6).
+    call(&webview, "set_terminal_enabled", json!({"on": true})).unwrap();
+    let err = call(
+        &webview,
+        "terminal_write",
+        json!({"id": "x-1", "data": "ls"}),
+    )
+    .unwrap_err();
+    assert_eq!(err["kind"], "refused");
+    call(&webview, "set_terminal_enabled", json!({"on": false})).unwrap();
     // A folder handed now is not this window's to take.
     let vault = tempfile::tempdir().unwrap();
     let _n = note(vault.path(), "Nota.md", "# Nota\n");

@@ -489,6 +489,8 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
         "updates",
         "devtools",
         "local_folders",
+        // This computer's shell, in the home directory (ADR 0115 Q4).
+        "terminal",
         // An old server never says it: a folder window by default.
         "index",
         "search",
@@ -509,5 +511,5 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
     }
     // Asked twice, nothing is added twice.
     remote::with_app_abilities(&mut caps);
-    assert_eq!(caps["can"].as_array().unwrap().len(), 7 + 11);
+    assert_eq!(caps["can"].as_array().unwrap().len(), 8 + 11);
 }

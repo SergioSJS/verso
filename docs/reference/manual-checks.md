@@ -20,6 +20,22 @@ in the real app.
 
 ## Not yet checked
 
+### The embedded terminal (ADR 0115, 2026-10-31)
+
+The harness has no pseudo-terminal (its shell is scripted); the host tests run a real shell on macOS, Linux (the container) and Windows (VM 103). What a real app, a real person's startup files, a screen reader and the AI tools themselves do is listed here, per system — macOS, Windows (VM 103), Linux (VM 104) — with Ajustes › Recursos › Terminal on:
+
+- [ ] **The PATH of the person's own terminal** (A, each system): in a terminal tab, `claude --version`, `gemini --version`, `npx --version` answer as in Terminal.app / Windows Terminal / GNOME Terminal (Homebrew's, `~/.local/bin` and npm's global bin found); **Ferramentas de IA** lists as installed exactly the tools that answer there.
+- [ ] **Accents at the prompt and inside a TUI** (A, each system): `ç`, `ã`, `é`, `õ`, `“ ”` typed at the prompt (on the Mac with Option dead keys, *Option como Meta* off) and inside Claude Code's prompt come out whole; emoji and box-drawing characters line up.
+- [ ] **Claude Code's full-screen UI** (A): it draws, resizes with the pane (split, drag the divider), takes the mouse, and pastes several lines at once as one paste; `vim` and `htop` (Linux/macOS) leave the screen as it was.
+- [ ] **Ctrl+C and closing** (A, each system): Ctrl+C stops `sleep 100` (`Start-Sleep 100` on Windows); a tab closed with `sleep 1000 &` running leaves no `sleep` in `ps` / Task Manager; quitting the app with a program running asks first. On Windows: close the app from Task Manager with `ping -t localhost` running — no `ping.exe` or `pwsh.exe` is left (the Job Object).
+- [ ] **A reload keeps the agent** (A): start `claude` in a terminal, ⌘R / Ctrl+R the window: the tab comes back on the same running session.
+- [ ] **The renderer** (A): the terminal draws with WebGL on each engine (WKWebView, WebView2, WebKitGTK); with WebGL refused (a VM without GPU), the DOM renderer still draws and scrolls.
+- [ ] **Screen readers** (A): with *Modo leitor de tela no terminal* on, VoiceOver (macOS), NVDA (Windows) and Orca (Linux) read new output; the tab's name and the keys that leave the terminal are announced; the focus ring shows.
+- [ ] **macOS privacy prompt** (A, macOS): the first `ls ~/Documents` in a terminal shows the system's prompt naming **Verso**; refusing it gives the shell's own "Operation not permitted", nothing of Verso's breaks.
+- [ ] **Windows shells** (A, Windows): with PowerShell 7 installed, the line says `pwsh`; without it, `powershell`; Ajustes › Terminal e agentes › Shell do terminal › Prompt de Comando starts `cmd`; no console window flashes on open or on **Ferramentas de IA**.
+- [ ] **Linux AppImage** (A, VM 104): in the AppImage build, `echo $LD_LIBRARY_PATH $APPDIR` in a terminal prints nothing of the AppImage, and `git`, `python3` run as from the desktop's terminal; with `$SHELL` unset by the display manager the shell is the account's own (or `bash`).
+- [ ] **A server's folder** (A): a desktop window on a server's folder not synced here opens the terminal in the home folder with its line; a synced one opens at the folder's root.
+
 ### A Markdown file opened without its folder (ADR 0114, feat/single-file, 2026-10-30)
 
 Per system — the double-click itself cannot run in the browser harness; each line on macOS, Windows (VM 103) and Linux (VM 104):

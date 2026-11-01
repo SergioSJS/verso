@@ -23,6 +23,9 @@ import { typeKey } from "../datagraph/model";
 import { lastView } from "../datagraph/store";
 import { GraphLeaf } from "../leaves/graph";
 import { ThemeLeaf } from "../leaves/theme";
+import { TerminalLeaf } from "../leaves/terminal";
+import type { TerminalPlace } from "../terminal/open";
+import { tw } from "../terminal/strings";
 import type { BuildSpec } from "../theme/builder";
 import { ImageLeaf } from "../leaves/image";
 import { askDiscard, Leaf } from "../leaves/leaf";
@@ -252,6 +255,14 @@ export class Pane {
     this.activate(leaf, false);
     return leaf;
   }
+  /** A terminal in a tab of this pane (ADR 0115 item 9): a new shell, or
+   *  one of this run found again (`attach`). */
+  openTerminal(place: TerminalPlace): Leaf {
+    const leaf = new TerminalLeaf(this, place);
+    this.insert(leaf);
+    this.activate(leaf, true);
+    return leaf;
+  }
   /** The theme builder (ADR 0100), in a tab of this pane: one at a time. */
   openTheme(spec: BuildSpec): Leaf {
     let leaf = this.layoutLeaves().find((l) => l.kind === "theme");
@@ -333,7 +344,7 @@ export class Pane {
       })(), "maximize"] as MenuItem] : []),
       ...(leaf.path && !can("windows") && server ? [[st.openInBrowserTab, () => void commands.openWindow(leaf.path).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
-      ...(leaf.kind === "theme" ? [] : [
+      ...(leaf.kind === "theme" || leaf.kind === "terminal" ? [] : [
       [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
       ] as MenuItem[]),
@@ -359,6 +370,13 @@ export class Pane {
         ...(can("reveal") ? [[t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem] : []),
       ] : []),
       ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path), "graph"] as MenuItem] : []),
+      // A terminal's Clear, and the keys that leave it (ADR 0115 items 10 and 24):
+      // the row puts the keyboard on the tab, out of the terminal.
+      ...(leaf instanceof TerminalLeaf ? [
+        sep,
+        [tw.clear, () => leaf.clear(), "close"] as MenuItem,
+        [tw.leaveKeys(leaf.leaveKeys()), () => leaf.tab.focus(), "keyboard"] as MenuItem,
+      ] : []),
       // A periodic note's previous and next (ADR 0093 item 8).
       ...(leaf.kind === "note" ? periodicMenu(leaf.path).map((m) => m as MenuItem) : []),
       // 5. Close actions

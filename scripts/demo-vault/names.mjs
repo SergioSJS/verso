@@ -45,6 +45,7 @@ export const NAMES = {
   "32 - Rodando uma Mesa.md": "32 - Running a Table.md",
   "33 - Abrir um Arquivo Avulso.md": "33 - Open a Single File.md",
   "34 - UniVerso num Servidor Grátis da Oracle.md": "34 - UniVerso on a Free Oracle Server.md",
+  "35 - Terminal e Agentes de IA.md": "35 - Terminal and AI Agents.md",
   "36 - Som e Música na Mesa.md": "36 - Sound and Music at the Table.md",
   "37 - Compatibilidade com o Obsidian.md": "37 - Compatibility with Obsidian.md",
   "38 - Instalar o servidor num NAS ou VPS.md": "38 - Installing the server on a NAS or a VPS.md",

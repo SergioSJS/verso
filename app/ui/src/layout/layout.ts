@@ -5,6 +5,8 @@
 import { h, ui } from "../dom";
 import { allFiles, allNotes } from "../folder";
 import { Leaf } from "../leaves/leaf";
+import { TerminalLeaf } from "../leaves/terminal";
+import { terminalOn } from "../terminal/open";
 import { quietPaths } from "../opening";
 import { refreshFrame } from "../frame";
 import { t } from "../strings";
@@ -197,9 +199,11 @@ export class Layout {
   serialize(node: LNode = this.root): unknown {
     if (node.kind === "pane") {
       // The active tab by its place among the tabs saved, not among all.
-      const saved = node.pane.leaves.filter((l) => l.path || l.kind === "folder" || l.kind === "graph");
+      const saved = node.pane.leaves.filter((l) => l.path || l.kind === "folder" || l.kind === "graph" || l.kind === "terminal");
       return {
-        tabs: saved.map((l) => ({ path: l.path, kind: l.kind, pinned: l.pinned })),
+        // A terminal is kept by its id and folder: a reload finds the same
+        // shell, a restart starts one in the same place (ADR 0115 Q6).
+        tabs: saved.map((l) => ({ path: l.path, kind: l.kind, pinned: l.pinned, ...(l instanceof TerminalLeaf ? { term: { id: l.id, folder: l.folder } } : {}) })),
         active: node.pane.active ? Math.max(0, saved.indexOf(node.pane.active)) : 0,
         grow: node.pane.el.style.flexGrow || "1",
         vertical: node.pane.vertical,
@@ -224,10 +228,14 @@ export class Layout {
         const wanted = typeof o.active === "number" ? o.active : 0;
         let active: Leaf | null = null;
         for (let i = 0; i < o.tabs.length; i++) {
-          const tt = o.tabs[i] as { path?: unknown; kind?: unknown; pinned?: unknown };
+          const tt = o.tabs[i] as { path?: unknown; kind?: unknown; pinned?: unknown; term?: { id?: unknown; folder?: unknown } };
           if (typeof tt.path !== "string") continue;
           let made: Leaf | null = null;
-          if (tt.kind === "folder") made = tt.path === "" || allFolders.includes(tt.path) ? pane.openFolder(tt.path) : null;
+          if (tt.kind === "terminal") {
+            const folder = typeof tt.term?.folder === "string" ? tt.term.folder : "";
+            const id = typeof tt.term?.id === "string" ? tt.term.id : null;
+            made = terminalOn() && (folder === "" || allFolders.includes(folder)) ? pane.openTerminal({ folder, attach: id }) : null;
+          } else if (tt.kind === "folder") made = tt.path === "" || allFolders.includes(tt.path) ? pane.openFolder(tt.path) : null;
           else if (tt.kind === "graph") made = tt.path === "" || allNotes.includes(tt.path) ? pane.openGraph(tt.path) : null;
           else if (allNotes.includes(tt.path) || allFiles.includes(tt.path)) {
             quietPaths.add(tt.path);

@@ -18,7 +18,7 @@ export function ext(path: string): string {
 }
 export const IMAGE = /^(png|jpe?g|gif|webp|svg|bmp|avif)$/;
 export const TEXT = /^(txt|json|jsonc|jsonl|ndjson|csv|tsv|yaml|yml|toml|xml|css|js|ts|py|rs|sh|log|ini|cfg)$/;
-export type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph" | "base" | "board" | "data" | "theme";
+export type Kind = "note" | "image" | "text" | "pdf" | "frame" | "other" | "folder" | "graph" | "base" | "board" | "data" | "theme" | "terminal";
 export function kindOf(path: string): Kind {
   const e = ext(path);
   if (e === "md") return "note";
@@ -34,5 +34,5 @@ export function kindOf(path: string): Kind {
   return "other";
 }
 export function iconFor(kind: Kind): string {
-  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "frame" ? "frame" : kind === "folder" ? "folder" : kind === "graph" ? "graph" : kind === "base" ? "base" : kind === "board" ? "board" : kind === "data" ? "diagram" : kind === "theme" ? "palette" : "text";
+  return kind === "note" ? "note" : kind === "image" ? "image" : kind === "text" ? "text" : kind === "pdf" ? "pdf" : kind === "frame" ? "frame" : kind === "folder" ? "folder" : kind === "graph" ? "graph" : kind === "base" ? "base" : kind === "board" ? "board" : kind === "data" ? "diagram" : kind === "theme" ? "palette" : kind === "terminal" ? "terminal" : "text";
 }

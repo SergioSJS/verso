@@ -58,6 +58,7 @@ const pt: Words = {
     dice3d: "Dados 3D",
     table: "Mesa",
     tableSound: "Som da mesa",
+    terminal: "Terminal",
   },
   descs: {
     diceRolling: "Um `dice:` numa nota vira um botão que rola; também liga o comando \"Rolar dados…\" e os botões de dados dentro das fichas.",
@@ -70,6 +71,7 @@ const pt: Words = {
     dice3d: "Ao rolar um dado, dados 3D caem na tela antes de o resultado aparecer; o resultado já foi sorteado, a animação só o mostra. Fica desligado mesmo no atalho \"Tudo\" (pesa na bateria) e nunca anima se o sistema pede menos movimento. Os dados ficam na mesa até você mexer em algo (um clique fora dos botões, Esc ou a próxima rolagem).",
     table: "Um painel \"Mesa\" no painel da direita com todas as rolagens, sorteios de tabela e perguntas ao oráculo desta pasta, quem fez cada uma e de qual nota. Precisa de Dados ligado. Desligado, não há painel nem botão e as rolagens nas notas funcionam como sempre.",
     tableSound: "Música no painel Mesa que todos da mesa ouvem: o mestre toca um arquivo de som da pasta (ou um link de som numa nota, com um botão de tocar), pausa, avança, repete; cada pessoa tem o próprio volume. Sozinho numa pasta deste computador, toca só para você. Precisa de Mesa ligada. Desligado, não há música, botão nem item na barra de status, e nada é carregado.",
+    terminal: "Um terminal deste computador numa aba, aberto na raiz da pasta, onde você roda o Claude Code, o Gemini CLI e outras ferramentas de linha de comando. Fica desligado até você ligar, mesmo no atalho \"Tudo\". O que um programa rodado nele escreve nos arquivos aparece no histórico de versões e pode ser desfeito.",
   },
   on: "ligado",
   off: "desligado",
@@ -111,6 +113,7 @@ const en: Words = {
     dice3d: "3D dice",
     table: "Table",
     tableSound: "Table sound",
+    terminal: "Terminal",
   },
   descs: {
     diceRolling: "A `dice:` in a note becomes a button that rolls; also turns on the \"Roll dice…\" command and the dice buttons inside statblocks.",
@@ -123,6 +126,7 @@ const en: Words = {
     dice3d: "Rolling a die drops 3D dice on the screen before the result shows; the result is already drawn, the animation only stages it. It stays off even with the \"Everything\" shortcut (it is heavy on the battery) and never animates when the system asks for less motion. The dice stay on the table until you touch something (a click away from the buttons, Esc or the next roll).",
     table: "A \"Table\" panel in the right panel with every roll, random-table roll and oracle question of this folder, who made each one and from which note. Needs Dice on. Off, there is no panel and no button, and rolls in notes work as they always did.",
     tableSound: "Music in the Table panel that everyone at the table hears: the game master plays a sound file of the folder (or a sound link in a note, with a play button), pauses, skips, loops; each person has their own volume. Alone in a folder of this computer, it plays for you only. Needs Table on. Off, there is no music, no button, no status-bar item, and nothing is loaded.",
+    terminal: "A terminal of this computer in a tab, opened at the folder's root, where you run Claude Code, Gemini CLI and other command-line tools. It stays off until you turn it on, even with the \"Everything\" shortcut. What a program run in it writes to the files shows in the version history and can be undone.",
   },
   on: "on",
   off: "off",

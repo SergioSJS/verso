@@ -71,4 +71,6 @@ Experimente pedir: *"quais notas têm a tag projeto e o que o Tour do Verso most
 
 ---
 
+O app também tem um terminal de verdade numa aba, onde você roda o Claude Code e outras ferramentas de IA ao lado das notas: [[35 - Terminal e Agentes de IA]].
+
 Siga para [[18 - Ajuda, Atualizações e Diagnóstico]] ou volte para a [[00 - Bem-vindo ao Verso|Página Inicial]].

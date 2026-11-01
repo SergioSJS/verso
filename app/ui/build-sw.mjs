@@ -25,9 +25,12 @@ const walk = (dir) =>
 
 // What the server serves of `dist/` to a browser's window: not the source
 // maps, the desktop's own page, nor the harness; and not the worker itself.
+// Nor the embedded terminal's screen and sheet: a browser's window never has
+// a terminal (ADR 0115 item 6), so a phone keeps none of it offline.
+const desktopOnly = (p) => p.startsWith("/chunks/xtermScreen-") || p.startsWith("/terminal/");
 const all = walk(dist)
   .map((p) => "/" + relative(dist, p).split("\\").join("/"))
-  .filter((p) => !p.endsWith(".map") && p !== "/index.html" && p !== "/web.html" && p !== "/sw.js" && !p.startsWith("/harness") && !p.includes(".test-bundle."))
+  .filter((p) => !p.endsWith(".map") && p !== "/index.html" && p !== "/web.html" && p !== "/sw.js" && !p.startsWith("/harness") && !p.includes(".test-bundle.") && !desktopOnly(p))
   .sort();
 
 // The chunks a script imports at once, followed through the scripts that

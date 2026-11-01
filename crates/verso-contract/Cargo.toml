@@ -17,3 +17,8 @@ specta = { version = "=2.0.0-rc.25", features = ["derive"] }
 
 [lints]
 workspace = true
+
+# The serialised words of the capabilities, checked in the crate's tests
+# (already in the tree through every other crate; tests only).
+[dev-dependencies]
+serde_json = "1"
