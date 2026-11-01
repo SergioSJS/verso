@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.51
+# Verso dialect spec — v0.52
 
-- Version: v0.51 · 2026-10-31
+- Version: v0.52 · 2026-11-01
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -342,6 +342,13 @@ that: Q23.
 
 Embed and link are distinct constructs in the `expected.yaml`. Whether an embed
 also counts as a link in the graph and in backlinks: `DECIDED` on 2026-10-21, yes, marked as an embed (section 9, Q2).
+
+An embed of a sound file — `![[taverna.mp3]]`, or `![](sons/taverna.mp3)` by
+Q20 — is **rendered as a player** in the reading view, in Live Preview and on
+a board's card, as Obsidian renders an audio embed
+([ADR 0116](../adr/0116-music-and-sound-at-the-table-heard-by-everyone.md),
+amendment of 2026-11-01). Rendering only: the parser records it as any other
+embed, and no fixture asserts how it is drawn.
 
 ### 5.7 Block definition
 
@@ -1842,3 +1849,4 @@ the parser was chosen.
 | v0.49 | 2026-10-22 | The maintainer's answers of the afternoon list of 2026-10-21: **Q5-bis A** (a plain blockquote inside a callout is no level; a callout inside it is nested), **T.3 A** (`tags`: only non-negative integers), **I-8 A** (`frontmatter/tags-number` reconfirmed as it stands). No fixture changed |
 | v0.50 | 2026-10-22 | §6: one row and an example, the fenced block ```` ```roll ```` — a roll of the Table kept in a note ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md) "As built", roll block; the maintainer's option A of 2026-10-22). Verso draws a fixed card; Obsidian reads a code block; the parser does not change. No fixture. No question closed. (The header above still reads v0.48 while the history reaches v0.49: a contradiction already in the document, left for the maintainer.) |
 | v0.51 | 2026-10-31 | The maintainer's answers to the list of 2026-10-31 (*"O restante ta aprovado"*). **Confirmed, nothing changed**, since each was already decided and the list had read sentences that are history: Q5's limit of 32 levels of nesting (decided 2026-10-21), Q9's per-block visibility by `[!secret]` (decided 2026-10-14), Q8's case-only rename as it is (ADR 0070 item 3), and Q3's four provisional facts of v0.30 (replaced by the observation of v0.31, closed in v0.32). **Kept `[OPEN]` until a real case**: Q6's embedded HTML beyond its decision (options B and C), Q17's limits, and §5.1's accepted forms of `tags` and `aliases`. **Q17, one ceiling `DECIDED`** (his B7 = a): a note above 16 MiB stays out of the index, syncing as a file, and shows a notice (to be built). No fixture added or changed; a fixture of the ceiling would be approved separately. The header's version, left at v0.48 by v0.49 and v0.50, catches up |
+| v0.52 | 2026-11-01 | §5.6: an embed of a sound file is rendered as a player ([ADR 0116](../adr/0116-music-and-sound-at-the-table-heard-by-everyone.md), amendment of 2026-11-01, the maintainer's request), as Obsidian renders it; `![](…)` of a sound file too, by Q20. Rendering only: the parser does not change. No fixture added or changed; no question closed |

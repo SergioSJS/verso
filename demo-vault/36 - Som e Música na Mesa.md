@@ -46,7 +46,7 @@ Enquanto algo toca, a aba **Mesa** mostra no topo **uma linha fina**: o nome da 
 
 ## Uma nota é uma playlist
 
-Não precisa de nada especial: **qualquer link para um arquivo de som numa nota ganha um botão de tocar** ao lado, para o mestre, e a nota aparece em **Playlists**. O título acima de uma lista desses links é uma **cena**, e **Próxima** e **Anterior** andam por ela. Experimente com as duas faixas de amostra que vêm com este tutorial:
+Não precisa de nada especial: **qualquer link para um arquivo de som numa nota ganha um botão de tocar** ao lado, para o mestre (um embed vira um player, logo abaixo), e a nota aparece em **Playlists**. O título acima de uma lista desses links é uma **cena**, e **Próxima** e **Anterior** andam por ela. Experimente com as duas faixas de amostra que vêm com este tutorial:
 
 ### Taverna
 
@@ -60,6 +60,19 @@ Não precisa de nada especial: **qualquer link para um arquivo de som numa nota 
 Aperte o botão ao lado de **A taverna**: a faixa toca, *De: 36 - Som e Música na Mesa › Taverna*, e **Próxima faixa** leva para **A estrada**. No fim da lista, Próxima apaga; com **Repetir: a lista**, ela volta à primeira. Quando uma faixa termina sem repetir, a janela do mestre toca a próxima da lista, ou para.
 
 No Obsidian, esta mesma nota é uma lista de links comum: nenhum código novo, nada que o Obsidian não leia.
+
+---
+
+## Um player na nota
+
+Um **embed** de som vira um player na própria nota, como no Obsidian ([[06 - Documentos e Mídia]]). `![[assets/sons/taverna.mp3]]`:
+
+![[assets/sons/taverna.mp3]]
+
+- Ele toca **só para quem aperta**, nesta janela: bom para ouvir uma faixa antes de tocá-la para a mesa.
+- Para o mestre, o player tem também **Tocar para a mesa**: a faixa vai para a aba Música, com a cena do título acima dela, e o Verso faz a mesma pergunta de antes quando algum jogador não vê o arquivo. Sozinho, sem mesa, o botão diz **Tocar na aba Música**.
+- Se a música da mesa está tocando e você aperta tocar num player da nota, **a música da mesa fica mais baixa** enquanto ele toca — o player avisa — e volta ao volume quando ele para. Se o mestre começa uma música para a mesa enquanto o seu player toca, **o seu pausa**: *Pausado: a música da mesa começou.*
+- Um jogador só tem o player de um arquivo que ele vê. O embed de um arquivo oculto aparece como **🔒 (ainda não revelado)**, sem o nome; num board, o cartão dele fica trancado. Atenção: um arquivo sem acesso próprio segue as notas que o incluem — embutido numa nota que os jogadores veem, eles também o veem. Para guardar uma faixa, botão direito nela › **Acesso…** › *Toda a mesa: Não vê*.
 
 ---
 

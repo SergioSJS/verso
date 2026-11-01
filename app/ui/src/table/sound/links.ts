@@ -42,15 +42,22 @@ export function soundButton(path: string, host: SoundHost, heading: () => string
   b.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const resolve = (target: string) => resolveFileByName(target, host.path());
-    const found = sceneUnder(scenesOf(host.text(), resolve), path, heading());
-    // The list is known by its note and heading ("Trilha › Taverna").
-    const scene = found ? asScene({ kind: "note", source: host.path(), scene: found.name, tracks: found.tracks }, "") : null;
-    void playTrack(path, scene, askUnheard).then((err) => {
-      if (err) ui.status.textContent = err;
-    });
+    playForTable(path, host, heading());
   });
   return b;
+}
+
+/** Play `path` for the table (or in this window's Music tab, alone), from the
+ *  scene of the note of `host` under `heading`: the play button's, and the
+ *  audio embed's "Play for the table" (src/audio/player.ts). In the gesture. */
+export function playForTable(path: string, host: SoundHost, heading: string | null): void {
+  const resolve = (target: string) => resolveFileByName(target, host.path());
+  const found = sceneUnder(scenesOf(host.text(), resolve), path, heading);
+  // The list is known by its note and heading ("Trilha › Taverna").
+  const scene = found ? asScene({ kind: "note", source: host.path(), scene: found.name, tracks: found.tracks }, "") : null;
+  void playTrack(path, scene, askUnheard).then((err) => {
+    if (err) ui.status.textContent = err;
+  });
 }
 
 /** The reading views drawn, wired again when the person comes to control the
@@ -83,7 +90,7 @@ export function wireSound(root: HTMLElement, host: SoundHost, keep = true): void
 }
 
 /** The text of the heading above `el` in the reading view, or null. */
-function headingAbove(el: Element, root: Element): string | null {
+export function headingAbove(el: Element, root: Element): string | null {
   let block: Element | null = el;
   while (block && block.parentElement && block.parentElement !== root) block = block.parentElement;
   for (let b: Element | null = block; b; b = b.previousElementSibling) {

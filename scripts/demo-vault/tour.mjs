@@ -394,7 +394,7 @@ const STOPS = [
       "Numa nota compartilhada quem rola é o servidor, e todos veem quem rolou. Rolar dados…, na paleta, rola sem nota. " +
       "Um callout `> [!secret]` é o segredo do mestre: num UniVerso, quem só lê a nota a recebe sem ele; Ver como leitor mostra como. " +
       "Um código de cor — `#1d9e75`, `rgb()`, `hsl()` — ganha um quadradinho da cor, e no editor um clique nele abre o seletor. " +
-      "A aba Mesa, no painel da direita, junta toda rolagem, sorteio e pergunta ao oráculo: quem fez, quando e de qual nota. Numa pasta de UniVerso é a mesa de todos: quem está lá, mensagens, imagens, rolagem secreta, linhas fixadas e o registro guardado no servidor. Ao lado, a aba Música: cada pasta com arquivos de som é uma lista e cada nota com links de som uma playlist; o mestre toca, e todos da mesa ouvem no mesmo ponto, cada um com o seu volume (nota 36).",
+      "A aba Mesa, no painel da direita, junta toda rolagem, sorteio e pergunta ao oráculo: quem fez, quando e de qual nota. Numa pasta de UniVerso é a mesa de todos: quem está lá, mensagens, imagens, rolagem secreta, linhas fixadas e o registro guardado no servidor. Ao lado, a aba Música: cada pasta com arquivos de som é uma lista e cada nota com links de som uma playlist; o mestre toca, e todos da mesa ouvem no mesmo ponto, cada um com o seu volume (nota 36). Um embed de som, `![[faixa.mp3]]`, é um player na nota e, num board, um cartão: toca só para você, e o mestre o leva à mesa com Tocar para a mesa.",
   },
   {
     id: "mundos-rpg",

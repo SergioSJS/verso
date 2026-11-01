@@ -558,8 +558,19 @@ fn filter(ws: &mut Workspace, p: &Player, name: &str, args: &Value, mut v: Value
             let source = args["path"].as_str().unwrap_or_default().to_owned();
             if let Some(list) = v.as_array_mut() {
                 for l in list {
-                    let Some(res) = l["resolved"].as_str().map(str::to_owned) else {
-                        continue;
+                    // A note's link is resolved by the index; an attachment's
+                    // (a picture, a sound file) is not, and is reached here as
+                    // the veil of the text reaches it (`fate`), so its name
+                    // never passes when the player does not see it.
+                    let res = match l["resolved"].as_str() {
+                        Some(r) => r.to_owned(),
+                        None => match l["target"]
+                            .as_str()
+                            .and_then(|t| ws.reached_path(&source, t))
+                        {
+                            Some(r) => r,
+                            None => continue,
+                        },
                     };
                     if !hidden(veil, files, &res) {
                         continue;
@@ -587,7 +598,6 @@ fn filter(ws: &mut Workspace, p: &Player, name: &str, args: &Value, mut v: Value
                     l["heading"] = Value::Null;
                     l["block"] = Value::Null;
                     l["alias"] = Value::Null;
-                    let _ = &source;
                 }
             }
         }

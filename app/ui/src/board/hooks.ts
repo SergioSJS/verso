@@ -239,10 +239,12 @@ export function useCardPreview(canvas: RefObject<HTMLDivElement | null>, preview
   }, [canvas, preview]);
 }
 
-/** A card's buttons (open, swap, a page card's approval, a die's roll), under Excalidraw's
- *  selection canvas, are pressed here: the topmost card under the pointer
- *  decides, as the eye does. Only a card that is not entered: an entered
- *  card takes the pointer itself. */
+/** A card's buttons (open, swap, a page card's approval, a die's roll, a
+ *  sound card's player), under Excalidraw's selection canvas, are pressed
+ *  here: the topmost card under the pointer decides, as the eye does. A
+ *  slider of a card (`input.board-card-press`, the player's bar and volume)
+ *  is dragged here the same way. Only a card that is not entered: an
+ *  entered card takes the pointer itself. */
 export function useCardButtons(canvas: RefObject<HTMLDivElement | null>): void {
   useEffect(() => {
     const root = canvas.current;
@@ -256,7 +258,7 @@ export function useCardButtons(canvas: RefObject<HTMLDivElement | null>): void {
         const slot = slots[i]!;
         if (!inside(slot.getBoundingClientRect(), x, y)) continue;
         if (slot.classList.contains("is-active")) return null;
-        for (const b of slot.querySelectorAll<HTMLElement>("button.board-card-open, button.board-card-press, button.dice-button, button.dice-again, button.dice-close")) if (inside(b.getBoundingClientRect(), x, y)) return b;
+        for (const b of slot.querySelectorAll<HTMLElement>("button.board-card-open, button.board-card-press, input.board-card-press, button.dice-button, button.dice-again, button.dice-close")) if (!(b as HTMLButtonElement).disabled && b.getClientRects().length > 0 && inside(b.getBoundingClientRect(), x, y)) return b;
         return null;
       }
       return null;
@@ -268,15 +270,22 @@ export function useCardButtons(canvas: RefObject<HTMLDivElement | null>): void {
       pressed = b;
       e.stopPropagation();
       e.preventDefault();
+      if (b instanceof HTMLInputElement) slide(b, e.clientX, "input");
     };
     const up = (e: PointerEvent): void => {
       if (!pressed) return;
       const b = pressed;
       pressed = null;
       e.stopPropagation();
-      if (buttonAt(e.clientX, e.clientY) === b) b.click();
+      if (b instanceof HTMLInputElement) slide(b, e.clientX, "change");
+      else if (buttonAt(e.clientX, e.clientY) === b) b.click();
     };
     const move = (e: PointerEvent): void => {
+      if (pressed instanceof HTMLInputElement && e.buttons) {
+        e.stopPropagation();
+        slide(pressed, e.clientX, "input");
+        return;
+      }
       const b = e.buttons ? null : buttonAt(e.clientX, e.clientY);
       if (b === hover) return;
       hover?.classList.remove("is-hover");
@@ -293,4 +302,18 @@ export function useCardButtons(canvas: RefObject<HTMLDivElement | null>): void {
       root.removeEventListener("pointermove", move, true);
     };
   }, []);
+}
+
+/** A card's slider set where the pointer is along it, and told (`input`
+ *  while dragged, `change` once let go), as the engine's own would. */
+function slide(r: HTMLInputElement, x: number, event: "input" | "change"): void {
+  const box = r.getBoundingClientRect();
+  const min = Number(r.min) || 0;
+  const max = Number(r.max) || 100;
+  const step = Number(r.step) || 1;
+  const frac = box.width > 0 ? Math.max(0, Math.min(1, (x - box.left) / box.width)) : 0;
+  const value = Math.round((min + frac * (max - min)) / step) * step;
+  if (event === "input" && String(value) === r.value) return;
+  r.value = String(value);
+  r.dispatchEvent(new Event(event, { bubbles: true }));
 }

@@ -50,10 +50,10 @@ for (const kind of ["drop", "paste"]) {
   });
 }
 
-test("a file that is not a picture or a PDF is refused, and said", async ({ app }) => {
+test("a file that is not a picture, a PDF or a sound file is refused, and said", async ({ app }) => {
   await openBoard(app);
   await hand(app, "drop", "dados.zip", "application/zip");
-  await expect(app.page.locator("#status")).toContainText("Só imagens e PDFs");
+  await expect(app.page.locator("#status")).toContainText("Só imagens, PDFs e arquivos de som");
   expect(await nodesOf(app)).toEqual([]);
 });
 

@@ -24,6 +24,7 @@ import { rollCard } from "../rollblock/card";
 import { startOf, FrontmatterWidget } from "./widgets";
 import { mathSpans, inlineText, aloneInParagraph } from "./math";
 import { frontmatterEnd } from "./frontmatter";
+import { audioTarget } from "../audio/state";
 
 /** A block of the note shown rendered until the caret enters it: a table,
  *  display math alone in its paragraph, or a note embedded on a line of
@@ -118,7 +119,8 @@ export function blocksOf(state: EditorState): Block[] {
   for (let n = 1; n <= doc.lines; n++) {
     const line = doc.line(n);
     const embed = /^!\[\[([^\]\n]+)\]\]$/.exec(line.text.trim());
-    if (!embed || IMAGE_EXT.test(embed[1] ?? "")) continue;
+    // A picture or a sound file is drawn in the line (live.ts), not as a block.
+    if (!embed || IMAGE_EXT.test(embed[1] ?? "") || audioTarget(embed[1] ?? "")) continue;
     if (taken.some((b) => line.from <= b.to && line.to >= b.from)) continue;
     let code = false;
     for (let p: SyntaxNode | null = tree.resolveInner(line.from + line.text.search(/\S/), 1); p; p = p.parent) if (p.name === "FencedCode" || p.name === "CodeBlock") code = true;

@@ -46,7 +46,7 @@ While something plays, the **Table** tab shows **one slim row** at its top: the 
 
 ## A note is a playlist
 
-Nothing special is needed: **any link to a sound file in a note gets a play button** beside it, for the game master, and the note shows under **Playlists**. The heading above a list of such links is a **scene**, and **Next** and **Previous** walk it. Try it with the two sample tracks that come with this tutorial:
+Nothing special is needed: **any link to a sound file in a note gets a play button** beside it, for the game master (an embed becomes a player, just below), and the note shows under **Playlists**. The heading above a list of such links is a **scene**, and **Next** and **Previous** walk it. Try it with the two sample tracks that come with this tutorial:
 
 ### Tavern
 
@@ -60,6 +60,19 @@ Nothing special is needed: **any link to a sound file in a note gets a play butt
 Press the button beside **The tavern**: the track plays, *From: 36 - Sound and Music at the Table › Tavern*, and **Next track** goes to **The road**. At the end of the list, Next is greyed out; with **Loop: the list**, it goes back to the first. When a track ends without looping, the game master's window plays the next of the list, or stops.
 
 In Obsidian, this same note is an ordinary list of links: no new code, nothing Obsidian does not read.
+
+---
+
+## A player in the note
+
+A sound **embed** becomes a player in the note itself, as in Obsidian ([[06 - Documents and Media]]). `![[assets/sons/taverna.mp3]]`:
+
+![[assets/sons/taverna.mp3]]
+
+- It plays **only for whoever presses it**, in this window: a way to hear a track before playing it for the table.
+- For the game master, the player also has **Play for the table**: the track goes to the Music tab, with the scene of the heading above it, and Verso asks the same question as above when some player does not see the file. Alone, with no table, the button reads **Play in the Music tab**.
+- If the table's music is playing and you press play on a player in a note, **the table's music goes lower** while it plays — the player says so — and comes back when it stops. If the game master starts music for the table while your player plays, **yours pauses**: *Paused: the table's music started.*
+- A player at the table only gets the audio player of a file they see. The embed of a hidden file shows as **🔒 (not revealed yet)**, without its name; on a board, its card is locked. Mind: a file with no access of its own follows the notes that include it — embedded in a note the players see, they see it too. To keep a track back, right-click it › **Access…** › *Whole table: Does not see*.
 
 ---
 

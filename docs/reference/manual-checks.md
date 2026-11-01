@@ -1425,6 +1425,16 @@ On the real engines, which the harness's stubbed `play()` does not reach; a UniV
 6. **The master's window closes** (A): the music goes on in the players' windows; the last window leaving ends it (a new join shows nothing playing).
 7. **The Music tab on a phone** (A, iPhone Safari and Android Chrome, 390 × 844 class): Painel › Música opens the sheet; every button is reachable with a thumb; the filter's keyboard does not cover the now-playing card; back to Mesa, the mini-player is one row and the chat input stays where it was.
 
+## Audio embeds with a player (ADR 0116 amendment, 2026-11-01)
+
+On the real engines, which the harness's stubbed `play()` does not reach (notes 06 and 36, lesson 16 of the training board):
+
+1. **iOS** (A, iPhone and iPad Safari, a UniVerso folder): an embed plays from a tap (no "not allowed" in the console), the player shows *Pausar* and the time moves; the phone's buttons change the loudness and **Silenciar** silences it; the screen locked, the sound stops or goes on as Safari decides — note which. The `/f/` address seeks (drag the bar to the middle: it plays from there).
+2. **Codecs on Windows and Linux** (A, WebView2 and WebKitGTK): MP3, M4A (AAC), WAV, FLAC and OGG embeds each play or say *Esta janela não toca este formato…*; on Linux note what a plain Ubuntu desktop does for `.m4a` without `gst-plugins-bad` / `gst-libav`. An OGG on macOS and iOS says it cannot play.
+3. **The desktop's own files** (A, macOS / Windows / Linux): an embed in a folder of this computer plays from `verso://`, seeks (the protocol answers ranges), and the volume slider changes the loudness.
+4. **Drawn again while playing** (A): in a synced folder, someone else edits the paragraph holding the playing embed: the sound goes on without a gap; close the note's tab: it stops within two seconds.
+5. **Ducking by ear** (A, at a table): with the table's music playing, an embed started makes the table's music clearly lower but still heard, and it comes back when the embed pauses.
+
 ## The right panel's tabs hidden, reordered, brought back (ADR 0072 amendment, 2026-11-01)
 
 1. **The long press on a real phone** (A, iPhone Safari and Android Chrome): a held finger on a panel tab opens its menu (touch.ts makes it where iOS fires no `contextmenu`); **Ocultar esta aba** hides it; the tab bar's tabs are 44 px and reachable with a thumb; **⋯** brings it back.
