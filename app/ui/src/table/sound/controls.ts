@@ -17,6 +17,14 @@ export function iconButton(cls: string, label: string, ic: string): HTMLButtonEl
   return b;
 }
 
+/** A button with an icon and its words, both shown. */
+export function labeled(cls: string, label: string, ic: string): HTMLButtonElement {
+  const b = h("button", cls);
+  b.type = "button";
+  b.append(icon(ic, ""), h("span", "", label));
+  return b;
+}
+
 /** An icon button's icon and name, changed in place (the focus stays on it). */
 export function relabel(b: HTMLButtonElement, label: string, ic: string): void {
   if (b.dataset["icon"] !== ic) {

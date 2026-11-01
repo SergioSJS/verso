@@ -15,14 +15,14 @@
 
 import { commands } from "../../bindings";
 import { rightShown, toggleRight } from "../../chrome";
-import { button, h } from "../../dom";
+import { h } from "../../dom";
 import { allFiles, currentFolder, folderName } from "../../folder";
 import { icon } from "../../icons";
 import { layout } from "../../layout/spaces";
 import { panel } from "../../main";
 import { resolveFileByName } from "../../resolve";
 import { askUnheard } from "./ask";
-import { iconButton, range, relabel, said } from "./controls";
+import { iconButton, labeled, range, relabel, said } from "./controls";
 import { asScene, filterLists, folderLists, listLabel, noteLists, type List } from "./library";
 import { askUnheardWith, control, currentScene, cycleLoop, hearTable, loopMode, nameOf, neighbour, onSound, ownSound, playTrack, playerState, setOwn, sound, soundOn, step, takePendingSay } from "./run";
 import { isAudio, trackName } from "./scene";
@@ -79,7 +79,7 @@ class MusicView {
   private readonly next = iconButton("music-next", st.next, "skipForward");
   private readonly stop = iconButton("music-stop", st.stop, "stop");
   private readonly loop = iconButton("music-loop", st.loopOff, "repeat");
-  private readonly pick = button("ghost music-pick", st.playFile, "music");
+  private readonly pick = labeled("ghost music-pick", st.playFile, "music");
   private readonly volumes = h("div", "music-volumes");
   private readonly masterRow = h("label", "music-volume-row");
   private readonly master = range("music-master", st.masterVolume);
@@ -87,7 +87,7 @@ class MusicView {
   private readonly mute = iconButton("music-mute", st.mute, "volume");
   private readonly follow = h("input", "music-follow");
   private readonly notes = h("div", "music-notes");
-  private readonly hear = button("music-hear", st.hear, "volume");
+  private readonly hear = labeled("music-hear", st.hear, "volume");
   private readonly live = h("div", "sr-only music-said table-sound-said");
   // The library.
   private readonly filter = h("input", "music-filter");
@@ -99,7 +99,7 @@ class MusicView {
   private seeking = false;
   private timer: ReturnType<typeof setInterval> | null = null;
   private libraryKey = "";
-  private open = new Set<string>();
+  private open = new Map<string, boolean>();
 
   constructor() {
     this.el.setAttribute("aria-label", st.tab);
@@ -317,11 +317,9 @@ class MusicView {
     for (const l of shown) {
       const id = `${l.kind}:${l.source}:${l.scene}`;
       const d = h("details", "music-list-box");
-      d.open = query !== "" || this.open.has(id) || shown.length === 1;
-      d.addEventListener("toggle", () => {
-        if (d.open) this.open.add(id);
-        else this.open.delete(id);
-      });
+      // Open while the lists are few (or a filter is typed); what the person opened or closed stays so.
+      d.open = query !== "" || (this.open.get(id) ?? shown.length <= 4);
+      d.addEventListener("toggle", () => this.open.set(id, d.open));
       const sum = h("summary", "music-list-head");
       sum.append(icon(l.kind === "folder" ? "folder" : "note", ""), h("span", "music-list-name", listLabel(l, root)), h("span", "path", st.tracks(l.tracks.length)));
       d.append(sum);

@@ -957,7 +957,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .right-close { position: absolute; top: env(safe-area-inset-top); right: 0; z-index: 2; display: flex; padding: 0; min-height: 0; background: var(--paper-2); }
   #right-title { display: none; }
   .right-close .ghost { min-width: 44px; min-height: 44px; }
-  .right-tabs { padding-right: 44px; }
+  .right-tabs { padding-right: 44px; gap: .15rem; }
+  /* Eight tabs with the Music one (ADR 0116): all in the bar of a 390 px phone, as the seven were. */
+  .right-tab { width: 2rem; }
 }
 
 /* The font size's sample (fontSample.ts): the note's own text, never wider than the dialog. */

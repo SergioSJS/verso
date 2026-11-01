@@ -27,8 +27,8 @@ async function shot(page, name, info) {
 }
 
 /** A WAV of `seconds` of silence: what every engine of the tests decodes. */
-function wav(seconds = 2) {
-  const rate = 8000;
+function wav(seconds = 60) {
+  const rate = 4000;
   const n = rate * seconds;
   const b = Buffer.alloc(44 + n);
   b.write("RIFF", 0);
@@ -77,6 +77,8 @@ async function withSwitch(page, on) {
 
 /** The folder with three tracks and the soundboard note; the table up as `role`. */
 async function atTable(app, page, role, up = true) {
+  // A track changed or hidden while its bytes load cancels the load: that is the engine's, not a fault.
+  app.expectFault(/request failed: \/__vault\/Música\//);
   await app.open("?vault=empty");
   await page.evaluate(
     ([b64, role, up]) => {
@@ -233,7 +235,7 @@ test("a player's Music tab: no controls, their own volume, mute and Follow; a tr
   await expect(now(view)).toContainText("Nada tocando");
   await expect(view).toContainText("Só o mestre toca e troca as faixas");
   await expect(view.getByRole("button", { name: /^Tocar “/ })).toHaveCount(0);
-  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/taverna.wav", { durationMs: 2000, looping: true }));
+  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/taverna.wav", { durationMs: 60000, looping: true }));
   await expect(view.locator(".music-title")).toHaveText("taverna");
   for (const name of ["Pausar", "Parar", "Próxima faixa", "Faixa anterior"]) await expect(now(view).getByRole("button", { name })).toBeHidden();
   await expect(view.getByRole("slider", { name: "Volume da mesa" })).toBeHidden();
@@ -265,7 +267,7 @@ test("the Table tab's mini-player is one slim row, only while something plays; t
   await atTable(app, page, "owner");
   const mini = await openTable(page);
   await expect(mini).toBeHidden();
-  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 2000 }));
+  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 60000 }));
   await expect(mini).toBeVisible();
   await expect(mini.locator(".table-mini-name")).toHaveText("estrada");
   for (const name of ["Faixa anterior", "Pausar", "Próxima faixa", "Volume"]) await expect(mini.getByRole("button", { name, exact: true })).toBeVisible();
@@ -291,7 +293,7 @@ test("a player's mini-player: the name and their own volume only", async ({ app,
   await stubPlay(page);
   await atTable(app, page, "reader");
   const mini = await openTable(page);
-  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 2000 }));
+  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 60000 }));
   await expect(mini.locator(".table-mini-name")).toHaveText("estrada");
   for (const name of ["Faixa anterior", "Pausar", "Próxima faixa"]) await expect(mini.getByRole("button", { name, exact: true })).toBeHidden();
   await expect(mini.getByRole("button", { name: "Volume", exact: true })).toBeVisible();
@@ -303,7 +305,7 @@ test("a late joiner whose engine waits for a gesture is offered Hear the table, 
   await atTable(app, page, "reader");
   const view = await openMusic(page);
   await page.evaluate(() => window.__untouched());
-  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 2000 }));
+  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/estrada.wav", { durationMs: 60000 }));
   const hear = view.getByRole("button", { name: "Ouvir a mesa" });
   await expect(hear).toBeVisible();
   await expect(hear).toBeFocused();
@@ -330,7 +332,7 @@ test("with the Table and Music tabs closed the status bar names the track and op
   test.skip(phone(page), "the status bar is the desktop's");
   await stubPlay(page);
   await atTable(app, page, "reader");
-  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/taverna.wav", { durationMs: 2000 }));
+  await page.evaluate(() => window.__harness.tableSound.masterPlays("Música/taverna.wav", { durationMs: 60000 }));
   const item = page.locator(".status-bar .status-sound");
   await expect(item).toBeVisible();
   await expect(item).toContainText("taverna");

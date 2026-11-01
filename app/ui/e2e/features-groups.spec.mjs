@@ -43,8 +43,8 @@ for (const [lang, general, rpgNav, all, none, link, rpgLine] of [
     await expect(rpg.locator("input[type=checkbox]:checked")).toHaveCount(0);
     await page.screenshot({ path: `${SHOTS}/${lang}-rpg-off.png` });
     await rpg.getByRole("button", { name: all, exact: true }).click();
-    // Six come on; the 3D dice stays off.
-    await expect(rpg.locator("input[type=checkbox]:checked")).toHaveCount(6);
+    // Seven come on (Table sound among them, ADR 0116); the 3D dice stays off.
+    await expect(rpg.locator("input[type=checkbox]:checked")).toHaveCount(7);
     await page.locator(".settings-box").screenshot({ path: `${SHOTS}/${lang}-rpg.png`, animations: "disabled" });
 
     // The 3D dice's appearance is on this page (turn them on to see it).
