@@ -371,6 +371,9 @@ pub struct Server {
     pub tables: crate::table::Tables,
     /// The tables' music, in memory only (ADR 0116 section A).
     pub sounds: crate::table_sound::Sounds,
+    /// The tables' live shares and their frames, in memory only (ADR 0116
+    /// section B).
+    pub relay: crate::audio_relay::Relay,
     /// The pace of a connection's table messages, images and rolls (ADR
     /// 0107 item 12).
     pub table_pace: crate::pace::Pace,
@@ -480,6 +483,7 @@ impl Server {
             campaigns: crate::campaign::Cache::default(),
             tables: crate::table::Tables::default(),
             sounds: crate::table_sound::Sounds::default(),
+            relay: crate::audio_relay::Relay::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),
             signin_links: Mutex::new(HashMap::new()),

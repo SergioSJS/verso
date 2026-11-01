@@ -36,7 +36,7 @@ use crate::http::{ApiError, ApiResult, Ctx};
 use crate::rpc_open::{capabilities, record_space, share_counts, tabled};
 use crate::state::{Client, Outbox, QUEUE, QUEUE_BYTES, Server};
 
-pub(crate) use crate::rpc_open::open;
+pub(crate) use crate::rpc_open::{open, places};
 
 /// The largest message: a picture pasted into a note crosses as base64 in
 /// `create_file` (ADR 0073 item 6: upload limits).
@@ -93,7 +93,12 @@ pub(crate) fn send_within(bytes: usize) -> Duration {
 /// Write `message` to the connection within [`send_within`] its size:
 /// false when the write failed or did not end in time — the connection is
 /// then closed, and the time said in the log.
-async fn write(socket: &mut WebSocket, message: Message, client: &str, account: &str) -> bool {
+pub(crate) async fn write(
+    socket: &mut WebSocket,
+    message: Message,
+    client: &str,
+    account: &str,
+) -> bool {
     let bytes = match &message {
         Message::Text(t) => t.len(),
         Message::Binary(b) => b.len(),
@@ -181,71 +186,6 @@ pub async fn upgrade(ctx: Ctx, ws: WebSocketUpgrade) -> ApiResult<Response> {
 /// connected already (ADR 0096 item 13); the window says so in words and
 /// tries again slowly (`app/ui/src/web/bridge.ts`).
 pub const PHONES_FULL: u16 = 4290;
-
-/// What a connection holds while it lasts: its places, and a phone's.
-type Held = (Vec<crate::fair::Held>, Option<crate::local::PhoneGuard>);
-
-/// The connection's places among its account's and its address's
-/// (threat-model.md, gap 4), or 429; and whether it is a phone refused by
-/// the ceiling of phones connected (the number it is), to be closed with
-/// `PHONES_FULL`.
-pub(crate) fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
-    let counts = &ctx.server.fair.connections;
-    let too_many = |what: &str, most: u32| {
-        crate::log::warn(&format!(
-            "a connection refused: {what} holds {most} already"
-        ));
-        ApiError {
-            retry: Some(30),
-            ..ApiError::new(
-                axum::http::StatusCode::TOO_MANY_REQUESTS,
-                "too_many",
-                format!("too many connections at once ({most} at most)"),
-            )
-        }
-    };
-    let account = format!("account:{}", who.account.id);
-    let mut held = vec![
-        counts
-            .take(&account, crate::fair::PER_ACCOUNT)
-            .ok_or_else(|| {
-                too_many(
-                    &format!("account {}", who.account.id),
-                    crate::fair::PER_ACCOUNT,
-                )
-            })?,
-    ];
-    // This machine is the proxy in front, speaking for everyone.
-    if !ctx.peer.local {
-        let address = format!("address:{}", ctx.peer.key());
-        held.push(
-            counts
-                .take(&address, crate::fair::PER_ADDRESS)
-                .ok_or_else(|| {
-                    too_many(
-                        &format!("address {}", ctx.peer.key()),
-                        crate::fair::PER_ADDRESS,
-                    )
-                })?,
-        );
-    }
-    // "This app is a server": at most two phones connected at once (ADR
-    // 0096 item 13). A phone already connected opens another connection
-    // (a second tab) without taking another place.
-    let phone = match (&ctx.server.local, who.phone, who.session()) {
-        (Some(local), Some(_), Some(session)) => {
-            let name = local.name_of(&ctx.server, session);
-            let Some(guard) = local.enter(session, &name) else {
-                local.refused_full(&ctx.server, session, &name);
-                return Ok(((held, None), Some(local.connected_most())));
-            };
-            local.first_seen(&ctx.server, session);
-            Some(guard)
-        }
-        _ => None,
-    };
-    Ok(((held, phone), None))
-}
 
 /// Why a device that speaks sync `theirs` is refused by a server that
 /// speaks `ours`, in English for the log and the device's words: older
@@ -336,8 +276,15 @@ async fn run(
     let mut ping = tokio::time::interval_at(tokio::time::Instant::now() + PING_EVERY, PING_EVERY);
     ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut unanswered: u8 = 0;
+    // A live share's frames for this connection, bounded (ADR 0116 item 28).
+    let audio = server.relay.inbox(&client);
     loop {
         tokio::select! {
+            () = audio.ready() => {
+                if !crate::audio_relay::deliver(&mut socket, &audio, &client, &account).await {
+                    break;
+                }
+            }
             pushed = rx.recv() => {
                 let Some(out) = pushed else { break };
                 let message = match out.binary {
@@ -387,6 +334,11 @@ async fn run(
                 // Anything heard, a pong or a request, says the other end
                 // is there.
                 unanswered = 0;
+                // An audio frame, told by its first byte: the relay's, never a request.
+                if let Message::Binary(b) = &message && verso_contract::is_audio_frame(b) {
+                    crate::table_share::frame(&server, &client, b.clone());
+                    continue;
+                }
                 // Parsed where it arrived: a piece of a file is a megabyte.
                 // A binary message is a piece a device sends (sync 2): its
                 // request's header, then the piece's bytes as they are.
