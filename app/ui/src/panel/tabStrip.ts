@@ -202,12 +202,24 @@ export class TabStrip {
     const tabs = this.tabs().filter((b) => !b.hidden);
     for (const b of tabs) b.removeAttribute("data-overflow");
     this.more.hidden = true;
-    const cs = getComputedStyle(this.bar);
-    const gap = parseFloat(cs.columnGap) || 0;
     const spacer = (name: string): number => (this.bar.classList.contains(`frame-push-${name === "--frame-l" ? "l" : "r"}`) ? parseFloat(this.bar.style.getPropertyValue(name)) || 0 : 0);
-    const room = this.bar.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - spacer("--frame-l") - spacer("--frame-r");
-    const widths = tabs.map((b) => b.getBoundingClientRect().width);
-    const total = widths.reduce((a, w) => a + w, 0) + gap * Math.max(0, tabs.length - 1);
+    const measure = () => {
+      const cs = getComputedStyle(this.bar);
+      const gap = parseFloat(cs.columnGap) || 0;
+      const room = this.bar.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - spacer("--frame-l") - spacer("--frame-r");
+      const widths = tabs.map((b) => b.getBoundingClientRect().width);
+      const total = widths.reduce((a, w) => a + w, 0) + gap * Math.max(0, tabs.length - 1);
+      return { gap, room, widths, total };
+    };
+    // Roomy first; a bar a little short draws its tabs a little narrower
+    // (css/panels.css `.compact`) before any leaves for the "⋯".
+    this.bar.classList.remove("compact");
+    let m = measure();
+    if (m.total > m.room + 0.5) {
+      this.bar.classList.add("compact");
+      m = measure();
+    }
+    const { gap, room, widths, total } = m;
     if (total <= room + 0.5) return;
     // They do not all fit: the "⋯" takes a place of its own.
     this.more.hidden = false;
