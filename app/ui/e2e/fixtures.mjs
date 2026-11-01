@@ -208,7 +208,15 @@ export const test = base.extend({
     page.on("response", (r) => r.status() >= 400 && problems.push(`HTTP ${r.status()}: ${decodeURIComponent(new URL(r.url()).pathname)}`));
     // And one that got no answer at all: a refused address, a blocked
     // request (ADR 0058 point 11; review `board.md`, reading 4, finding 6).
-    page.on("requestfailed", (r) => problems.push(`request failed: ${decodeURIComponent(new URL(r.url()).pathname)} (${r.failure()?.errorText ?? "?"})`));
+    // A sound file's element that read what it needed (the length, with
+    // `preload="metadata"`) and let the rest go is the engine's, not a fault:
+    // Chromium reports it as an aborted request (ADR 0116, audio embeds).
+    page.on("requestfailed", (r) => {
+      const path = decodeURIComponent(new URL(r.url()).pathname);
+      const why = r.failure()?.errorText ?? "?";
+      if (r.resourceType() === "media" && /ERR_ABORTED|cancelled/i.test(why)) return;
+      problems.push(`request failed: ${path} (${why})`);
+    });
     // The `verso:` protocol of the harness, from the folder in memory: what
     // a test wrote is what the window reads.
     await page.route("**/__vault/**", async (route) => {
