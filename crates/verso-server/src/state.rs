@@ -369,6 +369,8 @@ pub struct Server {
     pub campaigns: crate::campaign::Cache,
     /// The windows at each folder's table (ADR 0107).
     pub tables: crate::table::Tables,
+    /// The tables' music, in memory only (ADR 0116 section A).
+    pub sounds: crate::table_sound::Sounds,
     /// The pace of a connection's table messages, images and rolls (ADR
     /// 0107 item 12).
     pub table_pace: crate::pace::Pace,
@@ -477,6 +479,7 @@ impl Server {
             rooms: crate::collab::Rooms::default(),
             campaigns: crate::campaign::Cache::default(),
             tables: crate::table::Tables::default(),
+            sounds: crate::table_sound::Sounds::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),
             signin_links: Mutex::new(HashMap::new()),

@@ -674,6 +674,12 @@ const VERDICTS: &[(&str, &str, bool)] = &[
     ),
     ("table_pin", r#"{"id":"1","pinned":true}"#, false),
     ("table_delete", r#"{"id":"1"}"#, false),
+    ("table_time", "{}", false),
+    (
+        "table_cannot_play",
+        r#"{"channel":"music","revision":1}"#,
+        false,
+    ),
     ("campaign_status", "{}", true),
     ("trash_list", "{}", true),
     (
@@ -1107,6 +1113,8 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
         "table_roll",
         "table_pin",
         "table_delete",
+        "table_time",
+        "table_cannot_play",
         "campaign_status",
         "trash_list",
         "trash_restore",

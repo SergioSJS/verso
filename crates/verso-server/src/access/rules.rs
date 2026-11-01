@@ -309,6 +309,11 @@ pub enum Action {
     },
     /// See the secret blocks of a file (0087).
     SeeSecretBlocks,
+    /// Control the table's music (ADR 0116 item 22): which track, play,
+    /// pause, seek, loop, the master volume. The game master's alone in V1,
+    /// whatever the credential; a later version hands it to a player by a
+    /// right of its own.
+    Play,
     /// Change who sees and who edits (the access of a path).
     ManageAccess,
     /// Make a table, open it, close it, set its limits.
@@ -600,8 +605,8 @@ impl AccessFacts {
 pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verdict {
     use Action::{
         Attach, Clear, Create, Delete, DeleteEntry, Edit, Invite, InviteNew, ManageAccess,
-        ManageTable, Move, Rename, Roll, RollSecret, Say, See, SeeSecretBlocks, SeeSecretRolls,
-        SendFile, Share,
+        ManageTable, Move, Play, Rename, Roll, RollSecret, Say, See, SeeSecretBlocks,
+        SeeSecretRolls, SendFile, Share,
     };
     use Reason::{
         Credential, NoRight, NoRole, NotAdmin, NotMaster, NotSeen, Phone, ReadOnly, TableClosed,
@@ -779,6 +784,16 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
                 Deny(Visitor)
             } else {
                 edit(level)
+            }
+        }
+        // The game master's, with any credential (item 6: the seat decides,
+        // never the credential); a phone is never the owner (ADR 0096 item
+        // 12), so never the master.
+        Play => {
+            if master {
+                Allow
+            } else {
+                Deny(NotMaster)
             }
         }
         ManageAccess | ManageTable | Share | Invite => owner(),

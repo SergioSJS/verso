@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-sound"
+description = "Enables the table_sound command without any pre-configured scope."
+commands.allow = ["table_sound"]
+
+[[permission]]
+identifier = "deny-table-sound"
+description = "Denies the table_sound command without any pre-configured scope."
+commands.deny = ["table_sound"]

@@ -651,6 +651,79 @@ export const commands = {
 	 */
 	tableClear: (keepPinned: boolean | null, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_clear", { keepPinned, table })),
 	/**
+	 *  Play a sound file of the folder for everyone at the table (ADR 0116
+	 *  section A): the game master's alone. `channel` is `music` (none: it);
+	 *  with `ask`, nothing plays when some players of the table do not see the
+	 *  file, and the answer names them. A folder of this computer alone has no
+	 *  table: its window plays the file by itself.
+	 */
+	tablePlay: (path: string, channel: string | null, positionMs: number | null, looping: boolean | null, durationMs: number | null, ask: boolean | null, table: string | null) => typedError<TablePlayed, ContractError>(__TAURI_INVOKE("table_play", { path, channel, positionMs, looping, durationMs, ask, table })),
+	/**
+	 *  Change what plays at the table, as the game master: `wish` is `pause`,
+	 *  `resume`, `seek` (`value`: the position, ms), `stop`, `master` (`value`:
+	 *  the volume, 0 to 100), `loop` (`looping`) or `duration` (`value`: the
+	 *  track's length, ms), made on the state at `revision` (an older one is
+	 *  refused).
+	 */
+	tableSound: (wish: string, revision: number | null, channel: string | null, value: number | null, looping: boolean | null, table: string | null) => typedError<{
+	/**
+	 *  The table: its folder inside the server's folder, `""` for the
+	 *  folder itself (as `TableEntry.table`).
+	 */
+	table: string,
+	/**  `music` (V1's one channel). */
+	channel: string,
+	/**  Grows at every change; a control naming an older one is refused. */
+	revision: number | null,
+	/**
+	 *  What plays; none when nothing does, or when this window's person
+	 *  does not see the file (`unseen`): not its name, not its path.
+	 */
+	source: PlaybackSource | null,
+	/**
+	 *  The track plays, but this person does not see its file and hears
+	 *  nothing (ADR 0116 item 9).
+	 */
+	unseen: boolean,
+	/**  `playing`, `paused` or `stopped`. */
+	state: string,
+	/**  The position, in milliseconds, at the server's instant `anchor_ms`. */
+	position_ms: number | null,
+	/**  The server's clock, Unix milliseconds, when `position_ms` held. */
+	anchor_ms: number | null,
+	/**  The game master's volume of the channel, 0 to 100. */
+	master: number,
+	looping: boolean,
+	/**
+	 *  The track's length as the game master's window read it; none when
+	 *  it is not known yet.
+	 */
+	duration_ms: number | null,
+	/**
+	 *  Who last changed it: the name and the opaque account, stamped by the
+	 *  server.
+	 */
+	by: string,
+	by_id: string,
+	/**
+	 *  To the game master only: the names of the people at the table who do
+	 *  not see the file, and of those whose window cannot play it. Empty to
+	 *  everyone else.
+	 */
+	unheard: string[],
+	cannot: string[],
+} | null, ContractError>(__TAURI_INVOKE("table_sound", { wish, revision, channel, value, looping, table })),
+	/**
+	 *  The server's clock, for the window to keep its offset from it (ADR 0116
+	 *  item 10).
+	 */
+	tableTime: (table: string | null) => typedError<TableTime, ContractError>(__TAURI_INVOKE("table_time", { table })),
+	/**
+	 *  This window cannot play the track at `revision`: the game master is told
+	 *  who (ADR 0116 item 13).
+	 */
+	tableCannotPlay: (revision: number | null, channel: string | null, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_cannot_play", { revision, channel, table })),
+	/**
 	 *  What the folder's tables are, to this window: a folder of this computer
 	 *  alone has none.
 	 */
@@ -3382,6 +3455,15 @@ export type PlaceholderPlan = {
 	free: number | null,
 };
 
+/**
+ *  What a channel plays: a file of the folder (`kind` `file`, `path`
+ *  relative to the folder the window opened, never absolute, never `..`).
+ */
+export type PlaybackSource = {
+	kind: string,
+	path: string,
+};
+
 /**  One frontmatter key and its value. */
 export type Property = {
 	key: string,
@@ -3938,6 +4020,16 @@ export type TableJoin = {
 	 *  always, a player when given *Files* (K.6).
 	 */
 	files?: boolean,
+	/**
+	 *  Whether this window's person controls the table's music: the game
+	 *  master (ADR 0116 item 22, `may(Play)`).
+	 */
+	play?: boolean,
+	/**
+	 *  What each channel plays now, as this window may know it (ADR 0116
+	 *  item 8): a joiner and a reconnecting window start from the truth.
+	 */
+	playback?: TablePlayback[],
 };
 
 /**  Who is at the table: one per account, however many windows. */
@@ -3962,6 +4054,72 @@ export type TablePinned = {
 	pinned: boolean,
 };
 
+/**
+ *  One channel's playback, as one window may know it (event
+ *  `table-playback`, `TableJoin.playback`, the answer of the controls).
+ *  The server stamps `anchor_ms` with its own clock and grows `revision`
+ *  at each change; a window plays `position_ms + (server now - anchor_ms)`
+ *  while `state` is `playing`.
+ */
+export type TablePlayback = {
+	/**
+	 *  The table: its folder inside the server's folder, `""` for the
+	 *  folder itself (as `TableEntry.table`).
+	 */
+	table: string,
+	/**  `music` (V1's one channel). */
+	channel: string,
+	/**  Grows at every change; a control naming an older one is refused. */
+	revision: number | null,
+	/**
+	 *  What plays; none when nothing does, or when this window's person
+	 *  does not see the file (`unseen`): not its name, not its path.
+	 */
+	source: PlaybackSource | null,
+	/**
+	 *  The track plays, but this person does not see its file and hears
+	 *  nothing (ADR 0116 item 9).
+	 */
+	unseen: boolean,
+	/**  `playing`, `paused` or `stopped`. */
+	state: string,
+	/**  The position, in milliseconds, at the server's instant `anchor_ms`. */
+	position_ms: number | null,
+	/**  The server's clock, Unix milliseconds, when `position_ms` held. */
+	anchor_ms: number | null,
+	/**  The game master's volume of the channel, 0 to 100. */
+	master: number,
+	looping: boolean,
+	/**
+	 *  The track's length as the game master's window read it; none when
+	 *  it is not known yet.
+	 */
+	duration_ms: number | null,
+	/**
+	 *  Who last changed it: the name and the opaque account, stamped by the
+	 *  server.
+	 */
+	by: string,
+	by_id: string,
+	/**
+	 *  To the game master only: the names of the people at the table who do
+	 *  not see the file, and of those whose window cannot play it. Empty to
+	 *  everyone else.
+	 */
+	unheard: string[],
+	cannot: string[],
+};
+
+/**
+ *  What `table_play` answers. With `ask`, when some players of the table
+ *  do not see the file, nothing is played and `unheard` names them, for the
+ *  game master to release the file or play without them.
+ */
+export type TablePlayed = {
+	playback: TablePlayback | null,
+	unheard: string[],
+};
+
 /**  An entry deleted (event `table-removed`). */
 export type TableRemoved = {
 	table: string,
@@ -3972,6 +4130,14 @@ export type TableRemoved = {
 export type TableRoster = {
 	table: string,
 	members: TableMember[],
+};
+
+/**
+ *  The server's clock (`table_time`), Unix milliseconds: the window keeps
+ *  its offset from it, as NTP does (ADR 0116 item 10).
+ */
+export type TableTime = {
+	now_ms: number | null,
 };
 
 /**  A tag and the notes that carry it. */
