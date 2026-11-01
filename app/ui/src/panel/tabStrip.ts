@@ -202,24 +202,12 @@ export class TabStrip {
     const tabs = this.tabs().filter((b) => !b.hidden);
     for (const b of tabs) b.removeAttribute("data-overflow");
     this.more.hidden = true;
+    const cs = getComputedStyle(this.bar);
+    const gap = parseFloat(cs.columnGap) || 0;
     const spacer = (name: string): number => (this.bar.classList.contains(`frame-push-${name === "--frame-l" ? "l" : "r"}`) ? parseFloat(this.bar.style.getPropertyValue(name)) || 0 : 0);
-    const measure = () => {
-      const cs = getComputedStyle(this.bar);
-      const gap = parseFloat(cs.columnGap) || 0;
-      const room = this.bar.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - spacer("--frame-l") - spacer("--frame-r");
-      const widths = tabs.map((b) => b.getBoundingClientRect().width);
-      const total = widths.reduce((a, w) => a + w, 0) + gap * Math.max(0, tabs.length - 1);
-      return { gap, room, widths, total };
-    };
-    // Roomy first; a bar a little short draws its tabs a little narrower
-    // (css/panels.css `.compact`) before any leaves for the "⋯".
-    this.bar.classList.remove("compact");
-    let m = measure();
-    if (m.total > m.room + 0.5) {
-      this.bar.classList.add("compact");
-      m = measure();
-    }
-    const { gap, room, widths, total } = m;
+    const room = this.bar.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - spacer("--frame-l") - spacer("--frame-r");
+    const widths = tabs.map((b) => b.getBoundingClientRect().width);
+    const total = widths.reduce((a, w) => a + w, 0) + gap * Math.max(0, tabs.length - 1);
     if (total <= room + 0.5) return;
     // They do not all fit: the "⋯" takes a place of its own.
     this.more.hidden = false;
@@ -228,10 +216,20 @@ export class TabStrip {
     const chosen = tabs.findIndex((b) => b.dataset["tab"] === this.current());
     const keep = new Set<number>();
     let used = 0;
-    // The chosen tab is kept first, then the rest in the bar's order.
+    // The chosen tab is kept first, then the tabs of the game at the table
+    // (`data-keep`: the Table's and the Music's, ADR 0116 as amended
+    // 2026-10-31 — on a phone they are what the panel is opened for), then
+    // the rest in the bar's order. The bar still shows them in its order.
     if (chosen >= 0) {
       keep.add(chosen);
       used = widths[chosen] ?? 0;
+    }
+    for (let i = 0; i < tabs.length; i++) {
+      if (keep.has(i) || !tabs[i]?.hasAttribute("data-keep")) continue;
+      const w = (widths[i] ?? 0) + (keep.size ? gap : 0);
+      if (used + w > budget) break;
+      keep.add(i);
+      used += w;
     }
     for (let i = 0; i < tabs.length; i++) {
       if (keep.has(i)) continue;

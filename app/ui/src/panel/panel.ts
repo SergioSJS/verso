@@ -83,6 +83,8 @@ export class Panel {
       b.setAttribute("aria-controls", this.body.id);
       b.dataset["tab"] = id;
       b.dataset["icon"] = ic;
+      // The game's tabs stay in a short bar before the others (tabStrip.ts).
+      if (id === "table" || id === "music") b.dataset["keep"] = "";
       b.addEventListener("click", () => {
         this.current = id;
         if (id === "focuses") void loadFocuses().then(() => this.paint());

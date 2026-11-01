@@ -384,9 +384,6 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 }
 .right-tab .icon { width: 15px; height: 15px; }
 .right-tab[data-overflow] { display: none; }
-/* A bar a little short (panel/tabStrip.ts): the tabs a little narrower before one leaves for the "⋯". */
-.right-tabs.compact { gap: .15rem; }
-.right-tabs.compact .right-tab { width: 2rem; }
 .right-tab.dragging { background: var(--brass-wash); color: var(--seal); box-shadow: 0 0 0 1px var(--brass); cursor: grabbing; }
 
 /* Code copy button */

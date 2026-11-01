@@ -90,8 +90,19 @@ async function openTab(page, name) {
   await page.locator("#right-tabs").getByRole("tab", { name }).click();
 }
 
+/** Every list of the Music tab open (more than four start closed). */
+async function openLists(page) {
+  await page.evaluate(() => {
+    for (const d of document.querySelectorAll("details.music-list-box")) d.open = true;
+  });
+}
+
+// Only in the Docker e2e with the music mounted; decided before the window opens.
+test.skip(!existsSync(MUSIC), "no music mounted at /logs/music-test");
+
+test.describe("desktop", () => {
+  test.skip(({ browserName, isMobile }) => browserName !== "chromium" || isMobile, "once, in Chromium");
 test("desktop 1440 × 900: the master's Music tab, the soundboard, the mini-player, the status item; a player's tab; dark", async ({ app, page }, info) => {
-  test.skip(!existsSync(MUSIC) || phone(page) || info.project.name !== "chromium", "the Docker e2e with the music mounted, once");
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await setUp(app, page, "owner");
@@ -99,6 +110,7 @@ test("desktop 1440 × 900: the master's Music tab, the soundboard, the mini-play
   await openTab(page, /^Música/);
   const view = page.locator(".music-view");
   await expect(view.locator(".music-folders")).toContainText("Música/Taverna");
+  await openLists(page);
   await view.locator(".music-folders").getByRole("button", { name: "Tocar “Kraghammer”" }).click();
   await expect(view.locator(".music-title")).toHaveText("Kraghammer");
   await expect(view.locator(".music-time")).toContainText(" de ");
@@ -153,12 +165,16 @@ test("desktop 1440 × 900: the master's Music tab, the soundboard, the mini-play
   await shot(page, "10-table-tab-mini-player-player", info);
 });
 
+});
+
+test.describe("phone", () => {
+  test.skip(({ browserName, isMobile, viewport }) => browserName !== "webkit" || !isMobile || (viewport?.width ?? 0) > 500, "once, on the WebKit phone");
 test("phone 390 × 844: the Music sheet and the mini-player @layout", async ({ app, page }, info) => {
-  test.skip(!existsSync(MUSIC) || info.project.name !== "phone-webkit", "the Docker e2e with the music mounted, on the phone");
   test.setTimeout(120_000);
   await setUp(app, page, "owner");
   await openTab(page, /^Música/);
   const view = page.locator(".music-view");
+  await openLists(page);
   await view.locator(".music-folders").getByRole("button", { name: "Tocar “Kraghammer”" }).click();
   await expect(view.locator(".music-title")).toHaveText("Kraghammer");
   await page.waitForTimeout(1500);
@@ -172,4 +188,5 @@ test("phone 390 × 844: the Music sheet and the mini-player @layout", async ({ a
   await openTab(page, /^Música/);
   await page.waitForTimeout(500);
   await shot(page, "14-phone-music-sheet-dark", info);
+});
 });
