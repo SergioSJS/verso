@@ -61,7 +61,7 @@ O que você apaga fica na **Lixeira** da pasta por 30 dias, e depois some de vez
 - **Restaurar** devolve o item para onde estava — uma pasta volta com tudo o que tinha. Se já existe outro arquivo com aquele nome, nada é substituído: o item volta ao lado, como `Nome (restaurado 2026-10-11).md`, e o Verso diz onde ele foi parar — também quando o nome que está ali só difere em maiúsculas e minúsculas. Um nome que o Windows não guarda não é restaurado: o Verso diz por quê, e o item continua na lixeira.
 - **Apagar agora** e **Esvaziar a lixeira** apagam de vez, e perguntam antes, ali mesmo, com o tamanho.
 - **Manter arquivos apagados por** muda o prazo desta pasta: de 1 dia a **Para sempre**. Encurtar apaga na hora o que já passou do novo prazo.
-- Numa pasta de um servidor ([[23 - Verso num Servidor]]), quem pode editar vê a lixeira e restaura; apagar de vez e encurtar o prazo é da dona da pasta. Quando um aparelho sincronizado grava por cima de uma nota, a versão que ele substituiu também vai para a lixeira, como **substituído por** aquele aparelho — se outro programa salvou um texto velho por cima, dá para voltar.
+- Numa pasta de um servidor ([[23 - Verso num Servidor]]), fora de uma mesa, **só a dona da pasta apaga**: quem edita cria, renomeia e move, e não vê **Mover para a lixeira** — `Delete` diz por quê. Quem pode editar vê a lixeira e restaura; apagar de vez e encurtar o prazo também é da dona. Quando um aparelho sincronizado grava por cima de uma nota, a versão que ele substituiu também vai para a lixeira, como **substituído por** aquele aparelho — se outro programa salvou um texto velho por cima, dá para voltar.
 
 ---
 

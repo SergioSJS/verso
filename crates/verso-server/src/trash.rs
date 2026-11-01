@@ -331,13 +331,12 @@ pub async fn command(
     // names of files they do not see.
     // And a window that is a player at some table of the folder has none:
     // the bin would name what the table hides from it, and give it back.
+    // Asked as a change of the folder, not as a delete: outside a table only
+    // the owner deletes (ADR 0113 section B, amended 2026-10-31), and the
+    // bin stays any writer's to see and restore from (item 7, unchanged).
     if door.veiled()
         || !door
-            .may(
-                crate::access::Action::Delete,
-                "",
-                crate::access::Kind::Folder,
-            )
+            .may(crate::access::Action::Edit, "", crate::access::Kind::Folder)
             .allowed()
     {
         return Err(refused("the trash is for those who may change this folder"));

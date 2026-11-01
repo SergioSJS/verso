@@ -604,7 +604,7 @@
     {"action": "move", "table": "closed", "source": "moved-in", "level": "none", "allow": "ynnynnnnnnnnnnnynnynnnnnnnnnnn"},
     {"action": "move", "table": "closed", "source": "moved-in", "level": "see", "allow": "ynnynnnnnnnnnnnynnynnnnnnnnnnn"},
     {"action": "move", "table": "closed", "source": "moved-in", "level": "edit", "allow": "ynnynnnnnnnnnnnynnynnnnnnnnnnn"},
-    {"action": "delete", "table": "none", "allow": "ynnyynnynnnnnnnynnyynnynnnnnnn"},
+    {"action": "delete", "table": "none", "allow": "ynnynnnnnnnnnnnynnynnnnnnnnnnn"},
     {"action": "delete", "table": "open", "source": "nothing", "level": "none", "allow": "ynnynnnnnnnnnnnynnynnnnnnnnnnn"},
     {"action": "delete", "table": "open", "source": "file", "level": "none", "allow": "ynnynnnnnnnnnnnynnynnnnnnnnnnn"},
     {"action": "delete", "table": "open", "source": "file", "level": "see", "allow": "ynnynnnnnnnnnnnynnynnnnnnnnnnn"},

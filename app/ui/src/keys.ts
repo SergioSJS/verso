@@ -301,7 +301,7 @@ export function allCommands(all = false): Command[] {
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
     { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
     // The folder's trash (ADR 0080 item 4): for whoever may change the folder.
-    { id: "open-trash", label: trashStrings().open, need: hasFolder && may("", "delete"), run: () => settingsDialog.show("trash") },
+    { id: "open-trash", label: trashStrings().open, need: hasFolder && may("", "trash"), run: () => settingsDialog.show("trash") },
     // A file's version history (ADR 0091 item 5): for whoever may write it.
     { id: "version-history", label: historyStrings().command, need: historyFor(leaf?.path), run: () => leaf?.path && void openHistory(leaf.path) },
     { id: "report-bug", label: t.reportBug, run: () => bugDialog.show() },
@@ -344,7 +344,7 @@ export function allCommands(all = false): Command[] {
     { id: "bookmark", label: note && bookmarks.includes(note.path) ? t.unbookmark : t.bookmark, need: Boolean(note), run: () => note && toggleBookmark(note.path) },
     { id: "graph-note", label: t.graph, need: Boolean(note), run: () => note && pane?.openGraph(note.path) },
     { id: "rename", label: t.rename, need: Boolean(note), run: () => note?.renameHere() },
-    { id: "delete", label: t.deleteNote, need: Boolean(note), run: () => note && void deleteNote(note.path) },
+    { id: "delete", label: t.deleteNote, need: Boolean(note) && may(note?.path ?? "", "delete"), run: () => note && void deleteNote(note.path) },
     { id: "switch-focus", label: t.switchFocus, need: hasFolder, run: () => focusSwitcher.show() },
     // A roller without a note (ADR 0088 item 6): nothing written.
     { id: "roll-dice", label: ds.command, need: hasCapability("diceRolling"), run: () => openRoller() },

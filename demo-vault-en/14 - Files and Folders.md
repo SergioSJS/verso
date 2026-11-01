@@ -61,7 +61,7 @@ What you delete stays in the folder's **Trash** for 30 days, and then is gone fo
 - **Restore** puts the item back where it was — a folder comes back with everything it had. If another file with that name already exists, nothing is replaced: the item comes back beside it, as `Name (restored 2026-10-11).md`, and Verso tells you where it went — also when the name that is there differs only in upper and lower case. A name that Windows cannot store is not restored: Verso says why, and the item stays in the trash.
 - **Delete now** and **Empty the trash** delete for good, and ask first, right there, with the size.
 - **Keep deleted files for** changes this folder's period: from 1 day to **Forever**. Shortening it deletes at once whatever is already past the new period.
-- In a server folder ([[23 - Verso on a Server]]), whoever can edit sees the trash and restores; deleting for good and shortening the period belong to the folder's owner. When a synced device overwrites a note, the version it replaced also goes to the trash, as **replaced by** that device — if another program saved an old text over it, you can go back.
+- In a server folder ([[23 - Verso on a Server]]), outside a table, **only the folder's owner deletes**: whoever edits creates, renames and moves, and is not offered **Move to Trash** — `Delete` says why. Whoever can edit sees the trash and restores; deleting for good and shortening the period belong to the owner too. When a synced device overwrites a note, the version it replaced also goes to the trash, as **replaced by** that device — if another program saved an old text over it, you can go back.
 
 ---
 

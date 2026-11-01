@@ -1085,6 +1085,7 @@ in a note long enough to scroll.
 
 ### Next version
 
+- [ ] **Only the folder's owner deletes, outside a table** (ADR 0113 B, amended 2026-10-31): on the real UniVerso and the installed desktop app, the walkthrough's "Only the folder's owner deletes" steps 1–7 — especially step 6, a synced editor's Finder deletion and Finder move out of a shared folder coming back (the host test runs a real server, not Finder nor the watcher), and a paired phone of "This app is a server" on a folder served in part: it is offered no delete (provisional, see the ADR).
 - [ ] **An embed of a block** (spec Q3, Q21): note 02, "Incorporar só um bloco" — the embed shows the third finding alone; a link `[[Projetos/Pesquisa e Descobertas#^atomica]]` opens the note at that item. In Leitura no `^atomica` shows, in the embed or in the note; in Editar it shows quiet.
 - [ ] **Templates in a new note** (ADR 0068): ⌘N — "Começar com" under the title; choose "Nota de Reunião": the note is the template with today's date; ⌘Z takes it back; a new note with Em branco stays as it was.
 - [ ] **The new identifier keeps the window's settings**: after updating from 0.4.0-beta.1, the theme, the keys and a table's column width are as they were; the log says "window data carried over to com.versomd.app.beta" once.

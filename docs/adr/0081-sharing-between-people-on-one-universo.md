@@ -453,7 +453,9 @@ history of a file's changes went to its own ADR, [0091](0091-version-history.md)
 
 **2026-10-31.** Who deletes inside a share changed: outside a table only the
 folder's **owner** deletes, an editor no longer does (the maintainer, B8:
-*"apenas o dono da pasta pode apagar"*); the rule lives in
+*"apenas o dono da pasta pode apagar"*), and a move that takes a file out of
+a shared folder, a deletion for that share, is the owner's too (decided the
+same day); the rule lives in
 [0113](0113-one-access-model-for-a-table.md) section B. Items 5 and 11 are
 not settled by the list of 2026-10-31: the maintainer kept them apart, to be
 discussed with him on 2026-11-02.

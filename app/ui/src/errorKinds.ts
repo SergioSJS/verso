@@ -24,12 +24,18 @@ export const PHONE = new Set(["not_on_phone", "phone_reads"]);
  *  K.6): its English text, never shown as it is, to the string that says
  *  it in the interface's language. A refusal not here keeps the generic
  *  sentence of its kind. */
-export const REFUSALS: Record<string, "errReadOnly" | "errNoCreate" | "errNoRename" | "errNoMove" | "errNoDelete"> = {
+export const REFUSALS: Record<string, "errReadOnly" | "errNoCreate" | "errNoRename" | "errNoMove" | "errNoDelete" | "errOwnerDeletes" | "errOwnerMovesOut"> = {
   "you may only read this folder": "errReadOnly",
   "you may not create files here": "errNoCreate",
   "you may not rename this": "errNoRename",
   "you may not move this": "errNoMove",
   "you may not delete this": "errNoDelete",
+  // Outside a table only the folder's owner deletes (ADR 0113 section B,
+  // amended 2026-10-31).
+  "only the folder's owner deletes here": "errOwnerDeletes",
+  // A move out of a shared folder is a deletion for that share (the same
+  // amendment).
+  "only the folder's owner moves files out of a shared folder": "errOwnerMovesOut",
 };
 
 /** A failure of the connection itself — the web bridge's "no connection,

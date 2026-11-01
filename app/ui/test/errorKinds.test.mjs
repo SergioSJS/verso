@@ -86,6 +86,18 @@ describe("A closed table is a state to wait out", () => {
 // generic "that path cannot name a file" nor "only read" for a create.
 describe("The refusals worded by the right a person lacks", () => {
   test("each of the server's sentences has a string", () => {
-    assert.deepEqual(Object.keys(R).sort(), ["you may not create files here", "you may not delete this", "you may not move this", "you may not rename this", "you may only read this folder"]);
+    assert.deepEqual(Object.keys(R).sort(), [
+      "only the folder's owner deletes here",
+      "only the folder's owner moves files out of a shared folder",
+      "you may not create files here",
+      "you may not delete this",
+      "you may not move this",
+      "you may not rename this",
+      "you may only read this folder",
+    ]);
+  });
+  test("outside a table the owner's rule says why, not 'you may not' (ADR 0113 B, amended 2026-10-31)", () => {
+    assert.equal(R["only the folder's owner deletes here"], "errOwnerDeletes");
+    assert.equal(R["only the folder's owner moves files out of a shared folder"], "errOwnerMovesOut");
   });
 });

@@ -475,7 +475,7 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
     // The folder's trash (ADR 0080 item 4): no row in the tree, a way in here.
-    ...(may("", "delete") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
+    ...(may("", "trash") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
   ];
   showMenu(e.clientX, e.clientY, items);
 });
