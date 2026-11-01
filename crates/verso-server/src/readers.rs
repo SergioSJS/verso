@@ -101,6 +101,10 @@ pub const SERVER_READS: &[(&str, &str)] = &[
         "table_cannot_play",
         "nothing: a mark that this window cannot play the track, told to the game master",
     ),
+    (
+        "table_share_listen",
+        "the game master's live share, which carries no note and no file (ADR 0116 item 21)",
+    ),
     ("sync_state", "the projections' hashes and sizes"),
     (
         "sync_changes",

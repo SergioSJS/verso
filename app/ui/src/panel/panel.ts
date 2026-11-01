@@ -18,7 +18,7 @@ import { renderSticker, showStickerPicker } from "../labels";
 import { openNote } from "../layout/spaces";
 import { Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
-import { panel } from "../main";
+import { panel, settingsDialog } from "../main";
 import { pickerStrings } from "../organize/cover";
 import { dirOf, iconFor, kindOf, name } from "../paths";
 import { searchNotes } from "../search";
@@ -47,7 +47,8 @@ export class Panel {
   readonly tabs = el<HTMLDivElement>("right-tabs");
   readonly body = el<HTMLDivElement>("right-body");
   current: PanelTab = "outline";
-  private strip: TabStrip;
+  /** The tabs' order and which are hidden (tabStrip.ts); Settings reads and changes them too. */
+  readonly strip: TabStrip;
   leaf: Leaf | null = null;
   tagsCache: { name: string; notes: string[] }[] = [];
   /** The panel is drawn only while it is on screen: collapsed (or closed, on a phone), a change only marks it stale and the next opening draws once. */
@@ -97,10 +98,10 @@ export class Panel {
       this.current = id as PanelTab;
       if (id === "focuses") void loadFocuses().then(() => this.paint());
       this.refresh();
-    });
+    }, () => settingsDialog.show("appearance"));
     this.tabs.title = t.tabsHint;
     this.tabs.addEventListener("keydown", (e) => {
-      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]")).filter((b) => !b.hidden && !b.hasAttribute("data-overflow"));
+      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]")).filter((b) => !b.hidden && !b.hasAttribute("data-overflow") && !b.hasAttribute("data-gone"));
       const i = all.indexOf(e.target as HTMLButtonElement);
       if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
       const n = all.length;

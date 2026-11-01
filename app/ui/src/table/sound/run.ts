@@ -116,8 +116,15 @@ let player: Player | null = null;
  *  (src/audio/player.ts, ADR 0116 amendment of 2026-11-01): 1 is the gain as set. */
 let duck = 1;
 let loading: Promise<void> | null = null;
-export function playerState(): { blocked: boolean; failed: boolean; cannotHere: boolean } {
-  return { blocked, failed, cannotHere };
+/** A live share waits for a gesture to be heard (share.ts): "Hear the table" too. */
+let shareWaiting = false;
+export function setShareWaiting(on: boolean): void {
+  if (shareWaiting === on) return;
+  shareWaiting = on;
+  tell();
+}
+export function playerState(): { blocked: boolean; failed: boolean; cannotHere: boolean; shareWaiting: boolean } {
+  return { blocked, failed, cannotHere, shareWaiting };
 }
 
 /** The file's address for this window: `/f/` on a server, `verso://` on the desktop. */
@@ -300,7 +307,7 @@ export function installTableSound(): void {
     document.addEventListener(
       t,
       () => {
-        if (blocked) hearTable();
+        if (blocked || shareWaiting) hearTable();
       },
       true,
     );

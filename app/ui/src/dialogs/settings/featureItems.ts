@@ -8,14 +8,27 @@
 // it will turn on and off before it does anything.
 
 import { applyShortcut, currentFeatures, currentShortcut, setFeature, setFeatures, shortcutChanges, shortcutKeepsOff } from "../../capabilities";
+import { can } from "../../can";
 import { ask } from "../../dialog";
 import { button, h } from "../../dom";
-import { FEATURE_GROUPS, type FeatureId, type ShortcutId } from "../../featureList";
+import { FEATURE_GROUPS, FEATURE_IDS, FEATURE_NEEDS, type FeatureId, type ShortcutId } from "../../featureList";
 import { fs } from "../../featureStrings";
 import { diceLookItems } from "./diceLookItems";
 import type { ItemCtx, SettingItem } from "./types";
 
 const SHORTCUTS: ShortcutId[] = ["everything", "writing"];
+
+/** Whether this side has the feature at all (ADR 0027): the terminal's
+ *  switch is the desktop app's alone (ADR 0115 item 6). */
+function here(id: FeatureId): boolean {
+  const need = FEATURE_NEEDS[id];
+  return !need || can(need);
+}
+/** The names of what a shortcut changes, without those this side has not. */
+function shownNames(names: string[]): string[] {
+  const absent = new Set(FEATURE_IDS.filter((id) => !here(id)).map((id) => fs.names[id]));
+  return names.filter((n) => !absent.has(n));
+}
 
 /** The features that have a settings page of their own under "RPG & Mesa Solo". */
 const OWN_PAGE: Partial<Record<FeatureId, string>> = { oracles: "oracles", statblocks: "statblocks" };
@@ -25,7 +38,7 @@ const OWN_PAGE: Partial<Record<FeatureId, string>> = { oracles: "oracles", statb
  *  RPG switches and the 3D dice's appearance). One item each for the search,
  *  whose words are that page's features'. */
 export function featureItems(ctx: ItemCtx): SettingItem[] {
-  const words = (ids: readonly FeatureId[]) => ids.map((id) => `${fs.names[id]} ${fs.descs[id]}`).join(" ");
+  const words = (ids: readonly FeatureId[]) => ids.filter(here).map((id) => `${fs.names[id]} ${fs.descs[id]}`).join(" ");
   return [
     { section: "features", title: fs.section, desc: `${fs.shortcuts} ${words(FEATURE_GROUPS.app)} ${fs.rpgLink}`, node: () => featuresNode(ctx) },
     { section: "rpgfeatures", title: fs.rpgSection, desc: words(FEATURE_GROUPS.rpg), node: () => rpgNode(ctx) },
@@ -36,7 +49,7 @@ export function featureItems(ctx: ItemCtx): SettingItem[] {
 /** Keeps the switches of a page showing what is stored. */
 function switches(ctx: ItemCtx, ids: readonly FeatureId[], boxes: Map<FeatureId, HTMLInputElement>, sync: () => void, into: HTMLElement): void {
   const f = currentFeatures();
-  for (const id of ids) {
+  for (const id of ids.filter(here)) {
     const sw = ctx.toggle(f[id], (v) => {
       setFeature(id, v);
       sync();
@@ -83,10 +96,12 @@ function featuresNode(ctx: ItemCtx): HTMLElement {
     b.removeAttribute("title");
     b.addEventListener("click", () => {
       void (async () => {
-        const { on, off } = shortcutChanges(id);
+        const changes = shortcutChanges(id);
+        const on = shownNames(changes.on);
+        const off = shownNames(changes.off);
         // Nothing to change: nothing to ask.
         if (on.length + off.length === 0) return;
-        if (!(await ask(fs.askShortcut(fs.shortcutNames[id], on, off, shortcutKeepsOff(id)), { yes: fs.apply, no: fs.cancel }))) return;
+        if (!(await ask(fs.askShortcut(fs.shortcutNames[id], on, off, shownNames(shortcutKeepsOff(id))), { yes: fs.apply, no: fs.cancel }))) return;
         applyShortcut(id);
         sync();
       })();

@@ -83,10 +83,23 @@ fn a_file_handed_to_the_running_app_opens_in_the_loose_window() {
         "table",
         "board",
         "reveal",
+        "terminal",
+        // No table, so nothing to share audio to (ADR 0116 item 27).
+        "audio_share",
     ] {
         assert!(!can.iter().any(|c| c == gone), "{gone} in {can:?}");
     }
     assert!(can.iter().any(|c| c == "write"));
+    // No terminal there, the switch on or not (ADR 0115 item 6).
+    call(&webview, "set_terminal_enabled", json!({"on": true})).unwrap();
+    let err = call(
+        &webview,
+        "terminal_write",
+        json!({"id": "x-1", "data": "ls"}),
+    )
+    .unwrap_err();
+    assert_eq!(err["kind"], "refused");
+    call(&webview, "set_terminal_enabled", json!({"on": false})).unwrap();
     // A folder handed now is not this window's to take.
     let vault = tempfile::tempdir().unwrap();
     let _n = note(vault.path(), "Nota.md", "# Nota\n");
@@ -99,6 +112,14 @@ fn a_file_handed_to_the_running_app_opens_in_the_loose_window() {
     assert!(!app.state::<App>().service.is_loose("main"));
     let can = call(&webview, "capabilities", json!({})).unwrap();
     assert!(can["can"].as_array().unwrap().iter().any(|c| c == "index"));
+    // A window of a folder is the desktop host's: it lists the capture.
+    assert!(
+        can["can"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c == "audio_share")
+    );
 }
 
 /// A file inside a folder a window shows is that window's tab (ADR 0114
@@ -248,7 +269,14 @@ fn a_data_file_handed_opens_loose_and_is_read_and_written_as_text() {
     .unwrap();
     assert_eq!(written["path"], "Inventário.json");
     assert_eq!(
-        std::fs::read_to_string(dir.path().join("Inventário.json")).unwrap(),
+        {
+            // Read back through verso-fs, the one crate that reads a folder (ADR 0029).
+            let mut root = verso_fs::Root::open(dir.path(), Vec::new()).unwrap();
+            let handle = root
+                .handle(std::path::Path::new("Inventário.json"))
+                .unwrap();
+            String::from_utf8(root.read(handle).unwrap().0).unwrap()
+        },
         "{\"itens\": [1, 2, 3]}\n"
     );
     // Over the old revision: refused, nothing written (invariant 11).
@@ -287,9 +315,14 @@ fn a_data_file_handed_opens_loose_and_is_read_and_written_as_text() {
     let said = lock(&refused).clone();
     assert!(said.len() == 1 && said[0].contains("\"other\""), "{said:?}");
     // Nothing beside the files but the files.
-    let mut names: Vec<String> = std::fs::read_dir(dir.path())
-        .unwrap()
-        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+    // Through verso-fs (ADR 0029): what the walk lists, and no temporary left.
+    let mut root = verso_fs::Root::open(dir.path(), Vec::new()).unwrap();
+    assert!(root.temporaries().unwrap().is_empty());
+    let mut names: Vec<String> = root
+        .walk()
+        .entries
+        .into_iter()
+        .map(|e| e.relative.to_string_lossy().into_owned())
         .collect();
     names.sort();
     assert_eq!(

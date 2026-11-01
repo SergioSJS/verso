@@ -269,7 +269,7 @@ fn path_of(kind: Kind) -> &'static str {
     }
 }
 
-const ACTIONS: [Action; 29] = [
+const ACTIONS: [Action; 30] = [
     Action::See,
     Action::Edit,
     Action::Attach { image: true },
@@ -311,6 +311,7 @@ const ACTIONS: [Action; 29] = [
     Action::Invite,
     Action::InviteNew,
     Action::Play,
+    Action::Broadcast,
 ];
 
 fn action_name(a: Action) -> String {
@@ -347,6 +348,7 @@ fn action_name(a: Action) -> String {
         Action::Invite => "invite",
         Action::InviteNew => "invite-new",
         Action::Play => "play",
+        Action::Broadcast => "broadcast",
     }
     .to_owned()
 }
@@ -630,7 +632,7 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
         Action::InviteNew => p.master() && w && !p.phone() && p.admin,
         // The table's music: the game master, whatever the credential
         // (ADR 0116 item 22).
-        Action::Play => p.master(),
+        Action::Play | Action::Broadcast => p.master(),
     }
 }
 
@@ -666,6 +668,7 @@ fn every_cell_of_the_matrix_is_as_the_adr_says() {
                     | Action::Invite
                     | Action::InviteNew
                     | Action::Play
+                    | Action::Broadcast
             );
             if table_action != (s.kind == Kind::Table) && a != Action::See {
                 continue;
@@ -769,6 +772,7 @@ fn vectors() -> String {
                     | Action::Invite
                     | Action::InviteNew
                     | Action::Play
+                    | Action::Broadcast
             );
             if table_action != (s.kind == Kind::Table) && *a != Action::See {
                 continue;

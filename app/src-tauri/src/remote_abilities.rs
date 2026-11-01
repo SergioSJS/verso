@@ -9,16 +9,22 @@ use serde_json::{Value, json};
 
 /// What this app can do whatever folder a window shows, as the contract
 /// names it: its own windows, child web views, updates, console and the
-/// opening of folders of this computer (ADR 0027, ADR 0076 item 11).
+/// opening of folders of this computer (ADR 0027, ADR 0076 item 11), and
+/// the capture of audio to share with the table (ADR 0116 item 27: only the
+/// desktop host lists it, a server never does).
 /// "Show in Finder", "Copy full path" and the agents work on a path of this
 /// computer, which a server's folder has not: they stay absent there
-/// (ADR 0076 item 11; the agents are an open question, kept absent).
-const APP_ABILITIES: [&str; 5] = [
+/// (ADR 0076 item 11; the agents are an open question, kept absent). The
+/// terminal is this computer's shell, started in the person's home
+/// directory there (ADR 0115, Q4 decided 2026-10-31).
+const APP_ABILITIES: [&str; 7] = [
     "windows",
     "web_views",
     "updates",
     "devtools",
     "local_folders",
+    "terminal",
+    "audio_share",
 ];
 
 /// The server's answer for a folder it holds, plus the abilities of this

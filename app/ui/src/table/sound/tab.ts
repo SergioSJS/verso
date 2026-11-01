@@ -188,7 +188,7 @@ class MusicView {
     const m = src.music();
     const master = src.controls();
     const playing = !!m && m.state !== "stopped";
-    const { blocked, failed, cannotHere } = playerState();
+    const { blocked, failed, cannotHere, shareWaiting } = playerState();
     this.empty.hidden = playing;
     this.empty.textContent = master ? st.nothingMaster : st.nothing;
     for (const el of [this.title, this.from, this.timeRow, this.volumes]) el.hidden = !playing;
@@ -221,7 +221,8 @@ class MusicView {
       this.follow.checked = mine.follow;
     }
     const lines: Node[] = [];
-    if (playing && blocked && m?.path) lines.push(this.hear);
+    // A live share waiting for a gesture asks for the same one (ADR 0116 item 25).
+    if ((playing && blocked && m?.path) || shareWaiting) lines.push(this.hear);
     if (playing && cannotHere) lines.push(h("p", "music-note", st.cannotHere));
     else if (playing && failed) lines.push(h("p", "music-note", st.missing));
     if (playing && master && m && m.unheard.length > 0) lines.push(h("p", "music-note", st.notHearing(m.unheard.join(", "))));

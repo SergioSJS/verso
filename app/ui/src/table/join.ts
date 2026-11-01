@@ -42,6 +42,7 @@ import { openServerTable, type Api } from "./server";
 import { tt } from "./strings";
 import { serverSound, type SoundApi } from "./sound/source";
 import { setSoundSource } from "./sound/run";
+import { joinShare, leaveShare } from "./sound/share";
 import { soundError } from "./sound/words";
 
 /** The last join was answered "unavailable": a synced folder out of its server's reach. */
@@ -79,10 +80,13 @@ const soundApi: SoundApi = {
 /** The music of the table joined, or this window's own when there is none. */
 async function joinSound(table: ServerTable | null, folder: string | null): Promise<void> {
   if (!table) {
+    leaveShare();
     setSoundSource(null, folder);
     return;
   }
-  const { play, playback } = table.joinedSound();
+  const { play, playback, share } = table.joinedSound();
+  // The live share (ADR 0116 section B): its listening is its own.
+  joinShare(table.table, share);
   setSoundSource(
     await serverSound({ api: soundApi, table: table.table, controls: play, playback, explain: soundError }),
     folder,

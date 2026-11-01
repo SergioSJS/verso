@@ -24,6 +24,7 @@ import { pickFiles } from "./pickFiles";
 import { readLinkCall } from "./readLinkOwner";
 import { FULL_RETRY, phonesFullMost } from "./phonesFull";
 import { w } from "./strings";
+import { sortMessage } from "../table/sound/frameHeader";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: unknown) => void };
 
@@ -65,6 +66,8 @@ let visitor: string | null = null;
  *  left closed, not tried again. */
 let onLinkEnded: (() => void) | null = null;
 let linkEnded = false;
+/** Where a live share's frames go (`audio_share_hear`, the desktop host's channel answered here). */
+let audioFrames: { onmessage: (bytes: ArrayBuffer) => void } | null = null;
 
 /** The folder the tab shows, for the pages around the window. */
 export function currentFolderId(): string | null {
@@ -315,7 +318,17 @@ function connect(): void {
     routedOffline = false;
     for (const w_ of waiting.splice(0)) ws.send(w_.text);
   });
-  ws.addEventListener("message", (e) => onMessage(String(e.data)));
+  // Sorted by the first byte before anything else is read (ADR 0116 item
+  // 19): text to the JSON path; an audio frame of a live share to the
+  // window's listener (`audio_share_hear`). A browser says no sync, so the
+  // server sends it no piece of a file as bytes: any other binary message
+  // is not for this window.
+  ws.binaryType = "arraybuffer";
+  ws.addEventListener("message", (e) => {
+    const m = sortMessage(e.data);
+    if (m?.kind === "text") onMessage(m.text);
+    else if (m?.kind === "audio") audioFrames?.onmessage(m.bytes.buffer as ArrayBuffer);
+  });
   ws.addEventListener("close", (ev) => {
     connecting = false;
     if (linkEnded) {
@@ -381,6 +394,11 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
   // window starts as a server's window that can only read the folder list.
   if (cmd === "capabilities" && folderId === null && isDown()) return done({ host: "server", can: ["account"], latency_ms: null });
   switch (cmd) {
+    // A live share's frames come on this socket itself (ADR 0116 item 19):
+    // they go to the channel the window gives, as the desktop's host does.
+    case "audio_share_hear":
+      audioFrames = (a.frames as { onmessage: (bytes: ArrayBuffer) => void } | undefined) ?? null;
+      return done(null);
     // "Import files…" (A11Y.10): the browser's own file picker, and the
     // chosen files' names and bytes, as the desktop host answers.
     case "pick_files":

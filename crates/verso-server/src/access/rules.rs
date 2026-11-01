@@ -314,6 +314,10 @@ pub enum Action {
     /// whatever the credential; a later version hands it to a player by a
     /// right of its own.
     Play,
+    /// Share live audio to the table (ADR 0116 item 22, section B): the game
+    /// master's alone in V1, whatever the credential. Named so because
+    /// `Share` is 0113's action for shares.
+    Broadcast,
     /// Change who sees and who edits (the access of a path).
     ManageAccess,
     /// Make a table, open it, close it, set its limits.
@@ -604,8 +608,8 @@ impl AccessFacts {
 #[must_use]
 pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verdict {
     use Action::{
-        Attach, Clear, Create, Delete, DeleteEntry, Edit, Invite, InviteNew, ManageAccess,
-        ManageTable, Move, Play, Rename, Roll, RollSecret, Say, See, SeeSecretBlocks,
+        Attach, Broadcast, Clear, Create, Delete, DeleteEntry, Edit, Invite, InviteNew,
+        ManageAccess, ManageTable, Move, Play, Rename, Roll, RollSecret, Say, See, SeeSecretBlocks,
         SeeSecretRolls, SendFile, Share,
     };
     use Reason::{
@@ -790,6 +794,14 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
         // never the credential); a phone is never the owner (ADR 0096 item
         // 12), so never the master.
         Play => {
+            if master {
+                Allow
+            } else {
+                Deny(NotMaster)
+            }
+        }
+        // The live share: the same seat as the file state (item 22).
+        Broadcast => {
             if master {
                 Allow
             } else {

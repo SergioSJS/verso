@@ -373,6 +373,20 @@ streamed to the table — independent of the files**
     percent of one core. Why not WebCodecs or `MediaRecorder` in the web
     view for encoding: unsupported or unconfirmed in WKWebView and
     WebKitGTK; the host has the samples anyway.
+
+    *Built in S4 (2026-11-01), recorded for the review:* the encoder is the
+    `opus` crate 0.4 (MIT or Apache-2.0) over `opusic-sys` (BSD-3-Clause),
+    which builds libopus from source with **cmake** — a build prerequisite
+    on every machine and CI image that builds the app. A **test tone** (a
+    440 Hz sine, `audio_sources_list` id `test-tone`) is the first source so
+    the whole path runs without capture; it is listed only in debug builds or
+    a build with the cargo feature `test-tone` (no workflow sets it), so the
+    shipped app never shows it. The frames do **not** cross into the web
+    view: the host sends each one as a binary message on the window's own
+    connection to the server (a server's folder, or the live link of a synced
+    folder), under the share number the window got from `table_share_start`
+    and hands to `audio_share_start`; the Tauri channel of item 19 is not
+    used (fifty IPC calls a second for nothing).
 19. **Transport: the server relays over the existing WebSocket; no
     WebRTC.** The host hands each frame to its window over a Tauri channel
     (bytes, as 0115 item 5 does for terminal output), and the window sends it
@@ -855,7 +869,10 @@ decided that the record leaves open.
   after the chosen tab, the Table's and the Music's (`data-keep`,
   `tabStrip.ts`) before the others, which fold into the "⋯" — so on a phone
   and a tablet the panel's two tabs of the game stay in the bar. The
-  author's choice, to be confirmed by the maintainer.
+  author's choice, to be confirmed by the maintainer. With the tabs now hidden
+  and reordered by the person ([0072](0072-window-controls-in-the-app.md),
+  amendment of 2026-11-01), the fold follows the person's order after the
+  chosen tab and these two.
 - *The lesson's samples* are two CC0 loops by RandomMind (OpenGameArt),
   embedded once (`demoVault.ts`, about 1 MB of base64), credited in the
   lesson and Settings › Credits (`docs/reference/demo-vault-sounds.md`).

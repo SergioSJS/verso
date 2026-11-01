@@ -199,6 +199,22 @@ export const test = base.extend({
         }).observe(work);
       });
     });
+    // Headless Chromium (Docker, the Mac's CI) draws WebGL with SwiftShader, a
+    // CPU renderer; the window's own probe (src/dice3d/gl.ts, 2026-10-26)
+    // sends such a computer to the 2D card, as it must. The 3D specs need a
+    // canvas, so the renderer's name the probe reads is a GPU's here (the
+    // probe's judgement of software names stays covered by test/dice3d.test.mjs).
+    // A test of the fallback sets `window.__keepGlRenderer` before the window loads.
+    await page.addInitScript(() => {
+      for (const proto of [globalThis.WebGLRenderingContext?.prototype, globalThis.WebGL2RenderingContext?.prototype]) {
+        if (!proto) continue;
+        const get = proto.getParameter;
+        proto.getParameter = function (p) {
+          const v = get.call(this, p);
+          return typeof v === "string" && !globalThis.__keepGlRenderer ? v.replace(/swiftshader|llvmpipe/gi, "Test GPU") : v;
+        };
+      }
+    });
     page.on("console", (m) => {
       if (m.type() === "error" && !NOISE.some((r) => r.test(m.text()))) problems.push(`console: ${m.text()}`);
     });

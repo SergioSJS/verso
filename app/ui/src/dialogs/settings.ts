@@ -60,6 +60,7 @@ import { agentVisibleControl, cliControl, mcpArgs, mcpControl, snippet } from ".
 import { wireFrame } from "./settings/frame";
 import { fs } from "../featureStrings";
 import { featureItems, offNotice } from "./settings/featureItems";
+import { terminalItems } from "../terminal/settingsItems";
 import { oracleItems } from "./settings/oracleItems";
 import { statblockItems } from "./settings/statblockItems";
 import { creditsItems } from "./settings/creditsItems";
@@ -67,6 +68,8 @@ import { cs } from "./settings/creditsStrings";
 import { ss } from "./settings/strings";
 import { LOOK_EVENT } from "../theme/actions";
 import { fontSample, fontSampleWords } from "../fontSample";
+import { tabsSettings } from "../panel/tabsSettings";
+import { tabWords } from "../panel/tabStrings";
 import { themeGallery } from "../theme/gallery";
 import { openMoreThemes } from "../theme/more";
 import { W as lookWords } from "../theme/strings";
@@ -189,7 +192,7 @@ export class SettingsDialog {
       ...(this.offlineHere() ? [{ id: "sync", label: offlineWords().section, icon: "refresh", category: "system" as const }] : []),
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe", category: "system" as const }] : []),
       ...(can("local_folders") ? [{ id: "localserver", label: localStrings().section, icon: "globe", category: "system" as const }] : []),
-      ...(can("agents") ? [{ id: "cli", label: t.sCli, icon: "terminal", category: "system" as const }] : []),
+      ...(can("agents") || can("terminal") ? [{ id: "cli", label: t.sCli, icon: "terminal", category: "system" as const }] : []),
       ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user", category: "system" as const }] : []),
     ];
   }
@@ -696,6 +699,9 @@ export class SettingsDialog {
         return sw;
       }, t.ribbonButtons);
     }
+    // The right panel's tabs, each shown or hidden and in order: the sure
+    // way back for one hidden from the bar (ADR 0072, 2026-11-01).
+    out.push({ section: "appearance", title: tabWords.group, desc: tabWords.lead, group: tabWords.group, node: () => this.item(tabWords.group, tabWords.lead, panel ? tabsSettings(panel.strip) : null) });
     add("organizing", t.stickers, t.stickersDesc, () => this.toggle(settings.stickers, (v) => { settings.stickers = v; saveSettings(); void listAll(); }));
     add("organizing", t.stickerInLinks, t.stickerInLinksDesc, () => this.toggle(settings.stickerInLinks, (v) => { settings.stickerInLinks = v; saveSettings(); }));
     add("organizing", t.covers, t.coversDesc, () => this.toggle(settings.covers, (v) => { settings.covers = v; saveSettings(); for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf && l.note) void l.load(l.path, true); }));
@@ -876,8 +882,11 @@ export class SettingsDialog {
       add("cli", t.mcpCodeTitle, t.mcpCodeDesc, () => snippet(code("verso", guess), (st) => code(st.command, st.server)));
       add("cli", t.mcpOtherTitle, t.mcpOtherDesc, () => snippet(other("/usr/local/bin/verso", guess), (st) => other(st.command, st.server)));
     }
-    // The command line and the agents only where the side has them.
-    return can("agents") ? out : out.filter((o) => o.section !== "cli");
+    // The command line and the agents only where the side has them; the
+    // terminal where it has one (ADR 0115 item 6: a server's folder too).
+    const kept = can("agents") ? out : out.filter((o) => o.section !== "cli");
+    if (can("terminal")) kept.push(...terminalItems(this.ctx(), () => this.hide()));
+    return kept;
   }
   private hotkeyControl(id: string, label: string): HTMLElement {
     const wrap = h("span", "hotkey");
