@@ -21,6 +21,7 @@ export function installAudioShare(core: Core): void {
   h["audio_share_start"] = (a) => {
     void a["id"];
     void a["bitrateKbps"];
+    void a["share"];
     return refuse("sharing audio is not built yet");
   };
   h["audio_share_stop"] = () => null;
