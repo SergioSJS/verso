@@ -23,8 +23,8 @@ for (const [lang, general, rpgNav, all, none, link, rpgLine] of [
     if (lang === "en") await page.addInitScript(() => localStorage.setItem("verso.settings", JSON.stringify({ lang: "en" })));
     await openPage(app, page, general);
     const body = page.locator(".settings-body");
-    // The general page: one switch, the shortcuts, no sub-headings, a way to the RPG page.
-    expect(await body.locator("input[type=checkbox]").count()).toBe(2);
+    // The general page: the data diagram, colour swatches and terminal (ADR 0115, off by default) switches, the shortcuts, no sub-headings, a way to the RPG page.
+    expect(await body.locator("input[type=checkbox]").count()).toBe(3);
     await expect(body.locator("fieldset fieldset")).toHaveCount(0);
     await expect(body.getByText(rpgLine)).toBeVisible();
     await expect(body.getByRole("button", { name: all, exact: true })).toHaveCount(0);
