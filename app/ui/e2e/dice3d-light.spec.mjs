@@ -6,7 +6,7 @@
 // pictures under docs/media/test-runs). The studio's reflections are forced
 // on (`__dice3dEnv`) so a CPU renderer shows them too.
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 
 import { test, expect } from "./fixtures.mjs";
 
@@ -86,7 +86,14 @@ for (const theme of ["light", "dark"]) {
         writeFileSync(`${dir}/${name}-${theme}.png`, r.png);
       }
       // The violet die on the light theme is the maintainer's case.
-      if (name === "violeta" || name === "amarelo") expect(r.white, `${name} on ${theme}`).toBeLessThan(0.08);
+      // In Docker the software renderer lands the same dice the same way, and
+      // 0.08 is the line. On a Mac's real GPU the dice fall by real frame
+      // times and land differently on each run, and the white numeral's
+      // anti-aliasing alone moves the share: the violet on light read 0.034
+      // to 0.082 in seven runs (2026-11-01). A washed die reads far higher
+      // (the white one 0.67 to 0.73), so the guard there is 0.15.
+      const line = existsSync("/logs") ? 0.08 : 0.15;
+      if (name === "violeta" || name === "amarelo") expect(r.white, `${name} on ${theme}`).toBeLessThan(line);
     });
   }
 }
