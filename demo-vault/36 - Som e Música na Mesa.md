@@ -128,6 +128,20 @@ Numa pasta só deste computador não há mesa, mas a aba Música funciona do mes
 
 ---
 
+## Compartilhar áudio
+
+Além de arquivos, o mestre pode compartilhar **o som de um aplicativo do computador** (um tocador de música, o navegador) com todos da mesa, sem ter arquivo nenhum na pasta. Isso existe só no **app para computador**; no navegador e no celular você ouve, mas não compartilha, e o botão nem aparece.
+
+1. Na aba **Música**, **Compartilhar áudio…** (no estado vazio ou no alto da aba). Só o mestre vê o botão.
+2. Escolha a fonte na lista, pelo nome do aplicativo. Em **Qualidade** (fechado) fica a taxa: 96 kbit/s é um bom começo.
+3. Na primeira vez, o Verso avisa: *o som do que você compartilha vai para todos desta mesa; o que você pode tocar para os outros é responsabilidade sua; o Verso não grava nada*.
+4. Enquanto compartilha, a aba mostra *Compartilhando …*, um **medidor de nível** com a frase *Som chegando* (ou *Silêncio*, se a fonte não está soltando som ou está bloqueada), quantos ouvem e a taxa. **Parar de compartilhar** está na aba, na linha da aba Mesa e na barra de status. Você continua ouvindo a fonte direto; o Verso nunca toca o seu próprio fluxo de volta.
+5. Quem está na mesa vê *Fulano está compartilhando …* e usa **o seu volume**, **Silenciar** e **Seguir a mesa**; se o navegador espera um toque, **Ouvir a mesa**. Um segundo compartilhamento pergunta antes de substituir o primeiro.
+
+> O que já funciona hoje é esta tela e o caminho da mesa. A **captura** do som de cada aplicativo chega por sistema (macOS, Windows, Linux) nas próximas atualizações; até lá a lista de fontes está vazia e diz isso. No macOS o sistema vai pedir a permissão **Gravação de Áudio do Sistema** na primeira captura.
+
+---
+
 As duas faixas de amostra (`assets/sons/`) são de **RandomMind**, em domínio público (CC0 1.0): `taverna.mp3` é “The Old Tower Inn” (<https://opengameart.org/content/medieval-the-old-tower-inn>) e `estrada.mp3` é “The Bard's Tale” (<https://opengameart.org/content/medieval-the-bards-tale>), as versões em loop, regravadas em mono para pesar pouco.
 
 Siga para a [[37 - Compatibilidade com o Obsidian]], ou volte à [[34 - UniVerso num Servidor Grátis da Oracle]] ou a [[31 - A Mesa]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].

@@ -1399,7 +1399,7 @@ export class Core {
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",
-      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN, "terminal"],
+      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN, "terminal", "audio_share"],
       latency_ms: null,
     }),
     folder_space: (): FolderSpace => {

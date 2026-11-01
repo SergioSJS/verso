@@ -17,11 +17,14 @@ import { Channel } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { commands, type AudioShare } from "../../bindings";
 import { audioContext, logLine, whenContext } from "../../dice3d/audio";
-import { onSound, ownSound, setShareWaiting, soundOn } from "./run";
+import { onSound, ownSound, sayShare, setShareWaiting, soundChanged, soundOn } from "./run";
 import { type Gate, type Hearer, TableShare } from "./shareLife";
+import { ss } from "./shareWords";
 import { gain } from "./sync";
 
 let active: TableShare | null = null;
+/** This window is starting a share: the one that appears is its own, and not asked for. */
+let expecting = false;
 /** The share this window started (the sharer's own, `markOwnShare`): never heard here (item 16). */
 let ownShare: number | null = null;
 let hearing: Promise<void> | null = null;
@@ -71,6 +74,7 @@ const ownGain = (): number => {
 /** The table joined (`table`, as its join named it) and its share, if one is live. */
 export function joinShare(table: string, share: AudioShare | null): void {
   leaveShare();
+  announced = share?.id ?? null;
   install();
   hearFrames();
   const s = new TableShare({
@@ -84,17 +88,35 @@ export function joinShare(table: string, share: AudioShare | null): void {
     open,
     gain: ownGain,
     follows: () => soundOn() && ownSound().follow,
-    own: () => ownShare,
-    changed: () => setShareWaiting(active === s && s.waiting),
+    // While this window starts a share, the one that appears is its own (the server's event can come before the answer).
+    own: () => (expecting && s.live ? s.live.id : ownShare),
+    changed: () => {
+      setShareWaiting(active === s && s.waiting);
+      if (active !== s) return;
+      announce(s.live);
+      soundChanged();
+    },
     log: (line) => logLine("WARN", `share: ${line}`),
   });
   active = s;
   void s.start();
 }
 
+let announced: number | null = null;
+/** The polite line of a share's start and end (item 26): not on its state, which changes every few seconds. */
+function announce(live: AudioShare | null): void {
+  const id = live?.id ?? null;
+  if (id === announced) return;
+  const was = announced;
+  announced = id;
+  if (live) sayShare(live.id === ownShare ? ss.started(live.name) : ss.by(live.by, live.name));
+  else if (was !== null) sayShare(ss.ended);
+}
+
 /** No table now: nothing is heard. */
 export function leaveShare(): void {
   active?.close();
+  announced = null;
   active = null;
   setShareWaiting(false);
 }
@@ -103,6 +125,13 @@ export function leaveShare(): void {
 export function markOwnShare(id: number | null): void {
   ownShare = id;
   active?.evaluate();
+}
+
+/** A start is in progress (`on`) or over: what appears meanwhile is this window's own share. */
+export function expectOwnShare(on: boolean): void {
+  if (expecting === on) return;
+  expecting = on;
+  if (!on) active?.evaluate();
 }
 
 /** The share live at the table joined, as this window knows it. */

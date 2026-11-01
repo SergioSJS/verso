@@ -128,6 +128,20 @@ In a folder of this computer alone there is no table, but the Music tab works th
 
 ---
 
+## Share audio
+
+Besides files, the game master can share **the sound of an application on the computer** (a music player, the browser) with everyone at the table, with no file in the folder at all. This exists only in the **desktop app**; in a browser or on a phone you listen, but cannot share, and the button is not drawn.
+
+1. In the **Music** tab, **Share audio…** (in the empty state or at the top of the tab). Only the game master sees the button.
+2. Pick the source from the list, by the application's name. Under **Quality** (folded) is the rate: 96 kbit/s is a good start.
+3. The first time, Verso says: *the sound of what you share goes to everyone at this table; what you may play to others is your responsibility; Verso records nothing*.
+4. While you share, the tab shows *Sharing …*, a **level meter** with the words *Sound arriving* (or *Silence*, when the source gives no sound or is blocked), how many are listening and the rate. **Stop sharing** is in the tab, in the Table tab's row and in the status bar. You keep hearing the source directly; Verso never plays your own stream back to you.
+5. Everyone at the table sees *<name> is sharing …* and uses **their own volume**, **Mute** and **Follow the table**; if the browser waits for a touch, **Hear the table**. A second share asks before it replaces the first.
+
+> What works today is this screen and the path to the table. The **capture** of each application's sound arrives per system (macOS, Windows, Linux) in the next updates; until then the list of sources is empty and says so. On macOS the system will ask for the **System Audio Recording** permission at the first capture.
+
+---
+
 The two sample tracks (`assets/sons/`) are by **RandomMind**, in the public domain (CC0 1.0): `taverna.mp3` is “The Old Tower Inn” (<https://opengameart.org/content/medieval-the-old-tower-inn>) and `estrada.mp3` is “The Bard's Tale” (<https://opengameart.org/content/medieval-the-bards-tale>), their loop versions, re-encoded in mono to weigh little.
 
 Go on to [[37 - Compatibility with Obsidian]], or back to [[34 - UniVerso on a Free Oracle Server]] or to [[31 - The Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].

@@ -1415,6 +1415,13 @@ them; if they still happen, a step that makes them happen is enough.
 - [ ] The trash's size cap (B11) on a real server: with `VERSO_TRASH_MAX=50MB`, delete a few large files from a desktop folder synced to it; the oldest leave the server's trash first, the folder's own files stay, and the console's folder page shows the trash under 50 MB.
 - [ ] The old-address page (B13) on a real server behind HTTPS: open its IP address from a phone and a computer, with the browser in Portuguese and in English; the right language is first, the link opens the HTTPS address, and the page reads well in dark mode and at 390 px. Say whether a screen reader reads the link.
 
+## Share audio, the window (ADR 0116 section B, task S6)
+
+1. **The real count and rate** (A, the desktop app on a server's table with a second device): while the debug build's test tone is shared, the card's listeners and rate match the server's (`table-share-state`), and the meter moves with the tone (the harness fakes both).
+2. **Silence** (A, on each system once capture exists): a source that is muted or DRM-blocked says *Silêncio…* within 3 seconds; then plays and the card says *Som chegando*.
+3. **VoiceOver / NVDA** (A): the picker reads its options with their kinds; the meter reads *Nível do som* with its words; *Compartilhando …* / *Compartilhamento encerrado* are announced; Stop sharing has a name in the tab, the row and the status bar.
+4. **The macOS permission** (A, when the macOS capture is built): the *System Audio Recording* prompt at the first capture; refused, the share says why and leaves nothing at the table.
+
 ## Music at the table (ADR 0116 phase 1, 2026-10-31)
 
 On the real engines, which the harness's stubbed `play()` does not reach; a UniVerso table with the master in the desktop app and players in browsers and phones (note 36):

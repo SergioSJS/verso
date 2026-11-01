@@ -1819,6 +1819,16 @@ Docs only; no code changed. Both lessons exist in `demo-vault/` (pt-BR) and `dem
 6. Note 38, section 7: `VERSO_TRASH_DAYS` (30) and `VERSO_TRASH_MAX` (1GB) are the defaults of `docs/reference/server-install.md` section 7; the unit's `MemoryMax=75%` is `packaging/server/universo.service`. Level: H.
 7. Note 38 end to end on a real NAS (ZimaOS or CasaOS) and a real Ubuntu VPS, as a layperson would: not run for this change; the other Docker NAS brands are not covered by the project and the note says so. Level: A.
 
+## Share audio, the window (ADR 0116 section B, task S6, note 36)
+
+As the game master in the desktop app of a table (a debug build lists a test tone as the one source; a release lists none until a capture back-end is built), and as a player in a browser:
+
+1. The Música tab has **Compartilhar áudio…** in the empty state and in the header; the player's tab and a browser's have none. With no source, the picker says *A captura de som chega numa próxima atualização* and **Começar a compartilhar** is off. Level: A; E: `e2e/share-audio.spec.mjs`.
+2. With the test tone: pick it, **Começar a compartilhar**; the first time the notice shows, once. The tab shows *Compartilhando …*, the meter moves and says *Som chegando*; *2 ouvintes · 96 kbit/s* (counts as the server reports). The player's window shows *Fulano está compartilhando …*, **Ouvir a mesa** (until a touch), then the tone. Level: A (C for the real count); E: `e2e/share-audio.spec.mjs`, `e2e-server/` (S10).
+3. **Parar de compartilhar** in the tab, in the Mesa tab's row or in the status bar: the tone ends for the player, which says *Compartilhamento encerrado*. A second share while one is live asks *Substituir?*; **Cancelar** keeps the first. Level: A; E: `share-audio.spec.mjs`.
+4. A source that is silent (a muted app): within 3 seconds the card says *Silêncio: nada está sendo captado…*. A capture that cannot start leaves no share at the table and says why in the status bar. Level: A; E: `share-audio.spec.mjs`.
+5. On a phone (390 × 844) every control above is 44 px and the picker fits; the keyboard moves through the picker with the arrows and Tab stays inside it. Level: A; E: `share-audio.spec.mjs` (`@layout`).
+
 ## Music at the table (ADR 0116 phase 1, note 36, 2026-10-31)
 
 On a UniVerso folder made a table, with the game master's window (the desktop app or a browser) and a player's (a second browser, or a phone), as in note 36. Copy `assets/sons/taverna.mp3` and `assets/sons/estrada.mp3` into a folder `Música` of the table, or play them from note 36:

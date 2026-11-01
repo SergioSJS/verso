@@ -42,6 +42,7 @@ import { openServerTable, type Api } from "./server";
 import { tt } from "./strings";
 import { serverSound, type SoundApi } from "./sound/source";
 import { setSoundSource } from "./sound/run";
+import { setMayShare } from "./sound/mine";
 import { joinShare, leaveShare } from "./sound/share";
 import { soundError } from "./sound/words";
 
@@ -81,12 +82,14 @@ const soundApi: SoundApi = {
 async function joinSound(table: ServerTable | null, folder: string | null): Promise<void> {
   if (!table) {
     leaveShare();
+    setMayShare(null, false);
     setSoundSource(null, folder);
     return;
   }
-  const { play, playback, share } = table.joinedSound();
+  const { play, playback, share, broadcast } = table.joinedSound();
   // The live share (ADR 0116 section B): its listening is its own.
   joinShare(table.table, share);
+  setMayShare(table.table, broadcast);
   setSoundSource(
     await serverSound({ api: soundApi, table: table.table, controls: play, playback, explain: soundError }),
     folder,

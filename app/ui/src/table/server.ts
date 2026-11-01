@@ -226,7 +226,7 @@ export async function openServerTable(deps: Deps): Promise<ServerTable | null> {
   members = joined.data.roster.map(memberOf);
   hasMore = joined.data.more;
   // The music (ADR 0116): an older server says nothing of it.
-  const sound = { play: joined.data.play ?? false, playback: joined.data.playback ?? [], share: joined.data.share ?? null };
+  const sound = { play: joined.data.play ?? false, playback: joined.data.playback ?? [], share: joined.data.share ?? null, broadcast: joined.data.broadcast ?? false };
   for (const w of joined.data.entries) ingest(w, false);
 
   const myColor = (): string | null => {
