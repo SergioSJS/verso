@@ -79,6 +79,12 @@ pub enum Can {
     /// and never a server, the web window, the phone, or a window of files
     /// opened without their folder (ADR 0114 item 9).
     Terminal,
+    /// Share the sound of an application, a page or the system with the
+    /// table (ADR 0116 section B, item 27): captured by the desktop host
+    /// only. Not in [`Can::FOLDER`]: a server, a phone and a window of loose
+    /// files never list it, and where it is absent *Share audio…* is not
+    /// drawn.
+    AudioShare,
 }
 
 impl Can {

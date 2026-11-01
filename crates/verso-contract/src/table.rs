@@ -116,6 +116,14 @@ pub struct TableJoin {
     /// item 8): a joiner and a reconnecting window start from the truth.
     #[serde(default)]
     pub playback: Vec<TablePlayback>,
+    /// Whether this window's person may share live audio to the table: the
+    /// game master (ADR 0116 item 22, `may(Broadcast)`).
+    #[serde(default)]
+    pub broadcast: bool,
+    /// The table's live share now, if any (ADR 0116 section B): a joiner
+    /// and a reconnecting window start from the truth.
+    #[serde(default)]
+    pub share: Option<crate::AudioShare>,
 }
 
 /// A right to send to the chat changed for this account (event

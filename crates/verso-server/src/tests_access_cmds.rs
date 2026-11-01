@@ -23,6 +23,13 @@ fn the_capabilities_say_who_the_person_is_at_the_table() {
         let owner = m.owner.call("capabilities", json!({})).await;
         assert_eq!(owner["ok"]["access"]["seat"], "master", "{owner}");
         assert_eq!(owner["ok"]["access"]["cap"], "write", "{owner}");
+        // A server never lists the capture of audio: the desktop host's alone
+        // (ADR 0116 item 27).
+        for who in [&owner, &m.ana.call("capabilities", json!({})).await] {
+            let can = who["ok"]["can"].as_array().unwrap();
+            assert!(!can.iter().any(|c| c == "audio_share"), "{who}");
+            assert!(can.iter().any(|c| c == "table"), "{who}");
+        }
         let ana = m.ana.call("capabilities", json!({})).await;
         assert_eq!(ana["ok"]["access"]["seat"], "player", "{ana}");
         assert_eq!(ana["ok"]["access"]["role"], "reader", "{ana}");

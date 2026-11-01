@@ -240,6 +240,13 @@ pub const REFUSED: &[&str] = &[
     "table_clear",
     "table_play",
     "table_sound",
+    // Sharing audio (ADR 0116 section B) is the desktop host's capture and
+    // the game master's: no phone captures, none shares (item 27).
+    "table_share_start",
+    "table_share_stop",
+    "audio_sources_list",
+    "audio_share_start",
+    "audio_share_stop",
     // A table is a server's and its game master's (ADR 0110): no phone runs
     // the commands that change one; the status is read below.
     "campaign_make",
