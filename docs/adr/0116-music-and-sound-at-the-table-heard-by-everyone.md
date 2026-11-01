@@ -387,6 +387,21 @@ streamed to the table — independent of the files**
     folder), under the share number the window got from `table_share_start`
     and hands to `audio_share_start`; the Tauri channel of item 19 is not
     used (fifty IPC calls a second for nothing).
+
+    *Built with the decoder, recorded for the review (2026-11-01, finding
+    I4):* the WASM decoder makes the window's **content security policy**
+    carry `'wasm-unsafe-eval'` in `script-src`, in both places that set it —
+    the desktop's `app/src-tauri/tauri.conf.json` and the server's page
+    policy (`crates/verso-server/src/http.rs`, `page_policy`; the desktop's
+    is the server's, ADR 0073 item 6). It is the **narrowest keyword** that
+    lets WebAssembly compile: it allows no `eval`, no inline script and no
+    script from another origin. The decoder runs on the main thread
+    (`table/sound/opusDecoder.ts`), so the keyword holds for every page of
+    the window, not only for the live share's chunk; narrowing it to the
+    decoder would take a dedicated worker with a policy of its own, possible
+    on the server and not with Tauri's single policy, and is not proposed.
+    [ADR 0115](0115-an-embedded-terminal-in-the-desktop-app.md) item 21
+    names the dependence of the terminal on this policy.
 19. **Transport: the server relays over the existing WebSocket; no
     WebRTC.** The host hands each frame to its window over a Tauri channel
     (bytes, as 0115 item 5 does for terminal output), and the window sends it
@@ -701,7 +716,11 @@ streamed to the table — independent of the files**
 maintainer's decisions; items 7–31 are the author's proposal, accepted with
 the nine questions below, decided as recommended. Phase 1 (section A, the
 files, with the shared parts of C, D and E) is built: see *As built (phase
-1)* below. Section B, the live *Share audio*, is not.
+1)* below. Section B, the live *Share audio*, is **partly built** (as of
+2026-11-01, S1–S5: the contract, the relay on the server, the encoder and
+the test tone, the listener's decoder and jitter buffer, and the path end to
+end against a real server); the sharer's interface and the capture back-ends
+(S6–S10) are not built yet.
 
 **Decided by the maintainer, 2026-10-31, in session**, on the first text and
 on the revision (in pt-BR):
@@ -888,7 +907,8 @@ decided that the record leaves open.
 - *The desktop's `verso://`* adds no `Access-Control-Allow-Origin`: the
   desktop uses `volume`, as item 12 allows.
 
-**Not built in phase 1.** Section B (the live share: capture, Opus, the
+**Not built in phase 1** (since then S1–S5 of section B are built: see the
+Status). Section B (the live share: capture, Opus, the
 relay, the WASM decoder, the picker, `Can::AudioShare`, the responsibility
 line, the TCC prompt; the Music tab's empty state will lead to *Share
 audio…* there, and no button for it is drawn now) — the contract leaves room for it: a share is its own

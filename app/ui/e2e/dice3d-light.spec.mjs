@@ -99,7 +99,6 @@ for (const theme of ["light", "dark"]) {
     test(`light: ${name} dice on the ${theme} theme`, async ({ app, page }, info) => {
       const r = await roll(app, page, name, theme, GUARDED.includes(name) ? 5 : 1);
       info.annotations.push({ type: "near-white share", description: r.white.toFixed(4) }, { type: "pale share", description: r.pale.toFixed(4) });
-      console.log("SHARE", name, theme, JSON.stringify(r.measures.map((m) => [+m.white.toFixed(3), +m.pale.toFixed(3)])));
       if (dir) {
         mkdirSync(dir, { recursive: true });
         writeFileSync(`${dir}/${name}-${theme}.png`, r.png);

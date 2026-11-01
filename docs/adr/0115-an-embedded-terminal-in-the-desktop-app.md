@@ -271,7 +271,10 @@ one — not consulted, and nothing of Obsidian's internals is claimed
     the core; with this feature, `terminal_write` lets anything that
     executes in the app's web view run arbitrary commands as the person.
     That is the one new security consideration, and the defences are: the
-    CSP (`default-src 'self'`, no inline script); notes render no script
+    CSP (`default-src 'self'`, no inline script, and `'wasm-unsafe-eval'`
+    since [0116](0116-music-and-sound-at-the-table-heard-by-everyone.md)
+    item 18 — the terminal depends on this policy; see the amendment of
+    2026-11-01); notes render no script
     ([0114](0114-opening-one-markdown-file-without-a-folder.md) item 24);
     embedded web pages are *child* web views with no IPC to these commands
     (item 5); the commands are refused where the capability is absent and
