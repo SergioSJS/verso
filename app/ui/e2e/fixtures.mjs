@@ -11,7 +11,7 @@ import { leakFixtures } from "./leaks.mjs";
  *  response that failed, which the fixture reports itself, by address. */
 const NOISE = [/^Failed to load resource: the server responded with a status of \d+/];
 
-const TYPES = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", pdf: "application/pdf", html: "text/html; charset=utf-8" };
+const TYPES = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", pdf: "application/pdf", html: "text/html; charset=utf-8", wav: "audio/wav", mp3: "audio/mpeg", ogg: "audio/ogg", m4a: "audio/mp4", flac: "audio/flac" };
 
 /** The window under test, and what a test asks of it. */
 export class App {
@@ -216,7 +216,17 @@ export const test = base.extend({
       const b64 = await page.evaluate((p) => window.__harness?.bytes(p) ?? null, path).catch(() => null);
       if (b64 === null) return route.fulfill({ status: 404, body: "" });
       const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
-      await route.fulfill({ status: 200, body: Buffer.from(b64, "base64"), contentType: TYPES[ext] ?? "application/octet-stream" });
+      const body = Buffer.from(b64, "base64");
+      const contentType = TYPES[ext] ?? "application/octet-stream";
+      // A media element asks by ranges, as of /f/ and verso:// (a sound
+      // seeks only in what it was served by range).
+      const range = /^bytes=(\d*)-(\d*)$/.exec(route.request().headers()["range"] ?? "");
+      if (range && body.length > 0) {
+        const start = range[1] ? Math.min(Number(range[1]), body.length - 1) : Math.max(0, body.length - Number(range[2]));
+        const end = range[1] && range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+        return route.fulfill({ status: 206, body: body.subarray(start, end + 1), contentType, headers: { "accept-ranges": "bytes", "content-range": `bytes ${start}-${end}/${body.length}` } });
+      }
+      await route.fulfill({ status: 200, body, contentType, headers: { "accept-ranges": "bytes" } });
     });
     const app = new App(page);
     await use(app);

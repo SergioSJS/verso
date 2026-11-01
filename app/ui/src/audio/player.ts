@@ -151,8 +151,14 @@ class AudioEmbed {
     });
     this.bar.addEventListener("pointerdown", () => (this.dragging = true));
     this.bar.addEventListener("input", () => {
-      this.audio.currentTime = Number(this.bar.value);
-      this.drawTime();
+      const to = Number(this.bar.value);
+      try {
+        this.audio.currentTime = to;
+      } catch {
+        // Not seekable yet: the next play starts from the start.
+      }
+      // The words follow the bar at once; the element catches up as it seeks.
+      this.drawTime(to * 1000);
     });
     this.bar.addEventListener("change", () => (this.dragging = false));
     this.muteBtn.addEventListener("click", (e) => {
@@ -167,8 +173,12 @@ class AudioEmbed {
       this.audio.pause();
       playForTable(o.path, o.host, o.heading());
     });
-    // The board's and the editor's own keys and pointer stay out of the player.
-    for (const t of ["pointerdown", "mousedown", "keydown", "dblclick"]) this.root.addEventListener(t, (e) => e.stopPropagation());
+    // The board's and the editor's own pointer and plain keys (Space, the
+    // arrows, Delete) stay out of the player; a shortcut (⌘P…) goes on.
+    for (const t of ["pointerdown", "mousedown", "dblclick"]) this.root.addEventListener(t, (e) => e.stopPropagation());
+    this.root.addEventListener("keydown", (e) => {
+      if (!e.metaKey && !e.ctrlKey && !e.altKey) e.stopPropagation();
+    });
     this.drawState();
     this.drawVolume();
     this.drawTable();
@@ -269,10 +279,11 @@ class AudioEmbed {
     this.root.classList.toggle("playing", playing);
   }
 
-  drawTime(): void {
+  /** `seekMs`: where the bar was just put, before the element has caught up. */
+  drawTime(seekMs?: number): void {
     const d = this.audio.duration;
     const length = Number.isFinite(d) && d > 0 ? d * 1000 : null;
-    const at = (Number.isFinite(this.audio.currentTime) ? this.audio.currentTime : 0) * 1000;
+    const at = seekMs ?? (Number.isFinite(this.audio.currentTime) ? this.audio.currentTime : 0) * 1000;
     this.time.textContent = timeText(at, length);
     this.bar.disabled = length === null || !this.playable;
     if (length !== null) this.bar.max = String(Math.max(1, Math.floor(length / 1000)));

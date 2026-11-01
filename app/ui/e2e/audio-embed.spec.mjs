@@ -137,7 +137,7 @@ test("an audio embed in a note is Verso's player: play, pause, the bar and its t
   expect((await audioOf("estrada")).muted).toBe(true);
   await taverna.getByRole("button", { name: "Tirar do silêncio" }).click();
   expect((await audioOf("taverna")).muted).toBe(false);
-  if (phone(page)) {
+  if (await page.evaluate(() => matchMedia("(pointer: coarse)").matches)) {
     await expect(taverna.getByRole("slider", { name: "Volume" })).toBeHidden();
     // Every control a finger's size.
     for (const b of await taverna.getByRole("button").all()) {
@@ -159,7 +159,9 @@ test("an audio embed in a note is Verso's player: play, pause, the bar and its t
 
   // The name opens the file.
   await taverna.getByRole("button", { name: "Abrir taverna.wav" }).click();
+  // In a tab of its own: the player, never a text tab that cannot read it.
   await expect(page.getByRole("tab", { name: /taverna\.wav/ }).first()).toBeVisible();
+  await expect(page.locator(".audio-leaf:visible").getByRole("group", { name: "Áudio: taverna.wav" })).toBeVisible();
   expect(await app.file("Sons.md")).toBe(text);
 });
 

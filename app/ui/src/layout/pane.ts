@@ -25,6 +25,8 @@ import { GraphLeaf } from "../leaves/graph";
 import { ThemeLeaf } from "../leaves/theme";
 import type { BuildSpec } from "../theme/builder";
 import { ImageLeaf } from "../leaves/image";
+import { AudioLeaf } from "../leaves/audio";
+import { audioTarget } from "../audio/state";
 import { askDiscard, Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
 import { PdfLeaf } from "../leaves/pdf";
@@ -212,6 +214,8 @@ export class Pane {
       // A data file opens as the diagram when that was the view last used for its type (ADR 0106 item 9).
       const type = kind === "text" && diagramFormat(path) !== null ? typeKey(path) : null;
       if (type && lastView(type) === "diagram") leaf = new DataLeaf(this);
+      // A sound file is its player (ADR 0116, amendment of 2026-11-01).
+      else if (audioTarget(path)) leaf = new AudioLeaf(this);
       else leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
       remember(path);
       this.place(leaf, preview);

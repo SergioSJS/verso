@@ -43,3 +43,6 @@
   .audio-embed-volume { display: none; }
   .audio-embed-note { margin-left: 0; }
 }
+/* A sound file's own tab: its player, centred. */
+.audio-leaf { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
+.audio-leaf .audio-embed { width: min(100%, 40rem); }
