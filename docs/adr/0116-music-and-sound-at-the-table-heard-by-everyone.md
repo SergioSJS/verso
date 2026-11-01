@@ -983,3 +983,12 @@ a shared board's room: the card is drawn from the node, nothing is sent.
 
 **Not built.** A media fragment (`#t=30`) is not read, and there is no
 volume per embed. No contract change.
+
+**As built (2026-11-01).** Built as above, then merged with the branch of
+music phase 1 and 2 (the Music tab, the right panel's tabs, the shared
+listening): the embed's "Tocar para a mesa" and the table's ducking use the
+same `table/sound/run.ts` the Music tab does, and nothing in the amendment
+changed in the merge. Checked on the merged tree: the harness specs
+`audio-embed`, `table-sound` and `right-tabs` (desktop, phone and tablet), the
+server spec `e2e-server/audio-embed.spec.mjs` for the hidden file, and
+`tests_campaign::a_link_or_embed_of_an_attachment_hidden_from_a_player_names_nothing_in_the_links_answer`.
