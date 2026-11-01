@@ -71,6 +71,41 @@
 .status-sound[hidden] { display: none; }
 .status-sound-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Share audio (ADR 0116 section B, items 16, 21): the button, the sharer's card with its level meter, the listener's line, the picker. */
+.music-head-row { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
+.music-head-row .music-head { margin: .4rem 0 .1rem; }
+.music-share { display: inline-flex; align-items: center; gap: .35rem; flex: none; }
+.music-share[hidden], .music-empty-share[hidden], .music-sharing[hidden], .music-sharing [hidden] { display: none; }
+.music-empty-share { padding: 0 0 .1rem; }
+.music-sharing { display: flex; flex-direction: column; gap: .35rem; padding: .5rem; border: 1px solid var(--hair); border-radius: 8px; background: var(--paper-2, var(--paper)); }
+.music-sharing-title, .music-shared-by { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: .95rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.music-sharing-title .icon, .music-shared-by .icon { width: 14px; height: 14px; flex: none; color: var(--seal); }
+.music-shared-by { font-weight: 500; font-size: .88rem; }
+.music-meter { position: relative; height: .6rem; border-radius: 4px; background: var(--paper-3); overflow: hidden; }
+.music-meter-fill { position: absolute; inset: 0; transform-origin: left center; transform: scaleX(0); background: var(--seal); transition: transform 90ms linear; }
+.music-meter.silent .music-meter-fill { background: var(--ink-3); }
+.music-meter-state, .music-sharing-stats { margin: 0; font-size: .8rem; color: var(--ink-2); }
+.music-meter.silent + .music-meter-state { color: var(--ink); font-weight: 600; }
+.music-stop-share { align-self: flex-start; display: inline-flex; align-items: center; gap: .35rem; }
+.status-sound-stop { flex: none; display: inline-grid; place-items: center; padding: .1rem .35rem; color: var(--seal); }
+.status-sound-stop[hidden] { display: none; }
+.share-pick { max-width: min(30rem, 92vw); }
+.share-pick-title { margin: 0 0 .4rem; font-size: 1rem; }
+.share-pick-help, .share-pick-notice, .share-pick-none, .share-pick-hint { margin: 0 0 .6rem; font-size: .88rem; color: var(--ink-2); }
+.share-pick-none { padding: .6rem; border: 1px dashed var(--hair); border-radius: 6px; color: var(--ink); }
+.share-pick-sources { margin: 0 0 .6rem; padding: 0; border: 0; display: flex; flex-direction: column; gap: .15rem; max-height: 40vh; overflow: auto; }
+.share-pick-legend { padding: 0; margin: 0 0 .25rem; font-size: .78rem; color: var(--ink-3); }
+.share-pick-source { display: flex; align-items: center; gap: .5rem; padding: .4rem .5rem; border-radius: 6px; cursor: pointer; }
+.share-pick-source:hover, .share-pick-source:has(input:checked) { background: var(--paper-3); }
+.share-pick-source .icon { width: 14px; height: 14px; flex: none; color: var(--ink-3); }
+.share-pick-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; color: var(--ink); }
+.share-pick-kind { flex: none; font-size: .76rem; color: var(--ink-3); }
+.share-pick-more { margin: 0 0 .6rem; font-size: .85rem; }
+.share-pick-more > summary { cursor: pointer; padding: .25rem 0; color: var(--ink-2); }
+.share-pick-quality-row { display: flex; align-items: center; gap: .5rem; padding: .25rem 0; }
+.share-pick-quality { padding: .25rem .4rem; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 6px; }
+.share-pick .confirm-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+
 @media (max-width: 760px) {
   /* The Music tab is a sheet from the bottom, as the Table's is (css/table.css). */
   body[data-right-tab="music"] aside.right { top: .4rem; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
@@ -87,4 +122,7 @@
   .music-follow-box input { width: 22px; height: 22px; }
   .music-follow-box { min-height: 44px; }
   .table-sound-play { width: 2.2em; height: 2.2em; min-width: 2.2em; }
+  .music-share, .music-stop-share, .status-sound-stop { min-height: 44px; }
+  .share-pick button, .share-pick-source, .share-pick-more > summary, .share-pick-quality { min-height: 44px; }
+  .share-pick-source input { width: 22px; height: 22px; }
 }

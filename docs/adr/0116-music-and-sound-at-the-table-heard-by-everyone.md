@@ -1012,3 +1012,51 @@ changed in the merge. Checked on the merged tree: the harness specs
 `audio-embed`, `table-sound` and `right-tabs` (desktop, phone and tablet), the
 server spec `e2e-server/audio-embed.spec.mjs` for the hidden file, and
 `tests_campaign::a_link_or_embed_of_an_attachment_hidden_from_a_player_names_nothing_in_the_links_answer`.
+
+### As built (S6, 2026-11-01): the sharer's window
+
+The user interface of a live share, over the host (S4, S5) and the listener
+(S1 to S3). No contract change in the types: the host emits one more
+window event, `audio-share-level` (the peak of the last 100 ms, 0 to 1, a
+single number; the sound never crosses into the web view), through a wrapper
+of the chosen source (`audio_share/mod.rs`, `Metered`).
+
+- **Where it is drawn** (item 27): *Share audio…* is in the Music tab's
+  empty state and its header, only while `can("audio_share")` (the desktop
+  host's capability) and `TableJoin.broadcast` (the game master) are both
+  true and the table's sound is on; nowhere else, no dead button for a
+  player, a browser or a phone. The join's `broadcast` is read in
+  `table/join.ts` (`setMayShare`).
+- **The picker** (`sharePick.ts`): `audio_sources_list`, one radio per
+  source with its kind (application, page, system) and its display name;
+  the bitrate (64, 96, 128; 96 the default) is a select folded under
+  *Quality*. An empty list says capture arrives with the next updates and
+  leaves Start off (S7 to S9 are not built). Keyboard: the arrows choose,
+  Tab stays inside, Escape cancels, the focus returns.
+- **The flow** (`shareMine.ts`, tested): `table_share_start` first, its `id`
+  to `audio_share_start`, then `markOwnShare`. A capture that fails calls
+  `table_share_stop` and says why in the status bar. The server's `exists`
+  asks *replace?* and starts again with `replace: true`. While a start is in
+  progress, the one share that appears is the window's own and is not asked
+  for (the server's event can come before the answer).
+- **While sharing** (item 21): the Music tab's card (*Sharing …*, the
+  meter, *Sound arriving* / *Silence* after 3 s without a block above the
+  floor, listeners and rate from `table-share-state`, *Stop sharing*); the
+  Table tab's slim row names it and has Stop; the status bar has its own
+  Stop that stays whichever tab is on screen. The sharer never hears its own
+  stream (S3's rule, unchanged).
+- **Listeners** (item 26): the Music tab and the row say *<master> is
+  sharing <source>* with the person's own volume, mute and *Follow the
+  table*; *Hear the table* appears while the engine waits for a touch; a
+  polite line announces the start and *Sharing ended*.
+- **The first-share notice** (item 21, both languages) is shown once per
+  person (kept in the browser's storage; if that is blocked it shows every
+  time, which is only more careful).
+- **Tests**: `test/shareMine.test.mjs` (the order of a start, its undoing,
+  `exists`, the level words and scale); `e2e/share-audio.spec.mjs` with
+  `AudioShareHarness` (a test source, a start that succeeds or refuses, the
+  server's `exists`, the level) for the master, the player and a host
+  without the capability, desktop and phone.
+- **Not built** (still S7 to S12): the capture back-ends per system, so a
+  release build lists no source and the picker says so; the page source (a
+  child web view); the real two-device test (S10).

@@ -9,7 +9,11 @@
 import { h } from "../../dom";
 import { icon } from "../../icons";
 import { tableOnScreen } from "../record";
+import { mine as sharing } from "./mine";
 import { musicOnScreen, nameOf, onSound, sound, soundOn } from "./run";
+import { liveShare } from "./share";
+import { stopShareNow } from "./shareCard";
+import { ss } from "./shareWords";
 import { st } from "./strings";
 import { showMusic } from "./tab";
 
@@ -25,14 +29,27 @@ export function installStatusItem(): void {
   item.title = st.statusDesc;
   item.addEventListener("click", () => showMusic());
   bar.insertBefore(item, before);
+  // Stop sharing audio is always one click away while this window shares (ADR 0116 item 21).
+  const stop = h("button", "ghost status-sound-stop");
+  stop.type = "button";
+  stop.hidden = true;
+  stop.title = ss.statusStop;
+  stop.setAttribute("aria-label", ss.statusStop);
+  stop.append(icon("stop", ""));
+  stop.addEventListener("click", () => stopShareNow());
+  bar.insertBefore(stop, before);
   const paint = () => {
     const m = sound().music();
-    const show = soundOn() && !!m && m.state !== "stopped" && !tableOnScreen() && !musicOnScreen();
+    const own = sharing();
+    stop.hidden = !soundOn() || !own;
+    const live = liveShare();
+    const track = !!m && m.state !== "stopped";
+    const show = soundOn() && (track || !!live) && !tableOnScreen() && !musicOnScreen();
     item.hidden = !show;
-    if (!show || !m) return;
-    const name = nameOf(m);
+    if (!show) return;
+    const name = track && m ? nameOf(m) : own ? ss.statusSharing(own.name) : live ? ss.by(live.by, live.name) : "";
     item.replaceChildren(icon("music", ""), h("span", "status-sound-name", name));
-    item.setAttribute("aria-label", `${st.status(name)}. ${st.statusDesc}`);
+    item.setAttribute("aria-label", `${track ? st.status(name) : name}. ${st.statusDesc}`);
   };
   onSound(paint);
   addEventListener("verso:table-visibility", paint);

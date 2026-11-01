@@ -23,6 +23,9 @@ import { panel } from "../../main";
 import { resolveFileByName } from "../../resolve";
 import { askUnheard } from "./ask";
 import { iconButton, labeled, range, relabel, said } from "./controls";
+import { mine as sharing } from "./mine";
+import { liveShare } from "./share";
+import { ShareCard, shareButton } from "./shareCard";
 import { asScene, filterLists, folderLists, listLabel, noteLists, type List } from "./library";
 import { askUnheardWith, control, currentScene, cycleLoop, hearTable, loopMode, nameOf, neighbour, onSound, ownSound, playTrack, playerState, setOwn, sound, soundOn, step, takePendingSay } from "./run";
 import { isAudio, trackName } from "./scene";
@@ -70,6 +73,9 @@ class MusicView {
   private readonly from = h("div", "music-from");
   private readonly why = h("p", "music-why");
   private readonly empty = h("p", "music-empty");
+  private readonly emptyShare = h("div", "music-empty-share");
+  private readonly headShare = shareButton("music-share-head");
+  private readonly shared = new ShareCard();
   private readonly timeRow = h("div", "music-time-row");
   private readonly bar = range("music-bar", st.position, 1000);
   private readonly time = h("span", "music-time");
@@ -124,7 +130,10 @@ class MusicView {
     this.timeRow.append(this.bar, this.time);
     this.buttons.append(this.prev, this.toggle, this.next, this.stop, this.loop);
     const head = h("h3", "panel-sub music-head", st.nowPlaying);
-    this.now.append(head, this.empty, this.title, this.from, this.why, this.timeRow, this.buttons, this.volumes, this.notes, this.live);
+    this.emptyShare.append(shareButton("music-share-empty"));
+    const headRow = h("div", "music-head-row");
+    headRow.append(head, this.headShare);
+    this.now.append(headRow, this.empty, this.emptyShare, this.shared.el, this.title, this.from, this.why, this.timeRow, this.buttons, this.volumes, this.notes, this.live);
     this.filter.type = "search";
     this.filter.placeholder = st.filter;
     this.filter.setAttribute("aria-label", st.filter);
@@ -189,11 +198,17 @@ class MusicView {
     const master = src.controls();
     const playing = !!m && m.state !== "stopped";
     const { blocked, failed, cannotHere, shareWaiting } = playerState();
-    this.empty.hidden = playing;
+    // A live share is something playing too (item 16): the card says whose, the person's own controls stay.
+    const live = liveShare();
+    const hearsShare = !!live && !sharing();
+    const idle = !playing && !live;
+    this.empty.hidden = !idle;
+    this.emptyShare.hidden = !idle;
     this.empty.textContent = master ? st.nothingMaster : st.nothing;
-    for (const el of [this.title, this.from, this.timeRow, this.volumes]) el.hidden = !playing;
+    for (const el of [this.title, this.from, this.timeRow]) el.hidden = !playing;
+    this.volumes.hidden = !playing && !hearsShare;
     this.buttons.hidden = !playing || !master;
-    this.masterRow.hidden = !master;
+    this.masterRow.hidden = !master || !playing;
     this.pick.hidden = !master;
     this.hint.hidden = master;
     this.why.hidden = !playing || !m?.unseen;
@@ -213,6 +228,8 @@ class MusicView {
       this.master.value = String(m.master);
       this.master.setAttribute("aria-valuetext", st.volumeText(m.master));
       this.bar.disabled = !master || !m.durationMs;
+    }
+    if ((playing && m) || hearsShare) {
       const mine = ownSound();
       this.mine.value = String(mine.volume);
       this.mine.setAttribute("aria-valuetext", st.volumeText(mine.volume));

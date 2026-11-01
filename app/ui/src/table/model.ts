@@ -178,7 +178,7 @@ export interface ServerTable extends TableSource {
   readonly table: string;
   role(): Role;
   /** What the join said of the table's music (ADR 0116): whether this person controls it, what plays, the live share. */
-  joinedSound(): { play: boolean; playback: readonly import("../bindings").TablePlayback[]; share: import("../bindings").AudioShare | null };
+  joinedSound(): { play: boolean; playback: readonly import("../bindings").TablePlayback[]; share: import("../bindings").AudioShare | null; broadcast: boolean };
   /** Who is at the table now, in the server's order. */
   roster(): readonly Member[];
   /** Pinned entries, oldest first; always shown, whatever was hidden. */

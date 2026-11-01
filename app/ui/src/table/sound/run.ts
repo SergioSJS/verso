@@ -42,6 +42,11 @@ export function onSound(fn: () => void): () => void {
   return () => subs.delete(fn);
 }
 
+/** Something the cards show changed that the source did not say (a live share, ADR 0116 section B). */
+export function soundChanged(): void {
+  tell();
+}
+
 /** The source the strip and the player read. */
 export function sound(): SoundSource {
   return active;
@@ -164,6 +169,13 @@ function say(m: Music | null): void {
   const live = document.querySelector(".table-sound-said");
   if (live && line) live.textContent = line;
   else if (line) pendingSay = line;
+}
+
+/** A share's start or end, said politely where the track changes are (item 26). */
+export function sayShare(line: string): void {
+  const live = document.querySelector(".table-sound-said");
+  if (live) live.textContent = line;
+  else pendingSay = line;
 }
 
 export function nameOf(m: Music): string {

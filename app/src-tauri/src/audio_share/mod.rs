@@ -68,6 +68,8 @@ pub(crate) mod hear;
 mod tests_e2e;
 #[cfg(test)]
 mod tests_hear;
+#[cfg(test)]
+mod tests_level;
 
 /// What this computer can capture: applications by their display name,
 /// pages open in Verso, the system (never a window title).
@@ -110,6 +112,11 @@ pub fn audio_share_start<R: tauri::Runtime>(
         ));
     };
     let shares = &app.state::<App>().shares;
+    let chosen = Box::new(Metered {
+        inner: chosen,
+        app: app.clone(),
+        label: window.label().to_owned(),
+    });
     let sender = std::sync::Arc::clone(&connection);
     let started = shares
         .start(
@@ -122,6 +129,40 @@ pub fn audio_share_start<R: tauri::Runtime>(
         .map_err(failed)?;
     shares.on_window_gone(window.label(), farewell(connection));
     Ok(started)
+}
+
+/// A source whose blocks are also measured: the window's level meter (ADR
+/// 0116 item 21) hears of the peak, 0.0 to 1.0, ten times a second, in the
+/// event `audio-share-level`. Only a number crosses; no sound does.
+struct Metered<R: tauri::Runtime> {
+    inner: Box<dyn source::Source>,
+    app: tauri::AppHandle<R>,
+    label: String,
+}
+
+impl<R: tauri::Runtime> source::Source for Metered<R> {
+    fn describe(&self) -> AudioSource {
+        self.inner.describe()
+    }
+
+    fn start(self: Box<Self>, mut sink: source::PcmSink) -> Result<source::Running, String> {
+        use tauri::Emitter;
+        let Self { inner, app, label } = *self;
+        let mut peak = 0.0_f32;
+        let mut samples = 0_usize;
+        // 100 ms of interleaved stereo at 48 kHz.
+        let window = 9_600;
+        inner.start(Box::new(move |pcm| {
+            peak = pcm.iter().fold(peak, |m, x| m.max(x.abs()));
+            samples += pcm.len();
+            if samples >= window {
+                let _ = app.emit_to(label.as_str(), "audio-share-level", peak.min(1.0));
+                peak = 0.0;
+                samples = 0;
+            }
+            sink(pcm);
+        }))
+    }
 }
 
 /// The window went with its share running: the server is told on the same

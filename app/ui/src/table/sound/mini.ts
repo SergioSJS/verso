@@ -13,6 +13,10 @@
 import { h } from "../../dom";
 import { askUnheard } from "./ask";
 import { iconButton, range, relabel, said } from "./controls";
+import { mine as sharing } from "./mine";
+import { liveShare } from "./share";
+import { stopShareNow } from "./shareCard";
+import { ss } from "./shareWords";
 import { control, hearTable, nameOf, neighbour, onSound, ownSound, playerState, setOwn, sound, soundOn, step } from "./run";
 import { st } from "./strings";
 import { showMusic } from "./tab";
@@ -23,6 +27,7 @@ export class MiniPlayer {
   private readonly prev = iconButton("table-mini-prev", st.previous, "skipBack");
   private readonly toggle = iconButton("table-mini-toggle", st.pause, "pause");
   private readonly next = iconButton("table-mini-next", st.next, "skipForward");
+  private readonly stopShare = iconButton("table-mini-stop-share", ss.stopSharing, "stop");
   private readonly hear = iconButton("table-mini-hear", st.hear, "volume");
   private readonly vol = iconButton("table-mini-volume", st.volume, "volume");
   private readonly pop = h("div", "table-mini-pop");
@@ -42,7 +47,7 @@ export class MiniPlayer {
     this.pop.append(this.mute, this.mine);
     this.vol.setAttribute("aria-expanded", "false");
     this.vol.setAttribute("aria-controls", this.pop.id);
-    this.el.append(this.name, this.prev, this.toggle, this.next, this.hear, this.vol, this.pop);
+    this.el.append(this.name, this.prev, this.toggle, this.next, this.stopShare, this.hear, this.vol, this.pop);
     this.name.addEventListener("click", () => showMusic());
     this.toggle.addEventListener("click", () => {
       const m = sound().music();
@@ -50,6 +55,7 @@ export class MiniPlayer {
     });
     this.prev.addEventListener("click", () => void step(-1, askUnheard).then(said));
     this.next.addEventListener("click", () => void step(1, askUnheard).then(said));
+    this.stopShare.addEventListener("click", () => stopShareNow());
     this.hear.addEventListener("click", () => hearTable());
     this.vol.addEventListener("click", () => this.openPop(this.pop.hidden === true));
     this.mine.addEventListener("input", () => setOwn({ volume: Number(this.mine.value), muted: false }));
@@ -78,22 +84,33 @@ export class MiniPlayer {
   render(): void {
     const src = sound();
     const m = src.music();
-    const show = soundOn() && !!m && m.state !== "stopped";
+    const live = liveShare();
+    const own = sharing();
+    const track = !!m && m.state !== "stopped";
+    const show = soundOn() && (track || !!live);
     this.el.hidden = !show;
-    if (!show || !m) {
+    if (!show) {
       this.openPop(false);
       return;
     }
     const master = src.controls();
-    const { blocked } = playerState();
-    this.name.textContent = nameOf(m);
-    this.name.classList.toggle("unseen", m.unseen);
-    this.name.setAttribute("aria-label", `${m.state === "playing" ? st.playing(nameOf(m)) : st.paused(nameOf(m))}. ${st.openMusic}`);
-    for (const b of [this.prev, this.toggle, this.next]) b.hidden = !master;
-    this.hear.hidden = !(blocked && !!m.path);
-    relabel(this.toggle, m.state === "playing" ? st.pause : st.resume, m.state === "playing" ? "pause" : "play");
-    this.prev.disabled = neighbour(-1) === null;
-    this.next.disabled = neighbour(1) === null;
+    const { blocked, shareWaiting } = playerState();
+    // A live share is the table's performance (item 16): named when no track plays, beside the track when one does.
+    const shareText = own ? ss.sharing(own.name) : live ? ss.by(live.by, live.name) : "";
+    this.name.textContent = track && m ? nameOf(m) : shareText;
+    this.name.classList.toggle("unseen", track && !!m?.unseen);
+    this.name.setAttribute("aria-label", `${track && m ? (m.state === "playing" ? st.playing(nameOf(m)) : st.paused(nameOf(m))) : shareText}. ${st.openMusic}`);
+    for (const b of [this.prev, this.toggle, this.next]) b.hidden = !master || !track;
+    this.stopShare.hidden = !own;
+    this.hear.hidden = !((track && blocked && !!m?.path) || shareWaiting);
+    this.vol.hidden = !!own && !track;
+    if (!track || !m) {
+      this.openPop(false);
+    } else {
+      relabel(this.toggle, m.state === "playing" ? st.pause : st.resume, m.state === "playing" ? "pause" : "play");
+      this.prev.disabled = neighbour(-1) === null;
+      this.next.disabled = neighbour(1) === null;
+    }
     const mine = ownSound();
     this.mine.value = String(mine.volume);
     this.mine.setAttribute("aria-valuetext", st.volumeText(mine.volume));
