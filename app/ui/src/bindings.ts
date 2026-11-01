@@ -759,6 +759,12 @@ export const commands = {
 	 */
 	tableShareListen: (listen: boolean, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_share_listen", { listen, table })),
 	/**
+	 *  This window's live-share frames come on `frames`, as the server sends
+	 *  them, once it listens (`table_share_listen`). Any window may hear: no
+	 *  capability is needed to listen (item 27).
+	 */
+	audioShareHear: (frames: Channel<ArrayBuffer>) => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_hear", { frames })),
+	/**
 	 *  What the folder's tables are, to this window: a folder of this computer
 	 *  alone has none.
 	 */

@@ -62,6 +62,11 @@ fn link<R: tauri::Runtime>(
         .or_else(|| sync_commands::synced_of(app, label).and_then(|s| s.live.remote()))
 }
 
+/// Listening: the frames the server sends a window, handed to it.
+pub(crate) mod hear;
+#[cfg(test)]
+mod tests_hear;
+
 /// What this computer can capture: applications by their display name,
 /// pages open in Verso, the system (never a window title).
 #[tauri::command]
