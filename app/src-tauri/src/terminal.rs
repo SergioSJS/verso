@@ -339,7 +339,8 @@ pub(crate) async fn allowed_asking<R: tauri::Runtime>(
 }
 
 /// The words of the native dialog ("en", or anything else for pt-BR).
-pub(crate) fn ask_words(lang: &str) -> (&'static str, &'static str, &'static str, &'static str) {
+#[cfg(not(test))]
+fn ask_words(lang: &str) -> (&'static str, &'static str, &'static str, &'static str) {
     if lang == "en" {
         (
             "Verso",
