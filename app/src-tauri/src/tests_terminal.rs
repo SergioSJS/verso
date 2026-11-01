@@ -17,7 +17,7 @@ use verso_contract::{TerminalAt, TerminalId, TerminalOutput, TerminalShell, Term
 
 use super::*;
 use crate::pty::{self, Pty, Start};
-use crate::terminal::{Terminals, lang_of, place};
+use crate::terminal::{Terminals, allowed_asking, lang_of, place};
 use crate::tests::{app, app_with, call, note};
 
 /// What a terminal printed, and whether it ended.
@@ -439,6 +439,17 @@ fn the_terminal_is_a_capability_and_the_switch_gates_it() {
     assert_eq!(err["kind"], "refused");
     call(&webview, "set_terminal_enabled", json!({"on": true})).unwrap();
     assert!(app.state::<App>().terminals.enabled());
+    // The window's switch alone grants nothing (item 21): the person's yes
+    // on the host's own dialog does.
+    let err = call(
+        &webview,
+        "terminal_write",
+        json!({"id": id, "data": "ls\r"}),
+    )
+    .unwrap_err();
+    assert_eq!(err["kind"], "refused");
+    *lock(&app.state::<App>().terminals.answer) = Some(true);
+    tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).unwrap();
     let err = call(
         &webview,
         "terminal_write",
@@ -469,4 +480,34 @@ fn a_server_folders_window_has_the_terminal_and_the_server_never_does() {
             .iter()
             .any(|c| c == "terminal")
     );
+}
+
+/// Script in the web view that pushes the switch on cannot start a shell
+/// (ADR 0115 item 21): the host asks the person on a native dialog, and a
+/// no (or no answer) leaves the terminal refused; the switch going off takes
+/// the yes back.
+#[test]
+fn the_window_cannot_grant_a_terminal_by_pushing_the_switch() {
+    let (app, webview) = app();
+    call(&webview, "set_terminal_enabled", json!({"on": true})).unwrap();
+    let terminals = Arc::clone(&app.state::<App>().terminals);
+    assert!(!terminals.confirmed());
+    // The dialog says no.
+    let err = tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).unwrap_err();
+    assert_eq!(err.kind, verso_contract::ErrorKind::Refused);
+    assert!(!terminals.confirmed());
+    let err = call(&webview, "terminal_write", json!({"id": "x-1", "data": "ls"})).unwrap_err();
+    assert_eq!(err["kind"], "refused");
+    // The dialog says yes: once, for the run.
+    *lock(&terminals.answer) = Some(true);
+    tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).unwrap();
+    assert!(terminals.confirmed());
+    *lock(&terminals.answer) = Some(false);
+    tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).unwrap();
+    // Off takes it back, and pushing on again does not restore it.
+    call(&webview, "set_terminal_enabled", json!({"on": false})).unwrap();
+    assert!(!terminals.confirmed());
+    call(&webview, "set_terminal_enabled", json!({"on": true})).unwrap();
+    assert!(!terminals.confirmed());
+    assert!(tauri::async_runtime::block_on(allowed_asking(app.handle(), "main")).is_err());
 }

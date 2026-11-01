@@ -34,6 +34,7 @@ The harness has no pseudo-terminal (its shell is scripted); the host tests run a
 - [ ] **macOS privacy prompt** (A, macOS): the first `ls ~/Documents` in a terminal shows the system's prompt naming **Verso**; refusing it gives the shell's own "Operation not permitted", nothing of Verso's breaks.
 - [ ] **Windows shells** (A, Windows): with PowerShell 7 installed, the line says `pwsh`; without it, `powershell`; Ajustes › Terminal e agentes › Shell do terminal › Prompt de Comando starts `cmd`; no console window flashes on open or on **Ferramentas de IA**.
 - [ ] **Linux AppImage** (A, VM 104): in the AppImage build, `echo $LD_LIBRARY_PATH $APPDIR` in a terminal prints nothing of the AppImage, and `git`, `python3` run as from the desktop's terminal; with `$SHELL` unset by the display manager the shell is the account's own (or `bash`).
+- [ ] **The native confirmation** (A, each system): with the switch on, the first new terminal (or **Ferramentas de IA**) of a run shows the system's own dialog "Permitir um terminal nesta sessão?"; Cancelar leaves the tab with a refusal and no shell; Permitir starts it, and later terminals in the run ask nothing; turning the switch off and on again asks once more.
 - [ ] **A server's folder** (A): a desktop window on a server's folder not synced here opens the terminal in the home folder with its line; a synced one opens at the folder's root.
 
 ### A Markdown file opened without its folder (ADR 0114, feat/single-file, 2026-10-30)
