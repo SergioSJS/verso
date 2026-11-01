@@ -680,6 +680,7 @@ const VERDICTS: &[(&str, &str, bool)] = &[
         r#"{"channel":"music","revision":1}"#,
         false,
     ),
+    ("table_share_listen", r#"{"listen":true}"#, false),
     ("campaign_status", "{}", true),
     ("trash_list", "{}", true),
     (
@@ -1115,6 +1116,7 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
         "table_delete",
         "table_time",
         "table_cannot_play",
+        "table_share_listen",
         "campaign_status",
         "trash_list",
         "trash_restore",

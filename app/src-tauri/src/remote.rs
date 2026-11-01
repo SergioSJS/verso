@@ -88,6 +88,9 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "table_sound"
                 | "table_time"
                 | "table_cannot_play"
+                | "table_share_start"
+                | "table_share_stop"
+                | "table_share_listen"
                 | "campaign_status"
                 | "campaign_make"
                 | "campaign_unmake"
@@ -237,6 +240,18 @@ impl Remote {
     pub(crate) fn hang_up(&self) {
         close(&self.pending);
         self.dead.notify_one();
+    }
+
+    /// One frame of a live share (ADR 0116 item 19) as a binary message on
+    /// this connection, the sharer's own: no id, no answer. Audio is real
+    /// time, so a full queue drops the frame (a listener's jitter buffer
+    /// absorbs one lost frame) and never takes the connection for dead, as a
+    /// question does. False once the connection is closed.
+    pub(crate) fn send_audio(&self, frame: Vec<u8>) -> bool {
+        match self.tx.try_send(Message::Binary(frame.into())) {
+            Ok(()) | Err(mpsc::error::TrySendError::Full(_)) => true,
+            Err(mpsc::error::TrySendError::Closed(_)) => false,
+        }
     }
 
     /// A command of the contract, answered by the server.

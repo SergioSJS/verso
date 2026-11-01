@@ -6,7 +6,7 @@
 //! 27): the three host commands. Capture lives only here, one file per
 //! system (`macos.rs`, `windows.rs`, `linux.rs`, later tasks).
 //!
-//! This step (S4) is the encoder and a test source:
+//! This step (S4) is the encoder, a test source and the send half:
 //! - `encode.rs`: the Opus encoder (pure);
 //! - `source.rs`: the `Source` trait the capture back-ends plug into, and
 //!   the list of what a build can capture;
@@ -14,17 +14,23 @@
 //!   debug builds (or a build with the cargo feature `test-tone`, which no
 //!   release workflow sets), so the shipped app never shows it;
 //! - `session.rs`: a share at work (source, encoder, the 12-byte header of
-//!   ADR 0116 item 19) and the frames' delivery to the window.
+//!   ADR 0116 item 19).
 //!
-//! Frames reach the window over a Tauri channel as raw bytes, the way the
-//! terminal's output does (ADR 0115 item 5); the window sends each as a
-//! binary message on the table's WebSocket
-//! (`app/ui/src/table/sound/share.ts`).
+//! The frames go **host to server directly**, as binary messages on the
+//! window's own connection to the server (`Remote::send_audio`): the host
+//! holds that connection for a window on a server's folder and for a folder
+//! of this computer synced with one (its live link), so a frame never
+//! crosses into the web view and back (fifty IPC calls a second for
+//! nothing), and the server's rule that only the connection that started the
+//! share may send holds because the window's `table_share_start` and these
+//! frames use the same connection. The window therefore starts the share on
+//! the server first, and hands the host the number the server stamped.
 
 use super::*;
 use tauri::Manager;
-use tauri::ipc::{Channel, InvokeResponseBody, IpcResponse};
-use verso_contract::{AudioCaptureStarted, AudioSource, bitrate_ok};
+use verso_contract::{
+    AudioCaptureStarted, AudioSource, SHARE_ID_FIRST, bitrate_ok, is_audio_frame,
+};
 use verso_service::refused;
 
 mod encode;
@@ -33,21 +39,6 @@ mod source;
 mod tone;
 
 pub(crate) use session::Shares;
-
-/// One frame (header and Opus packet) on its way to the window. It goes as
-/// raw bytes (an `ArrayBuffer` in the window), not as a JSON array of
-/// numbers; the generated bindings type the channel's message as a byte
-/// list, which is what the type says and not what arrives, so the window
-/// reads it as bytes (`share.ts`).
-#[derive(specta::Type)]
-#[specta(transparent)]
-pub struct Frame(Vec<u8>);
-
-impl IpcResponse for Frame {
-    fn body(self) -> tauri::Result<InvokeResponseBody> {
-        Ok(InvokeResponseBody::Raw(self.0))
-    }
-}
 
 /// Refused where the window cannot share audio (`Can::AudioShare`, ADR
 /// 0116 item 27): the capabilities answer lists it for every window of a
@@ -59,6 +50,16 @@ fn allowed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -> Result<
         ));
     }
     Ok(())
+}
+
+/// The window's connection to its server: its own, for a server's folder,
+/// or the live link of a folder of this computer that syncs with one.
+fn link<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> Option<std::sync::Arc<remote::Remote>> {
+    remote::of(app, label)
+        .or_else(|| sync_commands::synced_of(app, label).and_then(|s| s.live.remote()))
 }
 
 /// What this computer can capture: applications by their display name,
@@ -74,7 +75,9 @@ pub fn audio_sources_list<R: tauri::Runtime>(
 }
 
 /// Capture the source `id` and encode it with Opus at `bitrate_kbps`
-/// (64 to 128), handing the frames to the window on `frames`.
+/// (64 to 128), sending each frame to the server on the window's own
+/// connection under `share`, the number the server gave the share
+/// (`table_share_start`'s answer, which the window asks first).
 #[tauri::command]
 #[specta::specta]
 pub fn audio_share_start<R: tauri::Runtime>(
@@ -82,14 +85,22 @@ pub fn audio_share_start<R: tauri::Runtime>(
     window: tauri::Window<R>,
     id: String,
     bitrate_kbps: u16,
-    frames: Channel<Frame>,
+    share: u32,
 ) -> Result<AudioCaptureStarted, ContractError> {
     allowed(&app, window.label())?;
     if !bitrate_ok(bitrate_kbps) {
         return Err(refused("that bitrate is outside 64 to 128 kbit/s"));
     }
+    if share < SHARE_ID_FIRST || !is_audio_frame(&share.to_be_bytes()) {
+        return Err(refused("that is not a share number the server gives"));
+    }
     let Some(chosen) = source::open(&id) else {
         return Err(refused("no such source to share"));
+    };
+    let Some(connection) = link(&app, window.label()) else {
+        return Err(refused(
+            "this window has no connection to a server to share on",
+        ));
     };
     app.state::<App>()
         .shares
@@ -97,7 +108,8 @@ pub fn audio_share_start<R: tauri::Runtime>(
             window.label(),
             chosen,
             bitrate_kbps,
-            Box::new(move |frame| frames.send(Frame(frame)).is_ok()),
+            share,
+            Box::new(move |frame| connection.send_audio(frame)),
         )
         .map_err(failed)
 }

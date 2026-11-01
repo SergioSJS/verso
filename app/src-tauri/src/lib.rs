@@ -907,6 +907,7 @@ macro_rules! commands_for {
                 audio_share::audio_sources_list::<$runtime>,
                 audio_share::audio_share_start::<$runtime>,
                 audio_share::audio_share_stop::<$runtime>,
+                table::table_share_listen,
                 campaign::campaign_status,
                 campaign::campaign_make,
                 campaign::campaign_unmake,
@@ -1026,6 +1027,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::TableRemoved>()
             .typ::<verso_contract::TableCleared>()
             .typ::<verso_contract::AudioShareStopped>()
+            .typ::<verso_contract::AudioShareBehind>()
             .typ::<verso_contract::CampaignChanged>()
             .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()

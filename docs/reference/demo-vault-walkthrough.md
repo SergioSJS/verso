@@ -1847,3 +1847,14 @@ In the desktop app, on a folder of this computer (the demo vault will do). The U
 8. In a terminal, `echo "linha nova" >> "00 - Bem-vindo ao Verso.md"` with that note open and untouched: the note shows the line; the history (the clock in the status bar) lists the change as made outside Verso, and restoring the version before it takes the line out. Level: A (the watcher and the history: their own tests).
 9. A window on a server's folder (Ajustes › Servidores, a folder of the server not synced here): **Novo terminal** opens in the home folder with the line *Esta pasta não está neste computador…*. The browser's window of that server, the phone and a loose-files window (a `.md` opened by itself, note 33) show no terminal anywhere, the switch on. Level: A; E: `terminal.spec.mjs` (`showServerFolder`, `?side=server`, `?loose=1`); U: `a_server_folders_window_has_the_terminal_and_the_server_never_does`, `tests_loose.rs`.
 10. Turn **Terminal** off in Ajustes › Recursos with two terminals open: both tabs close and their shells end. Level: A; U: `the_switch_off_ends_every_terminal`.
+
+## The right panel's tabs hidden, reordered, brought back (ADR 0072 amendment, note 13, 2026-11-01)
+
+On the app (desktop and a phone, 390 × 844), with a folder open and, for steps 5 and 6, a table with Table sound on:
+
+1. Right-click the **Links** tab (on a phone, press and hold it): the menu offers **Mover para a esquerda / direita**, **Ocultar esta aba**, **Restaurar abas** and **Ajustar abas…**. **Ocultar esta aba**: the tab leaves the bar, the status line says how to bring it back, and the **⋯** button appears even if every other tab fits. Level: H; E: `right-tabs-hide.spec.mjs`.
+2. **⋯** lists **Mostrar “Links”**; choosing it brings the tab back and opens it. Close and reopen the app: a hidden tab is still hidden, the order is kept. Level: H; E: `right-tabs-hide.spec.mjs`.
+3. With the mouse, drag a tab along the bar: it lifts and follows the pointer, the others make room; a hidden tab keeps its place in the order. Level: H; E: `right-tabs-hide.spec.mjs`, `right-tabs.spec.mjs`.
+4. **Ajustes › Aparência › Abas do painel direito**: every tab with a switch and up/down arrows; the bar follows at once; **Restaurar abas** brings the default order and every tab back. On a phone the rows and buttons are 44 px. Hide every tab but one: the last one's switch refuses. Level: H; E: `right-tabs-hide.spec.mjs`, `tabModel.test.mjs`.
+5. With **Mesa** and **Música** hidden and a track playing, the status bar still names it; a click on it opens **Música**, shown in the bar while it is the chosen tab; choosing another tab hides it again. Level: H; E: `right-tabs-hide.spec.mjs`.
+6. A narrow panel (or a phone): the tabs that do not fit are in **⋯** in your order; **Mesa** and **Música** are in the bar first. Level: H; E: `right-tabs.spec.mjs`, `tabModel.test.mjs`.

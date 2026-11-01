@@ -725,10 +725,16 @@ export const commands = {
 	tableCannotPlay: (revision: number | null, channel: string | null, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_cannot_play", { revision, channel, table })),
 	/**
 	 *  Start sharing live audio to the table, as the game master (ADR 0116
-	 *  section B). The server's side is a later task: refused until it is built.
+	 *  section B): `share` names the source, its kind and the bitrate; with
+	 *  `replace`, the table's live share ends in its favour (without, a second
+	 *  share is answered `exists`). The answer carries the share's number for
+	 *  the frames' header, and the count and rate only the sharer is told.
 	 */
 	tableShareStart: (share: AudioShareStart, table: string | null) => typedError<AudioShare, ContractError>(__TAURI_INVOKE("table_share_start", { share, table })),
-	/**  Stop the table's live share, as the game master who started it. */
+	/**
+	 *  Stop the table's live share, as the game master; the sharer's window may
+	 *  stop it from outside the table's panel.
+	 */
 	tableShareStop: (table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_share_stop", { table })),
 	/**
 	 *  What this computer can capture: applications by their display name,
@@ -737,11 +743,21 @@ export const commands = {
 	audioSourcesList: () => typedError<AudioSource[], ContractError>(__TAURI_INVOKE("audio_sources_list")),
 	/**
 	 *  Capture the source `id` and encode it with Opus at `bitrate_kbps`
-	 *  (64 to 128), handing the frames to the window on `frames`.
+	 *  (64 to 128), sending each frame to the server on the window's own
+	 *  connection under `share`, the number the server gave the share
+	 *  (`table_share_start`'s answer, which the window asks first).
 	 */
-	audioShareStart: (id: string, bitrateKbps: number, frames: Channel<Frame>) => typedError<AudioCaptureStarted, ContractError>(__TAURI_INVOKE("audio_share_start", { id, bitrateKbps, frames })),
+	audioShareStart: (id: string, bitrateKbps: number, share: number) => typedError<AudioCaptureStarted, ContractError>(__TAURI_INVOKE("audio_share_start", { id, bitrateKbps, share })),
 	/**  Stop capturing. */
 	audioShareStop: () => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_stop")),
+	/**
+	 *  Receive the table's live share (`listen`), or no longer: a window that
+	 *  asks gets the last two seconds, then the live frames, as binary messages
+	 *  on its connection; one that fell ten seconds behind is told
+	 *  (`table-share-behind`) and asks again. The sharer hears its source
+	 *  itself.
+	 */
+	tableShareListen: (listen: boolean, table: string | null) => typedError<null, ContractError>(__TAURI_INVOKE("table_share_listen", { listen, table })),
 	/**
 	 *  What the folder's tables are, to this window: a folder of this computer
 	 *  alone has none.
@@ -1380,7 +1396,7 @@ export type AudioShare = {
 	table: string,
 	/**
 	 *  The share's number, in every binary frame's header. Never reused by
-	 *  a table in one server run.
+	 *  a table in one server run; its top bit is set ([`SHARE_ID_FIRST`]).
 	 */
 	id: number,
 	/**  The source's name, as the sharer's host gave it. */
@@ -1401,13 +1417,29 @@ export type AudioShare = {
 	rate_bps: number | null,
 };
 
+/**
+ *  This window fell more than ten seconds behind the share (item 28) and
+ *  receives no more of its frames until it asks again with
+ *  `table_share_listen` (event `table-share-behind`, to that window only).
+ */
+export type AudioShareBehind = {
+	table: string,
+	id: number,
+};
+
 /**  Why a share ended. */
 export type AudioShareEnd = 
 /**  The sharer pressed Stop. */
 "stopped" | 
-/**  The sharer's window disconnected. */
+/**
+ *  The sharer's window disconnected, opened another folder or lost the
+ *  folder.
+ */
 "sharer_left" | 
-/**  The last window left the table. */
+/**
+ *  The last window left the table (the sharer's had left its panel
+ *  before, still sharing).
+ */
 "table_empty" | 
 /**  The sharer started another source in its place. */
 "replaced";
@@ -2763,15 +2795,6 @@ export type FoundServer = {
 	/**  The version it announced; empty when it said none. */
 	version: string,
 };
-
-/**
- *  One frame (header and Opus packet) on its way to the window. It goes as
- *  raw bytes (an `ArrayBuffer` in the window), not as a JSON array of
- *  numbers; the generated bindings type the channel's message as a byte
- *  list, which is what the type says and not what arrives, so the window
- *  reads it as bytes (`share.ts`).
- */
-export type Frame = number[];
 
 /**  A heading of a note, for citing and for the outline. */
 export type Heading = {

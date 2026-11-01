@@ -94,6 +94,9 @@ pub const READ: &[&str] = &[
     // master's, which no phone is.
     "table_time",
     "table_cannot_play",
+    // A phone hears the game master's live share (ADR 0116 Q1 a: the
+    // desktop shares, the web and the phone listen).
+    "table_share_listen",
     "campaign_status",
     "collab_awareness",
     "collab_present",

@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! A share at work on this computer (ADR 0116 items 17 to 19): a source,
-//! the encoder, and the frames handed to the window that asked. One share a
+//! the encoder, and the frames handed to the server on that window's connection. One share a
 //! host at a time (the server allows one a table; a second start here ends
 //! the first). A window closing, the person pressing Stop and the app
 //! exiting all end it, and no frame is handed over after `end` returns.
@@ -17,12 +17,6 @@ use verso_service::lock;
 
 use super::encode::Encoder;
 use super::source::{PcmSink, Running, Source};
-
-/// The share number in a frame until the server has given one. The host
-/// cannot know it (the server stamps it, ADR 0116 item 16); the window
-/// writes the real number over these four bytes before it sends the frame
-/// (`app/ui/src/table/sound/share.ts`), so the contract needs nothing more.
-pub const SHARE_UNSET: u32 = 0;
 
 /// Opus packets, framed: the 12-byte header (item 19) and the packet.
 pub struct Framer {
@@ -64,7 +58,7 @@ impl Framer {
     }
 }
 
-/// Takes a frame to the window; false once the window cannot receive.
+/// Takes a frame to the server; false once the connection is closed.
 pub type Deliver = Box<dyn FnMut(Vec<u8>) -> bool + Send>;
 
 struct Active {
@@ -89,10 +83,11 @@ impl Shares {
         owner: &str,
         source: Box<dyn Source>,
         kbps: u16,
+        share: u32,
         mut deliver: Deliver,
     ) -> Result<AudioCaptureStarted, String> {
         let described: AudioSource = source.describe();
-        let mut framer = Framer::new(Encoder::new(Some(kbps))?, SHARE_UNSET);
+        let mut framer = Framer::new(Encoder::new(Some(kbps))?, share);
         // One share a host: the one running ends first.
         self.end_all();
         let sink: PcmSink = Box::new(move |pcm| match framer.push(pcm) {
@@ -196,6 +191,7 @@ mod tests {
                 "main",
                 Box::new(TestTone),
                 96,
+                0x8000_0007,
                 Box::new(move |f| {
                     seen.lock().unwrap().push(f);
                     true
@@ -223,6 +219,10 @@ mod tests {
         for (i, f) in got.lock().unwrap().iter().enumerate() {
             let (h, _) = FrameHeader::decode(f).unwrap();
             assert_eq!(h.sequence as usize, i);
+            assert_eq!(
+                h.share, 0x8000_0007,
+                "the server's number is in every header"
+            );
         }
     }
 
@@ -236,6 +236,7 @@ mod tests {
                 "a",
                 Box::new(TestTone),
                 96,
+                0x8000_0001,
                 Box::new(move |_| {
                     *a.lock().unwrap() += 1;
                     true
@@ -244,12 +245,18 @@ mod tests {
             .unwrap();
         assert!(
             shares
-                .start("b", Box::new(TestTone), 500, Box::new(|_| true))
+                .start(
+                    "b",
+                    Box::new(TestTone),
+                    500,
+                    0x8000_0002,
+                    Box::new(|_| true)
+                )
                 .is_err()
         );
         assert!(shares.is_running_for("a"), "a refused start kept the first");
         shares
-            .start("b", Box::new(TestTone), 64, Box::new(|_| true))
+            .start("b", Box::new(TestTone), 64, 0x8000_0003, Box::new(|_| true))
             .unwrap();
         assert!(!shares.is_running_for("a") && shares.is_running_for("b"));
         shares.end_all();

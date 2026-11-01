@@ -154,6 +154,7 @@ fn main() {
         "table_cannot_play",
         "table_share_start",
         "table_share_stop",
+        "table_share_listen",
         "audio_sources_list",
         "audio_share_start",
         "audio_share_stop",

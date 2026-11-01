@@ -195,3 +195,49 @@ order is kept in the window's storage (`verso.rightTabOrder`) and a tab newer
 than the saved order goes where it stands among the defaults
 (`app/ui/src/panel/tabStrip.ts`; tried in `e2e/right-tabs.spec.mjs` with the
 Windows frame and platform emulated).
+
+### Amendment (2026-11-01): the right panel's tabs can be hidden and brought back
+
+The maintainer, in chat, on the right panel having eight tabs (outline, links,
+tags, favourites, explore, calendar, Table, Music), the Table and the Music
+kept in view and the others folded into the "⋯" on a narrow panel, in pt-BR:
+*"bom mas deveria ser possível esconder e reordenar e reaparecer abas"* (good,
+but it should be possible to hide, reorder and bring tabs back). His standing
+rules apply: every hide has a way back; the phone is first-class (390 × 844);
+UX first. Built (`app/ui/src/panel/tabModel.ts` decides, `tabStrip.ts` draws,
+`tabsSettings.ts` is the Settings block; tried in `e2e/right-tabs-hide.spec.mjs`
+and `test/tabModel.test.mjs`), the choices being the author's, to confirm:
+
+- **Hide**: the tab's menu (right click; a long press on a touch screen, which
+  `touch.ts` makes where iOS fires no `contextmenu`; the menu key on a
+  focused tab) › **Hide this tab**.
+- **Reorder** (kept from 2026-10-23): a pointer drag with the mouse, `Alt+←/→`,
+  and **Move left / Move right** in the tab's menu, which is what the phone
+  has (a finger scrolls and long-presses, so the drag is the mouse's and the
+  pen's). A hidden tab keeps its place in the order among the others.
+- **Bring back**: the "⋯" button now also stands whenever a tab is hidden, even
+  with everything else fitting, and lists the hidden tabs (**Show "…"**), then
+  **Reset tabs** and **Tab settings…**; the bar's empty space and the "⋯"
+  have the same menu on a right click. **Settings › Appearance › Right panel
+  tabs** lists every tab with a switch and up/down: the sure way back.
+- **The chosen tab always shows**, hidden or not. Something that opens a
+  hidden tab (the status bar's item and the mini-player's name open Music)
+  shows it in the bar for as long as it is chosen, and it goes again when
+  another tab is chosen: the person's choice is never undone, and nothing
+  opens into a tab that is not on screen (a panel naming no tab would be the
+  alternative). A tab hidden while chosen hands the choice to its neighbour on
+  the right (else the left).
+- **The last tab cannot be hidden** (its switch refuses and the status line
+  says why). A tab that is not available (the Table's and the Music's while
+  their switches are off) is neither in the bar nor in Settings, and a
+  hidden mark kept for it waits.
+- **The fold now follows the person's order.** On a narrow panel the tabs that
+  do not fit go into the "⋯", the chosen tab kept first, then the Table and
+  the Music (ADR 0116 as amended 2026-10-31: the game's two tabs in view, the
+  author's choice then *to be confirmed*), then the rest **in the order the
+  person set**; hidden tabs are not counted. So on a phone the panel still
+  shows the two tabs of the game after the chosen one.
+- **Kept per device** in the window's storage, as the order and the ribbon's
+  buttons are (`verso.rightTabOrder`, `verso.rightTabsOff`), never in the
+  notes; settings do not sync today, so neither does this.
+- **On a phone** the tabs, the Settings rows and their buttons are 44 px.

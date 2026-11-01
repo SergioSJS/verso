@@ -50,10 +50,11 @@ mod capabilities;
 pub use capabilities::{Can, Capabilities, Host};
 mod audio_share;
 pub use audio_share::{
-    AudioCaptureStarted, AudioShare, AudioShareEnd, AudioShareStart, AudioShareStopped,
-    AudioSource, AudioSourceKind, BITRATE_DEFAULT, BITRATE_LEAST, BITRATE_MOST, CHANNELS,
-    FRAME_HEADER_LEN, FRAME_MOST, FRAME_MS, FRAMES_PER_SECOND_MOST, FrameError, FrameHeader,
-    SAMPLE_RATE, SOURCE_NAME_MOST, bitrate_ok, name_ok,
+    AudioCaptureStarted, AudioShare, AudioShareBehind, AudioShareEnd, AudioShareStart,
+    AudioShareStopped, AudioSource, AudioSourceKind, BITRATE_DEFAULT, BITRATE_LEAST, BITRATE_MOST,
+    CHANNELS, FRAME_HEADER_LEN, FRAME_MOST, FRAME_MS, FRAMES_PER_SECOND_MOST, FrameError,
+    FrameHeader, SAMPLE_RATE, SHARE_ID_FIRST, SOURCE_NAME_MOST, bitrate_ok, is_audio_frame,
+    name_ok,
 };
 mod table;
 pub use table::{
