@@ -357,6 +357,21 @@ fn the_detection_asks_the_login_shell() {
     assert!(found.len() <= pty::CLIS.len());
 }
 
+/// ConPTY opens with a question of where the cursor is and waits for the
+/// answer (scripts/check-windows.sh, 2026-10-31: every Windows shell test
+/// heard only `ESC[6n`): the host answers that first one and the window
+/// never sees it; a question later in the output is the window's.
+#[test]
+fn conpty_s_opening_cursor_question_is_the_hosts_to_answer() {
+    assert_eq!(
+        pty::after_cursor_query(b"\x1b[6n\x1b[?25lPS C:\\> "),
+        Some(&b"\x1b[?25lPS C:\\> "[..])
+    );
+    assert_eq!(pty::after_cursor_query(b"\x1b[6n"), Some(&b""[..]));
+    assert_eq!(pty::after_cursor_query(b"PS C:\\> \x1b[6n"), None);
+    assert_eq!(pty::after_cursor_query(b""), None);
+}
+
 /// The window's language as `LANG`; anything else is no language.
 #[test]
 fn the_windows_language_is_a_lang() {

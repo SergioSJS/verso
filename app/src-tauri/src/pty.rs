@@ -301,10 +301,25 @@ impl Pty {
     /// behind.
     fn read_all(&self, mut reader: Box<dyn Read + Send>, eof: &mpsc::Sender<()>) {
         let mut buf = vec![0u8; CHUNK];
+        #[cfg(windows)]
+        let mut first = true;
         loop {
             self.wait_while_behind();
             match reader.read(&mut buf) {
                 Ok(0) => break,
+                #[cfg(windows)]
+                Ok(n) if first => {
+                    first = false;
+                    let bytes = buf.get(..n).unwrap_or_default();
+                    let rest = match after_cursor_query(bytes) {
+                        Some(rest) => {
+                            self.write(CURSOR_ANSWER.to_vec());
+                            rest
+                        }
+                        None => bytes,
+                    };
+                    self.output(rest);
+                }
                 Ok(n) => self.output(buf.get(..n).unwrap_or_default()),
                 Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
                 Err(_) => break,
@@ -686,6 +701,23 @@ fn detect_command(start: &Start) -> CommandBuilder {
     cmd
 }
 
+/// ConPTY's first words: it asks where the cursor is (`ESC[6n`) and
+/// starts the shell only once the terminal answers. The host answers that
+/// one question itself — the top left — and the window never sees it: a
+/// detection has no window, a window may attach late, and a reloaded
+/// window replaying the kept output would answer it again into the shell.
+#[cfg(any(windows, test))]
+const CURSOR_QUERY: &[u8] = b"\x1b[6n";
+#[cfg(windows)]
+const CURSOR_ANSWER: &[u8] = b"\x1b[1;1R";
+
+/// The output after ConPTY's opening cursor question, when it begins with
+/// one; a question later is the window's to answer (PowerShell asks too).
+#[cfg(any(windows, test))]
+pub(crate) fn after_cursor_query(first: &[u8]) -> Option<&[u8]> {
+    first.strip_prefix(CURSOR_QUERY)
+}
+
 /// Which tools the person's shell finds: the shell run once with the
 /// question, on a terminal of its own (so its startup files run as in a
 /// terminal tab), for at most `within`.
@@ -702,18 +734,39 @@ pub(crate) fn detect(start: &Start, within: Duration) -> Result<Vec<AiCli>, Stri
         .master
         .try_clone_reader()
         .map_err(|e| format!("could not read the terminal: {e}"))?;
+    #[cfg(windows)]
+    let mut writer = pair
+        .master
+        .take_writer()
+        .map_err(|e| format!("could not write to the terminal: {e}"))?;
     let heard = Arc::new(Mutex::new(Vec::<u8>::new()));
     let (done, at_done) = mpsc::channel::<()>();
     {
         let heard = Arc::clone(&heard);
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
+            #[cfg(windows)]
+            let mut first = true;
             while let Ok(n) = reader.read(&mut buf) {
                 if n == 0 {
                     break;
                 }
+                let bytes = buf.get(..n).unwrap_or_default();
+                #[cfg(windows)]
+                let bytes = match after_cursor_query(bytes) {
+                    Some(rest) if std::mem::take(&mut first) => {
+                        let _ = writer
+                            .write_all(CURSOR_ANSWER)
+                            .and_then(|()| writer.flush());
+                        rest
+                    }
+                    _ => {
+                        first = false;
+                        bytes
+                    }
+                };
                 let mut all = lock(&heard);
-                all.extend_from_slice(buf.get(..n).unwrap_or_default());
+                all.extend_from_slice(bytes);
                 if answered(&String::from_utf8_lossy(&all)) {
                     break;
                 }
