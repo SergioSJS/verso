@@ -62,6 +62,7 @@ export class SoundStrip {
   private readonly stop = iconButton("table-sound-stop", st.stop, "stop");
   private readonly loop = iconButton("table-sound-loop", st.loopOff, "repeat");
   private readonly master = range("table-sound-master", st.masterVolume);
+  private readonly masterLabel = h("span", "table-sound-label", st.masterVolume);
   private readonly mine = range("table-sound-volume", st.ownVolume);
   private readonly mute = iconButton("table-sound-mute", st.mute, "volume");
   private readonly follow = h("input", "table-sound-follow");
@@ -193,8 +194,11 @@ export class SoundStrip {
     this.mute.setAttribute("aria-label", mine.muted ? st.unmute : st.mute);
     this.mute.setAttribute("aria-pressed", mine.muted ? "true" : "false");
     this.follow.checked = mine.follow;
-    if (master) {
-      if (!this.own.contains(this.master)) this.own.prepend(h("span", "table-sound-label", st.masterVolume), this.master);
+    // The table's volume is the game master's; a player has only their own.
+    if (master && !this.own.contains(this.master)) this.own.prepend(this.masterLabel, this.master);
+    else if (!master && this.own.contains(this.master)) {
+      this.masterLabel.remove();
+      this.master.remove();
     }
     // Notes: who does not hear, who cannot, what this window cannot do.
     const lines: Node[] = [];

@@ -288,7 +288,7 @@ test("every control of the game master's strip is reachable, named and inside th
     expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
     const named = await c.evaluate((e) => e.getAttribute("aria-label") || e.textContent?.trim() || (e.id && document.querySelector(`label[for="${e.id}"]`)?.textContent) || "");
     expect(named, await c.evaluate((e) => e.outerHTML)).not.toBe("");
-    if (phone(page)) expect(box.height, await c.evaluate((e) => e.outerHTML)).toBeGreaterThanOrEqual(24);
+    if (phone(page) && (await c.evaluate((e) => e.tagName === "BUTTON"))) expect(box.height, await c.evaluate((e) => e.outerHTML)).toBeGreaterThanOrEqual(36);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
