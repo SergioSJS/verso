@@ -167,6 +167,7 @@
     "allow-audio-sources-list",
     "allow-audio-share-start",
     "allow-audio-share-stop",
+    "allow-audio-share-hear",
     "allow-campaign-status",
     "allow-campaign-make",
     "allow-campaign-unmake",

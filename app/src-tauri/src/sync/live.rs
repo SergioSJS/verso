@@ -604,6 +604,14 @@ pub(crate) fn relay(
                         told(&to, &event, &payload);
                     }
                 }
+                // A live share's frame (ADR 0116): the server sends it to
+                // this one connection once any window at a table asked;
+                // each window that gave a channel gets it, and one that
+                // does not listen drops it by the share's number.
+                remote::Heard::Audio(frame) => {
+                    let to: Vec<String> = lock(&live.table).keys().cloned().collect();
+                    crate::audio_share::hear::deliver(&to, &frame);
+                }
                 other => {
                     if tx.send(other).is_err() {
                         return;

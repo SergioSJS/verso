@@ -202,7 +202,7 @@ pub(crate) struct Remote {
     /// The last command's round trip, in milliseconds.
     latency: std::sync::atomic::AtomicU32,
     pending: Pending,
-    tx: mpsc::Sender<Message>,
+    pub(crate) tx: mpsc::Sender<Message>,
     /// Told when the connection is taken as closed without either task
     /// seeing it close: the reader ends, as on a close.
     dead: Arc<tokio::sync::Notify>,
@@ -831,6 +831,8 @@ pub(crate) enum Heard {
     Gone(Value, Option<String>),
     /// The account's role in the folder changed: `owner`, `editor`, `reader`.
     Role(String),
+    /// A live share's audio frame, as it came (ADR 0116, `audio_share::hear`).
+    Audio(Vec<u8>),
     /// The connection closed.
     Closed,
 }
@@ -1116,6 +1118,11 @@ pub(crate) async fn dial_hello(
             // (sync 2): its header, then the piece as it is.
             let (parsed, piece) = match message {
                 Message::Text(text) => (serde_json::from_str::<Value>(&text).ok(), None),
+                // Or an audio frame, told by its first byte, for the window.
+                Message::Binary(bytes) if crate::audio_share::hear::is_frame(&bytes) => {
+                    let _ = heard_tx.send(Heard::Audio(bytes.to_vec()));
+                    continue;
+                }
                 Message::Binary(bytes) => match verso_core::sync::unframe(&bytes) {
                     Some((header, piece)) => (
                         serde_json::from_slice::<Value>(header).ok(),
@@ -1210,6 +1217,9 @@ async fn connect<R: tauri::Runtime>(
                 // again when it reconnects; the role is the server's to
                 // enforce meanwhile.
                 Heard::Role(_) => {}
+                Heard::Audio(frame) => {
+                    crate::audio_share::hear::deliver(std::slice::from_ref(&label_r), &frame);
+                }
                 Heard::Closed => break,
             }
         }

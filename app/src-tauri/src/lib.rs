@@ -905,6 +905,7 @@ macro_rules! commands_for {
                 audio_share::audio_sources_list,
                 audio_share::audio_share_start,
                 audio_share::audio_share_stop,
+                audio_share::hear::audio_share_hear::<$runtime>,
                 campaign::campaign_status,
                 campaign::campaign_make,
                 campaign::campaign_unmake,
@@ -1332,6 +1333,8 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             app.state::<App>().service.release(label);
             // Its terminals end with it; a reload keeps them (ADR 0115 Q6).
             app.state::<App>().terminals.end_of(label);
+            // No live share's frames for a window that is gone (ADR 0116).
+            audio_share::hear::forget(label);
             files::drop_picks(label);
             remote::release(app, label);
             loose::window_gone(app, label);
