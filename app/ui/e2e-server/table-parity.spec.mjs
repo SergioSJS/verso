@@ -312,7 +312,7 @@ for (const format of ["member", "share"]) {
         };
         await openNote(ana.page, "Diario");
         await live("depois do diario");
-        await ana.page.locator('#notes summary[data-folder="Fichas"] .folder-label').click();
+        await ana.page.locator('#notes summary[data-folder="Fichas"] button.folder-page').click();
         await expect(ana.page.locator(".sheet:not(.note-sheet)")).toBeVisible();
         await live("na pagina da pasta");
         expect(await title()).toBe(titleAtStart);
