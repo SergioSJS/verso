@@ -67,6 +67,8 @@ import { cs } from "./settings/creditsStrings";
 import { ss } from "./settings/strings";
 import { LOOK_EVENT } from "../theme/actions";
 import { fontSample, fontSampleWords } from "../fontSample";
+import { tabsSettings } from "../panel/tabsSettings";
+import { tabWords } from "../panel/tabStrings";
 import { themeGallery } from "../theme/gallery";
 import { openMoreThemes } from "../theme/more";
 import { W as lookWords } from "../theme/strings";
@@ -696,6 +698,9 @@ export class SettingsDialog {
         return sw;
       }, t.ribbonButtons);
     }
+    // The right panel's tabs, each shown or hidden and in order: the sure
+    // way back for one hidden from the bar (ADR 0072, 2026-11-01).
+    out.push({ section: "appearance", title: tabWords.group, desc: tabWords.lead, group: tabWords.group, node: () => this.item(tabWords.group, tabWords.lead, panel ? tabsSettings(panel.strip) : null) });
     add("organizing", t.stickers, t.stickersDesc, () => this.toggle(settings.stickers, (v) => { settings.stickers = v; saveSettings(); void listAll(); }));
     add("organizing", t.stickerInLinks, t.stickerInLinksDesc, () => this.toggle(settings.stickerInLinks, (v) => { settings.stickerInLinks = v; saveSettings(); }));
     add("organizing", t.covers, t.coversDesc, () => this.toggle(settings.covers, (v) => { settings.covers = v; saveSettings(); for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) if (l instanceof NoteLeaf && l.note) void l.load(l.path, true); }));
