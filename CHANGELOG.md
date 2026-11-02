@@ -12,11 +12,6 @@ test release.
 
 ## Unreleased
 
-### Fixed
-
-- **The audio embed on a board card.** The player has its own grid layout now (play, name or time, bar, loop, mute, volume), so a note and a board card draw it alike; on a narrow card the volume slider yields.
-- **Music loop and track length.** A track's length is read again when the engine corrects it (an MP3 without a header was first sized from its bitrate, so a 50 s file showed 1:43), and the audio embed bound to the table now wraps at the same length as the Music tab instead of counting past the end.
-
 ### Added
 
 - **Loop in the audio embed's player.** The player has a loop button: on its own it repeats the file for this person; bound to the table's music it is the Music tab's loop (the table repeats, for everyone).
@@ -173,6 +168,8 @@ test release.
 
 ### Fixed
 
+- **The audio embed on a board card.** The player has its own grid layout now (play, name or time, bar, loop, mute, volume), so a note and a board card draw it alike; on a narrow card the volume slider yields.
+- **Music loop and track length.** A track's length is read again when the engine corrects it (an MP3 without a header was first sized from its bitrate, so a 50 s file showed 1:43), and the audio embed bound to the table now wraps at the same length as the Music tab instead of counting past the end.
 - **A table cell keeps its text when the window goes to the background**: in Edit mode, with the caret in a cell, switching to another app no longer blanks the cell. The cell that holds the focus is marked by script (the field stays the page's active element when the window leaves), instead of by `:focus`/`:focus-within`, which WebKit drops; a redraw of the table in the meantime no longer overwrites that field or its look. The window leaving never writes the document.
 - **A page's sound stops when its tab, note, card or window closes.** Closing a tab that showed a page (a YouTube page that autoplays) left the page's web view playing with nothing visible, even after the windows were closed; the page is now emptied (media paused, replaced by a blank page) before its view is closed, and a window that closes takes the pages it showed with it. On the Mac WebKit itself suspends all the page's media first, the blank page is no longer refused by the navigation guard (it was, so the page was never emptied), pages embedded in a note close with their tab at once, and every page opened and closed is written to the log.
 - **An audio embed played for the table now is the table's player of the track** (ADR 0116 amendment of 2026-11-01). "Play for the table" starts the table's music where the embed was, not at zero; from then on the embed's play, pause and bar drive the table's music and the table's state draws the embed, in notes and on boards, until the table plays another file or stops.
