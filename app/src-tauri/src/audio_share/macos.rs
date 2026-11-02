@@ -65,6 +65,7 @@ use objc2_foundation::{
 };
 
 use objc2_core_foundation::CFDictionary;
+use objc2_web_kit::{WKMediaPlaybackState, WKWebView};
 
 use super::convert::join_buffers;
 use super::macpages::AudioProc;
@@ -222,6 +223,29 @@ pub fn responsible_of(pid: i32) -> Option<i32> {
     // SAFETY: a plain call with an integer; no pointer crosses.
     let r = unsafe { fun(pid) };
     (r > 0).then_some(r)
+}
+
+/// Asks a page whether it plays sound now, for naming the source only: the
+/// answer arrives later on `tx` (WebKit calls back on the main thread). On
+/// any failure nothing is sent, which the caller reads as "not playing".
+/// Runs on the main thread, inside `with_webview`.
+pub fn ask_playing(pw: &tauri::webview::PlatformWebview, tx: std::sync::mpsc::Sender<bool>) {
+    let page = pw.inner().cast::<WKWebView>();
+    // SAFETY: `inner()` is wry's `WKWebView` for this web view, alive while
+    // the web view exists; `with_webview` runs this on the main thread, the
+    // only one that may touch it. `retain` adds a strong reference of our
+    // own (or answers `None` for a null pointer), held until this call
+    // returns; WebKit keeps the view itself while the request is pending.
+    let Some(view) = (unsafe { Retained::retain(page) }) else {
+        return;
+    };
+    let reply = RcBlock::new(move |state: WKMediaPlaybackState| {
+        let _ = tx.send(state == WKMediaPlaybackState::Playing);
+    });
+    // SAFETY: a public method (macOS 12 and up; this runs only after
+    // `supported()`, which needs 14.2) taking a block that the call copies;
+    // the block owns only a channel sender.
+    unsafe { view.requestMediaPlaybackStateWithCompletionHandler(&reply) };
 }
 
 /// Whom the tap listens to.

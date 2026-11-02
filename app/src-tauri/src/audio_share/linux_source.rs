@@ -163,6 +163,13 @@ pub fn open(id: &str) -> Option<Box<dyn Source>> {
     (id == PAGES_ID).then(|| Box::new(Pages) as Box<dyn Source>)
 }
 
+/// Whether a page plays sound now, for naming the source only (S10):
+/// WebKitGTK's `is_playing_audio`, on the main thread inside `with_webview`.
+pub fn ask_playing(pw: &tauri::webview::PlatformWebview, tx: std::sync::mpsc::Sender<bool>) {
+    use webkit2gtk::WebViewExt;
+    let _ = tx.send(pw.inner().is_playing_audio());
+}
+
 struct Pages;
 
 impl Source for Pages {

@@ -52,6 +52,8 @@ mod macos_source;
 mod macpages;
 #[cfg(any(target_os = "macos", target_os = "linux", test))]
 mod ownqueue;
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+mod pageplay;
 mod session;
 mod source;
 mod tone;
@@ -108,12 +110,13 @@ async fn platform_sources<R: tauri::Runtime>(
 /// 2026-11-01), once a page has made sound.
 #[cfg(target_os = "macos")]
 async fn platform_sources<R: tauri::Runtime>(
-    _app: &tauri::AppHandle<R>,
-    _label: &str,
+    app: &tauri::AppHandle<R>,
+    label: &str,
 ) -> (Vec<AudioSource>, Option<&'static str>) {
     let mut list = source::list();
     match macos_source::list() {
-        Ok(pages) => {
+        Ok(mut pages) => {
+            name_playing(app, label, &mut pages, macos::ask_playing).await;
             list.extend(pages);
             (list, None)
         }
@@ -125,17 +128,32 @@ async fn platform_sources<R: tauri::Runtime>(
 /// 2026-11-01; "As built (S9)"), once a web process of the pages exists.
 #[cfg(target_os = "linux")]
 async fn platform_sources<R: tauri::Runtime>(
-    _app: &tauri::AppHandle<R>,
-    _label: &str,
+    app: &tauri::AppHandle<R>,
+    label: &str,
 ) -> (Vec<AudioSource>, Option<&'static str>) {
     let mut list = source::list();
     match tauri::async_runtime::spawn_blocking(linux_source::list).await {
-        Ok(Ok(pages)) => {
+        Ok(Ok(mut pages)) => {
+            name_playing(app, label, &mut pages, linux_source::ask_playing).await;
             list.extend(pages);
             (list, None)
         }
         Ok(Err(why)) => (list, Some(why)),
         Err(_) => (list, None),
+    }
+}
+
+/// Names the pages source after the sites playing now (S10; Windows does it
+/// in `windows_source.rs`). Naming only: it fails closed to the plain name.
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+async fn name_playing<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+    sources: &mut [AudioSource],
+    ask: pageplay::Ask,
+) {
+    for s in sources.iter_mut().filter(|s| s.id == winpages::PAGES_ID) {
+        s.name = pageplay::source_name(app, label, ask).await;
     }
 }
 
