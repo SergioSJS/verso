@@ -21,10 +21,13 @@ import { Core, type Seed } from "./harness/core";
 import { UNUSED_ARGS } from "./harness/unusedArgs";
 import { Rooms } from "./harness/room";
 import { Table } from "./harness/table";
+import { TableSound } from "./harness/tableSound";
+import { installAudioShare } from "./harness/audioShare";
 import { Campaign } from "./harness/campaign";
 import { projectBoard } from "./harness/maps";
 import { Versions } from "./harness/history";
 import { SystemNotifications } from "./harness/notifications";
+import { FakeTerminals } from "./harness/terminal";
 import * as sanitize from "./sanitize";
 
 const vault = new URLSearchParams(location.search).get("vault");
@@ -34,8 +37,14 @@ const big = (): Seed[] =>
     b64: btoa(`# Nota ${i}\n`),
   }));
 // A `.md` opened without its folder (`?loose=1`, ADR 0114): the file, a
-// sibling note and a picture, as a Downloads folder holds them.
+// sibling note and a picture, as a Downloads folder holds them; and the
+// data files `&file=` opens instead (item 32): a JSON, a YAML and a JSON
+// that does not parse.
+const utf8b64 = (text: string): string => btoa(String.fromCharCode(...new TextEncoder().encode(text)));
 const looseSeed = (): Seed[] => [
+  { path: "Inventário.json", b64: utf8b64('{\n  "personagem": "Ana",\n  "itens": [\n    { "nome": "corda", "peso": 2 },\n    { "nome": "lanterna", "peso": 1 }\n  ]\n}\n') },
+  { path: "config.yaml", b64: utf8b64("servidor:\n  porta: 7340\n  nome: Mesa\njogadores:\n  - Ana\n  - Bia\n") },
+  { path: "quebrado.json", b64: utf8b64('{ "aberto": [1, 2\n') },
   { path: "Lista de compras.md", b64: btoa("# Lista de compras\n\n- arroz\n- feijao\n\n![[foto.png]]\n\nVer [[Vizinha]] e [[Longe]].\n") },
   { path: "Vizinha.md", b64: btoa("# Vizinha\n\nA nota ao lado.\n") },
   { path: "foto.png", b64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==" },
@@ -83,18 +92,34 @@ if (onServer) {
   document.documentElement.dataset["role"] = role;
 }
 
+// The embedded terminal (ADR 0115): a scripted shell for a window of the
+// desktop app; a server and its web window have none (items 6 and 23), and
+// refuse its commands as a side without them does.
+const terminals = new FakeTerminals(core.handlers);
+const TERMINAL_COMMANDS = ["terminal_open", "terminal_attach", "terminal_write", "terminal_resize", "terminal_flow", "terminal_busy", "terminal_close", "set_terminal_enabled", "terminal_detect", "terminal_install_page"];
+if (onServer)
+  for (const cmd of TERMINAL_COMMANDS) {
+    const own = core.handlers[cmd]!;
+    core.handlers[cmd] = Object.assign(() => refuseHere("a server runs no program"), { wraps: own });
+  }
+function refuseHere(message: string): never {
+  throw { kind: "refused", message };
+}
+
 // A Markdown file opened without its folder (ADR 0114): `?loose=1` stands
 // for the loose-files window the host makes when a `.md` is double-clicked.
 // The folder in memory holds the file, a sibling note and a picture; the
 // window is told `Opened::File`, reads and writes the file by its name,
 // resolves a link by one sibling's name, and every folder command is
 // refused as the service refuses it. `&ro=permissions|too_large` opens it
-// read only for that reason; `&known=1` says a folder opened before holds it.
+// read only for that reason; `&known=1` says a folder opened before holds it;
+// `&file=Inventário.json` (or `config.yaml`, `quebrado.json`) hands a data
+// file instead, which opens in the diagram (item 32).
 if (params.get("loose") === "1") {
-  const name = "Lista de compras.md";
+  const name = params.get("file") ?? "Lista de compras.md";
   const info = (): LooseFileInfo => ({
     name,
-    key: "lista-de-compras-0123456789abcdef",
+    key: `${name.replace(/[^A-Za-z0-9]+/g, "-").toLowerCase()}-0123456789abcdef`,
     place: "Downloads",
     read_only: params.get("ro") === "permissions" ? "permissions" : params.get("ro") === "too_large" ? "too_large" : null,
     size: 160,
@@ -168,6 +193,9 @@ const rooms = onServer ? null : new Rooms(core);
 // The folder's table (ADR 0107): a server's, played here when a test says it
 // is up; it wraps the room's rolls, so it comes after the rooms.
 const table = onServer ? null : new Table(core);
+const tableSound = table ? new TableSound(core, table) : null;
+// Share audio (ADR 0116 section B): nothing captured; a share heard as the server sends it.
+const audioShare = installAudioShare(core, table);
 // A window on a server joins the table when a folder is shown; this harness does
 // not play that table, and answers as a side with none does.
 if (onServer)
@@ -189,7 +217,7 @@ if (table) table.roots = () => (campaign.up ? campaign.tables.map((t) => t.root)
 if (table) table.mayImage = (root) => campaign.up && campaign.viewer === "player" && campaign.rightFor(root, "images");
 if (table) table.mayFile = (root) => campaign.up && campaign.viewer === "player" && campaign.rightFor(root, "files");
 campaign.linked = link;
-for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_invite", "access_get", "access_set", "table_rights_set"]) {
+for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "table_say", "table_send_image", "table_roll", "table_pin", "table_delete", "table_clear", "table_play", "table_sound", "table_time", "table_cannot_play", "campaign_status", "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all", "campaign_secret_name", "campaign_grant", "campaign_invite", "access_get", "access_set", "table_rights_set"]) {
   const own = core.handlers[cmd];
   if (!own) continue;
   const linked = (a: Parameters<typeof own>[0]) => {
@@ -361,6 +389,10 @@ const harness = {
   rooms,
   /** The folder's table (ADR 0107): the server's commands and events, played in the page. */
   table,
+  /** The table's music (ADR 0116): what the window's person sees, the game master's plays. */
+  tableSound,
+  /** A live share at the table (ADR 0116 section B): the server's part, a test the game master. */
+  audioShare,
   /** A table is a campaign folder (ADR 0110): the server's state and commands, played in the page. */
   campaign,
   /** The files' version histories (ADR 0091). */
@@ -376,6 +408,8 @@ const harness = {
   /** The system's notifications: its permission, its answer when asked,
    *  what was sent, a click on the last (ADR 0084 item 9). */
   notifications,
+  /** The embedded terminal's scripted shell (ADR 0115). */
+  terminals,
   /** The desktop window shows a server's folder where the person is `as`
    *  (the host's merge, app/src-tauri/src/remote.rs): the server's answer
    *  plus the app's own abilities that do not depend on the folder's side.
@@ -384,9 +418,11 @@ const harness = {
     role = as;
     core.handlers["capabilities"] = () => ({
       host: "server",
-      can: [...(as === "reader" ? [] : ["write"]), "account", "windows", "web_views", "updates", "devtools", "local_folders", ...FOLDER_CAN],
+      can: [...(as === "reader" ? [] : ["write"]), "account", "windows", "web_views", "updates", "devtools", "local_folders", "terminal", ...FOLDER_CAN],
       latency_ms: null,
     } as Capabilities);
+    // This computer's shell starts in the home directory there (ADR 0115 Q4).
+    terminals.local = false;
     dispatchEvent(new Event("verso:folder-shown"));
   },
   /** The server says the person's role in the folder changed (web.ts). */

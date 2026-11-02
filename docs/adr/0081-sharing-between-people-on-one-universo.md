@@ -189,7 +189,8 @@ carried a recommendation; the maintainer decided. Open items answered
    item 1 of 0079 already does for a reader. A share opens in a window of
    its own ([0065](0065-a-folder-per-window.md)).
    `[OPEN]`: whether a share may appear **inside** the receiver's own
-   vault, as a sub-folder of it. Recommended: **no**. It would be one
+   vault, as a sub-folder of it. *(2026-10-31: to be discussed with the
+   maintainer on 2026-11-02; unchanged meanwhile.)* Recommended: **no**. It would be one
    local folder syncing with two server folders, against 0079 item 1; the
    receiver's index would hold the owner's notes and their links would
    resolve across the two, the questions [0041](0041-multi-root-workspace.md)
@@ -216,8 +217,8 @@ carried a recommendation; the maintainer decided. Open items answered
    moment it was shared, and the dialog says so to the owner at the
    moment of sharing, in one line. *(Decided 2026-10-12, Revisions: the
    revoked share's sync turns off on the receiver's device with a notice;
-   being built that night, on `feat/universo-small`; built in 6c7800e,
-   merged by d2a72b0.)*
+   being built that night, on `feat/universo-small`; built in 873921a,
+   merged by 97bb3a3.)*
 9. **Audit.** A share created, changed and removed, and an invitation
    that carries one, are entries of the audit log with the path
    ([0074](0074-accounts-and-access-on-the-server.md) item 9), read by
@@ -296,8 +297,11 @@ carried a recommendation; the maintainer decided. Open items answered
     `read_text`, `write_text`, `write_board`, `board_preview`,
     `read_file_text` and `links` of a board do the same; the revision is
     always that of the bytes on disk, and only the `file` strings of the
-    text are rewritten (invariant 7). `[OPEN]`: the **sync** of a share to
-    a device still carries a board's bytes as they are on the server
+    text are rewritten (invariant 7). `[OPEN]` *(2026-10-31: whether it waits
+    for after V1 is to be discussed with the maintainer on 2026-11-02. Decided
+    2026-11-01, 13 = b: **into V1**, after the terminal and the music are polished; not built)*: the
+    **sync** of a share to a device still carries a board's bytes as they are
+    on the server
     (owner paths), and a share window without a table still joins the
     board's whole room, whose cards it writes by the share's paths: both
     need the same re-rooting and, for sync, a hash of the bytes the device
@@ -410,8 +414,8 @@ accepted by the maintainer on 2026-10-11 (*"Mas eu tinha confirmado"* to
 the recommendations). The history of a file's changes went to [0091](0091-version-history.md), accepted 2026-10-14, on
 purpose, for its own ADR.
 
-**Built on the night of 2026-10-11 to 12** (9e725c2, 4c49939, 7a648e0,
-acb1645 and 657fab1, merged into `feat/universo` by 2f25923 on
+**Built on the night of 2026-10-11 to 12** (e4b35d5, 6c2f640, be98acd,
+ffda3f0 and bdf9d2b, merged into `feat/universo` by d46c5db on
 2026-10-12). The open questions the building raised were sent to the
 maintainer the same night, and answered (below): a receiver's
 rename against the owner's links from outside the share; an owner
@@ -429,8 +433,8 @@ aggregates a receiver sees, the index's counts and a base's formulas,
 will be zeroed — decided, the next round (item 11) *(built
 2026-10-12)*; a revoked share's
 sync turns off with a notice — decided, being built that night on
-`feat/universo-small` (item 8) *(built in 6c7800e, merged into
-`feat/universo` by d2a72b0 on 2026-10-12; in `CHANGELOG.md` under
+`feat/universo-small` (item 8) *(built in 873921a, merged into
+`feat/universo` by 97bb3a3 on 2026-10-12; in `CHANGELOG.md` under
 Unreleased)*. Each is recorded in its item (Revisions).
 
 *(History, before the acceptance above:)* Proposed on 2026-10-10. To be
@@ -447,3 +451,24 @@ Open items answered 2026-10-10. The maintainer, in session, to the recommendatio
 each `[OPEN]` of items 3, 4, 6, 11 and 17 decided as recommended, in
 place, and item 5 gaining the folder switcher, built with this ADR. The
 history of a file's changes went to its own ADR, [0091](0091-version-history.md).
+
+**2026-10-31.** Who deletes inside a share changed: outside a table only the
+folder's **owner** deletes, an editor no longer does (the maintainer, B8:
+*"apenas o dono da pasta pode apagar"*), and a move that takes a file out of
+a shared folder, a deletion for that share, is the owner's too (decided the
+same day); the rule lives in
+[0113](0113-one-access-model-for-a-table.md) section B. Items 5 and 11 are
+not settled by the list of 2026-10-31: the maintainer kept them apart, to be
+discussed with him on 2026-11-02.
+
+**2026-11-01 (the items held for the second, discussed early).** The maintainer
+answered the list: *"12. A 13. B 14. B - Mas vamos fazer depois, quero terminal e música redondinho primeiro 15. B - (idem) 16. B - (idem)"* (12 a; 13 b; 14 b, but later, he wants the terminal and the music polished first; 15 b, likewise; 16 b, likewise).
+
+- **Item 5 stays as decided on 2026-10-10 (12 = a):** a share never appears
+  inside the receiver's vault; it is under *Shared with me* and in the
+  folder switcher. **Confirmed 2026-11-01.**
+- **Item 11's shared board with the owner's paths (13 = b):** the sync of a
+  share carrying a board's bytes as they are on the server, and a share
+  window without a table joining the board's whole room, **move into V1**,
+  ordered after the terminal and the music are polished. `[DECIDED
+  2026-11-01, not built]`; the roadmap carries the row (V.49).

@@ -231,3 +231,60 @@ fn a_write_is_conditional_on_the_version_the_plan_was_made_on() {
         RemoteErrorKind::Changed
     );
 }
+
+/// The feed's renames are kept for the plan (decided 2026-10-31, B12): a
+/// chain back to its first name, across the deletion the log writes just
+/// before each new name; a rename back to where it was is none; a name a
+/// rename brought and then deleted is none; and once the base follows, they
+/// are let go.
+#[test]
+fn the_feeds_renames_are_kept_as_chains_until_the_base_follows() {
+    let remote = Fake {
+        feed: true,
+        ..Fake::default()
+    };
+    remote.set("a.md", b"one", 1);
+    remote.set("v.md", b"two", 1);
+    remote.set("x.md", b"three", 1);
+    let mut known = None;
+    refresh(&remote, &mut known, &BTreeMap::new()).unwrap();
+    let gone = |p: &str| Change::Gone {
+        path: p.to_owned(),
+        by: None,
+        device: None,
+    };
+    let renamed = |from: &str, to: &str, bytes: &[u8]| {
+        remote.set(to, bytes, 2);
+        Change::Renamed {
+            from: from.to_owned(),
+            entry: Fake::entry(to, bytes, 2),
+        }
+    };
+    let log = vec![
+        gone("a.md"),
+        renamed("a.md", "b.md", b"one"),
+        Change::Present(Fake::entry("b.md", b"one, edited", 3)),
+        gone("b.md"),
+        renamed("b.md", "c.md", b"one, edited"),
+        gone("v.md"),
+        renamed("v.md", "w.md", b"two"),
+        gone("w.md"),
+        renamed("w.md", "v.md", b"two"),
+        gone("x.md"),
+        renamed("x.md", "y.md", b"three"),
+        gone("y.md"),
+    ];
+    *remote.log.lock().unwrap() = log;
+    refresh(&remote, &mut known, &BTreeMap::new()).unwrap();
+    let mut k = known.unwrap();
+    assert_eq!(
+        k.moved,
+        BTreeMap::from([("c.md".to_owned(), "a.md".to_owned())])
+    );
+    // The base still at the old name: kept; moved with the file: let go.
+    let base = |p: &str| BTreeMap::from([(p.to_owned(), "h".to_owned())]);
+    k.settle(&base("a.md"));
+    assert_eq!(k.moved.len(), 1);
+    k.settle(&base("c.md"));
+    assert!(k.moved.is_empty());
+}

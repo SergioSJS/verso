@@ -136,6 +136,65 @@ fn every_write_path_ends_in_the_folders_log() {
     });
 }
 
+/// A folder renamed in the window, its notes of the same bytes (empty
+/// ones, made from one template): the log names, for each new path, the
+/// old path it was — the one the window moved there, not whichever of the
+/// same bytes a pairing by hash met first (decided 2026-10-31, B12: a
+/// device follows the log's renames as they are written).
+#[test]
+fn a_window_move_names_each_files_own_old_path_in_the_log() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = opened(&r, &b).await;
+        let names = ["a", "b", "c", "d", "e", "f"];
+        for (i, n) in (10_u64..).zip(names) {
+            let made = call(
+                &mut ws,
+                i,
+                "create_note",
+                json!({ "name": format!("Vazias/{n}"), "text": "" }),
+            )
+            .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        let state = call(&mut ws, 20, "sync_state", json!({})).await;
+        let head = state["ok"]["head"].as_i64().unwrap();
+        let moved = call(
+            &mut ws,
+            21,
+            "rename_entry",
+            json!({ "from": "Vazias", "to": "Cheias" }),
+        )
+        .await;
+        assert_eq!(moved["ok"]["path"], "Cheias", "{moved}");
+        // And two into another folder at once, the tree's selection.
+        let more = call(
+            &mut ws,
+            22,
+            "move_entries",
+            json!({ "paths": ["Cheias/e.md", "Cheias/f.md"], "folder": "Outra" }),
+        )
+        .await;
+        assert!(more.get("ok").is_some(), "{more}");
+        let after = call(&mut ws, 23, "sync_changes", json!({ "since": head })).await;
+        let list = after["ok"]["changes"].as_array().unwrap();
+        let mut renamed = 0;
+        for c in list.iter().filter(|c| !c["renamedFrom"].is_null()) {
+            let path = c["path"].as_str().unwrap();
+            let from = c["renamedFrom"].as_str().unwrap();
+            let name = path.rsplit('/').next().unwrap();
+            assert_eq!(
+                from.rsplit('/').next().unwrap(),
+                name,
+                "{path} from {from}: {after}"
+            );
+            renamed += 1;
+        }
+        assert_eq!(renamed, names.len() + 2, "{after}");
+    });
+}
+
 #[test]
 fn a_device_writes_only_over_the_file_it_based_its_change_on() {
     block_on(async {

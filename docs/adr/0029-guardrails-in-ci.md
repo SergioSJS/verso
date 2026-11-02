@@ -104,7 +104,7 @@ the billing page showed for the cycle, in a quota that counts each as ten.
 
 **Locally, before a push — the maintainer's request of 2026-09-24.** The
 first CI run after the quota came back failed on Linux-only dead code that no
-check on the Mac could see (`db2cce1`), and the maintainer asked why it had
+check on the Mac could see (`a9d8e10`), and the maintainer asked why it had
 not been tested locally, with Docker installed, and for the way to be in the
 README. Two scripts run the guardrails before a push; CI confirms, it is not
 where a failure is first seen:
@@ -114,7 +114,7 @@ where a failure is first seen:
 - `scripts/check-linux.sh` — fmt, clippy, the tests and the generated
   bindings in a Linux container, as an ordinary user, over a copy of the
   sources and named volumes. Its first real run found the UI bundle missing
-  before the shell compiled, which CI would have hit next (`22d1aa1`).
+  before the shell compiled, which CI would have hit next (`64b378c`).
 - `scripts/check-windows.sh` — clippy and the tests on a Windows machine
   reached over SSH as `verso-win`, over a byte-for-byte copy of the working
   tree ([0069](0069-windows-port.md), revision of 2026-10-08). Its first run
@@ -291,11 +291,11 @@ this is how this repository does it.
 clean and passed every check, and both were found by reading, which is what
 this ADR says does not scale:
 
-- `crates/verso-cli` (commit `e5754b0`): to resolve the command line's
+- `crates/verso-cli` (commit `b145309`): to resolve the command line's
   installed symlink back to the directory of the real binary and the app
   beside it, the code called the `readlink` program through
   `std::process::Command`, where clippy denied `std::fs::read_link`.
-- `app/src-tauri` (commit `2db4c73`, the updater, shipped in 0.3.0-beta.1): a
+- `app/src-tauri` (commit `ac18e1d`, the updater, shipped in 0.3.0-beta.1): a
   `clippy.toml` with an empty `disallowed-methods` list was added inside a
   feature pull request, which switched the workspace's `std::fs` list off for
   the whole shell, with no exception declared.
@@ -553,7 +553,7 @@ output. Red when the median time exceeds 1.5× the recorded baseline, the index
 file 1.05×, or peak memory 1.3× — no tolerance tighter than the measured noise,
 which was ±45 % between runs at 20 000 notes on an idle laptop. Seen failing,
 as every feature guardrail must be: by reverting the `notes_fts` delete to the
-full scan it had before commit `4e99082`, which took 4 000 notes from 0.71 s to
+full scan it had before commit `ca7bdd8`, which took 4 000 notes from 0.71 s to
 4.94 s. The baseline itself is not a target: targets stay `[OPEN]`
 ([0039](0039-performance-targets.md)).
 

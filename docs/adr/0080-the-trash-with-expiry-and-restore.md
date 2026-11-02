@@ -263,8 +263,8 @@ the recommendations). No `[OPEN]` item stays open *(as written on
 2026-10-11; the answers of 2026-10-12 below leave one `[OPEN]`: the layer
 of settings that syncs, where a desktop folder's retention would live)*.
 
-**Built on the night of 2026-10-11 to 12** (8ad89d2, 9c10495, 02903f1,
-173cf7e and f3edc42, with item 12; 5b5fb9c, of the same night, is not
+**Built on the night of 2026-10-11 to 12** (db609b1, 03c21bf, a9a9bb5,
+08f4032 and 069cb3a, with item 12; 2f15f9d, of the same night, is not
 the trash's: it fixes the timing of a test of an unreadable directory on
 Windows). The open questions
 the building raised were sent to the maintainer the same night, and
@@ -297,3 +297,54 @@ quota); and where a deletion carried out by sync goes on the computer
 Open items answered 2026-10-10. The maintainer, in session, to the recommendations above: *"Gostei das recomendações, pode seguir"* —
 each `[OPEN]` decided as recommended, in place (items 3, 4, 8 and 9), and
 item 12 added, the mitigation of 0079's known limit.
+
+**Decided (2026-10-31): the server's trash gets an age and size cap.**
+`[DECIDED 2026-10-31, to be built]` The server's `.trash/` grows with files
+replaced again and again (item 12's replaced versions). Put to the maintainer
+as B11 of the list of 2026-10-31 — a) a cap by age or size (e.g. 30 days), b)
+leave it — and approved as recommended, a: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). Item 3's retention (30
+days by default) already caps by age; what the answer adds is that the
+server's trash is kept under a cap by **size** as well, the oldest entries
+going first, with the replaced versions of item 12 under both caps. The size
+and how it relates to item 8 (the oldest expiring early when the trash alone
+passes the quota) are the build's, said in its As built. Read by the author as
+above; the answer's words were only "age/size (e.g. 30 days)".
+
+**As built (2026-10-31, B11).** The cap is the server's, one number for every
+folder's bin: `VERSO_TRASH_MAX` (a size as `VERSO_FOLDER_QUOTA` is written;
+`0` or `none` for no cap), **1 GiB by default**, a choice of the build because
+the answer gave no figure — confirmed by the maintainer the same day
+(*"Sim"*). `verso_core::trash::due` takes it beside the
+quota: after the age (item 3) the oldest entries of what is left go while the
+bin alone is larger than the **smaller** of the quota and the cap; a tie
+names the quota. The replaced versions of item 12 are entries of the bin like
+the others, so both caps and the age apply to them. A removal by the cap is
+logged and audited as `trash_over_cap` (`trash_over_quota` and
+`trash_expired` as before). Item 8's early expiry is therefore one rule with
+two bounds; the console's `early` flag is true when either is passed. What
+is removed is only an entry the walk of `.trash/` found, by its exact path
+through `verso_fs::trashbin::purge`, which refuses a path outside the bin;
+no pattern or prefix match is involved, and a test keeps a live note of the
+name of a purged entry. The desktop's own bin (`Workspace::sweep_trash`) has
+no size cap: the decision was about the server's trash.
+
+**Amendment (2026-11-01, review finding I5).** The size cap of the build above
+purged the newest entry too, at once, when it alone passed the cap (the sweep
+runs 5 s after a deletion): a folder of music deleted from the browser was
+unrecoverable five seconds later. Put to the maintainer with a recommendation;
+he chose both halves, *"Todas pode seguir sua recomendação"* ("follow your
+recommendation on all of them"; item 1 = c, never purging a young entry **and**
+warning before):
+
+1. **The cap counts an entry younger than a day but never removes it**
+   (`verso_core::trash::due`): it waits; the oldest of the rest still go while
+   the bin is over; the age cap (item 3) and the quota (item 8) are unchanged.
+   Once a day old, the entry is fair game.
+2. **The window warns before a deletion that alone passes the cap**: the
+   server's capabilities carry `trash_cap` (bytes; none without a cap, and the
+   desktop's own bin has none); the confirm of a delete (the tree's menu, the
+   selection, the keys) adds *it stays in the trash for 1 day, then goes for
+   good and cannot be restored* when the files under the paths, as the window
+   knows their sizes, add up past it. A contract change (an optional field of
+   `Capabilities`): deploy the server before the apps.
+

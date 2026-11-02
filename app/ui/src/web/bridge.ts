@@ -24,6 +24,7 @@ import { pickFiles } from "./pickFiles";
 import { readLinkCall } from "./readLinkOwner";
 import { FULL_RETRY, phonesFullMost } from "./phonesFull";
 import { w } from "./strings";
+import { sortMessage } from "../table/sound/frameHeader";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: unknown) => void };
 
@@ -51,6 +52,10 @@ let folderId: string | null = params.get("folder");
 let role: string | null = null;
 let openedOnce = false;
 let retry = 0;
+/** Connections in a row that the other end closed within [`LIVED`] of opening: the wait grows with them, so a server that accepts and closes at once is not asked once a second. */
+let quick = 0;
+let openedAt = 0;
+const LIVED = 10_000;
 let chooser: (() => Promise<string | null>) | null = null;
 /** The reconnection waiting its turn; a socket being made. */
 let reconnect = 0;
@@ -65,6 +70,8 @@ let visitor: string | null = null;
  *  left closed, not tried again. */
 let onLinkEnded: (() => void) | null = null;
 let linkEnded = false;
+/** Where a live share's frames go (`audio_share_hear`, the desktop host's channel answered here). */
+let audioFrames: { onmessage: (bytes: ArrayBuffer) => void } | null = null;
 
 /** The folder the tab shows, for the pages around the window. */
 export function currentFolderId(): string | null {
@@ -264,6 +271,7 @@ function connect(): void {
     connecting = false;
     open = true;
     const back = retry > 0 || routedOffline;
+    openedAt = Date.now();
     retry = 0;
     gaveUp = false;
     for (const v of verdicts.splice(0)) v("up");
@@ -315,7 +323,17 @@ function connect(): void {
     routedOffline = false;
     for (const w_ of waiting.splice(0)) ws.send(w_.text);
   });
-  ws.addEventListener("message", (e) => onMessage(String(e.data)));
+  // Sorted by the first byte before anything else is read (ADR 0116 item
+  // 19): text to the JSON path; an audio frame of a live share to the
+  // window's listener (`audio_share_hear`). A browser says no sync, so the
+  // server sends it no piece of a file as bytes: any other binary message
+  // is not for this window.
+  ws.binaryType = "arraybuffer";
+  ws.addEventListener("message", (e) => {
+    const m = sortMessage(e.data);
+    if (m?.kind === "text") onMessage(m.text);
+    else if (m?.kind === "audio") audioFrames?.onmessage(m.bytes.buffer as ArrayBuffer);
+  });
   ws.addEventListener("close", (ev) => {
     connecting = false;
     if (linkEnded) {
@@ -341,13 +359,14 @@ function connect(): void {
       pending.delete(id);
       p.reject({ kind: "unavailable", message: fullSaid ?? w().offline, transport: true } satisfies ContractError & { transport: boolean });
     }
+    quick = Date.now() - openedAt < LIVED ? quick + 1 : 0;
     retry++;
     // Dropped: said to the window as the desktop's host says it (ADR 0084
     // items 7 and 10), once per drop.
     if (retry === 1) void emit("server-gone", { url: location.origin, what: "connection", address: null, reason: null });
     // A folder kept on this device goes on from its copy (ADR 0092).
     wentDown();
-    reconnect = window.setTimeout(connect, fullSaid ? FULL_RETRY : Math.min(30_000, 1000 * 2 ** Math.min(retry, 5)));
+    reconnect = window.setTimeout(connect, fullSaid ? FULL_RETRY : Math.min(30_000, 1000 * 2 ** Math.min(retry + quick, 5)));
   });
 }
 
@@ -381,6 +400,11 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
   // window starts as a server's window that can only read the folder list.
   if (cmd === "capabilities" && folderId === null && isDown()) return done({ host: "server", can: ["account"], latency_ms: null });
   switch (cmd) {
+    // A live share's frames come on this socket itself (ADR 0116 item 19):
+    // they go to the channel the window gives, as the desktop's host does.
+    case "audio_share_hear":
+      audioFrames = (a.frames as { onmessage: (bytes: ArrayBuffer) => void } | undefined) ?? null;
+      return done(null);
     // "Import files…" (A11Y.10): the browser's own file picker, and the
     // chosen files' names and bytes, as the desktop host answers.
     case "pick_files":

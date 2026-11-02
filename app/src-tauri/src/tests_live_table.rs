@@ -180,6 +180,47 @@ fn a_reader_synced_to_the_folder_is_at_the_table_with_a_readers_powers() {
     }
 }
 
+/// The table's music (ADR 0116 section A) over the sync's link: the
+/// owner's synced window plays a file and controls it; a browser at the
+/// table hears the state with the server's clock; a reader's window has
+/// the clock and none of the controls.
+#[test]
+fn a_synced_folders_window_plays_music_at_the_servers_table() {
+    let r = serve(&[("Sessao.md", "# Sessao\n"), ("taverna.mp3", "ID3 a song")]);
+    let (d, _l) = linked(&r, &r.owner);
+    let mut web = browser(&r, &r.reader);
+    web.call("table_join", json!({})).unwrap();
+    let joined = cmd(&d, "table_join", json!({ "color": null, "styles": null })).unwrap();
+    assert_eq!(joined["play"], true, "{joined}");
+    assert_eq!(joined["playback"], json!([]));
+    let played = cmd(
+        &d,
+        "table_play",
+        json!({ "path": "taverna.mp3", "channel": "music", "positionMs": 0, "looping": false, "durationMs": 1000, "ask": true }),
+    )
+    .unwrap();
+    assert_eq!(played["playback"]["state"], "playing", "{played}");
+    let heard_web = web.event("table-playback");
+    assert_eq!(heard_web["source"]["path"], "taverna.mp3", "{heard_web}");
+    let paused = cmd(
+        &d,
+        "table_sound",
+        json!({ "wish": "pause", "revision": 1, "channel": "music" }),
+    )
+    .unwrap();
+    assert_eq!(paused["state"], "paused", "{paused}");
+    assert_eq!(heard(&d, "table-playback", 2).len(), 2);
+    let now = web.call("table_time", json!({})).unwrap();
+    assert!(now["now_ms"].as_f64().is_some_and(|t| t > 0.0), "{now}");
+    let e = web
+        .call(
+            "table_sound",
+            json!({ "wish": "resume", "revision": 2, "channel": "music" }),
+        )
+        .unwrap_err();
+    assert_eq!(e["kind"], "refused", "{e}");
+}
+
 #[test]
 fn the_campaign_controls_act_on_the_synced_server_folder_for_its_owner() {
     let r = serve(&[("Sessao.md", "# Sessao\n")]);
@@ -480,4 +521,40 @@ fn the_same_account_on_two_devices_hears_each_others_rolls_at_the_folders_table(
 #[test]
 fn the_same_account_on_two_devices_hears_each_others_rolls_at_a_subfolders_table() {
     same_account_hears_the_other_device("Mapa");
+}
+
+#[test]
+fn the_sharers_connection_carries_the_frames_of_its_share_and_the_listener_hears_it_end() {
+    let r = serve(&[("Sessao.md", "# Sessao\n")]);
+    let sharer = browser(&r, &r.owner);
+    let mut listener = browser(&r, &r.reader);
+    sharer.call("table_join", json!({})).unwrap();
+    listener.call("table_join", json!({})).unwrap();
+    let share = sharer
+        .call(
+            "table_share_start",
+            json!({ "share": { "name": "Test tone", "kind": "system", "bitrate_kbps": 96, "replace": false } }),
+        )
+        .unwrap();
+    let id = u32::try_from(share["id"].as_u64().unwrap()).unwrap();
+    assert!(verso_contract::is_audio_frame(&id.to_be_bytes()), "{share}");
+    let started = listener.event("table-share-started");
+    assert_eq!(started["id"], share["id"], "{started}");
+
+    // Frames as the host frames them, on the sharer's own connection.
+    for n in 0..25_u32 {
+        let header = verso_contract::FrameHeader {
+            share: id,
+            sequence: n,
+            timestamp_ms: n * 20,
+        };
+        let frame = header.frame(&[7; 200]).unwrap();
+        assert!(sharer.remote.send_audio(frame));
+    }
+    // The connection still answers after them: audio never wedged it.
+    assert!(sharer.call("table_time", json!({})).is_ok());
+
+    sharer.call("table_share_stop", json!({})).unwrap();
+    let stopped = listener.event("table-share-stopped");
+    assert_eq!(stopped["id"], share["id"], "{stopped}");
 }

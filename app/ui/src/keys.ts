@@ -5,6 +5,7 @@
 import { openSearchPanel } from "@codemirror/search";
 import { EditorState, type Extension, Prec } from "@codemirror/state";
 import { EditorView } from "codemirror";
+import { isLoose } from "./loose";
 import { insertBase, newBase } from "./bases";
 import { importFiles } from "./importFiles";
 import { imp } from "./importStrings";
@@ -55,6 +56,8 @@ import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts
 import { previewUnderCursor } from "./preview/install";
 import { pv } from "./preview/strings";
 import { collapseAll } from "./tree/tree";
+import { openTerminal, terminalOn } from "./terminal/open";
+import { tw } from "./terminal/strings";
 import { hasHostZoom, zoomIn, zoomLabels, zoomOut, zoomReset } from "./zoom";
 
 /* ---------- Commands: one registry for the palette, the keys and the settings ---------- */
@@ -273,6 +276,8 @@ export function allCommands(all = false): Command[] {
     { id: "import-files", label: imp.command, need: hasFolder, run: () => void importFiles(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "world-wizard", label: t.newWorld, need: hasFolder && hasCapability("campaignBundles"), run: () => showWorldWizard(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "open-console", label: t.openConsole, run: () => openConsole() },
+    // A terminal at the folder's root (ADR 0115 item 9), where the side has one and it is on.
+    { id: "new-terminal", label: tw.newTerminal, need: terminalOn(), run: () => void openTerminal("") },
     // ADR 0106: the diagram as it is arranged, written as a new board.
     { id: "diagram-save-board", label: dgw.saveBoard, need: leaf instanceof DataLeaf, run: () => leaf instanceof DataLeaf && leaf.saveBoard() },
     { id: "new-board", label: boardText.newBoard, need: hasFolder, run: () => void newBoard(settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")) },
@@ -300,7 +305,7 @@ export function allCommands(all = false): Command[] {
     { id: "reindex", label: t.reindex, need: hasFolder, run: () => void reindex() },
     { id: "graph-vault", label: t.graphWhole, need: hasFolder, run: () => (pane ?? paneToOpenIn()).openGraph("") },
     // The folder's trash (ADR 0080 item 4): for whoever may change the folder.
-    { id: "open-trash", label: trashStrings().open, need: hasFolder && may("", "delete"), run: () => settingsDialog.show("trash") },
+    { id: "open-trash", label: trashStrings().open, need: hasFolder && may("", "trash"), run: () => settingsDialog.show("trash") },
     // A file's version history (ADR 0091 item 5): for whoever may write it.
     { id: "version-history", label: historyStrings().command, need: historyFor(leaf?.path), run: () => leaf?.path && void openHistory(leaf.path) },
     { id: "report-bug", label: t.reportBug, run: () => bugDialog.show() },
@@ -343,7 +348,7 @@ export function allCommands(all = false): Command[] {
     { id: "bookmark", label: note && bookmarks.includes(note.path) ? t.unbookmark : t.bookmark, need: Boolean(note), run: () => note && toggleBookmark(note.path) },
     { id: "graph-note", label: t.graph, need: Boolean(note), run: () => note && pane?.openGraph(note.path) },
     { id: "rename", label: t.rename, need: Boolean(note), run: () => note?.renameHere() },
-    { id: "delete", label: t.deleteNote, need: Boolean(note), run: () => note && void deleteNote(note.path) },
+    { id: "delete", label: t.deleteNote, need: Boolean(note) && may(note?.path ?? "", "delete"), run: () => note && void deleteNote(note.path) },
     { id: "switch-focus", label: t.switchFocus, need: hasFolder, run: () => focusSwitcher.show() },
     // A roller without a note (ADR 0088 item 6): nothing written.
     { id: "roll-dice", label: ds.command, need: hasCapability("diceRolling"), run: () => openRoller() },
@@ -372,7 +377,9 @@ const WRITES = new Set([
  *  side can do it, and a phone shows more than one pane at a time. */
 function possible(id: string): boolean {
   if (WRITES.has(id)) return may("", "create");
-  if (id === "split-right" || id === "split-down" || id === "maximize") return !narrow.matches;
+  // The window of a file opened without its folder is one pane (ADR 0114 item 9).
+  if (id === "split-right" || id === "split-down") return !narrow.matches && !isLoose();
+  if (id === "maximize") return !narrow.matches;
   if (id === "new-window" || id === "new-window-here") return can("windows");
   if (id === "open-console") return can("devtools") && !narrow.matches;
   if (id === "zoom-in" || id === "zoom-out" || id === "zoom-reset") return hasHostZoom();

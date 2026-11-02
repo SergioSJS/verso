@@ -10,7 +10,7 @@
   fixes among them — was written by Opus 5.5; and the fixes of this pass,
   written by Opus 5.5, have not been read by anyone else yet.
 - Input: a static reading of `app/ui` (`index.html`, `style.css`,
-  `src/*.ts` except the generated `bindings.ts`) at `1222492`, the merge
+  `src/*.ts` except the generated `bindings.ts`) at `6cc0714`, the merge
   of v0.2.0-beta.1 on `main`. The window was not run, and no screen reader
   was used (section 9). Contrast was computed from the style sheet's
   colours: every `oklch()` token of every palette, light and dark,
@@ -29,8 +29,8 @@
   branches under it (the beta's fixes, the watcher, nested callouts, the
   decision memos): thirteen commits of the window's code (section 7) —
   TypeScript, CSS and HTML under `app/ui`; no Rust, no contract, no new
-  dependency — then this record and the changelog, `0d27fcc` where the pass
-  meets the watcher, and `f80fe96`, the reading's fixes (section 11).
+  dependency — then this record and the changelog, `432c4da` where the pass
+  meets the watcher, and `0fa27eb`, the reading's fixes (section 11).
 - State: no BLOCKING finding. Of the IMPORTANT findings, all but two are
   fixed on the branch; those two — the controls' boundaries and the
   tree's pattern — wait for the maintainer or are recorded as deferred.
@@ -76,7 +76,7 @@ Escape, focus given back); the status line, a polite live region through
 which search counts, indexing and errors already went; the hotkeys, every
 one with ⌘ or Ctrl (2.1.4); reduced motion for every animation and
 transition of the style sheet; secondary text at 4.51:1 or more (the fix
-of `83d4a0a`, confirmed); the page's language; the conflict and plan
+of `7ba8d39`, confirmed); the page's language; the conflict and plan
 diffs, which mark lines with "+" and "−" as well as with colour (1.4.1);
 the dividers, the callouts, the `/` menu and the palette, which already
 answered the keyboard.
@@ -87,19 +87,19 @@ answered the keyboard.
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | IMPORTANT | A tab moved only by dragging it: along its bar, to another pane, onto another workspace's tab (2.1.1, 2.5.7). `app-decision.md` §10 recorded it | **Fixed** in `4784d50`: in the tab's menu (the menu key or Shift-F10 on a tab), the palette and Settings → Hotkeys: "Move tab back", "Move tab forward", "Move tab to the next pane", "… to the previous pane", and in the menu "Move to: ⟨workspace⟩" for every other workspace. No default keys (section 8, item 7). The drop on a workspace's tab now shares the menu's function, which also fixes a focused pane left pointing at the other workspace |
-| 2 | IMPORTANT | A file moved by keyboard only from a file's row in the tree: a folder's row had no keyboard menu, an open tab no "Move to…", and the field that "Move to…" opens lives in the sidebar, where a hidden sidebar kept it from taking the focus, so the command seemed to do nothing | **Fixed** in `3335369` (a folder's row opens its menu from the keyboard; the sidebar's fields show the sidebar first; Enter and Escape give the focus back) and `4784d50` ("Move to…" in the tab's menu and the palette) |
-| 3 | IMPORTANT | The reading view's wikilinks and tags could not be reached: the core writes them as `<a>` with no address (`crates/verso-dialect/src/render.rs`), which is neither focusable nor a link; so was a file embed opened by a click (2.1.1, 4.1.2) | **Fixed** in `989818b`: marked after the sanitizer as links in the Tab order; Enter clicks them. The core's HTML is unchanged |
-| 4 | IMPORTANT | A pane's tabs: every tab a Tab stop, the arrows doing nothing | **Fixed** in `21e991a`: one Tab stop per tab bar; the arrows along the bar, Home and End choose a tab; the workspaces' bar and the right panel's tabs the same way |
-| 5 | IMPORTANT | A menu item chosen from the keyboard (pin a tab, copy a path…) closed the menu and left the focus on the page; Tab out of a menu did the same (2.4.3) | **Fixed** in `4164414`: the focus goes back to what opened the menu before the item runs; Tab gives it back as Escape did |
-| 6 | IMPORTANT | The file tree: the arrows did nothing, and the tree was redrawn — a rename, a delete, a move, a search, soon a change made outside — with the focus dropped on the page | **Partly fixed** in `3335369`: the arrows walk the rows, Right and Left open, close, enter and leave folders, Home and End; redrawn, the tree and the folder view give the keyboard its row back, and a rename or a move made from the tree lands on the entry. **Recorded, not done:** the tree keeps its native roles (buttons, disclosure summaries, nested lists), each row still a Tab stop; an ARIA `tree` with one Tab stop is a larger change to the tree's drawing, deferred with this record rather than made statically, without a screen reader to check it |
-| 7 | IMPORTANT | Closing a tab from the keyboard — ⌘W, its menu, "Close others", "Close all" — left the focus on the page | **Fixed** in `78983ef`: it lands on the tab now in front (the content when the bar is hidden, the pane's tools when no tab is left) |
-| 8 | MINOR | The ribbon reordered only by dragging; its menu (hide, show, reset) opened only by a right click; a ribbon toggle pressed from the keyboard dropped the focus (the ribbon is redrawn) | **Fixed** in `4164414`: the menu opens from the keyboard and offers "Move up" and "Move down"; redrawn, the ribbon gives the focus back |
-| 9 | MINOR | The graph: every note a Tab stop, hundreds of them before the graph's controls; a focused note could be outside the visible stage (2.4.11) | **Fixed** in `98024c4`: one Tab stop, the arrows walk the notes, a focused note is panned into view and lights its links. Panning by keyboard is still the zoom buttons and "See everything" |
-| 10 | MINOR | An image tab switched to its actual size by a click only, and could not take the focus, so a large image could not be scrolled from the keyboard | **Fixed** in `8ff41c4`: a toggle for Enter and Space, focusable, its state said |
-| 11 | MINOR | A PDF's pages could not take the focus (the style sheet also removed its ring): no keyboard scrolling inside a page | **Fixed** in `8ff41c4`: a region named after the file, in the Tab order |
-| 12 | MINOR | A web note's address, which opens the page in a window of its own, was a clickable `span` | **Fixed** in `8ff41c4`: a button |
-| 13 | MINOR | In a note, Tab indents: CodeMirror's way out (Escape then Tab, or ⇧⌥M) was not told anywhere (2.1.2 asks that a way out other than Tab be told) | **Fixed** in `b2e933d`: Settings → Hotkeys says it |
+| 1 | IMPORTANT | A tab moved only by dragging it: along its bar, to another pane, onto another workspace's tab (2.1.1, 2.5.7). `app-decision.md` §10 recorded it | **Fixed** in `6a12a34`: in the tab's menu (the menu key or Shift-F10 on a tab), the palette and Settings → Hotkeys: "Move tab back", "Move tab forward", "Move tab to the next pane", "… to the previous pane", and in the menu "Move to: ⟨workspace⟩" for every other workspace. No default keys (section 8, item 7). The drop on a workspace's tab now shares the menu's function, which also fixes a focused pane left pointing at the other workspace |
+| 2 | IMPORTANT | A file moved by keyboard only from a file's row in the tree: a folder's row had no keyboard menu, an open tab no "Move to…", and the field that "Move to…" opens lives in the sidebar, where a hidden sidebar kept it from taking the focus, so the command seemed to do nothing | **Fixed** in `3fa70ab` (a folder's row opens its menu from the keyboard; the sidebar's fields show the sidebar first; Enter and Escape give the focus back) and `6a12a34` ("Move to…" in the tab's menu and the palette) |
+| 3 | IMPORTANT | The reading view's wikilinks and tags could not be reached: the core writes them as `<a>` with no address (`crates/verso-dialect/src/render.rs`), which is neither focusable nor a link; so was a file embed opened by a click (2.1.1, 4.1.2) | **Fixed** in `12ea198`: marked after the sanitizer as links in the Tab order; Enter clicks them. The core's HTML is unchanged |
+| 4 | IMPORTANT | A pane's tabs: every tab a Tab stop, the arrows doing nothing | **Fixed** in `4698741`: one Tab stop per tab bar; the arrows along the bar, Home and End choose a tab; the workspaces' bar and the right panel's tabs the same way |
+| 5 | IMPORTANT | A menu item chosen from the keyboard (pin a tab, copy a path…) closed the menu and left the focus on the page; Tab out of a menu did the same (2.4.3) | **Fixed** in `9de7f4b`: the focus goes back to what opened the menu before the item runs; Tab gives it back as Escape did |
+| 6 | IMPORTANT | The file tree: the arrows did nothing, and the tree was redrawn — a rename, a delete, a move, a search, soon a change made outside — with the focus dropped on the page | **Partly fixed** in `3fa70ab`: the arrows walk the rows, Right and Left open, close, enter and leave folders, Home and End; redrawn, the tree and the folder view give the keyboard its row back, and a rename or a move made from the tree lands on the entry. **Recorded, not done:** the tree keeps its native roles (buttons, disclosure summaries, nested lists), each row still a Tab stop; an ARIA `tree` with one Tab stop is a larger change to the tree's drawing, deferred with this record rather than made statically, without a screen reader to check it |
+| 7 | IMPORTANT | Closing a tab from the keyboard — ⌘W, its menu, "Close others", "Close all" — left the focus on the page | **Fixed** in `9a964f5`: it lands on the tab now in front (the content when the bar is hidden, the pane's tools when no tab is left) |
+| 8 | MINOR | The ribbon reordered only by dragging; its menu (hide, show, reset) opened only by a right click; a ribbon toggle pressed from the keyboard dropped the focus (the ribbon is redrawn) | **Fixed** in `9de7f4b`: the menu opens from the keyboard and offers "Move up" and "Move down"; redrawn, the ribbon gives the focus back |
+| 9 | MINOR | The graph: every note a Tab stop, hundreds of them before the graph's controls; a focused note could be outside the visible stage (2.4.11) | **Fixed** in `0747e3b`: one Tab stop, the arrows walk the notes, a focused note is panned into view and lights its links. Panning by keyboard is still the zoom buttons and "See everything" |
+| 10 | MINOR | An image tab switched to its actual size by a click only, and could not take the focus, so a large image could not be scrolled from the keyboard | **Fixed** in `c076962`: a toggle for Enter and Space, focusable, its state said |
+| 11 | MINOR | A PDF's pages could not take the focus (the style sheet also removed its ring): no keyboard scrolling inside a page | **Fixed** in `c076962`: a region named after the file, in the Tab order |
+| 12 | MINOR | A web note's address, which opens the page in a window of its own, was a clickable `span` | **Fixed** in `c076962`: a button |
+| 13 | MINOR | In a note, Tab indents: CodeMirror's way out (Escape then Tab, or ⇧⌥M) was not told anywhere (2.1.2 asks that a way out other than Tab be told) | **Fixed** in `fb0e270`: Settings → Hotkeys says it |
 | 14 | MINOR | In Live Preview and Source, a wikilink opens with ⌘-click only; nothing follows the link under the caret | **Recorded.** The reading view (finding 3) and the right panel's "Outgoing links" reach the same notes. A command to follow the link under the caret is section 8, item 11 |
 | 15 | MINOR | In a folder's own note, shown at the top of the folder view, wikilinks do nothing, by the pointer or the keyboard: no handler reaches them | **Recorded, not fixed:** a gap of the folder view, not of accessibility alone; this pass left the folder note's links as they were rather than make inert links focusable |
 | 16 | MINOR | The dividers move by the arrow keys but have no single-pointer way (2.5.7), and say their value only after a key press — the panes' in percent, the sidebars' in pixels against the default range of 0 to 100 | **Recorded**; section 8, item 9 |
@@ -111,21 +111,21 @@ answered the keyboard.
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | IMPORTANT | Tabs: `tablist` on a box that also held the pane's tools; the tabs were buttons, on which `aria-selected` means nothing; a tab's name ended in "Close tab" (the hidden close mark was read with it); no panels. The workspaces' tablist held the "new workspace" button; the right panel's tabs had no panel (4.1.2, 1.3.1) | **Fixed** in `21e991a`: `tab`s of a `tablist` of their own, each controlling the `tabpanel` it names; the marks out of the names |
-| 2 | IMPORTANT | The note editor and the text-file editor — CodeMirror's content element — had no name (4.1.2) | **Fixed** in `57c7a6d`: named after the note or the file |
-| 3 | IMPORTANT | The properties panel: value fields and checkboxes unnamed (the placeholder said "Empty"), remove buttons that did not say what they remove, the "↗" button named by its arrow (4.1.2, 3.3.2) | **Fixed** in `57c7a6d`: named by their key or item |
-| 4 | IMPORTANT | A task's checkbox in the reading view had no name: reached with Tab, it said "checkbox" (4.1.2) | **Fixed** in `989818b`: named by its item's own words |
-| 5 | MINOR | The folder button showed the folder's name and was named "Open folder": a voice command that says what is on screen does not reach it (2.5.3) | **Fixed** in `57c7a6d`: "⟨folder⟩ — Open folder" |
-| 6 | MINOR | The sidebar and right-panel toggles showed their state by a dimmer icon only | **Fixed** in `8ff41c4`: `aria-expanded`, in a narrow window's drawers too |
-| 7 | MINOR | The folder view's sort was `aria-sort` on buttons, where it means nothing | **Fixed** in `8ff41c4`: the column's name says "ascending" or "descending" |
-| 8 | MINOR | Regions: the ribbon was a navigation named "Verso"; the two side regions had no names; every tab's folder path was an unnamed navigation | **Fixed** in `57c7a6d`: "Commands", "Folder", "Side panel", "Path" |
-| 9 | MINOR | The search fields of the settings, the graph and a PDF had a placeholder and no name | **Fixed** in `57c7a6d` |
-| 10 | MINOR | "Português (Brasil)" and "English" in the language setting were not marked as their own language (3.1.2) | **Fixed** in `57c7a6d` |
-| 11 | MINOR | Menus: a `li` between the `menu` and its `menuitem`s, unmarked separators, no `aria-haspopup` on the buttons that open one | **Fixed** in `4164414` |
-| 12 | MINOR | The unsaved marks were read aloud as "bullet": the tab's drawn dot and the title's "•" | **Fixed** in `21e991a`: the tab says "unsaved changes"; the marks are not read |
-| 13 | MINOR | A footnote's way back was named "↩" | **Fixed** in `989818b`: "Back to the text" |
-| 14 | MINOR | The tree's rename field and the "Move to…" field did not name the entry they act on | **Fixed** in `3335369` |
-| 15 | MINOR | The graph's drawing had no name | **Fixed** in `98024c4`: a group named by the graph's title |
+| 1 | IMPORTANT | Tabs: `tablist` on a box that also held the pane's tools; the tabs were buttons, on which `aria-selected` means nothing; a tab's name ended in "Close tab" (the hidden close mark was read with it); no panels. The workspaces' tablist held the "new workspace" button; the right panel's tabs had no panel (4.1.2, 1.3.1) | **Fixed** in `4698741`: `tab`s of a `tablist` of their own, each controlling the `tabpanel` it names; the marks out of the names |
+| 2 | IMPORTANT | The note editor and the text-file editor — CodeMirror's content element — had no name (4.1.2) | **Fixed** in `ad133cc`: named after the note or the file |
+| 3 | IMPORTANT | The properties panel: value fields and checkboxes unnamed (the placeholder said "Empty"), remove buttons that did not say what they remove, the "↗" button named by its arrow (4.1.2, 3.3.2) | **Fixed** in `ad133cc`: named by their key or item |
+| 4 | IMPORTANT | A task's checkbox in the reading view had no name: reached with Tab, it said "checkbox" (4.1.2) | **Fixed** in `12ea198`: named by its item's own words |
+| 5 | MINOR | The folder button showed the folder's name and was named "Open folder": a voice command that says what is on screen does not reach it (2.5.3) | **Fixed** in `ad133cc`: "⟨folder⟩ — Open folder" |
+| 6 | MINOR | The sidebar and right-panel toggles showed their state by a dimmer icon only | **Fixed** in `c076962`: `aria-expanded`, in a narrow window's drawers too |
+| 7 | MINOR | The folder view's sort was `aria-sort` on buttons, where it means nothing | **Fixed** in `c076962`: the column's name says "ascending" or "descending" |
+| 8 | MINOR | Regions: the ribbon was a navigation named "Verso"; the two side regions had no names; every tab's folder path was an unnamed navigation | **Fixed** in `ad133cc`: "Commands", "Folder", "Side panel", "Path" |
+| 9 | MINOR | The search fields of the settings, the graph and a PDF had a placeholder and no name | **Fixed** in `ad133cc` |
+| 10 | MINOR | "Português (Brasil)" and "English" in the language setting were not marked as their own language (3.1.2) | **Fixed** in `ad133cc` |
+| 11 | MINOR | Menus: a `li` between the `menu` and its `menuitem`s, unmarked separators, no `aria-haspopup` on the buttons that open one | **Fixed** in `9de7f4b` |
+| 12 | MINOR | The unsaved marks were read aloud as "bullet": the tab's drawn dot and the title's "•" | **Fixed** in `4698741`: the tab says "unsaved changes"; the marks are not read |
+| 13 | MINOR | A footnote's way back was named "↩" | **Fixed** in `12ea198`: "Back to the text" |
+| 14 | MINOR | The tree's rename field and the "Move to…" field did not name the entry they act on | **Fixed** in `3fa70ab` |
+| 15 | MINOR | The graph's drawing had no name | **Fixed** in `0747e3b`: a group named by the graph's title |
 | 16 | MINOR | An item of a list property that is not a tag is shown as a disabled button | **Recorded**: read as "dimmed button", which says the wrong thing; a plain text pill is the fix, a change of the panel's drawing left for a later pass |
 | 17 | MINOR | The quick switcher and the palette keep `aria-expanded="true"` with an empty list, and do not say how many results there are | **Recorded** |
 | 18 | MINOR | In pt-BR, "área" names both a pane and a workspace: "Fechar área" is both "Close pane" and "Close workspace", two controls with one name | **The maintainer's**: a wording choice; section 8, item 8 |
@@ -134,8 +134,8 @@ answered the keyboard.
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | IMPORTANT | A write refused because the file changed on disk showed the conflict banner above the text and cleared the status line: a screen reader heard nothing, and whoever kept typing did not learn that nothing was being saved (4.1.3) | **Fixed** in `519b1eb`: the status line says "Nothing written: the file changed on disk — choose above…", and is announced |
-| 2 | MINOR | A PDF's search count ("3 of 10", "Nothing found") and the graph's count of notes and links were not announced (4.1.3) | **Fixed** in `519b1eb` |
+| 1 | IMPORTANT | A write refused because the file changed on disk showed the conflict banner above the text and cleared the status line: a screen reader heard nothing, and whoever kept typing did not learn that nothing was being saved (4.1.3) | **Fixed** in `7096629`: the status line says "Nothing written: the file changed on disk — choose above…", and is announced |
+| 2 | MINOR | A PDF's search count ("3 of 10", "Nothing found") and the graph's count of notes and links were not announced (4.1.3) | **Fixed** in `7096629` |
 | 3 | MINOR | "Saved." is announced after every autosave, every time typing pauses: the status line is live, and a screen reader hears it while writing | **The maintainer's**: whether routine saves are announced; section 8, item 6 |
 | 4 | MINOR | While a folder opens, the status line says "…", which a screen reader reads as a symbol | **Recorded** |
 
@@ -143,10 +143,10 @@ answered the keyboard.
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | IMPORTANT | The focus ring was the brass accent: 2.87:1 on the ribbon and 2.97:1 on the current row's wash in the default light palette, under the 3:1 an indicator needs (1.4.11, 2.4.7) | **Fixed** in `78983ef`: brass as text is drawn (`--brass-ink`), 4.51:1 or more on every paper, wash and palette; dark mode's ring, the same brass as before, 6.10:1 or more on the papers and the red wash, 5.89:1 on the brass wash in sepia |
-| 2 | IMPORTANT | A menu's focused item and a list's chosen option (the palette, the quick switcher, the `/` menu, the editor's completions) were shown by a wash 1.15:1 to 1.28:1 against the page and a change of text colour; the menu removed its ring (1.4.11) | **Fixed** in `78983ef`: an inset ring marks them |
-| 3 | MINOR | The "Edit beside" button of an embedded note and the "Edit" button of a folder's note were invisible when focused (shown on hover only); a pane's tools stayed at 55% opacity with the focus among them (2.4.7) | **Fixed** in `78983ef` |
-| 4 | MINOR | The properties panel's list field showed no focus | **Fixed** in `78983ef` |
+| 1 | IMPORTANT | The focus ring was the brass accent: 2.87:1 on the ribbon and 2.97:1 on the current row's wash in the default light palette, under the 3:1 an indicator needs (1.4.11, 2.4.7) | **Fixed** in `9a964f5`: brass as text is drawn (`--brass-ink`), 4.51:1 or more on every paper, wash and palette; dark mode's ring, the same brass as before, 6.10:1 or more on the papers and the red wash, 5.89:1 on the brass wash in sepia |
+| 2 | IMPORTANT | A menu's focused item and a list's chosen option (the palette, the quick switcher, the `/` menu, the editor's completions) were shown by a wash 1.15:1 to 1.28:1 against the page and a change of text colour; the menu removed its ring (1.4.11) | **Fixed** in `9a964f5`: an inset ring marks them |
+| 3 | MINOR | The "Edit beside" button of an embedded note and the "Edit" button of a folder's note were invisible when focused (shown on hover only); a pane's tools stayed at 55% opacity with the focus among them (2.4.7) | **Fixed** in `9a964f5` |
+| 4 | MINOR | The properties panel's list field showed no focus | **Fixed** in `9a964f5` |
 | 5 | MINOR | The palette's field and the editors remove the ring and rely on the caret | **Recorded, kept**: a text field's caret shows where the focus is |
 
 ## 5. Colour and contrast
@@ -160,19 +160,19 @@ background, and every pair in dark mode.
 
 | Pair | Where | Before (worst) | After (worst) |
 |---|---|---|---|
-| Focus ring on the ribbon | brass on paper-3, default light | 2.87:1 | 4.51:1 (`78983ef`) |
-| Focus ring on the current row | brass on the seal wash, default light | 2.97:1 | 4.71:1 (`78983ef`) |
-| Warning callout title | light, every palette | 3.29:1 | 4.79:1 (`12f1043`) |
-| Note callout title | light, sepia | 4.41:1 | 4.80:1 (`12f1043`) |
-| Tip callout title | light, sepia and moss | 4.23:1 | 4.80:1 (`12f1043`) |
-| Title of a callout kind with no colour of its own (`todo`, `important`, any other) | light, every palette | 3.19:1 | 5.01:1 (`f80fe96`) |
-| A menu's item, a list's option | the wash against the page | 1.15:1 | an inset ring, 4.51:1 or more (`78983ef`) |
+| Focus ring on the ribbon | brass on paper-3, default light | 2.87:1 | 4.51:1 (`9a964f5`) |
+| Focus ring on the current row | brass on the seal wash, default light | 2.97:1 | 4.71:1 (`9a964f5`) |
+| Warning callout title | light, every palette | 3.29:1 | 4.79:1 (`1208faf`) |
+| Note callout title | light, sepia | 4.41:1 | 4.80:1 (`1208faf`) |
+| Tip callout title | light, sepia and moss | 4.23:1 | 4.80:1 (`1208faf`) |
+| Title of a callout kind with no colour of its own (`todo`, `important`, any other) | light, every palette | 3.19:1 | 5.01:1 (`0fa27eb`) |
+| A menu's item, a list's option | the wash against the page | 1.15:1 | an inset ring, 4.51:1 or more (`9a964f5`) |
 | Field borders | hairline on the page, every mode | 1.36:1 | the maintainer's (item 4 of section 8) |
 | A switch that is off | track fill and border on the page | 1.20:1 and 1.36:1 | the maintainer's (item 4 of section 8) |
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | IMPORTANT | Callout titles under 4.5:1 in light mode (table above) (1.4.3) | **Fixed** in `12f1043`: only the lightness changes, as in `83d4a0a`; the kinds with no colour of their own in `f80fe96`, which gives them `--brass-ink` (section 11) |
+| 1 | IMPORTANT | Callout titles under 4.5:1 in light mode (table above) (1.4.3) | **Fixed** in `1208faf`: only the lightness changes, as in `7ba8d39`; the kinds with no colour of their own in `0fa27eb`, which gives them `--brass-ink` (section 11) |
 | 2 | IMPORTANT | Controls' boundaries under 3:1: the fields' hairline borders, and a switch that is off, whose track and border barely differ from the page (1.4.11) | **The maintainer's**: the hairline is the design's language; section 8, item 4, with a proposal |
 | 3 | MINOR | The graph colours notes by folder, and colour alone says which (1.4.1); the legend names the colours, a screen reader hears the note's name only | **The maintainer's**: section 8, item 12 |
 
@@ -180,8 +180,8 @@ background, and every pair in dark mode.
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | IMPORTANT | Text could grow to 147% only: the window has no page zoom (the host leaves Tauri's zoom keys off) and the font size setting stopped at 22 px, over a default of 15 px (1.4.4 asks 200%) | **Fixed** in `eb2b0dd`: the setting goes to 30 px, 200%; the interface and the notes follow it (rem). The host's page zoom is section 8, item 5 |
-| 2 | MINOR | Following a footnote, or coming back from one, scrolled smoothly when the system asks for reduced motion (2.3.3) | **Fixed** in `eb2b0dd` |
+| 1 | IMPORTANT | Text could grow to 147% only: the window has no page zoom (the host leaves Tauri's zoom keys off) and the font size setting stopped at 22 px, over a default of 15 px (1.4.4 asks 200%) | **Fixed** in `090d6a1`: the setting goes to 30 px, 200%; the interface and the notes follow it (rem). The host's page zoom is section 8, item 5 |
+| 2 | MINOR | Following a footnote, or coming back from one, scrolled smoothly when the system asks for reduced motion (2.3.3) | **Fixed** in `090d6a1` |
 | 3 | MINOR | Small targets (2.5.8): a tab's close mark about 17 px, a list pill's remove about 14 px, the status bar's toggles about 19 px, under 24 px and too close to other targets | **The maintainer's**: bigger targets change the tab bar's height; section 8, item 13 |
 
 ## 7. The resolution
@@ -192,21 +192,21 @@ more:
 
 | Commit | What |
 |---|---|
-| `21e991a` | Tab bars are tablists the keyboard can walk (1.4, 2.1, 2.12) |
-| `4784d50` | A tab, or its file, moved without dragging (1.1, 1.2) |
-| `3335369` | The tree answers the arrow keys and keeps the keyboard's place; the sidebar's fields show it (1.2, 1.6, 2.14) |
-| `4164414` | Menus give the focus back; the ribbon's menu from the keyboard (1.5, 1.8, 2.11) |
-| `989818b` | The reading view's links and tasks reach the keyboard (1.3, 2.4, 2.13) |
-| `57c7a6d` | Names: the editors, the properties, the regions, the fields (2.2, 2.3, 2.5, 2.8, 2.9, 2.10) |
-| `8ff41c4` | States, and the controls that answered the pointer only (1.10, 1.11, 1.12, 2.6, 2.7) |
-| `519b1eb` | A refused write, a PDF's matches and the graph's count announced (3.1, 3.2) |
-| `78983ef` | A focus ring that shows everywhere; a focus that stays put (1.7, 4.1–4.4) |
-| `12f1043` | Callout titles at 4.5:1 (5.1) |
-| `eb2b0dd` | Text to 200%; reduced motion for footnotes (6.1, 6.2) |
-| `98024c4` | The graph, one Tab stop that the arrows walk (1.9, 2.15) |
-| `b2e933d` | How the keyboard leaves an editor, said (1.13) |
-| `0d27fcc` | Where the pass meets the watcher: a tab whose note is gone says so, not by its styling alone |
-| `f80fe96` | The reading's findings (section 11) |
+| `4698741` | Tab bars are tablists the keyboard can walk (1.4, 2.1, 2.12) |
+| `6a12a34` | A tab, or its file, moved without dragging (1.1, 1.2) |
+| `3fa70ab` | The tree answers the arrow keys and keeps the keyboard's place; the sidebar's fields show it (1.2, 1.6, 2.14) |
+| `9de7f4b` | Menus give the focus back; the ribbon's menu from the keyboard (1.5, 1.8, 2.11) |
+| `12ea198` | The reading view's links and tasks reach the keyboard (1.3, 2.4, 2.13) |
+| `ad133cc` | Names: the editors, the properties, the regions, the fields (2.2, 2.3, 2.5, 2.8, 2.9, 2.10) |
+| `c076962` | States, and the controls that answered the pointer only (1.10, 1.11, 1.12, 2.6, 2.7) |
+| `7096629` | A refused write, a PDF's matches and the graph's count announced (3.1, 3.2) |
+| `9a964f5` | A focus ring that shows everywhere; a focus that stays put (1.7, 4.1–4.4) |
+| `1208faf` | Callout titles at 4.5:1 (5.1) |
+| `090d6a1` | Text to 200%; reduced motion for footnotes (6.1, 6.2) |
+| `0747e3b` | The graph, one Tab stop that the arrows walk (1.9, 2.15) |
+| `fb0e270` | How the keyboard leaves an editor, said (1.13) |
+| `432c4da` | Where the pass meets the watcher: a tab whose note is gone says so, not by its styling alone |
+| `0fa27eb` | The reading's findings (section 11) |
 
 New strings come in pairs, pt-BR and English, in the window's typed
 catalog, so a missing one fails the type check
@@ -242,8 +242,8 @@ is a row of the roadmap (V.13).
    ADR 0032 is recorded here and in the PR that carries the fixes.
 
 2. **The audit's own author.** Part of the window it audits — the fixes of
-   2026-09-23, earlier accessibility fixes among them (`73e215e`,
-   `83d4a0a`) — was written by Opus 5.5. Recorded; whether another model
+   2026-09-23, earlier accessibility fixes among them (`63f1480`,
+   `7ba8d39`) — was written by Opus 5.5. Recorded; whether another model
    reads the window again is the maintainer's.
    **Resolved 2026-10-21** (A11Y.2, option A): only recorded, and joined
    with the reading of item 1; one reading settles both. The window is not
@@ -467,24 +467,24 @@ without the mouse:
 ## 11. The reading
 
 A fresh Opus 5.5 session read the pass and its join with the watcher
-(`4a9ae09..0d27fcc`), standing in for the other model by the maintainer's
+(`403c0d8..432c4da`), standing in for the other model by the maintainer's
 decision of 2026-09-23 — the same model that wrote the pass, which is
 item 1 of section 8. It found no BLOCKING, 5 IMPORTANT and 17 MINOR:
 
-- IMPORTANT, fixed in `f80fe96`: a redraw of the reading view (a task
+- IMPORTANT, fixed in `0fa27eb`: a redraw of the reading view (a task
   checked, the note read again) dropped the focus; a link in a foldable
   callout's title sat inside the title's button; the titles of kinds with
   no colour of their own stayed under 4.5:1 in light mode.
 - IMPORTANT, fixed in this record: its hashes named the commits before the
   restack; step 10 of section 10 no longer worked with the watcher.
-- MINOR, fixed in `f80fe96`: the ribbon's New menu, a pane's only tab moved
+- MINOR, fixed in `0fa27eb`: the ribbon's New menu, a pane's only tab moved
   to another workspace, a link followed with Enter, the title's and the
   workspace's renames, the narrow window's drawer, "All tabs" and its
   bullet, "deleted or moved", Esc then Tab within two seconds, "Move tab"
   where it moves nothing.
 - MINOR, fixed earlier: the crossed-out tab's contrast and a redraw under a
-  folder's rename (the watcher's reading, `7190830`); the changelog's
-  wording (`f37207c`).
+  folder's rename (the watcher's reading, `be3be5b`); the changelog's
+  wording (`64673e4`).
 - MINOR, recorded here: the dark ring's figure (section 5), the tree's
   deferral, the graph's count and the press near its edge (section 8, items
   15 to 17), and the roadmap's line, which now points here rather than

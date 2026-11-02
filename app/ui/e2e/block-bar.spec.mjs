@@ -122,8 +122,17 @@ test("a jump to the end of a long note draws its marks at once, not raw until th
   // One read, two frames after the jump: the note's `---` rules and `## `
   // marks are hidden by then (the syntax tree is parsed up to the screen's end
   // before the marks are drawn), not after the background parse catches up.
+  // Judged by the lines themselves, not by the text anywhere: a screen as tall
+  // as a tablet's also holds the note's `---` inside code spans, which stay.
   const raw = await page.evaluate(
-    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(() => done(document.querySelector(".pane.focused .cm-content").textContent.includes("---"))))),
+    () =>
+      new Promise((done) =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() =>
+            done([...document.querySelectorAll(".pane.focused .cm-content .cm-line")].some((l) => l.textContent.trim() === "---" || l.textContent.startsWith("## "))),
+          ),
+        ),
+      ),
   );
   expect(raw).toBe(false);
 });

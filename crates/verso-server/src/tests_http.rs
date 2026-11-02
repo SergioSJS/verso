@@ -200,6 +200,91 @@ fn a_public_address_keeps_the_host_rule_and_no_address_answers_only_what_cannot_
     });
 }
 
+/// B13 (ADR 0073, decided 2026-10-31): with a public address, a browser that
+/// comes by another name is shown a page in both languages naming the right
+/// address; the status stays 421, and an API call, a WebSocket and a request
+/// that does not ask for HTML keep the JSON refusal.
+#[test]
+fn a_browser_at_the_old_address_is_shown_the_right_one_and_a_client_keeps_the_json() {
+    block_on(async {
+        let r = start_with(|c| {
+            listening_on_the_network(c);
+            c.public_url = Some("https://universo.casa.lan".to_owned());
+        })
+        .await;
+        let get = |path: &'static str, accept: Option<&'static str>, lang: Option<&'static str>| {
+            let url = r.url(path);
+            async move {
+                let mut req = reqwest::Client::new().get(url).header("host", LAN);
+                if let Some(a) = accept {
+                    req = req.header("accept", a);
+                }
+                if let Some(l) = lang {
+                    req = req.header("accept-language", l);
+                }
+                req.send().await.unwrap()
+            }
+        };
+        let browser = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8";
+        let res = get("/", Some(browser), Some("pt-BR,pt;q=0.9")).await;
+        assert_eq!(res.status().as_u16(), 421);
+        assert!(
+            res.headers()["content-type"]
+                .to_str()
+                .unwrap()
+                .starts_with("text/html")
+        );
+        assert_eq!(res.headers()["cache-control"], "no-store");
+        assert!(
+            res.headers()["content-security-policy"]
+                .to_str()
+                .unwrap()
+                .starts_with("default-src 'none'")
+        );
+        let body = res.text().await.unwrap();
+        assert!(
+            body.contains("<a href=\"https://universo.casa.lan\">"),
+            "{body}"
+        );
+        assert!(body.contains("Este endereço mudou") && body.contains("This address has changed"));
+        assert!(body.find("Este endere").unwrap() < body.find("This address").unwrap());
+        // Nothing of what was sent is written into the page.
+        assert!(!body.contains(LAN), "{body}");
+        let en = get("/anything", Some(browser), Some("en-US")).await;
+        let body = en.text().await.unwrap();
+        assert!(body.find("This address").unwrap() < body.find("Este endere").unwrap());
+        // The same 421 for a client: JSON for the API, for no Accept and for
+        // a request that asks for JSON.
+        for (path, accept) in [
+            ("/api/signin", Some(browser)),
+            ("/", None),
+            ("/", Some("application/json")),
+        ] {
+            let res = get(path, accept, None).await;
+            assert_eq!(res.status().as_u16(), 421, "{path}");
+            let body: serde_json::Value = res.json().await.unwrap();
+            assert_eq!(body["error"], "host", "{path}");
+        }
+        drop(r);
+        // With no public address there is none to name: the JSON, still.
+        let r = start_with(listening_on_the_network).await;
+        let res = reqwest::Client::new()
+            .get(r.url("/"))
+            .header("host", "evil.example:7340")
+            .header("accept", browser)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 421);
+        assert!(
+            res.headers()["content-type"]
+                .to_str()
+                .unwrap()
+                .starts_with("application/json")
+        );
+    });
+}
+
 #[test]
 fn a_believed_proxy_saying_https_gets_the_secure_host_cookie() {
     block_on(async {

@@ -32,6 +32,15 @@ class DiceWidget extends WidgetType {
   }
 }
 
+/** The die an inline code's text (its backticks with it) names — its table,
+ *  or its notation — when it is a `dice:` code drawn as a die; else null.
+ *  The reading view counts identical dice by the same key. */
+export function diceKey(code: string): string | null {
+  const read = readCode(code);
+  if (!read || !hasCapability(read.kind === "table" ? "randomTables" : "diceRolling")) return null;
+  return read.kind === "table" ? read.source : read.notation;
+}
+
 /** The widget of an inline code's text (its backticks with it), or null
  *  when it is no `dice:` code Verso rolls. */
 export function diceWidget(host: DiceHost): (code: string, occ?: number) => WidgetType | null {

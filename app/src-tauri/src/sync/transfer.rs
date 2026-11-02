@@ -121,6 +121,35 @@ pub(super) fn held_refused(h: &engine::Held) -> SyncRefused {
 /// with no batch of the watcher to say so (C13, C17) — brings the listing
 /// up to date now, as that batch would, so the pass asked for at once
 /// sees the folder as it is, not the file once more (F22).
+/// A file moved here by sync: the windows of the folder hear where it
+/// went, as after a rename made in the window, so that a tab of it follows
+/// it (`changes.ts`, `moved`) instead of finding its file gone — a rename
+/// made on the server arrives as one (ADR 0079, decided 2026-10-31).
+fn moved_here(ctx: &Ctx, s: &Syncer, from: &str, to: &str) {
+    let windows = ctx.service.clients_of(&s.key);
+    let Some(index) = windows
+        .first()
+        .and_then(|w| ctx.service.current_folder(w))
+        .map(|f| f.index)
+    else {
+        return;
+    };
+    let changed = verso_contract::FolderChanged {
+        key: s.key.clone(),
+        changed: vec![to.to_owned()],
+        removed: vec![from.to_owned()],
+        moved: vec![verso_contract::Moved {
+            from: from.to_owned(),
+            to: to.to_owned(),
+        }],
+        listing: true,
+        index,
+    };
+    if let Ok(payload) = serde_json::to_value(&changed) {
+        (ctx.told)(&windows, "folder-changed", &payload);
+    }
+}
+
 fn of_here(ctx: &Ctx, s: &Syncer, path: &str, e: ContractError) -> Refusal {
     match e.kind {
         ErrorKind::NotFound => {
@@ -176,6 +205,16 @@ fn reader_refusal(path: &str) -> Refusal {
         path.to_owned(),
         "reader".to_owned(),
         "you may only read the server's folder: this change stays here".to_owned(),
+    )
+}
+
+/// A deletion made here by one who edits the server's file but may not
+/// delete it: the server refused it and its copy came back here.
+fn owner_deletes_refusal(path: &str) -> Refusal {
+    Refusal::File(
+        path.to_owned(),
+        "owner_deletes".to_owned(),
+        "only the folder's owner deletes on the server: the file came back here".to_owned(),
     )
 }
 
@@ -529,6 +568,54 @@ pub(super) struct Side<'a> {
 }
 
 impl Side<'_> {
+    /// A deletion made here that the server refuses (outside a table only
+    /// the folder's owner deletes, ADR 0113 section B, amended 2026-10-31):
+    /// the server's copy comes back here, as a download does.
+    fn bring_back(
+        &self,
+        known: &mut Known,
+        local: &Files,
+        state: &mut engine::State,
+        path: &str,
+    ) -> Result<(), Refusal> {
+        let (ctx, s) = (self.ctx, self.s);
+        let (staged, hash, size, version) = download(ctx, s, self.remote, known, path)?;
+        let here = local.get(path).map(|f| f.hash.clone());
+        write_here(ctx, s, path, staged, here.as_deref())?;
+        known.put(
+            engine::spelled_there(&known.files, path),
+            FileState {
+                hash: hash.clone(),
+                size,
+            },
+            version,
+        );
+        state.base.insert(path.to_owned(), hash);
+        s.crossed(ctx, "received", path, None);
+        Ok(())
+    }
+
+    /// A move made here that the server refuses (out of a shared folder, for
+    /// that share a deletion, ADR 0113 section B, amended 2026-10-31): the
+    /// file goes back from `now` to `was`, where the server still has it.
+    fn move_back(&self, local: &mut Files, now: &str, was: &str) -> Result<(), Refusal> {
+        let (ctx, s) = (self.ctx, self.s);
+        let (n, w) = (now.to_owned(), was.to_owned());
+        tokio::task::block_in_place(|| {
+            ctx.service.with_key(&s.key, move |ws| {
+                ws.rename_entry(&n, &w)?;
+                ws.prune_empty_parents(&n);
+                Ok(())
+            })
+        })
+        .map_err(|e| of_here(ctx, s, now, e))?;
+        if let Some(f) = local.remove(now) {
+            local.insert(was.to_owned(), f);
+        }
+        s.crossed(ctx, "renamed_here", was, Some(now));
+        Ok(())
+    }
+
     /// One step carried out. `local` is the files here as the pass hashed
     /// them, kept in step with the pass's own renames: a step after a
     /// respelling finds the file under its new name.
@@ -587,14 +674,31 @@ impl Side<'_> {
                 s.crossed(ctx, "received", path, None);
             }
             Action::DeleteRemote { path, base } => {
+                // One who writes the file and may not delete it: outside a
+                // table only the folder's owner deletes (ADR 0113 section B,
+                // amended 2026-10-31). The server refuses the deletion and
+                // the file comes back here, nothing lost (decided that day);
+                // said as the owner's rule, not as "you only read".
                 if !gate.delete(path) {
-                    return Err(reader_refusal(path));
+                    if !gate.put(path) {
+                        return Err(reader_refusal(path));
+                    }
+                    self.bring_back(known, local, state, path)?;
+                    return Err(owner_deletes_refusal(path));
                 }
                 let condition = known
                     .condition(path, Some(base))
                     .map_err(|e| of_remote(path, e))?;
-                tokio::task::block_in_place(|| remote.delete(path, &condition))
-                    .map_err(|e| of_remote(path, e))?;
+                // The memo said yes and the server says no (an answer kept
+                // from before the rule): the same.
+                match tokio::task::block_in_place(|| remote.delete(path, &condition)) {
+                    Ok(()) => {}
+                    Err(e) if e.message == verso_server::access::NO_DELETE_OWNER => {
+                        self.bring_back(known, local, state, path)?;
+                        return Err(owner_deletes_refusal(path));
+                    }
+                    Err(e) => return Err(of_remote(path, e)),
+                }
                 known.remove(&engine::spelled_there(&known.files, path));
                 state.base.remove(path);
                 s.crossed(ctx, "deleted_there", path, None);
@@ -653,8 +757,23 @@ impl Side<'_> {
                 let condition = known
                     .condition(from, Some(base))
                     .map_err(|e| of_remote(from, e))?;
-                let written = tokio::task::block_in_place(|| remote.rename(from, to, &condition))
-                    .map_err(|e| of_remote(from, e))?;
+                let written =
+                    match tokio::task::block_in_place(|| remote.rename(from, to, &condition)) {
+                        Ok(w) => w,
+                        // A move out of a shared folder is, for that share,
+                        // a deletion (ADR 0113 section B, amended
+                        // 2026-10-31): refused, the file goes back where it
+                        // was here, nothing lost.
+                        Err(e) if e.message == verso_server::access::NO_MOVE_OUT_OF_SHARE => {
+                            self.move_back(local, to, from)?;
+                            return Err(Refusal::File(
+                                from.clone(),
+                                "owner_moves_out".to_owned(),
+                                e.message,
+                            ));
+                        }
+                        Err(e) => return Err(of_remote(from, e)),
+                    };
                 if let Some((f, _)) = known.remove(&engine::spelled_there(&known.files, from)) {
                     known.put(written.path, f, written.version);
                 }
@@ -680,6 +799,7 @@ impl Side<'_> {
                 }
                 state.seen.remove(from);
                 s.crossed(ctx, "renamed_here", to, Some(from));
+                moved_here(ctx, s, from, to);
             }
             Action::Conflict { path, copy, .. } => {
                 // The server's version first: it takes the name, or, when

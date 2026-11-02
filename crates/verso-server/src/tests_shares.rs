@@ -696,13 +696,18 @@ fn a_writer_of_a_share_sees_and_restores_only_its_part_of_the_bin() {
         )
         .await;
         let share = shared["id"].as_str().unwrap().to_owned();
-        // The owner bins a note above the share; Ana bins one inside it.
+        // The owner bins a note above the share and one inside it: Ana, an
+        // editor, deletes nothing (ADR 0113 section B, amended 2026-10-31).
         let above = owner
             .call("delete_entry", json!({ "path": "Segredo.md" }))
             .await;
         assert!(above.get("ok").is_some(), "{above}");
         let (mut w, _) = Win::open(&r, &ana, &share).await;
-        let gone = w.call("delete_entry", json!({ "path": "Outra.md" })).await;
+        let refused = w.call("delete_entry", json!({ "path": "Outra.md" })).await;
+        assert_eq!(refused["err"]["kind"], "refused", "{refused}");
+        let gone = owner
+            .call("delete_entry", json!({ "path": "Mesa/Outra.md" }))
+            .await;
         assert!(gone.get("ok").is_some(), "{gone}");
         let bin = w.call("trash_list", json!({})).await;
         let entries = bin["ok"]["entries"].as_array().unwrap();

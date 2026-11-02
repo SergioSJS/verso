@@ -41,6 +41,7 @@ use verso_contract::{
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
+mod audio_share;
 mod boards;
 mod campaign;
 mod cli;
@@ -60,6 +61,7 @@ mod menu;
 mod menu_spec;
 mod notes;
 mod protocol;
+mod pty;
 mod reach;
 #[cfg(any(target_os = "linux", test))]
 mod recover;
@@ -74,6 +76,7 @@ mod shares;
 mod sync;
 mod sync_commands;
 mod table;
+mod terminal;
 mod trash;
 #[cfg(any(target_os = "macos", windows))]
 mod tray;
@@ -187,6 +190,10 @@ pub struct App {
     started: std::sync::atomic::AtomicBool,
     /// "This app is a server" (ADR 0096), made on first use.
     pub(crate) local_server: local_server::LocalSlot,
+    /// The embedded terminal's shells (ADR 0115).
+    pub(crate) terminals: Arc<terminal::Terminals>,
+    /// The share of audio this computer sends, if any (ADR 0116 item 17).
+    pub(crate) shares: audio_share::Shares,
 }
 
 impl App {
@@ -194,12 +201,12 @@ impl App {
     /// line named, if anything.
     #[must_use]
     pub fn new(initial: Option<PathBuf>) -> Self {
-        // `verso-app <path>`: a Markdown file is a loose file (ADR 0114
-        // item 6); anything else is opened as a folder, and what is not
-        // one fails there, in words, as before.
+        // `verso-app <path>`: a Markdown file, or a data file (ADR 0114
+        // items 6 and 32), is a loose file; anything else is opened as a
+        // folder, and what is not one fails there, in words, as before.
         let (folders, files): (Vec<PathBuf>, Vec<PathBuf>) = initial
             .into_iter()
-            .partition(|p| verso_core::kind_of(p) != verso_core::PathKind::MarkdownFile);
+            .partition(|p| !verso_core::kind_of(p).opens_loose());
         Self {
             popouts: Mutex::new(std::collections::HashMap::new()),
             web_views: Mutex::new(std::collections::HashMap::new()),
@@ -226,6 +233,8 @@ impl App {
             menu_state: Mutex::new(MenuState::default()),
             started: std::sync::atomic::AtomicBool::new(false),
             local_server: local_server::LocalSlot::default(),
+            terminals: Arc::default(),
+            shares: audio_share::Shares::default(),
         }
     }
 }
@@ -628,6 +637,11 @@ fn capabilities<R: tauri::Runtime>(
         can.retain(|c| !matches!(c, Can::Reveal | Can::CopyPath));
     } else {
         can.extend_from_slice(Can::FOLDER);
+        // A shell of this computer (ADR 0115 item 6): never in a window of
+        // files opened without their folder (ADR 0114 item 9).
+        can.push(Can::Terminal);
+        // Capture is the desktop host's alone (ADR 0116 item 27).
+        can.push(Can::AudioShare);
     }
     // A folder of this computer alone is the person's own: no seat to tell.
     // A synced one carries the server's answer for it (ADR 0113 S8), the
@@ -640,6 +654,7 @@ fn capabilities<R: tauri::Runtime>(
         can,
         latency_ms: live,
         access,
+        trash_cap: None,
     })
 }
 
@@ -884,6 +899,20 @@ macro_rules! commands_for {
                 table::table_pin,
                 table::table_delete,
                 table::table_clear,
+                table::table_play,
+                table::table_sound,
+                table::table_time,
+                table::table_cannot_play,
+                table::table_share_start,
+                table::table_share_stop,
+                audio_share::audio_sources_list::<$runtime>,
+                audio_share::audio_share_start::<$runtime>,
+                audio_share::audio_share_stop::<$runtime>,
+                audio_share::audio_share_own_begin::<$runtime>,
+                audio_share::audio_share_own_pcm::<$runtime>,
+                audio_share::audio_share_own_end::<$runtime>,
+                table::table_share_listen,
+                audio_share::hear::audio_share_hear::<$runtime>,
                 campaign::campaign_status,
                 campaign::campaign_make,
                 campaign::campaign_unmake,
@@ -973,7 +1002,17 @@ macro_rules! commands_for {
                 history_restore::<$runtime>,
                 history_copy::<$runtime>,
                 history_delete::<$runtime>,
-                set_history_days
+                set_history_days,
+                terminal::terminal_open::<$runtime>,
+                terminal::terminal_attach::<$runtime>,
+                terminal::terminal_write::<$runtime>,
+                terminal::terminal_resize::<$runtime>,
+                terminal::terminal_flow::<$runtime>,
+                terminal::terminal_busy::<$runtime>,
+                terminal::terminal_close::<$runtime>,
+                terminal::set_terminal_enabled::<$runtime>,
+                terminal::terminal_detect::<$runtime>,
+                terminal::terminal_install_page
             ])
             // Not in any command: the payload of events.
             .typ::<FolderChanged>()
@@ -992,6 +1031,8 @@ macro_rules! commands_for {
             .typ::<verso_contract::TablePinned>()
             .typ::<verso_contract::TableRemoved>()
             .typ::<verso_contract::TableCleared>()
+            .typ::<verso_contract::AudioShareStopped>()
+            .typ::<verso_contract::AudioShareBehind>()
             .typ::<verso_contract::CampaignChanged>()
             .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()
@@ -1280,6 +1321,9 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
         } => {
             #[cfg(target_os = "linux")]
             recover::forget(label);
+            // A window that is gone takes the pages it showed with it: a
+            // page never plays with no window to show it.
+            web::close_web_views_of(app, label);
             {
                 let state = app.state::<App>();
                 let showed = state.service.folder_of(label).is_some()
@@ -1297,6 +1341,13 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             session::window_gone(app, label);
             // Its folder closes when no other window shows it (ADR 0065).
             app.state::<App>().service.release(label);
+            // Its terminals end with it; a reload keeps them (ADR 0115 Q6).
+            app.state::<App>().terminals.end_of(label);
+            // So does its share of audio (ADR 0116 item 17).
+            app.state::<App>().shares.end_of(label);
+            // No live share's frames for a window that is gone (ADR 0116).
+            audio_share::hear::forget(label);
+            audio_share::own_output_gone(label);
             files::drop_picks(label);
             remote::release(app, label);
             loose::window_gone(app, label);
@@ -1306,6 +1357,9 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
         tauri::RunEvent::Exit => {
             // The port closes and the goodbye is sent (ADR 0096 item 8).
             local_server::stop_on_exit(app);
+            // No shell outlives the app (ADR 0115 item 13).
+            app.state::<App>().terminals.end_all_before_exit();
+            app.state::<App>().shares.end_all();
             log::write("INFO", "host", "exiting");
         }
         _ => {}
@@ -1382,3 +1436,7 @@ mod tests_sync1;
 mod tests_sync_access;
 #[cfg(test)]
 mod tests_sync_data;
+#[cfg(test)]
+mod tests_sync_rename;
+#[cfg(test)]
+mod tests_terminal;

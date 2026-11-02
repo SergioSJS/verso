@@ -21,8 +21,18 @@ test("the two platform files of web_clip are the only ones allowed", () => {
     "app/src-tauri/src/web.rs",
     "app/src-tauri/src/web_clip/macos.rs.bak",
     "x/app/src-tauri/src/web_clip/macos.rs",
+    "app/src-tauri/src/audio_share/mod.rs",
+    "app/src-tauri/src/audio_share/macos_source.rs",
+    "app/src-tauri/src/audio_share/convert.rs",
+    "app/src-tauri/src/audio_share/macos.rs.bak",
   ]) {
     assert.ok(!ALLOWED.test(no), no);
+  }
+});
+
+test("the audio capture files of audio_share are allowed too (ADR 0116, Q9)", () => {
+  for (const os of ["macos", "windows", "linux"]) {
+    assert.ok(ALLOWED.test(`app/src-tauri/src/audio_share/${os}.rs`), os);
   }
 });
 

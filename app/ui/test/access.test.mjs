@@ -42,9 +42,9 @@ const ACTIONS = { see: "see", edit: "edit", attach: "attach", attachImage: "atta
 /** What the server says of a person, as its capabilities and its reads say it. */
 function told(w, row) {
   const seat = w.link ? "visitor" : w.role === "owner" ? "master" : w.role ? "player" : "none";
-  const folder = { seat, role: w.link ? "" : (w.role ?? ""), cap: w.cap, table: row.table !== "none" };
+  const folder = { seat, role: w.link ? "" : w.owns ? "owner" : (w.role ?? ""), cap: w.cap, table: row.table !== "none" };
   // The level does not depend on the credential: the same person with a credential that writes.
-  const writer = vectors.who.find((x) => x.role === w.role && x.link === w.link && x.cap === "write" && !x.phone && x.admin === w.admin && x.other === w.other) ?? w;
+  const writer = vectors.who.find((x) => x.role === w.role && x.link === w.link && x.cap === "write" && !x.phone && x.admin === w.admin && x.other === w.other && x.owns === w.owns) ?? w;
   const level = allow(row.edit, writer.name) ? "edit" : allow(row.see, writer.name) ? "see" : "none";
   return { folder, level };
 }
@@ -119,6 +119,31 @@ describe("a path the server did not describe", () => {
     assert.equal(decide(caps("master", true, "read"), null, "edit"), false);
     assert.equal(decide({ ...caps("master", true), syncedReader: true }, { level: "edit", attach: true, attach_image: true, create_note: true, create_board: true, why: { kind: "master" } }, "edit"), false);
     assert.equal(decide({ ...caps("master", true), syncedReader: true }, { level: "edit", attach: true, attach_image: true, create_note: true, create_board: true, why: { kind: "master" } }, "see"), true);
+  });
+});
+
+describe("outside a table only the folder's owner deletes (ADR 0113 B, amended 2026-10-31)", () => {
+  const ctx = (seat, role, table = false) => ({ folder: { seat, role, cap: "write", table }, canWrite: true, syncedReader: false });
+  const edits = { level: "edit", attach: true, attach_image: true, create_note: true, create_board: true, why: { kind: "role" } };
+  test("an editor edits, renames and moves, and is offered no delete", () => {
+    const ed = ctx("player", "editor");
+    for (const action of ["edit", "rename", "move"]) assert.equal(decide(ed, edits, action), true, action);
+    assert.equal(decide(ed, edits, "delete"), false);
+    // The folder itself (a path no answer carried): the selection bar's bin.
+    assert.equal(decide(ed, null, "delete"), false);
+    assert.equal(decide(ed, null, "move"), true);
+  });
+  test("the owner deletes; a folder of this computer alone is the person's own", () => {
+    assert.equal(decide(ctx("master", "owner"), edits, "delete"), true);
+    assert.equal(decide(ctx("master", "owner"), null, "delete"), true);
+    assert.equal(decide({ folder: null, canWrite: true, syncedReader: false }, null, "delete"), true);
+  });
+  test("the bin stays any writer's (ADR 0080 item 7), never a reader's nor a table's player", () => {
+    assert.equal(decide(ctx("player", "editor"), null, "trash"), true);
+    assert.equal(decide(ctx("master", "owner"), null, "trash"), true);
+    assert.equal(decide({ ...ctx("player", "reader"), canWrite: false }, null, "trash"), false);
+    assert.equal(decide(ctx("player", "editor", true), null, "trash"), false);
+    assert.equal(decide(ctx("master", "owner", true), null, "trash"), true);
   });
 });
 

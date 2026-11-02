@@ -229,9 +229,25 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
         let head = call(&mut ws, 16, "sync_changes", json!({ "since": head })).await["ok"]["head"]
             .as_i64()
             .unwrap();
-        let removed = call(
+        // Not by the editor: outside a table only the folder's owner
+        // deletes, its data files too (ADR 0113 section B, amended
+        // 2026-10-31; provisional, see there).
+        let kept = call(
             &mut ws,
             17,
+            "remove_folder_data",
+            json!({ "kind": "bundles", "id": "mundo", "revision": rev }),
+        )
+        .await;
+        assert_eq!(
+            kept["err"]["message"],
+            crate::access::NO_DELETE_OWNER,
+            "{kept}"
+        );
+        let mut owner = window(&r, &admin, &id).await;
+        let removed = call(
+            &mut owner,
+            2,
             "remove_folder_data",
             json!({ "kind": "bundles", "id": "mundo", "revision": rev }),
         )
@@ -253,7 +269,7 @@ fn an_editor_writes_over_the_revision_read_and_sync_follows() {
             .iter()
             .find(|e| e["original"] == ".verso/bundles/mundo.json")
             .unwrap_or_else(|| panic!("not in the bin: {bin}"));
-        assert_eq!(entry["by"], "Membro", "{bin}");
+        assert_eq!(entry["by"], "Admin", "{bin}");
         assert_eq!(entry["known"], true, "{bin}");
         let after = call(&mut ws, 18, "sync_changes", json!({ "since": head })).await;
         assert!(

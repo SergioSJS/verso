@@ -20,6 +20,23 @@ in the real app.
 
 ## Not yet checked
 
+### The embedded terminal (ADR 0115, 2026-10-31)
+
+The harness has no pseudo-terminal (its shell is scripted); the host tests run a real shell on macOS, Linux (the container) and Windows (VM 103). What a real app, a real person's startup files, a screen reader and the AI tools themselves do is listed here, per system — macOS, Windows (VM 103), Linux (VM 104) — with Ajustes › Recursos › Terminal on:
+
+- [ ] **The PATH of the person's own terminal** (A, each system): in a terminal tab, `claude --version`, `gemini --version`, `npx --version` answer as in Terminal.app / Windows Terminal / GNOME Terminal (Homebrew's, `~/.local/bin` and npm's global bin found); **Ferramentas de IA** lists as installed exactly the tools that answer there.
+- [ ] **Accents at the prompt and inside a TUI** (A, each system): `ç`, `ã`, `é`, `õ`, `“ ”` typed at the prompt (on the Mac with Option dead keys, *Option como Meta* off) and inside Claude Code's prompt come out whole; emoji and box-drawing characters line up.
+- [ ] **Claude Code's full-screen UI** (A): it draws, resizes with the pane (split, drag the divider), takes the mouse, and pastes several lines at once as one paste; `vim` and `htop` (Linux/macOS) leave the screen as it was.
+- [ ] **Ctrl+C and closing** (A, each system): Ctrl+C stops `sleep 100` (`Start-Sleep 100` on Windows); a tab closed with `sleep 1000 &` running leaves no `sleep` in `ps` / Task Manager; quitting the app with a program running asks first. On Windows: close the app from Task Manager with `ping -t localhost` running — no `ping.exe` or `pwsh.exe` is left (the Job Object).
+- [ ] **A reload keeps the agent** (A): start `claude` in a terminal, ⌘R / Ctrl+R the window: the tab comes back on the same running session.
+- [ ] **The renderer** (A): the terminal draws with WebGL on each engine (WKWebView, WebView2, WebKitGTK); with WebGL refused (a VM without GPU), the DOM renderer still draws and scrolls.
+- [ ] **Screen readers** (A): with *Modo leitor de tela no terminal* on, VoiceOver (macOS), NVDA (Windows) and Orca (Linux) read new output; the tab's name and the keys that leave the terminal are announced; the focus ring shows.
+- [ ] **macOS privacy prompt** (A, macOS): the first `ls ~/Documents` in a terminal shows the system's prompt naming **Verso**; refusing it gives the shell's own "Operation not permitted", nothing of Verso's breaks.
+- [ ] **Windows shells** (A, Windows): with PowerShell 7 installed, the line says `pwsh`; without it, `powershell`; Ajustes › Terminal e agentes › Shell do terminal › Prompt de Comando starts `cmd`; no console window flashes on open or on **Ferramentas de IA**.
+- [ ] **Linux AppImage** (A, VM 104): in the AppImage build, `echo $LD_LIBRARY_PATH $APPDIR` in a terminal prints nothing of the AppImage, and `git`, `python3` run as from the desktop's terminal; with `$SHELL` unset by the display manager the shell is the account's own (or `bash`).
+- [ ] **The native confirmation** (A, each system): with the switch on, the first new terminal (or **Ferramentas de IA**) of a run shows the system's own dialog "Permitir um terminal nesta sessão?"; Cancelar leaves the tab with a refusal and no shell; Permitir starts it, and later terminals in the run ask nothing; turning the switch off and on again asks once more.
+- [ ] **A server's folder** (A): a desktop window on a server's folder not synced here opens the terminal in the home folder with its line; a synced one opens at the folder's root.
+
 ### A Markdown file opened without its folder (ADR 0114, feat/single-file, 2026-10-30)
 
 Per system — the double-click itself cannot run in the browser harness; each line on macOS, Windows (VM 103) and Linux (VM 104):
@@ -32,11 +49,29 @@ Per system — the double-click itself cannot run in the browser harness; each l
 - [ ] **Nothing beside the file** (A): after editing, `ls -la ~/Downloads` shows no `.verso`, `.trash` or temporary; the configuration directory gains no index for Downloads; `recent-files.json` lists the file.
 - [ ] **Make Verso the default** (A): Get Info › Change All (macOS); Settings › Default apps with the Settings button (Windows); `xdg-mime default verso-app.desktop text/markdown` (Linux, after a `.deb`/`.rpm` install; the AppImage only once integrated) — then a double-click opens Verso. The installer never made it the default by itself. Uninstalling on Windows removes `Verso.Markdown.1` and the registration (`check-windows.sh`).
 - [ ] **Open the whole folder** (A): the bar's button, the confirmation, the folder opened as a normal window; the loose window keeps its file.
+- [ ] **The bar and the window's buttons** (A, 2026-10-31): macOS — the bar's file icon and name start right of the three real window buttons and sit on their line; dragging the bar's empty part moves the window, a double click zooms it, its buttons still click; full screen leaves no gap. Windows / Linux — the bar ends left of minimise/maximise/close and right of the menu button. Shrink the window to its minimum: one line, nothing under the buttons. A file in a folder opened before (`~/Downloads/verso-vault-test/projetos/projetos.md`) shows **Abrir “verso-vault-test”** beside **Abrir a pasta inteira**. The harness only simulates the frame (`&frame=mac|windows`).
 - [ ] **Deleted while open** (A): remove the file in the file manager: "Gravar aqui de novo" makes it again; "Salvar uma cópia…" opens the system's save dialog and writes there.
+
+### A data file opened without its folder (ADR 0114 items 31–33, 2026-10-31)
+
+Per system — macOS, Windows (VM 103) and Linux (VM 104), on the installed package (the harness cannot reach the system's "Open with"):
+
+- [ ] **Open with, for each type** (A): right-click a `.json`, a `.yaml` (and a `.yml`), a `.toml`, an `.xml` and a `.csv` in Finder / Explorer / Nautilus: Verso is offered under "Open with", never as the default; choosing it opens the file in the loose window, in the diagram. On macOS `scripts/install-beta.sh` asks Launch Services the same for each kind and fails if Verso is not offered; on an older macOS (before 27) the `.toml` is the one that needs the imported `io.toml` type.
+- [ ] **The command line and the picker** (A, item 34): `verso data.json` (and a `.csv`, `.toml`) opens the loose window on the diagram; `verso nao-existe.json` says "no folder, Markdown file or data file by that name"; File › Open File… lists the eight extensions in the system's dialog (macOS, Windows, Linux's GTK picker) and a `.txt` is not selectable.
+- [ ] **Text and save** (A): **Text** shows the file; an edit is saved in place (atomic; nothing beside it); a change made in another editor is read in, or shows the conflict banner if something was typed; deleting the file while it has unsaved text offers "Save here again" and "Save a copy…" (the save dialog offers the file's own kind, not Markdown).
+- [ ] **A file the diagram cannot read** (A): an invalid `.json` opens as its text with the diagram's line saying why.
+- [ ] **Windows registry** (A): after the install, `HKCU\Software\Classes\.json\OpenWithProgids` (and `.yaml`, `.yml`, `.toml`, `.xml`, `.csv`) list `Verso.Json.1`… (`Verso.Json.Beta.1`… for the beta), the extensions' default values are unchanged, Settings › Default apps lists Verso for each; the uninstaller removes them all (`check-windows.sh`).
+- [ ] **Linux MIME types** (A): the installed `.desktop` says `MimeType=text/markdown;application/json;application/yaml;application/x-yaml;application/toml;application/xml;text/xml;text/csv;` and `Exec=… %F`; `xdg-mime query default application/json` is unchanged by the install.
 
 - **Focuses file only in iCloud (macOS)**: with `.space/waypoints.json` evicted, the Focuses tab shows the notice with "Download now"; the click downloads it and re-reads the focuses; offline, the failure is said in the status line.
 
 - [ ] **A folder opened from Finder with another window open: both stay** (A): with a window showing a folder, run `open -a "Verso Beta" <another folder>` (or drop a folder on the app's icon); the folder opens in a window of its own and the first window stays open with its folder. Do it again with a folder already open: that window comes forward, no third window. Repeat with the first window on a server's folder.
+### The tree's folder row with a mouse, and a note above 16 MiB (B15, B7, 2026-10-31)
+
+- [ ] **Mouse, then Tab, on the folder button** (A, macOS app): click the small folder button at a folder row's end (the page opens), then press Tab and Shift+Tab: the focus goes to the neighbours of the button, not nowhere, and the button shows its ring on keyboard focus.
+- [ ] **The folder button, by hand** (A): on the installed app with a mouse, a click on a folder's name opens/closes it; the small folder button at the row's end appears on hover, opens the folder's page, and appears when reached with Tab; it looks right on every theme (contrast of the faint icon).
+- [ ] **A real 17 MiB note** (A): in an opened folder, the notice shows above the text; search does not find a word inside it; the app stays responsive while it opens.
+
 ### Both folder windows come back (ADR 0065 item 7, fix/reopen-windows, 2026-10-23)
 
 - [ ] **Two windows, quit, start: both back** (A): open two folders, each in its own window (File › New Window, open a folder); quit with ⌘Q; start the app. Both windows come back, each with its folder (a synced one syncs again; the log says "reopening 2 window(s) of the last session"). Repeat after an update by `scripts/install-beta.sh`.
@@ -79,6 +114,7 @@ Needs the installed desktop app on a Mac (and, for the last items, a UniVerso wi
 - [ ] **The colour pickers and the datalist** (A): in the editor's *Layout* section the colour fields of the appearance open the system's picker and the chosen colour draws the card; the key fields of a block suggest the keys of the layout and of the drawn sheet as you type (the datalist of the web view).
 - [ ] **A tracker's click in Live Preview and in reading** (A): in *Yara do Farol* (`Campanha Fractal/`), a box of *Fôlego* clicked in Editar and in Leitura changes `reserva_2_atual` in Fonte and keeps the keyboard where it was (Tab, the arrows, Home, End); *Quebrado* on a fact strikes it and writes `quebrado: true`; ⌘Z in Editar undoes the write.
 - [ ] **The oracle in a real room, two windows** (A): in a note shared through a UniVerso, opened in two windows (two accounts), *Consultar Oráculo* in one: the other shows a notice with the asker's name and the answer, and the answer line lands once in the note; an oracle question with the server stopped says it was drawn only in this window. Turn *Oráculos* off in one window only: its button goes, the other's stays.
+- [ ] **The right callout and the right die, on the updated server** (A; ADRs 0102 and 0088, amendments of 2026-10-31): with the server deployed first, in a shared note with two `[!oracle]` callouts open in Leitura in two windows, the other window edits the second callout's text; then *Consultar Oráculo* on that second callout here opens with its own question and writes into it (not "the callout moved", not the first one). In a note with `dice: 1d20` twice and a fenced example holding `` `dice: 1d20` ``, one window in Editar and the other in Leitura: a roll of the second die shows on the second die in both. With a reader account on a note holding `dice: 1d20` inside a `[!secret]` block and in the open, the reader's window shows neither roll of the owner (nor in the Table), and does show a roll of a code written only in the open. Then an app not yet updated against the updated server: the oracle and the dice work as before.
 - [ ] **The server-drawn toast** (A): the notice of a question, a spark and a table draw reads *<name> consultou o oráculo: …* / *sorteou uma faísca* / *sorteou numa tabela*. Say whether it also shows as the system's notification when the window is in the background (ADR 0084).
 - [ ] **Credits' links** (A): *Settings › Application › Credits*: *Abrir* on a work and on the software opens the page in the system's browser, not in a window of the app; no link opens inside the app.
 - [ ] **The tabs' right edge back to normal** (A): with both side bars open and many tabs, the strip's right end shows the last tab whole and the new-tab button, as before the round's CSS changes (`panes.css`, `chrome.css`); a narrow window too.
@@ -112,6 +148,14 @@ Needs the installed app on a Mac, a Linux and a Windows computer, an iPhone (Saf
 ### Syncing into a brand-new server (ADR 0079 item 1, 2026-10-16)
 
 - [ ] **Just sync, on a fresh UniVerso** (A, the desktop app): install a UniVerso with no folders, sign the app in as its admin (*Settings › Servers*), with a folder of notes open. The block says *No folder on this server yet.* and one button, **Sync ‘<folder>’**, with a line under it; no invitation text. One click: the button is busy, the server's folder appears under the same name, the status bar goes to *Syncing* and then *Synced*, and the heading of the server takes the focus. Every note of the folder is still on this computer, unchanged (look at the files), and open in the browser at the server. The server's log has no ERROR and the app's log has none. Then turn the sync off, open another local folder named like the first one: *Sync* makes `name (2)` and does not touch the first. With an account that may not make folders (the admin turns it off), the old invitation text shows and no button. *Make an empty folder…* asks a name, makes it, says so and puts the focus on its row. With the server stopped, the click says it could not reach it, with *Try again*.
+
+### A rename on the server arrives as a rename (ADR 0079, B12, 2026-10-31)
+
+- [ ] **Renamed in the browser, on the Mac** (A, the installed app and a real UniVerso): a folder of the Mac synced with the server, a note of it open in a tab on the Mac. In the browser, open the same note, type a line, and rename it from the tree (or its title) right away. On the Mac, within a few seconds: the file has the new name with the browser's line, no file of the old name, nothing new in the folder's `.trash/` (look in Finder with ⇧⌘. or `ls -a`), and the tab is on the new name, the status line saying *Renamed or moved on another device: … Its tab followed it.* *Settings › Sync › Recent activity* says *renamed here*, never *deleted here*. The Mac's log (`~/Library/Application Support/verso/logs/verso.log`) has `renamed_here: <new> (<old>)` and no `deleted_here` for it, and no ERROR.
+- [ ] **A folder and a selection** (A): rename a folder holding three notes in the browser, then drag two notes into another folder at once: on the Mac each file arrives moved, none in `.trash/`, the old folder gone.
+- [ ] **Edited on the Mac meanwhile** (A): pause the Mac's sync (*Pause*), edit the note on the Mac, rename it in the browser, resume: the Mac's file is renamed, its edit is on the server under the new name (the browser shows it), and no old name comes back. Edited in the browser too: one conflict copy beside the new name.
+- [ ] **A name taken on the Mac** (A): with sync paused, make `Nova.md` on the Mac; in the browser rename another note to `Nova`; resume: both texts are kept (the server's under `Nova.md`, the Mac's as its conflict copy), nothing lost.
+- [ ] **Windows and Linux** (A): the first check on the Windows and the Linux app, a name with an accent among them (`Sessão`).
 
 ### This app is a server (ADR 0096, feat/local-server-build, 2026-10-15)
 
@@ -780,7 +824,7 @@ in a note long enough to scroll.
 ### Security hardening (ADR 0083, 2026-10-13)
 
 - [ ] **A shared note and a shared board edited from the desktop app while
-  another window edits them** (8d419e9, ca4c8a6, 857f4aa): in the
+  another window edits them** (947814c, 6c4327e, d140c24): in the
   installed app on a UniVerso folder, the same note open in the browser;
   type quickly in both at once, then paste a long paragraph in the app
   while the browser types: every letter arrives in both, in the order
@@ -790,9 +834,9 @@ in a note long enough to scroll.
   board, dragging and drawing in both at once: both see both, nothing
   jumps back. The app's log (`verso.log`) and the server's journal hold
   no refused update. Not verified by a test: that the app hands a
-  window's calls on in order (ca4c8a6).
+  window's calls on in order (6c4327e).
 - [ ] **"Confirme que é você" before a token and before approving a
-  device** (ADR 0083 item 6; 40de8b5, 1d7c4e4): signed in more than ten
+  device** (ADR 0083 item 6; 068e63b, 8a9c842): signed in more than ten
   minutes ago, in the server's *Ajustes*, *Tokens de acesso*, *Criar
   token*: the dialog *Confirme que é você* opens, the password field has
   the focus; a wrong password says *Senha errada.*; the right one makes
@@ -812,7 +856,7 @@ in a note long enough to scroll.
   system refuses the copy, the line says *Digite este código na página
   que abriu:* instead and the code is typed. A link `/device?code=…`
   opened by hand shows the same empty field and sends nothing.
-- [ ] **The device page with a typed code** (ADR 0083 item 17, 73807d2):
+- [ ] **The device page with a typed code** (ADR 0083 item 17, 9248705):
   `/device` opened by hand asks *Cole o código que o aplicativo copiou,
   ou digite o que ele mostra na tela dele.*; the code the
   app shows typed in lower case and without the dash is taken, and the
@@ -832,14 +876,14 @@ in a note long enough to scroll.
   them out and the share dialog says *Dar ou mudar um papel pede que você
   confirme que é você; nada mudou.* VoiceOver reads the dialog's title
   and line; the focus goes back to the share dialog when it closes.
-- [ ] **Mermaid diagrams after 12.2.0** (ADR 0083 item 13, cda7500): the
+- [ ] **Mermaid diagrams after 12.2.0** (ADR 0083 item 13, 5225d6c): the
   demo vault's "08 - Diagramas Mermaid" in the installed app and in the
   browser: every diagram draws, in light and dark; a diagram with a
   syntax error shows the parser's own message under "Syntax error in
   text"; circle nodes fit their label, a mindmap's labels are centred and
   readable, a class diagram's cardinalities sit by their relation ends.
 - [ ] **universo.sh's printed Caddy steps on a host that already serves
-  another site** (7755802): on a Linux host whose Caddy already serves a
+  another site** (5da3013): on a Linux host whose Caddy already serves a
   site, install with `universo.sh` and follow the printed steps: the
   other site still answers, UniVerso's site is in
   `/etc/caddy/Caddyfile.d/universo.caddyfile`, the Caddyfile has one
@@ -849,7 +893,7 @@ in a note long enough to scroll.
 
 ### Everything edited together (ADR 0082 item 12, feat/coedit-everything, 2026-10-12)
 
-- [ ] **A board in two places at once** (21d096a, 5a027db): on a UniVerso,
+- [ ] **A board in two places at once** (b70e33a, c535f0f): on a UniVerso,
   one board open in the browser and in the installed app on the server's
   folder; drag a card in one while drawing a shape and writing a text in
   the other: both see both within a moment, the other's pointer moves
@@ -907,11 +951,11 @@ in a note long enough to scroll.
   dialog offers *Incluir “…”, só leitura*, and Ana then sees the pictures
   and cannot change them. Sérgio removes Ana: her window closes the
   folder at once, her synced copy stays and its sync turns off, saying
-  the share was revoked and when (`6c7800e`). Both at a phone's width too. The console's folder page lists the
+  the share was revoked and when (`873921a`). Both at a phone's width too. The console's folder page lists the
   share with its people; the audit log has each step with its path.
 
 - [ ] **A revoked share's sync turns off with a notice** (ADR 0081 item 8,
-  `6c7800e`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
+  `873921a`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
   removes her in *Compartilhar…*. Within seconds Ana's app shows a notice
   "Quem compartilhou … revogou o seu acesso em …", the status bar reads
   "Desligada: quem compartilhou revogou o acesso em …" (amber), and
@@ -921,7 +965,7 @@ in a note long enough to scroll.
   reopen the folder: the notice is still there and sync does not start.
   Turn sync on again with another folder: the notice is gone.
 - [ ] **The device approval page says who asked** (threat model gap 12,
-  `5838c10`): *Ajustes › Servidores*, connect to the UniVerso; the page in
+  `8871f4e`): *Ajustes › Servidores*, connect to the UniVerso; the page in
   the browser shows *Quem pediu* — this computer's name, the address the
   server sees for it, the time — then *Foi você quem pediu, neste
   aparelho?*, *Aprovar este aparelho: <nome>* and *Não fui eu: recusar*.
@@ -929,27 +973,27 @@ in a note long enough to scroll.
   approve: signed in. With VoiceOver, the facts and the question
   are read before the buttons. At a phone's width too.
 - [ ] **A cursor wears its writer's name** (threat model gap 11,
-  `3bc56ae`): two accounts in one note, in two browsers: each sees the
+  `8259d01`): two accounts in one note, in two browsers: each sees the
   other's cursor under the other's account name and colour, as before.
 
-- [ ] **"Guardar os dois" in the editor's conflict** (`18da5c7`): with a
+- [ ] **"Guardar os dois" in the editor's conflict** (`9262892`): with a
   synced folder, keep a note open in Editar with unsaved text while another
   device changes it; the view "O arquivo mudou em disco…" offers a third
   button, "Guardar os dois" — the disk's version keeps the name, your text
   goes to `<nota> (conflito, <este computador>, <data>).md`, the tab shows
   the copy.
-- [ ] **A note deleted outside while its tab is dirty** (`e5b3ee0`): delete
+- [ ] **A note deleted outside while its tab is dirty** (`06291a6`): delete
   the file in the Finder while typing in it; the tab says "Esta nota foi
   apagada ou movida fora do Verso. O seu texto continua aqui." with "Salvar
   de novo" and "Fechar sem salvar"; no ERROR in the app's log.
-- [ ] **Links a rename could not update** (`da6ac8e`): rename a note while
+- [ ] **Links a rename could not update** (`a453a36`): rename a note while
   another program edits a note that links to it; the notice names the note
   skipped, and "Tentar de novo" applies the change over the new text.
-- [ ] **One name in two accent forms** (spec Q7, `0cb6dd5`): on a Linux or
+- [ ] **One name in two accent forms** (spec Q7, `bc9b3ae`): on a Linux or
   Windows device create `Café.md` beside a `Café.md` the server already has
   in the other Unicode form; the second is listed under "nome de outro, só
   mudando…" and never sent; the first keeps syncing.
-- [ ] **Window on a small screen** (`068215e`): on a 1280×800 display the
+- [ ] **Window on a small screen** (`d38be85`): on a 1280×800 display the
   first window opens inside the screen, status bar visible.
 - [ ] **This device's name** (ADR 0079 item 8, 2026-10-11): in the
   installed app, Ajustes › Servidores › "Nome deste aparelho" — empty, the
@@ -968,32 +1012,32 @@ in a note long enough to scroll.
 
 ### The trash (ADR 0080, feat/universo, 2026-10-11)
 
-- [ ] **The trash of a folder of this computer** (`9c10495`, `173cf7e`):
+- [ ] **The trash of a folder of this computer** (`03c21bf`, `08f4032`):
   in the installed app, delete a note, then *Ajustes › Lixeira* (or the
   palette's "Abrir a lixeira", or the tree's right-click on empty space):
   the note is listed with today's date; "Restaurar" puts the file back on
   disk (the Finder shows it) and the log has a `trash` "restored" line.
-- [ ] **What an older trash held** (`8ad89d2`): open a folder whose `.trash`
+- [ ] **What an older trash held** (`db609b1`): open a folder whose `.trash`
   Obsidian or an older Verso filled; its items are listed "antes de …
   (data desconhecida)", nothing is deleted at once; *Manter arquivos
   apagados por* "1 dia" a day later removes them, each an "expired" line of
   the log; the sweep also runs a day after the folder was opened, while it
   stays open.
-- [ ] **A deletion sync carried out here** (`9c10495`): with two computers
+- [ ] **A deletion sync carried out here** (`03c21bf`): with two computers
   syncing one folder, delete a note on one; on the other, the trash lists it
   "pela sincronização com <servidor>".
-- [ ] **The test server's trash** (`02903f1`): after the upgrade the 306 MB
+- [ ] **The test server's trash** (`a9a9bb5`): after the upgrade the 306 MB
   already in a folder's `.trash` are listed with an unknown date and
   nothing goes before 30 days from the first walk; the console's folder page
   shows *Lixeira* (count, size, "fora da cota") and *Dias na lixeira*; the
   Overview's totals add the trashes; an editor restores but sees no
   "Apagar agora"; the owner shortens the days from the window and cannot
   pass the admin's.
-- [ ] **A version a device's write replaced** (`02903f1`, F18): on a synced
+- [ ] **A version a device's write replaced** (`a9a9bb5`, F18): on a synced
   computer, let another program save an old buffer over a note sync just
   updated; on the server, *Lixeira* lists "substituído por <aparelho>", and
   "Restaurar" puts it beside the note as `<nota> (restaurado <data>).md`.
-- [ ] **The desktop window on a server's folder** (`9c10495`): *Ajustes ›
+- [ ] **The desktop window on a server's folder** (`03c21bf`): *Ajustes ›
   Lixeira* shows the server's trash, with the role's limits.
 
 ### Version 0.5 (feat/windows-fs, feat/signed-updates)
@@ -1049,24 +1093,25 @@ in a note long enough to scroll.
 
 ### 0.4.0-beta.1
 
-- [ ] **Several entries in the tree** (`f3e1af3`): ⌘-click two notes and
+- [ ] **Several entries in the tree** (`0ed3f51`): ⌘-click two notes and
   ⇧-click a third — the rows between are selected; Esc clears. Drag them
   onto a folder: they move; a note that linked to them by path shows one
   plan. Right click the selection: Mover para…, Copiar caminhos
   relativos, Mover para a lixeira (asked once).
-- [ ] **A column's width** (`a6d9fa9`): in note 01's table, drag a header
+- [ ] **A column's width** (`bdc7014`): in note 01's table, drag a header
   cell's right edge in Editar; switch to Leitura and back, reopen the
   note — the width stays; the `.md` does not change.
-- [ ] **A folder page's right click** (`6595623`): on a folder page's
+- [ ] **A folder page's right click** (`0e89a4c`): on a folder page's
   empty space, the tree's menu with icons.
-- [ ] **The code copy button in English** (`6595623`): Settings ›
+- [ ] **The code copy button in English** (`0e89a4c`): Settings ›
   Language › English, then hover a code block's copy button: "Copy code".
-- [ ] **`type:` in the search** (`f3e1af3`, the permission): search
+- [ ] **`type:` in the search** (`0ed3f51`, the permission): search
   `type:personagem` — the two characters are listed (it answered "not
   allowed" in the app before).
 
 ### Next version
 
+- [ ] **Only the folder's owner deletes, outside a table** (ADR 0113 B, amended 2026-10-31): on the real UniVerso and the installed desktop app, the walkthrough's "Only the folder's owner deletes" steps 1–7 — especially step 6, a synced editor's Finder deletion and Finder move out of a shared folder coming back (the host test runs a real server, not Finder nor the watcher), and a paired phone of "This app is a server" on a folder served in part: it is offered no delete (provisional, see the ADR).
 - [ ] **An embed of a block** (spec Q3, Q21): note 02, "Incorporar só um bloco" — the embed shows the third finding alone; a link `[[Projetos/Pesquisa e Descobertas#^atomica]]` opens the note at that item. In Leitura no `^atomica` shows, in the embed or in the note; in Editar it shows quiet.
 - [ ] **Templates in a new note** (ADR 0068): ⌘N — "Começar com" under the title; choose "Nota de Reunião": the note is the template with today's date; ⌘Z takes it back; a new note with Em branco stays as it was.
 - [ ] **The new identifier keeps the window's settings**: after updating from 0.4.0-beta.1, the theme, the keys and a table's column width are as they were; the log says "window data carried over to com.versomd.app.beta" once.
@@ -1343,7 +1388,7 @@ them; if they still happen, a step that makes them happen is enough.
 
 - [x] The notes search finds a note by its exact file name when its first
   heading names it otherwise, first in the list; the × clears the search
-  (feat/web-groundwork, the installed beta at 0a38c65, checked by the
+  (feat/web-groundwork, the installed beta at 1331959, checked by the
   maintainer on 2026-10-09).
 
 - [x] The picture menu's Download image, Open in new window; Open Folder in
@@ -1366,3 +1411,91 @@ them; if they still happen, a step that makes them happen is enough.
 - [ ] Shared table, player in the browser, game master on the desktop app: the player's pasted, dropped and chosen images on the board reach the desktop without a reload, an animated GIF keeps animating on both, and a player who does not edit the board gets the notice (macOS, Windows, Linux).
 - [ ] The guided installer on a real Oracle Cloud Always Free machine (E2.1.Micro 1 GB, and an A1 ARM64), following note 34 of the demo vault: the menu, the swap offer, the VCN security-list steps it prints, `sh universo.sh firewall`, HTTPS with an sslip.io name (Let's Encrypt itself; the automated check only uses Caddy's internal CA), the first admin, and the address opened on a phone. Also DuckDNS with a real token and a rate-limited sslip.io (nip.io offered).
 
+- [ ] The container's memory limit (B9) on a real 1 GB server: `docker stats universo` shows a limit of 768 MiB; send a note far bigger than that and see the container restart by itself while the machine and its SSH session stay up.
+- [ ] The trash's size cap (B11) on a real server: with `VERSO_TRASH_MAX=50MB`, delete a few large files from a desktop folder synced to it; the oldest leave the server's trash first, the folder's own files stay, and the console's folder page shows the trash under 50 MB.
+- [ ] The old-address page (B13) on a real server behind HTTPS: open its IP address from a phone and a computer, with the browser in Portuguese and in English; the right language is first, the link opens the HTTPS address, and the page reads well in dark mode and at 390 px. Say whether a screen reader reads the link.
+
+## Share audio, the window (ADR 0116 section B, task S6)
+
+1. **The real count and rate** (A, the desktop app on a server's table with a second device): while the debug build's test tone is shared, the card's listeners and rate match the server's (`table-share-state`), and the meter moves with the tone (the harness fakes both).
+2. **Silence** (A, each system): a source that is muted or DRM-blocked says *Silêncio…* within 3 seconds; then plays and the card says *Som chegando*.
+3. **VoiceOver / NVDA** (A): the picker reads its options with their kinds; the meter reads *Nível do som* with its words; *Compartilhando …* / *Compartilhamento encerrado* are announced; Stop sharing has a name in the tab, the row and the status bar.
+4. **The macOS permission** (A, the Mac): the *System Audio Recording* prompt at the first capture; refused, the share says why and leaves nothing at the table.
+
+## Share audio on Windows (ADR 0116 section B, as narrowed on 2026-11-01, task S8)
+
+On the installed beta, as the game master of a UniVerso table, with a browser listener, on **Windows 11** and then on **Windows 10**. None of this is reachable from the harness (the `#[ignore]`d `win_real_capture` test checks the loopback, the format and the stop with a tone; `scripts/check-windows.sh` runs the rest):
+
+1. **A page** (A, Win 11): open a page as a page (not inside a note), e.g. a YouTube video, and play it. **Compartilhar áudio…** lists **Páginas abertas no Verso: youtube.com**, with the hint; share it; the listener hears the video within a second or two and the meter says *Som chegando*. Pause the video: *Silêncio* within 3 seconds.
+2. **Verso's own sounds not sent** (A, the point of the profile split): while sharing, roll dice and trigger a table chime in the sharer's window, and play the table's music: the listener hears none of them (they hear the table's music through their own player, as always). If they do, the pages' environment is not apart: report it (check Task Manager: a second group of `msedgewebview2.exe` under Verso when a page is open).
+3. **Two pages, the list names the playing one** (S10, A): with two pages open and one playing, the list names only that site; both playing, both are named and carried together.
+4. **Login across pages** (A): sign in to a site in one page; open another page of the same site: signed in. The first time after this update the pages ask for the sign-in again.
+5. **A page inside a note** (A): a site shown inside a note (it allows framing) is not shared; its sound is not in the share. The hint says to open it as a page.
+6. **No page** (A): with no page open the picker says *Abra uma página no Verso…*.
+7. **Windows 10** (A, a machine or VM): the picker says it needs Windows 11, with Start off.
+8. **Stop, window close, quit** (A): each ends the share; the listener sees it end; no `Verso` audio session stays in the volume mixer's list after the page closes.
+9. **Linux and macOS 14+** (A, only that the pages still open and play: the capture is not built there): a page opens and plays in its own profile; a login holds across pages.
+
+## Share audio on Linux (ADR 0116 section B, as narrowed on 2026-11-01, task S9)
+
+On the installed app (.deb or .rpm, or the AppImage with `pulseaudio-utils` installed by hand; a desktop session with PipeWire or PulseAudio), as the game master of a UniVerso table, with a browser listener. None of this is reachable from the harness (the `#[ignore]`d `linux_real_capture_of_pages_delivers_audio_and_stops` needs a page of Verso playing).
+
+1. **Which process is the pages'** (A, the point the design rests on and the first thing to check): open a page as a page and play it; in a terminal, `pactl list sink-inputs` shows a stream whose `application.process.id` is a `WebKitWebProcess`; `ls -l /proc/<that pid>/fd | grep pages-profile` (or its `maps`) shows a path under the pages' profile folder. If it does not, the share refuses with the no-pages message and `verso.log` says so: tell the maintainer, the identification needs another marker.
+2. **Pages** (A): **Compartilhar áudio…** lists **Páginas abertas no Verso**; share it; the browser listener hears the page within a second or two and the meter says *Som chegando*. Pause the page: *Silêncio*. Stop ends it for the listener.
+3. **The list names the pages playing** (S10, A): with two pages open and one playing, the list names only that one; both playing, both are named. Built on Linux with webkit2gtk `is_playing_audio`; a paused page is not named.
+4. **Nothing outside Verso** (A): play something in a browser or a music player at the same time: the listener never hears it.
+5. **Verso's own sounds not sent** (A): while sharing, roll dice, trigger a chime, play the table's music and an audio player in a note: the listener hears none of it through the share; they come out of the sharer's speakers a few hundredths of a second late, from a stream named *Verso (own sounds while sharing)*; after Stop they come back as before.
+6. **A page inside a note** (A): a site shown inside a note is NOT in the share (it plays in the window's own process on Linux); the hint says to open it as a page.
+7. **No page / no tools** (A): with no page open the picker says *Abra uma página no Verso…*; on a machine without `pactl`/`parec` it says to install `pulseaudio-utils`.
+8. **Stop, window close, quit** (A): each ends the share; no `parec` or `pacat` process is left (`pgrep -a 'parec|pacat'`).
+9. **PulseAudio-only and PipeWire** (A, one machine each): both list and share the same way; there is no whole-output-device recording on either.
+
+## Share audio on the Mac (ADR 0116 section B, as narrowed on 2026-11-01, tasks S7 and S7b)
+
+On the installed beta, macOS 14.4 or later, as the game master of a UniVerso table, with a browser listener (a second device). None of this is reachable from the harness or from `cargo test` (the real-capture test, `cargo test -p verso-app --lib mac_real_capture -- --ignored --nocapture`, checks the tap, the format and the stop with something playing, and asks the permission for the terminal):
+
+1. **Pages** (A): open a page in Verso (a child web view) and play something in it; open **Share audio…**: the one source is **Pages open in Verso**, and no application is listed; share it; the browser listener hears the page within a second or two, and the meter says *Som chegando*. Pause the page: the meter says *Silêncio* within 3 seconds. **Parar de compartilhar** ends it for the listener; Activity Monitor / Sound settings show no leftover "Verso" aggregate device. With no page that ever made sound, the picker says to open one (no-pages message). Another app (Spotify, a browser) playing at the same time must NOT reach the listener.
+2. **The list names the pages playing** (S10, A): with two pages open and one playing, the list names only that one. Built on the Mac with `WKWebView.requestMediaPlaybackState`; a paused page is not named.
+3. **The prompt** (A): on a Mac that never allowed it (reset with `tccutil reset AudioCapture com.versomd.app`), the first share shows the system prompt naming Verso, with the text of `NSAudioCaptureUsageDescription` (both languages). **Don't Allow**: the status bar says macOS did not let Verso record and where to allow it; nothing is left at the table; allowing it in System Settings and sharing again works.
+4. **Verso's own sounds not sent** (A, decision A2 of the 2026-11-02 note in ADR 0116): share a page that plays while you roll dice and trigger a table chime in the sharer's window: the listener must not hear the dice or the chime, and the sharer still hears them (a few hundredths of a second late). Stop the share: they are back at once, with no change. The table's music and an audio player in a note (play a vault file in each, also in a folder on a server) must not reach the listener either, and must still sound, with their volume and mute working, in the sharer's window; they must play before and after the share, and after a first play with the audio switched off.
+5. **A page or video inside a note** (A): it IS shared on the Mac, and the first-share notice says so (a known leak, not a bug to fix here): the listener hears it, and the notice is the check.
+6. **Window close and quit** (A): close the sharer's window, then quit the app, while sharing: the listener sees the share end; no aggregate device stays.
+7. **A page that starts later** (A): before any page made sound the picker says to open one; start playing in a page and reopen the picker: the source is there. A share of a page that pauses and resumes keeps going.
+8. **An older macOS** (A, a Mac or VM below 14.4, if one exists): the picker says it needs a newer macOS, with Start off.
+
+## Music at the table (ADR 0116 phase 1## Music at the table (ADR 0116 phase 1, 2026-10-31)
+
+On the real engines, which the harness's stubbed `play()` does not reach; a UniVerso table with the master in the desktop app and players in browsers and phones (note 36):
+
+1. **iOS volume** (A, iPhone Safari): the player's **Seu volume** and the master's **Volume da mesa** change the loudness (the GainNode path; `HTMLMediaElement.volume` is read-only on iOS). **Silenciar** silences; the side buttons still set the phone's own volume.
+2. **Autoplay** (A, each engine: WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux, Safari iOS, Chrome Android): a window that joins while a track plays either plays at once or shows **Ouvir a mesa** focused; one tap anywhere starts it at the others' point.
+3. **Formats** (A, the table of item 13): MP3, M4A (AAC), WAV, FLAC, OGG on each engine; one that refuses says *Esta janela não toca este formato…* and the master's Music tab names the person. On Linux, AAC in `.m4a` needs `gst-plugins-bad` or `gst-libav`: note what a plain Ubuntu desktop does.
+4. **Drift** (A): a 60-minute loop of a 3-minute track on two windows stays within a beat of each other (a clap test at the start and at the end); a reconnect of the player (Wi-Fi off and on) lands back in step.
+5. **The desktop's own files** (A, macOS / Windows): in a folder of this computer alone, a track plays from `verso://` (the element's volume, not the gain); in a synced folder at the server's table, the master's desktop plays the local copy.
+6. **The master's window closes** (A): the music goes on in the players' windows; the last window leaving ends it (a new join shows nothing playing).
+7. **The Music tab on a phone** (A, iPhone Safari and Android Chrome, 390 × 844 class): Painel › Música opens the sheet; every button is reachable with a thumb; the filter's keyboard does not cover the now-playing card; back to Mesa, the mini-player is one row and the chat input stays where it was.
+
+## Audio embeds with a player (ADR 0116 amendment, 2026-11-01)
+
+On the real engines, which the harness's stubbed `play()` does not reach (notes 06 and 36, lesson 16 of the training board):
+
+1. **iOS** (A, iPhone and iPad Safari, a UniVerso folder): an embed plays from a tap (no "not allowed" in the console), the player shows *Pausar* and the time moves; the phone's buttons change the loudness and **Silenciar** silences it; the screen locked, the sound stops or goes on as Safari decides — note which. The `/f/` address seeks (drag the bar to the middle: it plays from there).
+2. **Codecs on Windows and Linux** (A, WebView2 and WebKitGTK): MP3, M4A (AAC), WAV, FLAC and OGG embeds each play or say *Esta janela não toca este formato…*; on Linux note what a plain Ubuntu desktop does for `.m4a` without `gst-plugins-bad` / `gst-libav`. An OGG on macOS and iOS says it cannot play.
+3. **The desktop's own files** (A, macOS / Windows / Linux): an embed in a folder of this computer plays from `verso://`, seeks (the protocol answers ranges), and the volume slider changes the loudness.
+4. **Drawn again while playing** (A): in a synced folder, someone else edits the paragraph holding the playing embed: the sound goes on without a gap; close the note's tab: it stops within two seconds.
+5. **Ducking by ear** (A, at a table): with the table's music playing, an embed started makes the table's music clearly lower but still heard, and it comes back when the embed pauses.
+
+## The right panel's tabs hidden, reordered, brought back (ADR 0072 amendment, 2026-11-01)
+
+1. **The long press on a real phone** (A, iPhone Safari and Android Chrome): a held finger on a panel tab opens its menu (touch.ts makes it where iOS fires no `contextmenu`); **Ocultar esta aba** hides it; the tab bar's tabs are 44 px and reachable with a thumb; **⋯** brings it back.
+2. **VoiceOver / TalkBack** (A): the tab list is read as a list of tabs; the **⋯** menu names the hidden tabs (**Mostrar “…”**); in Settings each row's switch is named *Mostrar a aba …* and the arrows *Mover … para cima/baixo*.
+3. **The mouse drag in the real WKWebView** (A, macOS) and WebView2 (A, Windows): a tab drag lifts and reorders; the order survives closing the app.
+
+## The trash's size cap (ADR 0080 amendment, 2026-11-01)
+
+1. **A real server** (A, a UniVerso with `VERSO_TRASH_MAX=50MB`): in a browser delete a folder holding 60 MB: the question warns *Atenção: isto tem … sem poder ser restaurado*; confirm; wait a minute: the folder is still in *Lixeira* (it is younger than a day); the next day's sweep removes it.
+
+## The owner's phone deletes on a folder served in part (ADR 0113 amendment, 2026-11-01)
+
+1. **A real phone** (A, iPhone Safari or Android Chrome, a Mac serving one chosen folder): pair with *Pode editar as notas*, delete a note from the tree's menu: it goes, shows in the Mac's *Lixeira*, and a table's notes (if the folder has one) behave as before. A second phone paired as reader is not offered the menu item.
+2. **A synced editor's window** (A, the installed Mac app and a real UniVerso, an account that is an editor of the folder): the tree's menu, the selection bar, the palette and `Delete` offer no delete and say who may; the owner's account on the same folder is offered it.

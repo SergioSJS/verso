@@ -228,7 +228,7 @@ export async function openWeb(this: NoteLeaf): Promise<void> {
   if (res.status !== "ok") return fail(res.error);
   // The host names the view. The tab may have closed, or moved to
   // another address, while the view was being made: then it goes.
-  if (!this.el.isConnected || url !== this.webUrl) {
+  if (this.destroyed || !this.el.isConnected || url !== this.webUrl) {
     void commands.webClose(res.data);
     return;
   }

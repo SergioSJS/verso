@@ -1,8 +1,8 @@
 // A folder's row on a finger (ADR 0060, amendment of 2026-10-30; the
 // maintainer: "tem que clicar milimetricamente na setinha"): a tap anywhere
 // on the row opens or closes the folder, and its page opens from the small
-// button at the row's end or from the row's menu. With a mouse nothing
-// changes: the arrow toggles, the name opens the page.
+// button at the row's end or from the row's menu. With a mouse the same
+// since 2026-10-31: a click on the row toggles, the button opens the page.
 
 import { test, expect } from "./fixtures.mjs";
 
@@ -30,16 +30,32 @@ test("a folder's row: a tap toggles it, a button at its end opens the page, a lo
   const z = folder(page, "Zeta");
   const button = z.locator("button.folder-page");
   if (!coarse) {
-    // A mouse: the button is not there, the arrow toggles, the name opens the page.
-    await expect(button).toBeHidden();
-    await expect(z).toHaveAttribute("aria-expanded", "true");
-    await z.locator(".chev").click();
-    await expect(z).toHaveAttribute("aria-expanded", "false");
-    await z.locator(".chev").click();
+    // A mouse (ADR 0060, 2026-10-31): a click anywhere on the row toggles it,
+    // on the name as on the arrow; the page opens from the button at the end.
     await expect(z).toHaveAttribute("aria-expanded", "true");
     await z.locator(".folder-label").click();
+    await expect(z).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator(".sheet")).toHaveCount(0);
+    await z.locator(".chev").click();
+    await expect(z).toHaveAttribute("aria-expanded", "true");
+    // The button: shown on the row's hover, named, and it opens the page
+    // without toggling the row.
+    await z.hover();
+    await expect(button).toBeVisible();
+    await expect(button).toHaveCSS("opacity", "1");
+    await expect(button).toHaveAttribute("aria-label", /Abrir a página da pasta/);
+    await button.click();
     await expect(page.locator(".sheet")).toBeVisible();
     await expect(z).toHaveAttribute("aria-expanded", "true");
+    // The keyboard: the button is a Tab stop of its own and shows on focus,
+    // even with the pointer away.
+    await page.mouse.move(0, 0);
+    // (Guards the app on WebKit: the clicked button takes the focus, so Tab
+    // goes from where the person is; review I7.)
+    await z.focus();
+    await page.keyboard.press("Tab");
+    await expect(button).toBeFocused();
+    await expect(button).toHaveCSS("opacity", "1");
     return;
   }
   // A finger: the whole row is the target, 44 px tall at least.

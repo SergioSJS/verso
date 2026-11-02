@@ -164,7 +164,7 @@ mcp: o cliente que se conectar lê a pasta inteira (toda nota que o índice
 lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
                 .to_owned(),
             Msg::UnknownSubcommand(s) => {
-                format!("comando desconhecido, e nenhuma pasta nem arquivo Markdown com esse nome: {s}")
+                format!("comando desconhecido, e nenhuma pasta, arquivo Markdown ou arquivo de dados com esse nome: {s}")
             }
             Msg::UnknownOption(s) => format!("opção desconhecida: {s}"),
             Msg::BadOptionValue(s) => format!("valor inválido ou ausente para {s}"),
@@ -182,7 +182,7 @@ lista); ainda não há como esconder um bloco ou uma nota. Escolha a pasta."
                 "não achei o aplicativo {app} ({tried}). Defina VERSO_APP com o caminho do executável ou instale o app."
             ),
             Msg::NoFolderToOpen(folder) => {
-                format!("não há pasta nem arquivo Markdown em {folder}")
+                format!("não há pasta, arquivo Markdown ou arquivo de dados em {folder}")
             }
             Msg::IndexSummary {
                 indexed,
@@ -265,7 +265,7 @@ mcp: the client that connects reads the whole folder (every note the index
 lists); there is no way to hide a block or a note yet. Choose the folder."
                 .to_owned(),
             Msg::UnknownSubcommand(s) => {
-                format!("unknown command, and no folder or Markdown file by that name: {s}")
+                format!("unknown command, and no folder, Markdown file or data file by that name: {s}")
             }
             Msg::UnknownOption(s) => format!("unknown option: {s}"),
             Msg::BadOptionValue(s) => format!("missing or invalid value for {s}"),
@@ -282,7 +282,7 @@ lists); there is no way to hide a block or a note yet. Choose the folder."
             Msg::AppNotFound { app, tried } => format!(
                 "could not find the {app} application ({tried}). Set VERSO_APP to the executable or install the app."
             ),
-            Msg::NoFolderToOpen(folder) => format!("no folder or Markdown file at {folder}"),
+            Msg::NoFolderToOpen(folder) => format!("no folder, Markdown file or data file at {folder}"),
             Msg::IndexSummary {
                 indexed,
                 unchanged,

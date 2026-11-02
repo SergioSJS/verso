@@ -6,7 +6,7 @@
 // 2026-10-20): one switch per feature, all on unless the person turned one
 // off. No imports: settings.ts reads this to migrate the old `preset`.
 
-export const FEATURE_IDS = ["diceRolling", "randomTables", "oracles", "statblocks", "campaignBundles", "dataDiagram", "colorSwatches", "dice3d", "table"] as const;
+export const FEATURE_IDS = ["diceRolling", "randomTables", "oracles", "statblocks", "campaignBundles", "dataDiagram", "colorSwatches", "dice3d", "table", "tableSound", "terminal"] as const;
 export type FeatureId = (typeof FEATURE_IDS)[number];
 export type Features = Record<FeatureId, boolean>;
 
@@ -14,22 +14,28 @@ export type Features = Record<FeatureId, boolean>;
  *  RPG features apart from the application's). Each feature is in exactly one. */
 export type FeatureGroupId = "app" | "rpg";
 export const FEATURE_GROUPS: Record<FeatureGroupId, readonly FeatureId[]> = {
-  app: ["dataDiagram", "colorSwatches"],
-  rpg: ["diceRolling", "randomTables", "oracles", "statblocks", "campaignBundles", "dice3d", "table"],
+  app: ["dataDiagram", "colorSwatches", "terminal"],
+  rpg: ["diceRolling", "randomTables", "oracles", "statblocks", "campaignBundles", "dice3d", "table", "tableSound"],
 };
 
-/** The one feature that is off by default even with "Everything" (ADR 0103
- *  item 7, ADR 0101 item 7): the expensive one, in weight and battery. */
-export const OFF_BY_DEFAULT: readonly FeatureId[] = ["dice3d"];
+/** The features that are off by default even with "Everything" (ADR 0103
+ *  item 7): the 3D dice, the expensive one in weight and battery (ADR 0101
+ *  item 7), and the terminal, a shell of the computer the person enables
+ *  (ADR 0115, Q5 decided 2026-10-31). */
+export const OFF_BY_DEFAULT: readonly FeatureId[] = ["dice3d", "terminal"];
 
-/** Every feature on but the one that is off by default: the default, and the
+/** A feature only some sides have (ADR 0027): its switch is shown only where
+ *  the side can, by the capability named. */
+export const FEATURE_NEEDS: Partial<Record<FeatureId, "terminal">> = { terminal: "terminal" };
+
+/** Every feature on but the ones off by default: the default, and the
  *  shortcut "Everything". */
 export function allOn(): Features {
-  return { diceRolling: true, randomTables: true, oracles: true, statblocks: true, campaignBundles: true, dataDiagram: true, colorSwatches: true, dice3d: false, table: true };
+  return { diceRolling: true, randomTables: true, oracles: true, statblocks: true, campaignBundles: true, dataDiagram: true, colorSwatches: true, dice3d: false, table: true, tableSound: true, terminal: false };
 }
 /** Every feature off: the shortcut "Writing only". */
 export function allOff(): Features {
-  return { diceRolling: false, randomTables: false, oracles: false, statblocks: false, campaignBundles: false, dataDiagram: false, colorSwatches: false, dice3d: false, table: false };
+  return { diceRolling: false, randomTables: false, oracles: false, statblocks: false, campaignBundles: false, dataDiagram: false, colorSwatches: false, dice3d: false, table: false, tableSound: false, terminal: false };
 }
 
 /** The stored switches as a whole record: a missing or odd value is on,

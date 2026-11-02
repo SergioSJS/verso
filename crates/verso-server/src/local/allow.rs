@@ -89,6 +89,14 @@ pub const READ: &[&str] = &[
     "table_roll",
     "table_pin",
     "table_delete",
+    // The table's music (ADR 0116): a phone listens — the server's clock,
+    // and "this phone cannot play that track"; the controls are the game
+    // master's, which no phone is.
+    "table_time",
+    "table_cannot_play",
+    // A phone hears the game master's live share (ADR 0116 Q1 a: the
+    // desktop shares, the web and the phone listen).
+    "table_share_listen",
     "campaign_status",
     "collab_awareness",
     "collab_present",
@@ -159,6 +167,17 @@ pub const REFUSED: &[&str] = &[
     "open_sibling",        // ADR 0114: opens a file of the laptop's disk outside the served folders
     "pick_file",           // ADR 0114: the laptop's file picker
     "recent_files",        // ADR 0114: lists the laptop's recent files
+    // ADR 0115 items 6 and 23: a shell of the laptop is never run remotely.
+    "set_terminal_enabled",
+    "terminal_attach",
+    "terminal_busy",
+    "terminal_close",
+    "terminal_detect",
+    "terminal_flow",
+    "terminal_install_page",
+    "terminal_open",
+    "terminal_resize",
+    "terminal_write",
     "agent_visible",
     "set_agent_visible",
     "check_for_updates",
@@ -222,6 +241,23 @@ pub const REFUSED: &[&str] = &[
     "read_link_secrets",
     "log_read",
     "table_clear",
+    "table_play",
+    "table_sound",
+    // Sharing audio (ADR 0116 section B) is the desktop host's capture and
+    // the game master's: no phone captures, none shares (item 27).
+    "table_share_start",
+    "table_share_stop",
+    "audio_sources_list",
+    "audio_share_start",
+    "audio_share_stop",
+    // The window's own sounds while it shares (the host plays them): the
+    // same desktop host, never a phone.
+    "audio_share_own_begin",
+    "audio_share_own_pcm",
+    "audio_share_own_end",
+    // A desktop window's channel for the frames it hears; a phone hears
+    // through its own page (the web bridge answers it there).
+    "audio_share_hear",
     // A table is a server's and its game master's (ADR 0110): no phone runs
     // the commands that change one; the status is read below.
     "campaign_make",

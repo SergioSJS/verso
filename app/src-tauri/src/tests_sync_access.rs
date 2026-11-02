@@ -11,7 +11,7 @@
 use serde_json::{Value, json};
 
 use super::tests_live_table::{Browser, browser};
-use super::tests_sync::{Device, Running, changed, device, files, serve, sync, write};
+use super::tests_sync::{Device, Running, changed, device, files, serve, sync, text, write};
 use super::*;
 use verso_core::sync as engine;
 
@@ -401,4 +401,115 @@ fn the_synced_folders_windows_get_the_servers_seat_and_it_follows_changes_and_ho
     let again = crate::sync::Syncer::new(&d.key, &state);
     assert_eq!(again.seat(), after);
     assert!(again.seat().is_some());
+}
+
+/// Bia, an editor of the folder (no table), on a synced device.
+fn editors_folder(files: &[(&str, &str)]) -> (Running, Browser, Device) {
+    let r = serve(files);
+    let server = r.server.upgrade().unwrap();
+    let bia = server
+        .db
+        .account_by_email("bia@casa.lan")
+        .unwrap()
+        .unwrap()
+        .id;
+    server
+        .db
+        .grant(&r.folder, &bia, verso_server::db::Role::Editor)
+        .unwrap();
+    drop(server);
+    let owner = browser(&r, &r.owner);
+    let d = device(&r, &r.reader, &[]);
+    (r, owner, d)
+}
+
+/// Outside a table only the folder's owner deletes (ADR 0113 section B,
+/// amended 2026-10-31). A deletion an editor's device makes is refused by
+/// the server and the file comes back to that device, nothing lost
+/// (decided 2026-10-31); edits still go.
+#[test]
+fn an_editors_deletion_is_refused_and_the_file_comes_back() {
+    let (r, owner, d) = editors_folder(&[("Nota.md", "# Nota\n"), ("Outra.md", "# Outra\n")]);
+    sync(&d);
+    assert_eq!(here(&d), ["Nota.md", "Outra.md"]);
+    // An edit goes, as an editor's does.
+    write(&d, "Outra.md", b"# Outra\n\nda Bia\n");
+    sync(&d);
+    assert_eq!(
+        on_server(&owner, "Outra.md").as_deref(),
+        Some("# Outra\n\nda Bia\n")
+    );
+    // A deletion: refused, and the file is back here, said why.
+    d.ctx
+        .service
+        .with_key(&d.key, |ws| Ok(ws.delete_entry("Nota.md").map(|_| ())?))
+        .unwrap();
+    changed(&d, &["Nota.md"]);
+    sync(&d);
+    assert_eq!(on_server(&owner, "Nota.md").as_deref(), Some("# Nota\n"));
+    assert_eq!(
+        refused(&d),
+        [("Nota.md".to_owned(), "owner_deletes".to_owned())]
+    );
+    assert_eq!(here(&d), ["Nota.md", "Outra.md"]);
+    assert_eq!(text(&d, "Nota.md").as_deref(), Some("# Nota\n"));
+    // The next pass has nothing to do: neither side changed.
+    sync(&d);
+    assert!(refused(&d).is_empty(), "{:?}", refused(&d));
+    assert_eq!(here(&d), ["Nota.md", "Outra.md"]);
+    let _ = r;
+}
+
+/// A move that takes a file out of a shared folder counts as deleting it
+/// for that share, so only the folder's owner makes it (ADR 0113 section B,
+/// amended 2026-10-31). An editor's device that moves one out here is
+/// refused, and the file goes back into the shared folder here, nothing
+/// lost.
+#[test]
+fn an_editors_move_out_of_a_share_is_refused_and_the_file_goes_back() {
+    let (r, owner, d) = editors_folder(&[("Solta.md", "# Solta\n")]);
+    owner
+        .call(
+            "create_note",
+            json!({ "name": "Mesa/Carta", "text": "# Carta\n" }),
+        )
+        .unwrap();
+    let server = r.server.upgrade().unwrap();
+    server.db.make_share(&r.folder, "Mesa").unwrap();
+    drop(server);
+    sync(&d);
+    assert_eq!(here(&d), ["Mesa/Carta.md", "Solta.md"]);
+    d.ctx
+        .service
+        .with_key(&d.key, |ws| {
+            Ok(ws
+                .rename_entry("Mesa/Carta.md", "Fora/Carta.md")
+                .map(|_| ())?)
+        })
+        .unwrap();
+    changed(&d, &["Mesa/Carta.md", "Fora/Carta.md"]);
+    sync(&d);
+    assert_eq!(
+        on_server(&owner, "Mesa/Carta.md").as_deref(),
+        Some("# Carta\n")
+    );
+    assert_eq!(on_server(&owner, "Fora/Carta.md"), None);
+    assert_eq!(
+        refused(&d),
+        [("Mesa/Carta.md".to_owned(), "owner_moves_out".to_owned())]
+    );
+    assert_eq!(here(&d), ["Mesa/Carta.md", "Solta.md"]);
+    // A move into it is an editor's.
+    d.ctx
+        .service
+        .with_key(&d.key, |ws| {
+            Ok(ws.rename_entry("Solta.md", "Mesa/Solta.md").map(|_| ())?)
+        })
+        .unwrap();
+    changed(&d, &["Solta.md", "Mesa/Solta.md"]);
+    sync(&d);
+    assert_eq!(
+        on_server(&owner, "Mesa/Solta.md").as_deref(),
+        Some("# Solta\n")
+    );
 }

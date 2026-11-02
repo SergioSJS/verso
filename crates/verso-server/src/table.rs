@@ -85,7 +85,10 @@ pub const COMMANDS: [&str; 10] = [
 /// The commands of the table, including the page of history.
 #[must_use]
 pub fn is_command(cmd: &str) -> bool {
-    cmd == "table_history" || COMMANDS.contains(&cmd)
+    cmd == "table_history"
+        || COMMANDS.contains(&cmd)
+        || crate::table_sound::is_command(cmd)
+        || crate::table_share::is_command(cmd)
 }
 
 struct Member {
@@ -261,7 +264,7 @@ fn scoped(entry: Option<TableEntry>, root: Option<&str>) -> Option<TableEntry> {
 
 /// The account and role (in the table's log, [`crate::access::log_role`])
 /// of window `client` in `folder` now.
-fn viewer_of(
+pub(crate) fn viewer_of(
     server: &Server,
     client: &str,
     folder: &str,
@@ -287,6 +290,11 @@ fn key_of(folder: &str, table: &str) -> Key {
     (folder.to_owned(), table.to_owned())
 }
 
+/// The windows at `table` of `folder`.
+pub(crate) fn members(server: &Server, folder: &str, table: &str) -> Vec<String> {
+    member_clients(server, folder, table)
+}
+
 fn member_clients(server: &Server, folder: &str, table: &str) -> Vec<String> {
     lock(&server.tables.map)
         .get(&key_of(folder, table))
@@ -294,7 +302,7 @@ fn member_clients(server: &Server, folder: &str, table: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn is_member(server: &Server, folder: &str, table: &str, client: &str) -> bool {
+pub(crate) fn is_member(server: &Server, folder: &str, table: &str, client: &str) -> bool {
     lock(&server.tables.map)
         .get(&key_of(folder, table))
         .is_some_and(|m| m.contains_key(client))
@@ -366,6 +374,9 @@ fn tell_roster(server: &Server, folder: &str, table: &str) {
 /// The window `client` left: out of every table it was at, or of the
 /// tables of `folder` only when one is named.
 pub fn gone(server: &Server, client: &str) {
+    // Its live shares first: they end because it went (ADR 0116 item 16),
+    // whatever its leaving does to the tables.
+    crate::table_share::gone(server, client);
     leave(server, client, None);
 }
 
@@ -373,6 +384,7 @@ pub fn gone(server: &Server, client: &str) {
 /// when none is named.
 fn leave(server: &Server, client: &str, only: Option<(&str, &str)>) {
     let mut left = Vec::new();
+    let mut emptied = Vec::new();
     {
         let mut map = lock(&server.tables.map);
         map.retain(|key, members| {
@@ -380,8 +392,23 @@ fn leave(server: &Server, client: &str, only: Option<(&str, &str)>) {
             if named && members.remove(client).is_some() {
                 left.push(key.clone());
             }
+            if members.is_empty() {
+                emptied.push(key.clone());
+            }
             !members.is_empty()
         });
+    }
+    // A window that left no longer receives the live share; its sharer's
+    // leaving the panel alone does not end it (ADR 0116 item 16).
+    for (folder, table) in &left {
+        crate::table_share::left(server, client, (folder, table));
+    }
+    // The last window left: the table's music and its live share go with
+    // it (ADR 0116 items 8 and 16); the game master's leaving alone does
+    // not stop the music (Q8 a).
+    for (folder, table) in &emptied {
+        crate::table_sound::dropped(server, (folder, table));
+        crate::table_share::emptied(server, (folder, table));
     }
     for (folder, table) in left {
         tell_roster(server, &folder, &table);
@@ -724,11 +751,22 @@ pub async fn command(
         })
         .await?
     };
+    // The live share (ADR 0116 B): its sharer may stop it from outside the
+    // table's panel, so it judges the window's place itself.
+    if crate::table_share::is_command(cmd) {
+        let member = is_member(&s, &folder, &table, client);
+        let at = (folder.as_str(), table.as_str(), member);
+        return crate::table_share::command(&s, who, client, &door, at, cmd, &args).await;
+    }
     // Only a window at the table speaks at it.
     if !matches!(cmd, "table_join" | "table_leave" | "table_history")
         && !is_member(&s, &folder, &table, client)
     {
         return Err(refused("join the table first"));
+    }
+    if crate::table_sound::is_command(cmd) {
+        return crate::table_sound::command(&s, who, client, &door, (&folder, &table), cmd, &args)
+            .await;
     }
     match cmd {
         "table_join" => {
@@ -768,6 +806,12 @@ pub async fn command(
             joined.files = door
                 .may(Action::SendFile { image: false }, &table, Kind::Table)
                 .allowed();
+            joined.play = door.may(Action::Play, &table, Kind::Table).allowed();
+            joined.broadcast = door.may(Action::Broadcast, &table, Kind::Table).allowed();
+            joined.share = crate::table_share::joined(server, client, (&folder, &table));
+            let (s, c, f, t) = (Arc::clone(server), client.to_owned(), folder, table);
+            joined.playback =
+                blocking(move || Ok(crate::table_sound::joined(&s, &c, (&f, &t)))).await?;
             to_value(joined)
         }
         "table_leave" => {
@@ -1069,6 +1113,10 @@ fn join(
         roster: roster(server, folder, table),
         images: false,
         files: false,
+        play: false,
+        playback: Vec::new(),
+        broadcast: false,
+        share: None,
     })
 }
 

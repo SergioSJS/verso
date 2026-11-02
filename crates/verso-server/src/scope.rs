@@ -923,6 +923,15 @@ impl Scope {
             // pushed, so nothing of the owner's folder is in them.
             "table-entry" | "table-roster" | "table-pinned" | "table-removed" | "table-cleared"
             | "table-images" => {}
+            // The table's music and live share (ADR 0116): written for the
+            // share by `table_sound.rs` / `table_share.rs` (table `""`, the
+            // track's path from the share's root, none when unseen) before
+            // they pushed. A share's window hears them as a member does.
+            "table-playback"
+            | "table-share-started"
+            | "table-share-state"
+            | "table-share-stopped"
+            | "table-share-behind" => {}
             _ => return None,
         }
         Some(m)
@@ -941,6 +950,21 @@ mod tests {
             root: "Mesa/Campanha".into(),
             mount: Some(("Anexos".into(), "Anexos".into())),
             guard: None,
+        }
+    }
+
+    #[test]
+    fn a_share_window_hears_the_tables_music_and_share_events() {
+        let s = scope();
+        for event in [
+            "table-playback",
+            "table-share-started",
+            "table-share-state",
+            "table-share-stopped",
+            "table-share-behind",
+        ] {
+            let m = json!({ "event": event, "payload": { "table": "" } });
+            assert_eq!(s.push(&m), Some(m), "{event}");
         }
     }
 

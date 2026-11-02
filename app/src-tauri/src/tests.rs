@@ -1315,20 +1315,20 @@ fn every_command_of_the_bindings_is_allowed() {
 /// them to say in its language; still the `version` problem.
 #[test]
 fn a_contract_of_another_build_names_both_builds() {
-    let ours = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "1dac246", "contract": remote::contract_version() });
+    let ours = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "d416898", "contract": remote::contract_version() });
     assert_eq!(remote::mismatch(&ours), None);
-    let other = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "1dac246", "contract": "0123456789abcdef" });
+    let other = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "d416898", "contract": "0123456789abcdef" });
     let v = remote::mismatch(&other).unwrap();
     assert_eq!(
         (v.server_build.as_str(), v.server_contract.as_str()),
-        ("1dac246", "0123456789abcdef")
+        ("d416898", "0123456789abcdef")
     );
     assert_eq!(v.app_build, env!("VERSO_COMMIT"));
     let said = remote::mismatch_refused(&v).message;
     assert_eq!(
         said,
         format!(
-            "the server runs Verso {0} (build 1dac246, contract 0123456789abcdef), this app {0} (build {1}, contract {2}): their contracts differ — update the one that is behind",
+            "the server runs Verso {0} (build d416898, contract 0123456789abcdef), this app {0} (build {1}, contract {2}): their contracts differ — update the one that is behind",
             env!("CARGO_PKG_VERSION"),
             env!("VERSO_COMMIT"),
             remote::contract_version()
@@ -1441,4 +1441,43 @@ fn a_folder_of_this_computer_keeps_and_restores_its_versions() {
     assert_eq!(after["revision"], back["revision"]);
     call(&webview, "set_history_days", json!({ "days": 30 })).unwrap();
     assert!(call(&webview, "set_history_days", json!({ "days": 40_000 })).is_err());
+}
+
+/// A sound the window takes into Web Audio (`crossorigin` on the element, so
+/// the table's music and the audio players in notes can be routed to the host
+/// while a Mac shares, ADR 0116) is read by the window's origin on every
+/// system, whichever way the file comes, and by no other.
+#[test]
+fn an_audio_file_is_readable_from_the_windows_origin_on_every_path() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _song = note(vault.path(), "taverna.mp3", "ID3-not-really-audio");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    for origin in [
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+    ] {
+        let local = serve(Some(&mut ws), "main", "taverna.mp3", Some(origin));
+        assert_eq!(local.status, 200);
+        assert_eq!(header(&local, "Access-Control-Allow-Origin"), Some(origin));
+        assert_eq!(header(&local, "Vary"), Some("Origin"));
+        // A server's file, which answers without CORS, gets it from the host.
+        let mut remote = verso_service::files::Served {
+            status: 206,
+            headers: vec![("Content-Range", "bytes 0-3/10".to_owned())],
+            body: Vec::new(),
+        };
+        crate::protocol::allow_app_origin(&mut remote.headers, Some(origin));
+        assert_eq!(header(&remote, "Access-Control-Allow-Origin"), Some(origin));
+    }
+    let mut other = verso_service::files::Served {
+        status: 200,
+        headers: Vec::new(),
+        body: Vec::new(),
+    };
+    crate::protocol::allow_app_origin(&mut other.headers, Some("https://evil.example"));
+    crate::protocol::allow_app_origin(&mut other.headers, None);
+    assert!(other.headers.is_empty());
 }

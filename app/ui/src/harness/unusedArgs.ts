@@ -66,4 +66,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   loose_save_again: ["name", "text"],
   loose_save_copy: ["name", "text"],
   open_recent_file: ["index"],
+  // The Mac's own-sound route (ADR 0116, decision A2): the harness is no
+  // Mac, its begin answers false, so no block is ever sent.
+  audio_share_own_pcm: ["block"],
 };

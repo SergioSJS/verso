@@ -3,7 +3,7 @@
 // words: in the account's list of sessions, in the console's list of an
 // account's sessions and of a folder's changes. Each says it in a <bdi>
 // of its own, so that a name in another direction does not carry into the
-// words after it (the approval page already does, fa44fb19).
+// words after it (the approval page already does, ae82caed).
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";

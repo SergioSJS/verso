@@ -10,7 +10,7 @@
 
 import type { Composed } from "./compose";
 import type { OracleHost, OracleTarget } from "./host";
-import { locateOracleCallout, oracleBlockContaining, oracleBlocks, oracleQuestion, planOracleEdit, planOracleInsert } from "./locate";
+import { locateOracleCallout, oracleBlockContaining, oracleBlockOnLine, oracleBlocks, oracleQuestion, planOracleEdit, planOracleInsert } from "./locate";
 import { trackedTarget } from "./track";
 
 export type Refusal = "readOnly" | "conflict" | "readerView" | "stale" | "moved" | "unchanged";
@@ -38,6 +38,20 @@ export function readingTarget(host: OracleHost, ordinal: number, shown: number):
   const blocks = oracleBlocks(text);
   const block = blocks[ordinal];
   if (blocks.length !== shown || !block) return { why: "moved" };
+  return { target: { from: block.from, text: block.text }, question: oracleQuestion(block) };
+}
+
+/** The callout in the reading view whose head the core numbered `line`
+ *  (`data-oracle-line`, ADR 0102 amendment of 2026-10-31): found on that
+ *  line of the text the view was drawn from, which must still be the
+ *  editor's. No oracle head on that line, and nothing is guessed. */
+export function readingTargetOnLine(host: OracleHost, line: number): { target: OracleTarget; question: string } | { why: Refusal } {
+  const why = refusal(host);
+  if (why) return { why };
+  const text = eolless(host.editor.state.doc.toString());
+  if (text !== eolless(host.shownText)) return { why: "stale" };
+  const block = oracleBlockOnLine(text, line);
+  if (!block) return { why: "moved" };
   return { target: { from: block.from, text: block.text }, question: oracleQuestion(block) };
 }
 

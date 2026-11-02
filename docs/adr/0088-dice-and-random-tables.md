@@ -166,3 +166,58 @@ reused (item 5), the roller without a note (item 6), and whether
 primitives satisfy [0036](0036-tabletop-rpg-support.md)'s Consequences.
 
 *Added (2026-10-23):* "não existe comando /dice ou /roll na nota para adicionar rolagem né?". The editor's `/` menu gets **Dice roll** (keywords dice, dado, roll, rolar, d20), shown only while the Dice feature is on: it inserts an inline `` `dice: 1d20` `` with the notation selected, so the person types over it.
+
+**Amendment (2026-10-31): a roll heard in a room lands on its own chip.**
+`[DECIDED 2026-10-31, to be built]` Item 4's room roll carries no place in
+the note, so a roll by another person lands on the first chip with the same
+notation (the bow and the dagger both `1d20+6`;
+[review 2026-10-23](../review/2026-10-23-table-three-devices.md) finding 4,
+fixed then for one's own rolls only). Put to the maintainer as B1 of the list
+of 2026-10-31, option a, *"corrigir os dois numa mudança de contrato (servidor
+antes dos apps)"* (fix both in one contract change, the server before the
+apps), and approved as recommended: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). The room's roll carries the
+chip's place, in the **same contract change** as the oracle's callout found
+by its line ([0102](0102-creative-oracles-and-improvisation.md), amendment of
+the same day); the server is deployed before the apps.
+
+*As built (2026-10-31).* **A contradiction, recorded and not resolved
+here:** the room's roll already carried the chip's place. `DiceRoll`
+gained `occurrence` on 2026-10-23 (`5bc67a211`, decided "Sim" that day and
+recorded in [0107](0107-the-table-a-shared-roll-and-chat-log.md), *A roll
+heard names the die that was clicked*): which of the note's dice with that
+code was clicked, from 0, sent by the window in `collab_roll` and
+`table_roll`, kept by the server only below 1000, relayed in the room's
+event, in the rolls kept for whoever joins and in the table's entry; none
+(an older window or server) is the first chip, as before. Finding 4 of the
+review and this amendment were written from the text before that commit.
+So this build changes **no contract type**: `bindings.ts` regenerates
+unchanged, an old window's roll (no `occurrence`) is still read by the
+server, and an old server's roll is still read by a new window. What still
+landed on the wrong chip, and is fixed:
+
+- *Live Preview and Reading counted differently.* Reading counts the
+  rendered dice of the note with the same code (`wireDice`); Live Preview
+  counted every earlier copy of the code's text, a fenced example and
+  another spelling (`dice:1d20`, `dice: 1d20`) included, so a roll made in
+  one view showed on another die in the other. Live Preview now counts the
+  inline codes before it that name the same die, outside the frontmatter
+  (`live.ts`, `diceKey` in `dice/live.ts`); `dice.spec.mjs` was seen failing
+  first (occurrence 1 where Reading says 0).
+- *A reader of a note with secret blocks.* A reader counts the dice of the
+  projection, and the server told readers a roll whenever its code was
+  written in the projection: with the same code inside a secret block and
+  in the open, the hidden die's roll reached the readers and showed on the
+  open one ([0087](0087-secret-blocks-hidden-from-readers.md) item 4).
+  Now a roll is told to the room's readers, given to one who joins and
+  marked open in the table only when no die with its code is hidden — the
+  code written no more often in the room's text than in the projection
+  (`collab_readers.rs`, `visible`); it fails closed, so a public die that
+  shares its code with a hidden one is not heard by readers either.
+  `tests_secret.rs` was seen failing first (the reader heard `1d20`).
+
+Left as is, `[OPEN]` for the maintainer: translating a place to the
+projection's count, so that a reader would hear the public die of a code a
+secret block also holds — a design choice, not made here.
+*Decided 2026-11-01 (item 5 of the list of that day, a):* **keep it**: the
+reader does not hear the public die either (it fails closed, the safe side).
+*"Todas pode seguir sua recomendação com exceção: Abas no celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …, imagino que celular um pouco mais estreito não vai caber tudo; 7. Se tiver logado com a conta do dono, deveria sim ser B; 11. deveria ser vc conferindo, B"* (follow your recommendation on all of them, except: tabs on the phone are a mix of a and b; 7: signed in as the owner it should be b; 11: it should be you checking, b).

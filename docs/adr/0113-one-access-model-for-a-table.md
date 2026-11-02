@@ -4,7 +4,7 @@
 - Source: the maintainer's live test of a table on 2026-10-24 (his report is
   quoted in Context), the read-only audit made the same day at his request
   ([review 2026-10-24](../review/2026-10-24-permissions-audit.md), on
-  `feat/rpg-tools` at `6919e533`), and his answers to that audit's proposal
+  `feat/rpg-tools` at `210dab16`), and his answers to that audit's proposal
   the same day, quoted under each item of the Decision. Written by Opus 5.5;
   to be read by the other model before it is built
   ([0032](0032-author-and-reviewer-roles.md)).
@@ -231,17 +231,17 @@ changes nothing there.
 
 A player whose role is *editor* edits wherever their level is at least `see`
 (K.1): for them *Sees* in the dialog already means editing, and their row
-says so (*edits all they see*). `[PROPOSED]` (the author's reading of K.1 with K.5): a folder they see
+says so (*edits all they see*). `[DECIDED 2026-10-31]` (the author's reading of K.1 with K.5, accepted; Status): a folder they see
 counts as a folder they edit, so they create and rename inside it.
 
-`[PROPOSED]` (the author's reading of item 2): a node's access is **one whole
+`[DECIDED 2026-10-31]` (the author's reading of item 2, accepted; Status): a node's access is **one whole
 set** — a *Whole table* row and the per-player rows that differ from it. Changing
 a file alone writes its whole set, so the file stops consulting its folder
 entirely; *↺ Follow the folder* deletes the file's set. A node never mixes its
 own rows with its folder's per player.
 
 An **attachment** (any file that is not a note, board or base) follows K.3,
-*chosen in the code*: an explicit access wins; with none, it keeps today's
+*chosen in the code* and decided 2026-10-31: an explicit access wins; with none, it keeps today's
 derived rule — seen by a player when a file that player sees links or embeds
 it, or when the table shows it (0110 "Chosen in the code" (5)).
 
@@ -257,14 +257,89 @@ it, or when the table shows it (0110 "Chosen in the code" (5)).
 | Link something already seen (drag from the chat, the tree) | = Edit(target) | = Edit(target) | = Edit(target), no further right (item 5) | no |
 | Create (inside a folder) | role ≥ editor ∧ cap Write | cap Write | Edit(folder) ∧ right *Creates notes* or *Creates boards* by kind ∧ cap Write (K.6); a new file takes the folder's access | no |
 | Rename (same folder) | role ≥ editor ∧ cap Write | cap Write | Edit(file) ∧ cap Write (K.6) | no |
-| Move (into or out of a folder) | role ≥ editor ∧ cap Write | cap Write | no (K.5) | no |
-| Delete | role ≥ editor ∧ cap Write | cap Write | no (K.5) | no |
+| Move (into or out of a folder) | role ≥ editor ∧ cap Write; out of a shared folder: **owner** ∧ cap Write (amended 2026-10-31, below) | cap Write | no (K.5) | no |
+| Delete | **owner** ∧ cap Write (amended 2026-10-31, below; was role ≥ editor) | cap Write | no (K.5) | no |
 | Say, Roll, RollSecret | — | yes | yes (table open) | no |
 | See others' secret rolls | — | yes | no (an editor neither, item 3) | no |
 | Delete an entry, clear the table | — | yes | only their own message or file | no |
 | SendFile (chat) | — | cap Write | image: right *Images*; other: right *Files*; ∧ cap Write (K.6) | no |
 | ManageAccess, ManageTable | — | cap Write ∧ not a phone (as built) | no | no |
 | Share, Invite | owner ∧ cap Write (Invite of a person with no account: the admin, 0081 item 4) | owner | no | no |
+
+**Amended 2026-10-31: outside a table, only the folder's owner deletes.**
+`[DECIDED 2026-10-31, to be built]` Put to the maintainer as B8 of the list of
+2026-10-31 — in a common shared folder, outside a table, whoever edits may
+delete (the file goes to the trash), while at a table a player may not; a)
+keep it, b) make them equal; the recommendation was a — he answered
+otherwise: *"apenas o dono da pasta pode apagar"* (only the folder's owner
+may delete). In a folder or share outside a table, **Delete** needs the
+folder's **owner** role; an editor edits, creates, renames and moves, and
+does not delete. Inside a table the rows above are unchanged. The two cases
+his answer did not reach were put to him with the build, each with a
+recommendation, and he answered *"Seguir sua recomendação"* (follow your
+recommendation), 2026-10-31:
+
+- `[DECIDED 2026-10-31]` **A deletion an editor's synced device sends**
+  ([0079](0079-sync-a-local-folder-with-a-server.md)) is refused by the
+  server, and the file comes back to that device: nothing is lost.
+- `[DECIDED 2026-10-31]` **A move that takes a file out of a shared folder**
+  counts as deleting it for that share, so only the folder's owner makes it.
+
+The trash's own rules ([0080](0080-the-trash-with-expiry-and-restore.md)
+item 7: any writer restores; "delete now" and emptying are the owner's) are
+unchanged.
+
+*As built (2026-10-31, B8).*
+
+- **The one answer.** `access::may` (`rules.rs`) answers `Delete` outside a
+  table with the owner alone (`Deny(NotMaster)` to an editor); `Move` stays
+  an editor's there. The shared vectors (`app/ui/test/access-vectors.json`,
+  regenerated) carry it, so the window's `accessCore.decide` and the harness
+  agree: `delete` needs the owner (or a folder of this computer alone).
+- **The doors.** `delete_note`, `delete_entry` and a device's `sync_delete`
+  ask `may(Delete)`; an editor's refusal outside a table is worded
+  `"only the folder's owner deletes here"` (`NO_DELETE_OWNER`). A move — a
+  rename into another folder, each entry of `move_entries`, a device's
+  `sync_rename` — that takes a path out of a shared folder (inside it, not
+  the shared folder itself, whose share goes with it; to a place outside it)
+  is asked as `may(Delete)` of that path as well (`Door::out_of_share`),
+  refused as `"only the folder's owner moves files out of a shared folder"`
+  (`NO_MOVE_OUT_OF_SHARE`). The folder's shared folders are read for a
+  door only when the person may move and is not the owner; a failed read
+  judges every move out of a folder as one out of a share (closed).
+- **The bin.** Its door asks `may(Edit)` of the folder instead of
+  `may(Delete)`: any writer still sees it and restores (item 7 of 0080,
+  unchanged); purging, emptying and the days stay the owner's.
+- **The window.** No delete is offered to such an editor: the tree's and the
+  folder page's menus, the selection's menu and bar (the bar's *Move* now
+  asks `move`, its bin `delete`), the palette's *Delete*; a key (Delete,
+  ⌘⌫) says why in the notice and the status line (`errOwnerDeletes`, pt-BR
+  and EN). The bin's entries (menu, palette, Settings) ask the new window
+  action `trash`, the old rule. A move out of a share refused by the server
+  is said as `errOwnerMovesOut`.
+- **A synced device** (`sync/transfer.rs`). A deletion the memo does not
+  allow (`delete: false` from `access_get` brief) for a file the device may
+  put is not sent: the server's copy is downloaded back at once and the file
+  is listed once as `owner_deletes`. The same when the server refuses a
+  `sync_delete` with `NO_DELETE_OWNER` (a memo from before the rule). A
+  `sync_rename` refused with `NO_MOVE_OUT_OF_SHARE` puts the file back where
+  it was here (`owner_moves_out`). Neither is a conflict copy nor a retry.
+- **Provisional, for the maintainer** (forced by the code, chosen to lose
+  nothing, `PROPOSED`):
+  1. `remove_folder_data` (a layout or bundle of `.verso/`, through the bin)
+     was already asked as `Delete`: it is now the owner's too, outside a
+     table. An editor still writes over one; renaming a layout (write the
+     new, remove the old) leaves the old one and says why.
+  2. **A contradiction with [0096](0096-this-app-is-a-server.md) item 12**,
+     not settled here: a phone paired to "This app is a server" is an
+     *editor*, never an owner. On a folder served whole it sits as the
+     owner's session (the game master's seat) and still deletes; on a folder
+     served in part it is an editor of a share, and no longer deletes (nor
+     moves out of a nested shared folder). Its owner deletes from the
+     computer.
+  3. The desktop window of a folder synced here offers delete as before (its
+     files carry no server answer, section C "not done" (1)); the deletion
+     then comes back on the next pass, said as `owner_deletes`.
 
 The credential cap is one line: **every writing action needs `cap = Write`**. A
 phone paired as reader, a read token and a read link are `cap = Read`; that is
@@ -574,15 +649,15 @@ choice.
    maintainer: *"Leva o próprio acesso"* (it takes its own access along). A
    moved or renamed file keeps its own set and becomes an **exception** in the
    new folder, listed in that folder's dialog with *↺ Follow the folder*.
-   `[PROPOSED]` (the author's reading): a file that had no set of its own takes
+   `[DECIDED 2026-10-31]` (the author's reading, accepted): a file that had no set of its own takes
    along the access it had — its old folder's, written as its own set — so a
    move never changes who sees it; a moved folder carries its set the same way,
    and the files that followed it keep following it. A rename inside the same
    folder changes nothing.
 3. **An attachment with an explicit access and a file that embeds it.** Not
-   asked; *chosen in the code*, to confirm: an **explicit access on the
+   asked; *chosen in the code*, `[DECIDED 2026-10-31]`: an **explicit access on the
    attachment wins**; with none, it follows the notes and boards that embed or
-   link it, today's rule. `[PROPOSED]` (the author's reading of "explicit"): a
+   link it, today's rule. `[DECIDED 2026-10-31]` (the author's reading of "explicit", accepted): a
    folder's set covering the attachment counts as explicit, since applying a
    folder replaces what is inside (item 2); a note a player sees that embeds an
    attachment hidden from them shows "🔒 (not revealed yet)" there, and the
@@ -594,9 +669,16 @@ choice.
    bytes where it is known, the table's size limit, the folder's quota, never
    SVG, HTML or a script — and it covers the chat **and** a new file put into a
    note or board the player edits. This widens item 5 and 0107 item 3 (the chat
-   carries files, not only images). `[PROPOSED]`: the chat shows a file that is
+   carries files, not only images). `[DECIDED 2026-10-31]`: the chat shows a file that is
    not an image as a card with its name, kind and size; the table's limit keeps
-   its value and is named *file size limit*. **Amended 2026-10-28 (K.6):**
+   its value and is named *file size limit*. *As built (checked 2026-10-31,
+   `app/ui/src/table/view.ts` `fileCard`):* the card shows the name and the
+   kind — PDF or audio, the only kinds besides images that the server's
+   `table_image.rs` takes — and a click opens the file; it does **not** show
+   the size yet, a gap to build. The limit keeps its value; it is not yet
+   named *file size limit* where it is shown (the refusal says "the table's
+   most", the code calls it `image_limit` / `IMAGE_MAX`), a gap to build with
+   the size. **Amended 2026-10-28 (K.6):**
    *Send files* is split into *Images* and *Files*.
 5. **Edits on a folder for a player.** `[DECIDED 2026-10-24]` The maintainer:
    *"Cria e renomeia, não apaga"* (creates and renames, does not delete). A
@@ -718,6 +800,19 @@ those answers; the details marked `[PROPOSED]` are the author's. Nothing is
 `[OPEN]`. To be read by the other model before S1 starts
 ([0032](0032-author-and-reviewer-roles.md)).
 
+**The author's readings and K.3 decided (2026-10-31).** Put to the maintainer
+in the list of 2026-10-31 (the four `[PROPOSED]` readings — a folder a table
+editor sees is one they create and rename in, a node's access is one whole set,
+a moved file with no set of its own takes the access it had, a file that is not
+an image is a card in the chat — and K.3's "explicit"), he answered *"O
+restante ta aprovado"* (the rest is approved), keeping apart only five items of
+other ADRs. Each is marked `[DECIDED 2026-10-31]` in place (A, K.2, K.3, K.4):
+a folder's set covering an attachment counts as explicit, the note shows 🔒 and
+its dialog warns. K.4's card was checked against the code before it was marked:
+the size and the limit's name are not built yet (the as-built note in K.4).
+Whether the 🔒 and the dialog's warning of K.3 are built was not checked in
+this record. No `[PROPOSED]` stays in this record.
+
 ### As built, S1–S3 (2026-10-24, `feat/one-access-model`)
 
 Server side only; the contract and the window are S4–S6.
@@ -796,7 +891,7 @@ maintainer decided two behaviours; all are tested (`tests_access_review.rs`).
 The contract, the window, the dialog and the tutorial. The server side is
 S1–S3 and the synced desktop is S8.
 
-- **The contract (S4, `2665a373`, `3d0ae216`).** `FileAccess` (`level`,
+- **The contract (S4, `2beb63be`, `703f0159`).** `FileAccess` (`level`,
   `attach`, `why`) on every read answer and every listing entry; `FolderAccess`
   in the capabilities (the seat, the role, the credential's ceiling); the
   `access-changed` event with its paths (empty when a table or a right
@@ -806,50 +901,50 @@ S1–S3 and the synced desktop is S8.
   in `verso-server/src/access_cmds.rs` and `campaign_cmds.rs`, with the Tauri
   stubs, permissions, remote forwards and the phone's deny list. Bindings
   regenerated. `AccessInfo.master` is the owner's account name, never an
-  e-mail (`master_name`; `3d06960c`). `3d0ae216` has the harness answer the new
+  e-mail (`master_name`; `62281f9c`). `703f0159` has the harness answer the new
   commands from the shared vectors.
-- **One question in the window (S5, `aecec0dc`).** `access.ts` keeps what the
+- **One question in the window (S5, `1745f329`).** `access.ts` keeps what the
   server said and asks `accessCore.decide` through `may(path, action)`, which
   replaces `canChange`, `readsSynced`, `syncedReader`, `mayEditGranted`, the
   folder-wide `readable()` and the owner inferred from an error. The chip and
   the badge ask `tableViewer()` (`tableChip.ts`) instead of the campaign's
   `viewer`.
-- **Chat drag (S5, `aecec0dc`, `26c4da1f`).** Every chat entry is a drag
+- **Chat drag (S5, `1745f329`, `f3a152af`).** Every chat entry is a drag
   source (`table/view.ts`): a roll, a draw, an oracle or a message is dragged as
   its block or line; an image or a file as a link to the file already in the
   folder, nothing uploaded. The drop needs `may(path, "edit")` on the target
   and nothing of the entry's author. A masked secret entry (kind `secret`) holds
   nothing to drag and is not draggable.
-- **The Acesso… dialog (S6, `5608b2e3`, `4be4718e`).** `accessDialog.ts`, its
+- **The Acesso… dialog (S6, `6672ee0a`, `d1a68806`).** `accessDialog.ts`, its
   strings in `accessStrings.ts`, its controls in `accessControl.ts`. It opens
   from a file's title icon, one row of the tree's menu and a multiple selection
   (`noteAccess.ts`, `menu.ts`); a folder shows how many files an *Apply* changes
   before it applies. The indicator is the table chip (`tableChip.ts`); the Table
   window keeps a per-file control and a per-player control (`campaign.ts`,
   `campaignPlayers.ts`).
-- **Send files (K.4, merge `ed321a99`: `5dc9e002`, `65836de9`, `143735a4`,
-  `f0c5f266`).** A player with *Send files* sends images, PDF and audio (MP3,
+- **Send files (K.4, merge `f96e403e`: `cde87295`, `4e636369`, `4f2a6ff0`,
+  `084a699c`).** A player with *Send files* sends images, PDF and audio (MP3,
   Ogg, WAV, M4A) to the chat, and into the notes and boards they edit. The kind
   is judged by the first bytes, never by the name (`file_ext` in `table.rs`);
-  an MP3 needs a real MPEG Layer II or III frame header (`f0c5f266`). The bytes
+  an MP3 needs a real MPEG Layer II or III frame header (`084a699c`). The bytes
   are written under the table's attachments place (`table_image.rs`, `PLACE`).
   The window: `table/send.ts` (`sendable`), `table/compose.ts`, the file card
   in `table/view.ts`. A rename at a table keeps a file's kind (`door.rs`): a
   sent PNG is never renamed into a page, an SVG or a PDF, and a text write
   makes no non-note file.
 - **Removed.** `campaign_permission`, its Tauri command, permission and the
-  old access-menu strings in `campaignStrings.ts` (`c75320a6`); `table_rights_set`
+  old access-menu strings in `campaignStrings.ts` (`c796555f`); `table_rights_set`
   replaces it.
-- **Dialog tests (T6, merge `04b10de2`: `1f658aeb`, `71e02e38`, `3adf1cce`,
-  `4a19ff07`, `c860cc3e`, `629b5279`).** `app/ui/e2e/access-dialog.spec.mjs`
+- **Dialog tests (T6, merge `125845e4`: `d04ca6e3`, `ff320747`, `4beabaf8`,
+  `fc5db141`, `edc74df5`, `449b6277`).** `app/ui/e2e/access-dialog.spec.mjs`
   drives the dialog by keyboard alone; at 1500, 820 and 390 px every control is
   reachable inside the dialog's width, and the spec checks fair targets on the
   phone's sheet (Apply, Follow the folder and More options are 44 px there); the
   dark theme keeps the words legible and a chosen level distinct. Focus returns
   to the opener's row after a save draws the tree again; the folder page redraws
   its table card when the seat arrives.
-- **Tutorial and changelog (S10, merge `862c0ed6`: `9120fee9`, `aebb37c8`,
-  `af9976ea`, `60f8dc7f`, `56b2fb43`).** Notes 31 (`31 - A Mesa.md`) and 32
+- **Tutorial and changelog (S10, merge `b83d201e`: `29b1b1e8`, `908b18f4`,
+  `15f767aa`, `ba876279`, `e93a037d`).** Notes 31 (`31 - A Mesa.md`) and 32
   (`32 - Rodando uma Mesa.md`) describe the one model, `app/ui/src/demoVault.ts`
   is regenerated, walkthrough §18 ("Running a table (note 32)") holds the steps,
   and both CHANGELOGs carry the entries.
@@ -1050,43 +1145,43 @@ name never reaches the player's page.
 
 - **The spec.** `app/ui/e2e-server/zz-access-scenarios.spec.mjs` (468 lines)
   with its helpers in `app/ui/e2e-server/access-helpers.mjs` (283 lines). The
-  scenarios run last in the server suite (`5afbfd89`): their accounts crowd
+  scenarios run last in the server suite (`b43f6e57`): their accounts crowd
   the admin console's first page, which `server.spec` reads. Their folders
-  sort after the demo one and their e-mails are their own (`0204caae`).
+  sort after the demo one and their e-mails are their own (`abb93fcb`).
 - **Scenario a.** The chat's map onto a sheet one edits, refused to one who
-  only sees it (`4dd22e15`).
+  only sees it (`1ddac59e`).
 - **Scenario b.** The group's board: Ana edits live, Bruno does not, then both
-  with one change; each drawing gets a free spot (`47483615`, `dd811c93`).
+  with one change; each drawing gets a free spot (`e01fe658`, `923dc427`).
 - **Scenario c.** Folder set, one exception, and the arrow back; what Ana sees
-  at each step (`e54a4d8f`).
+  at each step (`de95a666`).
 - **Scenario d.** Ana creates and renames in a folder she edits and cannot
-  delete; the silent suffix over a hidden name (`5a967259`).
+  delete; the silent suffix over a hidden name (`eb1d114b`).
 - **Scenario e.** A file moved by the game master keeps its own access
-  (`4da9f284`).
+  (`7ecf1967`).
 - **Scenario f.** A PDF sent with *Send files*; without the right, none
-  (`698364ad`).
+  (`0c3f7e6d`).
 - **Scenario g.** An open tab, the board and a picture drop: a file that is no
-  longer shared is gone from each (`8bcaf7c9`).
+  longer shared is gone from each (`dc1f2060`).
 - **Helpers.** Failure messages show where a hidden name stands; the board's
-  text is read from its scene (`4908aaff`). Bruno's list of what he sees is
-  read from the core where the tree draws itself closed (`0e7d005d`). A folder
-  of the tree looks again until it is open (`fe7f1c95`). Notes are read through
+  text is read from its scene (`c5086131`). Bruno's list of what he sees is
+  read from the core where the tree draws itself closed (`2a69e7af`). A folder
+  of the tree looks again until it is open (`2568c6ea`). Notes are read through
   `list_entries`, because `list_files` lists only what is not a note
-  (`3ee6f1e7`).
+  (`94a1eb50`).
 - **Product bugs found and fixed.** (1) The tree's prompts asked the folder's
   root instead of the chosen folder; `guardCreate` in
-  `app/ui/src/readerNotice.ts` and `app/ui/src/tree/prompts.ts` (`a59215cc`).
+  `app/ui/src/readerNotice.ts` and `app/ui/src/tree/prompts.ts` (`a82cf4fe`).
   (2) A note's rename sent without `.md` was judged as a non-note, so it was
   refused and blind to the silent suffix; `Door::rename_target` in
-  `crates/verso-server/src/access/door.rs` (`e790daf3`, tests in
+  `crates/verso-server/src/access/door.rs` (`0ef9f3ce`, tests in
   `crates/verso-server/src/tests_access_review.rs`). (3) An open tab kept the
   text and name of a file no longer shared; `dropUnshared` in
   `app/ui/src/unshared.ts` and `Leaf.unshare` in `app/ui/src/leaves/leaf.ts`
-  (`fa1d11c9`). The same follows in recent files, closed tabs, back and
-  forward, the switcher, the hover card and embeds (`fa1d11c9`), in the
-  outline, the history button and the switcher's list (`8bcaf7c9`), and in the
-  failed-open line and the row's floating button (`fabe999e`). The changelog
-  records it (`45e5234a`).
+  (`f33a3e12`). The same follows in recent files, closed tabs, back and
+  forward, the switcher, the hover card and embeds (`f33a3e12`), in the
+  outline, the history button and the switcher's list (`dc1f2060`), and in the
+  failed-open line and the row's floating button (`f5f0c6a1`). The changelog
+  records it (`03e086f0`).
 
 Not done, said: (1) the scenarios skip the phone project; (2) the PDF leaf and
 split panes are not exercised; (3) the desktop synced window is not checked
@@ -1172,3 +1267,60 @@ given a set and none is rolled back. The window says the folder really used
 ("copiado para ...") from the returned path. The first As-built bullets above,
 which say the file lands in the person's subfolder, hold for the game master
 only.
+
+### Amended 2026-10-31: delete outside a table
+
+B8 of the list of 2026-10-31, answered against the recommendation: *"apenas o
+dono da pasta pode apagar"* (only the folder's owner may delete). Section B's
+*Delete* row now reads **owner** outside a table, and a move out of a
+shared folder is the owner's too (the amendment under the table, with its
+two cases decided the same day and how it was built). Recorded as an amendment; [the ADR index](README.md)
+asks that a change to an Accepted decision be a new ADR superseding it, which
+stays the maintainer's call.
+
+### Amended 2026-11-01: the owner's phone deletes on a folder served in part
+
+Provisional 2 of the B8 build above (a phone paired to "This app is a server"
+on a folder served in part is an editor of a share and no longer deletes) was
+put to the maintainer as item 7, with the recommendation *a* (accept it: a
+folder served in part is a share). He answered, against the recommendation:
+*"Se tiver logado com a conta do dono, deveria sim ser B"* (if it is signed in
+with the owner's account, it should be b), b being *the owner's phone deletes
+always*. So:
+
+- The rule is **the owner's seat, not the share role**. `Asker` gains
+  `owns_folder`: the account is the folder's owner **though the window holds a
+  share's role**. `may(Delete)` outside a table allows it (with a credential
+  that writes), exactly as it allows the owner's seat; **inside a table it does
+  not** (the game master's seat is the role Owner, and a share-role window never
+  gets it), and no other action changes.
+- On a folder served in part (ADR 0096 item 2) the vault belongs to the
+  computer's holder account and the phone holds a share of it, signed in as the
+  computer's owner: the window records `owns` for that account when it opens
+  the share (`rpc_open.rs`). A phone paired as a **reader** still deletes
+  nothing (its credential only reads), an editor **who is not the owner** (a
+  share given to another person) still does not, and ADR 0096 item 12's "never
+  an owner" is unchanged for everything else: the phone has no owner's seat, no
+  access dialog, no share, no invitation.
+- The window is told with `FolderAccess.role = "owner"` beside a player's seat
+  (no new field): `decide` offers the deletion outside a table, and the vectors
+  (`app/ui/test/access-vectors.json`, regenerated, four new people "editor-owns")
+  carry the rule for the server's matrix and the window's guard alike.
+- Recorded as an amendment, not as a new ADR, for the reason of the section
+  above (item 9 of the same list, answered *"Todas pode seguir sua
+  recomendação"*: keep the amendment).
+
+**Confirmed 2026-11-01 (the B8 build's provisional choices).** The maintainer,
+asked with the recommendations (items 6, 7, 8 and 9 of the list of
+2026-11-01): *"Todas pode seguir sua recomendação com exceção: Abas no celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …, imagino que celular um pouco mais estreito não vai caber tudo; 7. Se tiver logado com a conta do dono, deveria sim ser B; 11. deveria ser vc conferindo, B"* (follow your recommendation on all of them, except: tabs on the phone are a mix of a and b; 7: signed in as the owner it should be b; 11: it should be you checking, b). So, for the three provisional choices of the
+B8 build above:
+
+1. `remove_folder_data` is the owner's alone outside a table (item 6 = a): **confirmed**.
+2. A phone paired to "This app is a server": **changed by item 7 = b**, see
+   "Amended 2026-11-01" above (the owner's phone deletes always).
+3. The desktop window of a synced folder: item 8 = a, **decided**: the window
+   offers no delete to an editor (built: `access.ts` `may` reads the sync
+   state's role, the same refusal as the server's window; the "comes back on
+   the next pass" of the build is now only for a deletion made outside Verso).
+4. B8 **stays recorded as an amendment** (item 9 = a), not a new ADR
+   superseding this section.

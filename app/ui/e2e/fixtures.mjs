@@ -11,7 +11,7 @@ import { leakFixtures } from "./leaks.mjs";
  *  response that failed, which the fixture reports itself, by address. */
 const NOISE = [/^Failed to load resource: the server responded with a status of \d+/];
 
-const TYPES = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", pdf: "application/pdf", html: "text/html; charset=utf-8" };
+const TYPES = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", pdf: "application/pdf", html: "text/html; charset=utf-8", wav: "audio/wav", mp3: "audio/mpeg", ogg: "audio/ogg", m4a: "audio/mp4", flac: "audio/flac" };
 
 /** The window under test, and what a test asks of it. */
 export class App {
@@ -183,7 +183,7 @@ export class App {
 
 export const test = base.extend({
   ...leakFixtures,
-  app: async ({ page }, use) => {
+  app: async ({ page }, use, testInfo) => {
     const problems = [];
     // The window's work area fills the window, always: a draft a library
     // puts in the body (a grid) once took a row of it, and the whole window
@@ -199,6 +199,22 @@ export const test = base.extend({
         }).observe(work);
       });
     });
+    // Headless Chromium (Docker, the Mac's CI) draws WebGL with SwiftShader, a
+    // CPU renderer; the window's own probe (src/dice3d/gl.ts, 2026-10-26)
+    // sends such a computer to the 2D card, as it must. The 3D specs need a
+    // canvas, so the renderer's name the probe reads is a GPU's here (the
+    // probe's judgement of software names stays covered by test/dice3d.test.mjs).
+    // A test of the fallback sets `window.__keepGlRenderer` before the window loads.
+    await page.addInitScript(() => {
+      for (const proto of [globalThis.WebGLRenderingContext?.prototype, globalThis.WebGL2RenderingContext?.prototype]) {
+        if (!proto) continue;
+        const get = proto.getParameter;
+        proto.getParameter = function (p) {
+          const v = get.call(this, p);
+          return typeof v === "string" && !globalThis.__keepGlRenderer ? v.replace(/swiftshader|llvmpipe/gi, "Test GPU") : v;
+        };
+      }
+    });
     page.on("console", (m) => {
       if (m.type() === "error" && !NOISE.some((r) => r.test(m.text()))) problems.push(`console: ${m.text()}`);
     });
@@ -208,7 +224,15 @@ export const test = base.extend({
     page.on("response", (r) => r.status() >= 400 && problems.push(`HTTP ${r.status()}: ${decodeURIComponent(new URL(r.url()).pathname)}`));
     // And one that got no answer at all: a refused address, a blocked
     // request (ADR 0058 point 11; review `board.md`, reading 4, finding 6).
-    page.on("requestfailed", (r) => problems.push(`request failed: ${decodeURIComponent(new URL(r.url()).pathname)} (${r.failure()?.errorText ?? "?"})`));
+    // A sound file's element that read what it needed (the length, with
+    // `preload="metadata"`) and let the rest go is the engine's, not a fault:
+    // Chromium reports it as an aborted request (ADR 0116, audio embeds).
+    page.on("requestfailed", (r) => {
+      const path = decodeURIComponent(new URL(r.url()).pathname);
+      const why = r.failure()?.errorText ?? "?";
+      if (r.resourceType() === "media" && /ERR_ABORTED|cancelled/i.test(why)) return;
+      problems.push(`request failed: ${path} (${why})`);
+    });
     // The `verso:` protocol of the harness, from the folder in memory: what
     // a test wrote is what the window reads.
     await page.route("**/__vault/**", async (route) => {
@@ -216,10 +240,23 @@ export const test = base.extend({
       const b64 = await page.evaluate((p) => window.__harness?.bytes(p) ?? null, path).catch(() => null);
       if (b64 === null) return route.fulfill({ status: 404, body: "" });
       const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
-      await route.fulfill({ status: 200, body: Buffer.from(b64, "base64"), contentType: TYPES[ext] ?? "application/octet-stream" });
+      const body = Buffer.from(b64, "base64");
+      const contentType = TYPES[ext] ?? "application/octet-stream";
+      // A media element asks by ranges, as of /f/ and verso:// (a sound
+      // seeks only in what it was served by range).
+      const range = /^bytes=(\d*)-(\d*)$/.exec(route.request().headers()["range"] ?? "");
+      if (range && body.length > 0) {
+        const start = range[1] ? Math.min(Number(range[1]), body.length - 1) : Math.max(0, body.length - Number(range[2]));
+        const end = range[1] && range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+        return route.fulfill({ status: 206, body: body.subarray(start, end + 1), contentType, headers: { "accept-ranges": "bytes", "content-range": `bytes ${start}-${end}/${body.length}` } });
+      }
+      await route.fulfill({ status: 200, body, contentType, headers: { "accept-ranges": "bytes" } });
     });
     const app = new App(page);
     await use(app);
+    // A test skipped before it opened the window (the screenshot specs, outside
+    // Docker) never loaded the harness: nothing was left unread.
+    if (testInfo.status === "skipped") return;
     // The harness still there: a test that left it reports nothing.
     const there = await page.evaluate(() => window.__harness !== undefined).catch(() => false);
     if (!there) problems.push("the harness is gone at the end of the test: its log and console were not read");

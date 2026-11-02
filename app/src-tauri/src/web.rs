@@ -18,7 +18,8 @@ fn next_web_label() -> String {
 /// A page that could load `verso://` or `tauri://` would become a local
 /// document in the eyes of Tauri's access control.
 fn web_only(url: &tauri::Url) -> bool {
-    matches!(url.scheme(), "http" | "https")
+    // `about:blank` too: what a closing page is emptied to (`SILENCE`).
+    matches!(url.scheme(), "http" | "https") || url.as_str() == "about:blank"
 }
 
 /// Whether `url` is one of the app's own pages: `tauri://localhost` on
@@ -114,6 +115,37 @@ pub(crate) fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugi
         .build()
 }
 
+/// What a page is told before its view goes: every sound element stopped
+/// and emptied, then the page replaced by an empty one, which ends whatever
+/// the page still played (a video that autoplays, a stream). A view that
+/// the engine keeps alive a while after `close` (the maintainer, 2026-11-02:
+/// a YouTube page's sound went on after its tab closed, until the web
+/// engine's GPU process was killed) then has nothing left to play.
+const SILENCE: &str = "try{document.querySelectorAll('video,audio').forEach(function(m){m.pause();m.muted=true;m.removeAttribute('src');m.load();});}catch(e){}location.replace('about:blank');";
+
+/// How long the emptied page gets to unload before its view is closed.
+const UNLOAD_MS: u64 = 400;
+
+/// Destroy a page's view for good: silenced first, hidden and out of its
+/// container at once, closed when the empty page has loaded.
+pub(crate) fn destroy_web_view<R: tauri::Runtime>(wv: tauri::Webview<R>) {
+    crate::log::write("INFO", "host", &format!("web page closed: {}", wv.label()));
+    let _ = wv.with_webview(|pw| crate::audio_share::suspend_page_media(&pw));
+    let _ = wv.eval(SILENCE);
+    let _ = wv.hide();
+    web_clip::release(&wv);
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(UNLOAD_MS));
+        if let Err(e) = wv.close() {
+            crate::log::write(
+                "WARN",
+                "host",
+                &format!("closing the web view {}: {e}", wv.label()),
+            );
+        }
+    });
+}
+
 /// Close every web page's view a window opened, and forget them.
 pub(crate) fn close_web_views_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &str) {
     let Some(state) = app.try_state::<App>() else {
@@ -133,14 +165,7 @@ pub(crate) fn close_web_views_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, w
     };
     for label in mine {
         if let Some(wv) = app.get_webview(&label) {
-            web_clip::release(&wv);
-            if let Err(e) = wv.close() {
-                crate::log::write(
-                    "WARN",
-                    "host",
-                    &format!("closing the web view {label} of a reloaded window: {e}"),
-                );
-            }
+            destroy_web_view(wv);
         }
     }
 }
@@ -299,20 +324,29 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
 ) -> Result<String, ContractError> {
     let (slot, visible) = rects(place)?;
     let url = http_url(&url)?;
+    let host = url.host_str().unwrap_or("").to_owned();
     let label = next_web_label();
     // The window that asks hosts the page: the main one, or a note's own.
     let chrome = chrome_offset(&window);
     let wv = window
         .add_child(
-            tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
-                .user_agent(WEB_USER_AGENT)
-                .on_navigation(web_only)
-                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
+            pages_profile(
+                tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url)),
+                &window,
+            )
+            .user_agent(WEB_USER_AGENT)
+            .on_navigation(web_only)
+            .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
             tauri::LogicalPosition::new(visible.x, visible.y + chrome),
             tauri::LogicalSize::new(visible.w.max(1.0), visible.h.max(1.0)),
         )
         .map_err(|e| failed(e.to_string()))?;
     lock(&state.web_views).insert(label.clone(), window.label().to_owned());
+    crate::log::write(
+        "INFO",
+        "host",
+        &format!("web page opened: {label} ({host}) in {}", window.label()),
+    );
     web_clip::place(
         &wv,
         slot,
@@ -323,6 +357,38 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
     .map_err(failed)?;
     Ok(label)
 }
+
+/// The pages' profile: every embedded page runs in a web engine
+/// environment of its own, apart from the window's (ADR 0056 amendment of
+/// 2026-11-01; ADR 0116). The window's own sounds (the dice, the chimes, the
+/// table's music) then play in a process the pages do not share, so sharing
+/// the sound of the pages (Share audio) can never carry them. All pages
+/// share the one profile, so a login made in one page holds in the others.
+/// - Windows and Linux: a data directory of its own under the app's local
+///   data (WebView2 starts a second environment, with its own browser and
+///   audio processes; WebKitGTK a second web context).
+/// - macOS 14 and later: a named `WKWebsiteDataStore`; before 14 the system
+///   has none to give and the pages keep the window's store.
+fn pages_profile<R: tauri::Runtime>(
+    builder: tauri::webview::WebviewBuilder<R>,
+    window: &tauri::Window<R>,
+) -> tauri::webview::WebviewBuilder<R> {
+    use tauri::Manager;
+    let builder = builder.data_store_identifier(PAGES_STORE);
+    match window.path().app_local_data_dir() {
+        Ok(dir) => builder.data_directory(dir.join(PAGES_PROFILE)),
+        Err(_) => builder,
+    }
+}
+
+/// The folder of the pages' profile, under the app's local data directory.
+const PAGES_PROFILE: &str = "pages-profile";
+
+/// The pages' website data store on macOS (a fixed identifier, the UUID
+/// `7c4b7d2e-3f9a-4e0b-9a51-5a2d6f0c8e11`).
+const PAGES_STORE: [u8; 16] = [
+    0x7c, 0x4b, 0x7d, 0x2e, 0x3f, 0x9a, 0x4e, 0x0b, 0x9a, 0x51, 0x5a, 0x2d, 0x6f, 0x0c, 0x8e, 0x11,
+];
 
 /// Move a web page's view to follow its box: the page at `slot`, drawn
 /// only inside `visible` (`WebPlace`). The page's own scroll is never
@@ -369,11 +435,18 @@ pub(crate) fn web_close<R: tauri::Runtime>(
     state: State<'_, App>,
     label: String,
 ) -> Result<(), ContractError> {
-    let wv = own_web_view(&window, &state, &label)?;
+    // A window closes only its own pages; a refusal is written down, as a
+    // page left open plays on with nothing to stop it.
+    let wv = own_web_view(&window, &state, &label).inspect_err(|e| {
+        crate::log::write(
+            "WARN",
+            "host",
+            &format!("web page {label} not closed from {}: {e:?}", window.label()),
+        );
+    })?;
     lock(&state.web_views).remove(&label);
-    // Out of its container first: the container is ours to remove.
-    web_clip::release(&wv);
-    wv.close().map_err(|e| failed(e.to_string()))
+    destroy_web_view(wv);
+    Ok(())
 }
 
 /// Whether the page at `url` may be shown in a real `<iframe>` of the
@@ -450,4 +523,38 @@ pub(crate) fn web_url<R: tauri::Runtime>(
         .url()
         .map(|u| u.to_string())
         .map_err(|e| failed(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+
+    /// A page's sound ends with its view (the maintainer, 2026-11-02: a YouTube
+    /// page went on playing after its tab closed): closing a view silences the
+    /// page first, and a window that is destroyed closes the views it opened.
+    #[test]
+    fn a_page_is_silenced_when_its_view_closes_and_a_destroyed_window_closes_its_views() {
+        let web = include_str!("web.rs");
+        assert!(web.contains("location.replace('about:blank')"));
+        assert!(web.contains("m.pause()"));
+        let close = web.split("fn web_close").nth(1).unwrap_or_default();
+        assert!(
+            close
+                .split("#[tauri::command]")
+                .next()
+                .unwrap_or_default()
+                .contains("destroy_web_view(wv)")
+        );
+        let lib = include_str!("lib.rs");
+        let destroyed = lib
+            .split("tauri::WindowEvent::Destroyed")
+            .nth(1)
+            .unwrap_or_default();
+        assert!(
+            destroyed
+                .chars()
+                .take(700)
+                .collect::<String>()
+                .contains("close_web_views_of(app, label)")
+        );
+    }
 }

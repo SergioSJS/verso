@@ -47,7 +47,7 @@ the same origin that serves the open folder's files — with
 `Access-Control-Allow-Origin: *` and no content security policy on its
 responses. An embedded page therefore ran in the files' origin, with nothing
 in its response to stop it from requesting them. Its only defence was a
-blocklist that refused private and local addresses. Commit `9185486`, to let a
+blocklist that refused private and local addresses. Commit `42edbe0`, to let a
 note embed a server on the user's own network, deleted that blocklist and
 inverted its regression test, which from then on asserted that
 `192.168.x.x`, `localhost` and `127.0.0.1` are fetched: any note — one the
@@ -127,19 +127,19 @@ the design above work:
    WKWebView, the macOS web view: the origin the design above rests on could
    not receive a single request. The same held for the `verso://localhost`
    proxy of 0.3.0-beta.1 — embedded pages had not rendered in any build
-   (commit `013489a`). For a few hours the proxy moved to a loopback HTTP
+   (commit `05b9563`). For a few hours the proxy moved to a loopback HTTP
    listener on an ephemeral port, gated by a session token only the host and
    its web view knew, with the navigation guard letting exactly that
-   address's `/__proxy` path through (commit `013489a`).
+   address's `/__proxy` path through (commit `05b9563`).
 2. **A document proxy cannot render a page built on module scripts.** A
    `<script type="module">` is always fetched with CORS, against the origin
    of the document that asks for it. A proxied document's origin is the
    proxy's; the site's server answers for its own origin, and the browser
    refuses the scripts: a single-page application stayed blank. The proxy
    also did what the Context left unrecorded ("its reason was not
-   recorded"): it answered with headers of its own (commit `2db4c73` passed
+   recorded"): it answered with headers of its own (commit `ac18e1d` passed
    on the site's `Content-Type` and nothing else of the site's), so a site's `X-Frame-Options` and `frame-ancestors`, which forbid
-   embedding, never reached the frame; commit `3629f0c` names this as why
+   embedding, never reached the frame; commit `675c89e` names this as why
    the proxy existed. Dropping those headers needs the document to come from
    somewhere other than the site; loading the site's module scripts needs it
    to come from the site. **No proxy design serves both.**
@@ -151,7 +151,7 @@ options, A, B and C: option A, an allowlist by consent.
    an origin the user approved.** Points 1 and 2 above stand; this replaces
    how they are kept.
 
-How the author built it under that decision (commit `3629f0c`;
+How the author built it under that decision (commit `675c89e`;
 `app/src-tauri/src/lib.rs`, `app/ui/src/sanitize.ts`, `app/ui/src/main.ts`):
 
 - **The navigation guard is the wall on the host's side.** `may_navigate`
@@ -265,7 +265,7 @@ How the author built it under that decision (commit `3629f0c`;
 - **Refusing every private or local address**, as the first proxy did — set
   aside by the maintainer on 2026-09-29: it loses the feature ("sem perder
   feature").
-- **Allowing every private or local address**, as commit `9185486` did — any
+- **Allowing every private or local address**, as commit `42edbe0` did — any
   note, including one the user did not write (a downloaded folder, a shared
   one, an agent's write), could make the app fetch from the user's router, a
   network drive or a development server and show the answer.
@@ -276,7 +276,7 @@ Set aside on 2026-09-29, with the revision:
 
 - **The proxy in an origin of its own, `verso://proxy`** — the design first
   decided above; WebKit never delivered a frame's request to it.
-- **The proxy over a loopback listener**, commit `013489a` — built and
+- **The proxy over a loopback listener**, commit `05b9563` — built and
   replaced within hours: a page built on module scripts stays blank behind
   any document proxy, and the listener was a second HTTP stack on the user's
   machine.
@@ -454,3 +454,29 @@ child web view is drawn as a frame is, by a native clipping container
 (B); the mechanism is the author's.
 Revised on 2026-10-15, in session, accepted as recommended: the host's frameability check (one `HEAD`, or a `GET` read only as far as its headers, once per origin) is **accepted**, which revises the earlier line that "nothing is fetched on the host's side" for an approved origin; a page's own links to another origin and the frames nested inside a framed page stay `[OPEN]`, as recorded above.
 Decided on 2026-10-21 by the maintainer (D.3 of the decisions list, option A): when the frameability check of a site fails (network down, timed out), the app asks again after **30 seconds**, instead of remembering the failure until the window closes.
+
+### Amendment (2026-11-01): the pages have an engine profile of their own
+
+Decided by the maintainer, in chat, for Share audio (ADR 0116, amendment of
+the same day): *"B: um ambiente só p/ páginas"*. The embedded pages that are
+child web views (`web_open`) no longer run in the window's own web engine
+environment. They run in **one shared "pages" environment**, apart from the
+window's:
+
+- Windows: a WebView2 user-data folder of its own, `pages-profile` under the
+  app's local data directory, so WebView2 starts a second environment with its
+  own browser process and audio service. Linux: the same folder as a second
+  web context. macOS 14 and later: a named website data store (a fixed
+  identifier); before macOS 14 the system has none to give and the pages keep
+  the window's.
+- What it buys: the sound of the window itself (the dice, the chimes, the
+  table's music) plays in a process the pages do not share, so a share of the
+  pages' sound can never carry it.
+- What it costs, and what stays: all pages share the one profile, so a login
+  made in one page holds in the others, as before. **The cookies and logins
+  of pages made before this change are not carried over** (they lived in the
+  window's profile): a person signs in again once. Memory: a second set of
+  engine processes while a page is open.
+- Not changed: iframes (pages that allow framing) stay inside the note, in the
+  window's environment; they cannot be captured apart from the window's sounds,
+  so Share audio asks for a page opened as a page.

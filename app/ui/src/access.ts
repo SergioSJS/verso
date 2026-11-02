@@ -164,6 +164,11 @@ export function may(path: string, action: Action): boolean {
   // host heard the server say of it (ADR 0113 S8), whatever their role at the
   // folder — a reader edits the notes they have the right to, an editor
   // leaves those they only see.
+  // And outside a table only the folder's owner deletes (B8, 2026-10-31): a
+  // folder synced here where the person is an editor or a reader offers no
+  // delete, though the host has not yet told the server's seat — the sync
+  // state's role is enough (item 8 of 2026-11-01).
+  if (syncedRole && action === "delete") return false;
   const heard = syncedRole && hosted ? fileAccess(path) : null;
   if (heard && action === "edit") return heard.level === "edit" && canWrite();
   return decide({ folder: folderAccessNow(), canWrite: canWrite(), syncedReader: syncedRead }, fileAccess(path), action);

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-share-start"
+description = "Enables the table_share_start command without any pre-configured scope."
+commands.allow = ["table_share_start"]
+
+[[permission]]
+identifier = "deny-table-share-start"
+description = "Denies the table_share_start command without any pre-configured scope."
+commands.deny = ["table_share_start"]

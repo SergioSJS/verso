@@ -29,6 +29,10 @@ ExecStart=/usr/bin/universo --web
 TimeoutStopSec=30
 Restart=on-failure
 RestartSec=5
+# ADR 0075, 2026-10-31 (B9): out of memory kills the server, which restarts,
+# and not the machine — three quarters of it, as the container's 768m on a
+# 1 GB server. A drop-in changes it (MemoryMax=2G, or infinity for none).
+MemoryMax=75%
 
 # Hardening. The server writes only under /var/lib/universo (the two
 # directories of universo.env); everything else is read-only to it.

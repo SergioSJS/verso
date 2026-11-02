@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-cannot-play"
+description = "Enables the table_cannot_play command without any pre-configured scope."
+commands.allow = ["table_cannot_play"]
+
+[[permission]]
+identifier = "deny-table-cannot-play"
+description = "Denies the table_cannot_play command without any pre-configured scope."
+commands.deny = ["table_cannot_play"]

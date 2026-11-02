@@ -3,7 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Transaction } from "@codemirror/state";
-import { looseReadOnlyReason } from "../../loose";
+import { isLoose, looseReadOnlyReason } from "../../loose";
+import { pastIndexCeiling } from "../../indexLimit";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { afterFileChange } from "../../changes";
 import { minimalEdit } from "../../edit";
@@ -251,6 +252,9 @@ export function paintFlags(this: NoteLeaf): void {
   const flags: string[] = [];
   if (note?.stale) flags.push(t.stale);
   if (note?.unverified) flags.push(t.unverified);
+  // Past the index's ceiling (spec Q17, 2026-10-31): why search and backlinks
+  // do not see it. A loose file has no index to be left out of.
+  if (note && !isLoose() && pastIndexCeiling(note.text)) flags.push(t.pastIndex);
   // A folder one only reads says so by the lock beside its name (ADR 0076
   // item 11), not by a line under every title.
   if (this.mixedEol) flags.push(t.mixedEol);

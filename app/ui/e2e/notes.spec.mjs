@@ -78,7 +78,7 @@ test("a renamed note shows who links to it at once", async ({ app }) => {
   await app.page.locator(".plan:visible button.save").click();
   await expect.poll(() => app.files()).toContain("projetos/Projeto Gama.md");
   // Pointed at the new name, the notes and the boards — and listed now,
-  // without opening the note again (a51aab2).
+  // without opening the note again (bf12a4d).
   // The plan writes note by note: waited for, not read once.
   await expect.poll(() => app.file("projetos/Projeto Alpha.md")).toContain("[[Projeto Gama]]");
   await expect.poll(() => app.file("Board de Demonstração.canvas")).toContain('"file":"projetos/Projeto Gama.md"');

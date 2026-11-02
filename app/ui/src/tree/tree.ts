@@ -31,8 +31,6 @@ import { isSelected, selectionClick, selectionOf, selectMode, shownRow } from ".
 import type { Drag } from "../layout/drag";
 
 export { treeRows, rowKey };
-/** A finger, not a mouse: a folder's row toggles on a tap. */
-const touch = window.matchMedia("(pointer: coarse)");
 export let allFolders: string[] = [];
 /** Open the tree down to `path`, scroll its row into view and focus it. */
 export async function revealInTree(path: string): Promise<void> {
@@ -337,14 +335,9 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       if (isItemPinned(full, prefix, pinnedList)) {
         s.append(pinBadge());
       }
-      // A fine pointer: the name opens the folder's page, the arrow toggles.
-      // A finger (ADR 0060, 2026-10-30): the whole row toggles, and the page
-      // opens from the button at the row's end.
-      label.addEventListener("click", (e) => {
-        if (touch.matches) return;
-        e.preventDefault();
-        openFolder(full);
-      });
+      // A click or a tap anywhere on the row toggles the folder (the
+      // summary's own behaviour; ADR 0060, 2026-10-31 for the mouse too),
+      // and its page opens from the button at the row's end.
       const openPage = h("button", "folder-page");
       openPage.type = "button";
       openPage.setAttribute("aria-label", t.openFolderPage);
@@ -353,6 +346,13 @@ export function renderTree(node: Folder, depth: number, prefix = ""): HTMLUListE
       openPage.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        // WebKit (the Mac app's web view) does not focus a clicked button,
+        // and starts Tab from where the click landed while the focus sits on
+        // the row around it: Tab then skipped the button, and a later focus
+        // on the row did not move that point. The button takes the focus
+        // itself, as Chromium gives it (ADR 0069 item 8, the same in both
+        // engines), so Tab and Shift+Tab go from where the person is.
+        if (e.detail > 0) openPage.focus();
         openFolder(full);
       });
       s.append(openPage);

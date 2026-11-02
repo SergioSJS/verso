@@ -29,7 +29,8 @@
 //! frontmatter — what is code to the base stays code here (invariant 12).
 //! A task-list checkbox carries `data-task-line`, the 1-based line of its
 //! `[ ]` in the text given, frontmatter included, so the window toggles the
-//! right line.
+//! right line; an oracle callout carries `data-oracle-line`, the line of
+//! its head, by the same count ([`crate::callouts`]).
 
 use std::ops::Range;
 
@@ -74,8 +75,8 @@ pub fn to_html_with(source: &str, document: &Document) -> String {
     let events = block_ids::hide(source, events, &document.blocks);
     let tags = tags::scan(source, &events);
     let events = footnotes::inline(source, events);
-    let events = callouts::callouts(source, events);
     let lines = LineIndex::new(source);
+    let events = callouts::callouts(source, &lines, events);
     let mut context = Context::default();
     // Whether each open link or image is a wikilink: only those get the
     // anchor or the span, and only their ends close it.
@@ -688,6 +689,37 @@ mod tasks {
         );
         assert!(html.contains(r#"data-callout="note""#), "{html}");
         assert_eq!(task_lines(&to_html("a\r\n- [ ] b\r\n")), [2]);
+    }
+
+    fn oracle_lines(html: &str) -> Vec<u32> {
+        html.match_indices("data-oracle-line=\"")
+            .map(|(i, m)| {
+                let rest = &html[i + m.len()..];
+                let end = rest.find('"').unwrap();
+                rest[..end].parse().unwrap()
+            })
+            .collect()
+    }
+
+    /// An oracle callout carries the 1-based line of its `[!oracle]` head
+    /// in the text given, frontmatter included (ADR 0102, amendment of
+    /// 2026-10-31), so the reading view writes into the callout on that
+    /// line and not into the n-th one: nested, after a fence that holds
+    /// one, with CRLF. Any other callout carries none.
+    #[test]
+    fn oracle_callouts_carry_their_head_line() {
+        let source = "---\ntitle: x\n---\n> [!oracle] Um?\n> **Sim**\n\n```\n> [!oracle] não\n```\n\n> [!note]\n> > [!ORACLE]- Dois?\n\n> [!oracle]\n";
+        let html = to_html(source);
+        assert_eq!(oracle_lines(&html), [4, 12, 14], "{html}");
+        assert!(
+            html.contains(r#"<div class="callout" data-callout="note">"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"data-callout="oracle" data-fold="-" data-oracle-line="12">"#),
+            "{html}"
+        );
+        assert_eq!(oracle_lines(&to_html("a\r\n\r\n> [!oracle] b\r\n")), [3]);
     }
 
     #[test]

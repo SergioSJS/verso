@@ -384,7 +384,18 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 }
 .right-tab .icon { width: 15px; height: 15px; }
 .right-tab[data-overflow] { display: none; }
+.right-tab[data-gone] { display: none; }
 .right-tab.dragging { background: var(--brass-wash); color: var(--seal); box-shadow: 0 0 0 1px var(--brass); cursor: grabbing; }
+
+/* Settings › Appearance › Right panel tabs (panel/tabsSettings.ts): a row per tab, its name, up/down and a switch. */
+.tabs-settings { display: grid; gap: .15rem; min-width: 0; width: 100%; }
+.tabs-settings-row { display: flex; align-items: center; gap: .5rem; min-height: 2.4rem; padding: .1rem .2rem; border-bottom: 1px solid var(--hair); }
+.tabs-settings-name { display: inline-flex; align-items: center; gap: .5rem; flex: 1; min-width: 0; color: var(--ink); }
+.tabs-settings-name .icon { width: 15px; height: 15px; flex: none; color: var(--ink-3); }
+.tabs-settings-moves { display: inline-flex; flex: none; }
+.tabs-settings-step .icon { width: 14px; height: 14px; }
+.tabs-settings-reset { justify-self: start; margin-top: .4rem; }
+@media (pointer: coarse) { .tabs-settings-row { min-height: 44px; } }
 
 /* Code copy button */
 pre { position: relative; }
@@ -958,6 +969,18 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   #right-title { display: none; }
   .right-close .ghost { min-width: 44px; min-height: 44px; }
   .right-tabs { padding-right: 44px; }
+}
+/* A finger: the tabs are 44 px (the bar grows to hold them; the fold into "⋯" does the rest). */
+@media (pointer: coarse) and (max-width: 760px) {
+  .right-tabs { height: 44px; min-height: 44px; max-height: 44px; }
+  .right-tab { height: 44px; }
+}
+/* A phone's tab is 34 wide by 44 high (the maintainer, 2026-11-01: the eight fit at 390 px; a narrower phone
+   folds the rest into the "⋯", in the person's order). */
+@media (pointer: coarse) and (max-width: 760px) {
+  /* 8 × 34 = 272, and the drawer's close takes 44 of its 320 (min(85vw, 320px)): nothing left for a gap. */
+  .right-tabs { gap: 0; padding-left: 2px; }
+  .right-tab { width: 34px; }
 }
 
 /* The font size's sample (fontSample.ts): the note's own text, never wider than the dialog. */

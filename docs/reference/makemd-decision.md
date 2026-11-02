@@ -42,7 +42,7 @@ and SQLite files, plus the notes' frontmatter.
 ### 3.1 The features, by area
 
 The column "Verso today" is what the window does on `feat/board` at
-`c7a492f`.
+`725bf70`.
 
 **Labels**
 

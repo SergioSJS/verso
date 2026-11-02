@@ -11,7 +11,80 @@
         "description": "Markdown document",
         "mimeType": "text/markdown",
         "role": "Editor"
+      },
+      {
+        "ext": [
+          "json"
+        ],
+        "name": "JSON",
+        "description": "JSON file",
+        "mimeType": "application/json",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "yaml",
+          "yml"
+        ],
+        "name": "YAML",
+        "description": "YAML file",
+        "mimeType": "application/yaml",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "yaml",
+          "yml"
+        ],
+        "name": "YAML (older name)",
+        "description": "YAML file",
+        "mimeType": "application/x-yaml",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "toml"
+        ],
+        "name": "TOML",
+        "description": "TOML file",
+        "mimeType": "application/toml",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "xml"
+        ],
+        "name": "XML",
+        "description": "XML file",
+        "mimeType": "application/xml",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "xml"
+        ],
+        "name": "XML (text)",
+        "description": "XML file",
+        "mimeType": "text/xml",
+        "role": "Editor"
+      },
+      {
+        "ext": [
+          "csv"
+        ],
+        "name": "CSV",
+        "description": "CSV file",
+        "mimeType": "text/csv",
+        "role": "Editor"
       }
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/verso.desktop"
+      },
+      "rpm": {
+        "desktopTemplate": "linux/verso.desktop"
+      }
+    }
   }
 }

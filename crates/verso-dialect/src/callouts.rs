@@ -14,10 +14,18 @@
 //! callouts nested inside callouts, and this follows it provisionally; a
 //! plain blockquote inside a callout stays a blockquote. The recognized
 //! kinds are Q5 too, so any kind is accepted.
+//!
+//! An `oracle` callout (ADR 0102) also carries `data-oracle-line`, the
+//! 1-based line of its `[!oracle]` head in the text given, frontmatter
+//! included, as a task's checkbox carries `data-task-line`: the reading
+//! view writes into the callout on that line, never into the n-th one
+//! (amendment of 2026-10-31). The attribute changes nothing the callout
+//! means (invariant 12); it is the window's to use or not.
 
 use pulldown_cmark::{CowStr, Event, Tag, TagEnd};
 
 use crate::events::{self, Offset};
+use crate::position::LineIndex;
 
 /// How many callouts deep one is drawn inside another; a deeper one stays
 /// a blockquote. Each level is a recursion and a copy of the level's
@@ -26,19 +34,29 @@ use crate::events::{self, Offset};
 pub(crate) const MAX_NESTING: usize = crate::MAX_CALLOUT_DEPTH as usize;
 
 /// `events` with every callout replaced by its `<div>`.
-pub(crate) fn callouts<'a>(source: &str, events: Vec<Offset<'a>>) -> Vec<Offset<'a>> {
+/// `lines` numbers `source`'s lines.
+pub(crate) fn callouts<'a>(
+    source: &str,
+    lines: &LineIndex,
+    events: Vec<Offset<'a>>,
+) -> Vec<Offset<'a>> {
     if !source.contains("[!") {
         return events;
     }
-    within(source, events, 0)
+    within(source, lines, events, 0)
 }
 
 /// [`callouts`] at `depth` callouts deep.
-fn within<'a>(source: &str, events: Vec<Offset<'a>>, depth: usize) -> Vec<Offset<'a>> {
+fn within<'a>(
+    source: &str,
+    lines: &LineIndex,
+    events: Vec<Offset<'a>>,
+    depth: usize,
+) -> Vec<Offset<'a>> {
     let mut out: Vec<Offset<'a>> = Vec::with_capacity(events.len());
     let mut i = 0;
     while let Some(offset) = events.get(i) {
-        match callout(source, &events, i, depth, &mut out) {
+        match callout(source, lines, &events, i, depth, &mut out) {
             Some(end) => i = end + 1,
             None => {
                 out.push(offset.clone());
@@ -54,6 +72,7 @@ fn within<'a>(source: &str, events: Vec<Offset<'a>>, depth: usize) -> Vec<Offset
 /// the whole quote has been read.
 fn callout<'a>(
     source: &str,
+    lines: &LineIndex,
     events: &[Offset<'a>],
     i: usize,
     depth: usize,
@@ -141,6 +160,10 @@ fn callout<'a>(
     if let Some(fold) = fold {
         open.push_str(&format!(" data-fold=\"{fold}\""));
     }
+    if kind == "oracle" {
+        let line = lines.pos(source, paragraph.start).line;
+        open.push_str(&format!(" data-oracle-line=\"{line}\""));
+    }
     open.push_str(">\n<p class=\"callout-title\">");
     out.push((Event::Html(open.into()), quote.clone()));
     if title.is_empty() {
@@ -159,7 +182,7 @@ fn callout<'a>(
         out.extend(body.iter().cloned());
     }
     if depth + 1 < MAX_NESTING {
-        out.extend(within(source, children.to_vec(), depth + 1));
+        out.extend(within(source, lines, children.to_vec(), depth + 1));
     } else {
         out.extend(children.iter().cloned());
     }

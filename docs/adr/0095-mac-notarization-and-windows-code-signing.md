@@ -314,3 +314,8 @@ maintainer, each with a recommendation: who enrolls and pays (item 2),
 the Windows option (item 3), Linux package signatures (item 5), when
 (item 6), the secrets (item 7), a universal or a separate x64 Mac build
 (item 9).
+
+**2026-10-31.** The beta installed on the maintainer's Mac by
+`scripts/install-beta.sh` is signed with a fixed local certificate, so macOS
+keeps its permissions ([0051](0051-development-flow-and-releases.md),
+amendment of the same day). The release builds stay ad hoc, as above.

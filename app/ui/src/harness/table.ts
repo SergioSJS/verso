@@ -136,6 +136,8 @@ export class Table {
   mayImage: (root: string) => boolean = () => false;
   /** Whether it let it send a file that is not an image (the right Files, ADR 0113 K.6). */
   mayFile: (root: string) => boolean = () => false;
+  /** What else a join answers of the table at `root` (the music's, ADR 0116: `tableSound.ts`). */
+  joinExtra: (root: string) => Record<string, unknown> = () => ({});
 
   /** The table a call without one goes to: the shortest-rooted. */
   defaultRoot(): string {
@@ -161,6 +163,14 @@ export class Table {
     const found = roots.find((r) => keyOf(r) === keyOf(t));
     if (found === undefined) refuse("no such table");
     return found;
+  }
+
+  /** The table a command names, when the window is at it; refused otherwise (as `need`). */
+  at(table: unknown): string {
+    if (!this.up) refuse("the table is a server's; a folder of this computer alone has none");
+    const root = this.named(table);
+    if (!this.slot(root).joined) refuse("join the table first");
+    return root;
   }
 
   private slot(root: string): Slot {
@@ -198,7 +208,7 @@ export class Table {
       const latest = unpinned.slice(-JOIN_ENTRIES);
       const keep = new Set([...pinned, ...latest].map((r) => r.id));
       const entries = rows.filter((r) => keep.has(r.id));
-      return { table: root, you: this.account, role: this.role, entries, more: unpinned.length > latest.length, roster: this.members(root), images: this.role !== "reader" || this.mayImage(root), files: this.role !== "reader" || this.mayFile(root) };
+      return { table: root, you: this.account, role: this.role, entries, more: unpinned.length > latest.length, roster: this.members(root), images: this.role !== "reader" || this.mayImage(root), files: this.role !== "reader" || this.mayFile(root), ...this.joinExtra(root) };
     };
     h["table_leave"] = (a) => {
       // A table named leaves that one; none named, every table.

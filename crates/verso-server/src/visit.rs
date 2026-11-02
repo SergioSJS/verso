@@ -361,6 +361,7 @@ async fn run(server: Arc<Server>, token: String, live: Live, scope: Scope, mut s
             scope: None,
             token_write: false,
             owner: false,
+            owns: false,
             phone: false,
             tx: tx.clone(),
         },
@@ -548,6 +549,7 @@ async fn handle(
                 cap: verso_contract::AccessCap::Read,
                 table: false,
             }),
+            trash_cap: None,
         }),
         // A visitor walks nothing: a run takes the session's lock and
         // tells every window on the folder, the owner's too. It is

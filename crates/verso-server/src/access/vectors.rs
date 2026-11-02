@@ -76,6 +76,9 @@ struct Person {
     /// Not Ana, whose rows the sets name, but another player: she falls to
     /// the whole table's row.
     other: bool,
+    /// The account owns the folder though the window holds a share's role: a
+    /// phone served a part of the folder (ADR 0113 B8, 2026-11-01).
+    owns: bool,
 }
 
 impl Person {
@@ -96,6 +99,7 @@ impl Person {
             phone: matches!(self.cred, Cred::PhoneReader | Cred::PhoneEditor),
             link: self.link,
             admin: self.admin,
+            owns_folder: self.owns,
         }
     }
 
@@ -107,7 +111,13 @@ impl Person {
         };
         format!(
             "{role}{}/{}{}",
-            if self.other { "-other" } else { "" },
+            if self.other {
+                "-other"
+            } else if self.owns {
+                "-owns"
+            } else {
+                ""
+            },
             if self.link {
                 "read-link"
             } else {
@@ -128,8 +138,21 @@ impl Person {
                         cred,
                         admin,
                         other: false,
+                        owns: false,
                     });
                 }
+            }
+            // The folder's owner through a share's editor role: a phone served
+            // a part of the folder (ADR 0113 B8, 2026-11-01).
+            for cred in [Cred::Write, Cred::PhoneEditor] {
+                out.push(Self {
+                    role: Some(Role::Editor),
+                    link: false,
+                    cred,
+                    admin,
+                    other: false,
+                    owns: true,
+                });
             }
             out.push(Self {
                 role: None,
@@ -137,6 +160,7 @@ impl Person {
                 cred: Cred::Write,
                 admin,
                 other: false,
+                owns: false,
             });
             out.push(Self {
                 role: None,
@@ -144,6 +168,7 @@ impl Person {
                 cred: Cred::ReadToken,
                 admin,
                 other: false,
+                owns: false,
             });
             out.push(Self {
                 role: Some(Role::Reader),
@@ -151,6 +176,7 @@ impl Person {
                 cred: Cred::Write,
                 admin,
                 other: true,
+                owns: false,
             });
         }
         out
@@ -269,7 +295,7 @@ fn path_of(kind: Kind) -> &'static str {
     }
 }
 
-const ACTIONS: [Action; 28] = [
+const ACTIONS: [Action; 30] = [
     Action::See,
     Action::Edit,
     Action::Attach { image: true },
@@ -310,6 +336,8 @@ const ACTIONS: [Action; 28] = [
     Action::Share,
     Action::Invite,
     Action::InviteNew,
+    Action::Play,
+    Action::Broadcast,
 ];
 
 fn action_name(a: Action) -> String {
@@ -345,6 +373,8 @@ fn action_name(a: Action) -> String {
         Action::Share => "share",
         Action::Invite => "invite",
         Action::InviteNew => "invite-new",
+        Action::Play => "play",
+        Action::Broadcast => "broadcast",
     }
     .to_owned()
 }
@@ -592,11 +622,15 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
             w && level == Level::Edit && granted(r)
         }
         Action::Rename => w && level == Level::Edit,
-        // Move and delete: the game master, or the folder's editor outside
-        // a table; a player of a table never (K.5).
-        Action::Move | Action::Delete => {
-            w && p.has_role() && (p.master() || (!in_table && p.editor_or_more()))
-        }
+        // Move: the game master, or the folder's editor outside a table; a
+        // player of a table never (K.5).
+        Action::Move => w && p.has_role() && (p.master() || (!in_table && p.editor_or_more())),
+        // Delete: the folder's owner alone, in a table or outside one
+        // (section B, amended 2026-10-31: "apenas o dono da pasta pode
+        // apagar").
+        // The owner's seat is the role Owner; an owner holding a share's role
+        // (`owns`) deletes outside a table only (B8, 2026-11-01).
+        Action::Delete => w && p.has_role() && (p.master() || (p.owns && !in_table)),
         Action::Say | Action::Roll | Action::RollSecret => {
             p.has_role() && !p.link && !closed_to_player
         }
@@ -624,6 +658,9 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
             p.master() && w && !p.phone()
         }
         Action::InviteNew => p.master() && w && !p.phone() && p.admin,
+        // The table's music: the game master, whatever the credential
+        // (ADR 0116 item 22).
+        Action::Play | Action::Broadcast => p.master(),
     }
 }
 
@@ -658,6 +695,8 @@ fn every_cell_of_the_matrix_is_as_the_adr_says() {
                     | Action::Share
                     | Action::Invite
                     | Action::InviteNew
+                    | Action::Play
+                    | Action::Broadcast
             );
             if table_action != (s.kind == Kind::Table) && a != Action::See {
                 continue;
@@ -726,7 +765,7 @@ fn vectors() -> String {
         .iter()
         .map(|p| {
             format!(
-                "    {{\"name\": \"{}\", \"role\": {}, \"link\": {}, \"cap\": \"{}\", \"phone\": {}, \"admin\": {}, \"other\": {}}}",
+                "    {{\"name\": \"{}\", \"role\": {}, \"link\": {}, \"cap\": \"{}\", \"phone\": {}, \"admin\": {}, \"other\": {}, \"owns\": {}}}",
                 p.name(),
                 p.role
                     .map_or_else(|| "null".to_owned(), |r| format!("\"{}\"", r.as_str())),
@@ -734,7 +773,8 @@ fn vectors() -> String {
                 if p.writes() { "write" } else { "read" },
                 p.phone(),
                 p.admin,
-                p.other
+                p.other,
+                p.owns
             )
         })
         .collect();
@@ -760,6 +800,8 @@ fn vectors() -> String {
                     | Action::Share
                     | Action::Invite
                     | Action::InviteNew
+                    | Action::Play
+                    | Action::Broadcast
             );
             if table_action != (s.kind == Kind::Table) && *a != Action::See {
                 continue;

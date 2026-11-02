@@ -18,7 +18,7 @@ import { renderSticker, showStickerPicker } from "../labels";
 import { openNote } from "../layout/spaces";
 import { Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
-import { panel } from "../main";
+import { panel, settingsDialog } from "../main";
 import { pickerStrings } from "../organize/cover";
 import { dirOf, iconFor, kindOf, name } from "../paths";
 import { searchNotes } from "../search";
@@ -33,18 +33,22 @@ import { tableOn } from "../table/record";
 import { tt } from "../table/strings";
 import { watchUnread } from "../table/unread";
 import { paintTable } from "../table/view";
+import { soundOn, watchMusicOnScreen } from "../table/sound/run";
+import { st } from "../table/sound/strings";
+import { paintMusic } from "../table/sound/tab";
 
 const leafIds = new WeakMap<Leaf, number>();
 let leafSeq = 0;
 
 /* ---------- The right panel: outline, backlinks, outgoing, tags, bookmarks, focuses ---------- */
-export type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses" | "table";
+export type PanelTab = "outline" | "backlinks" | "tags" | "bookmarks" | "calendar" | "focuses" | "table" | "music";
 export class Panel {
   readonly el = el<HTMLElement>("right");
   readonly tabs = el<HTMLDivElement>("right-tabs");
   readonly body = el<HTMLDivElement>("right-body");
   current: PanelTab = "outline";
-  private strip: TabStrip;
+  /** The tabs' order and which are hidden (tabStrip.ts); Settings reads and changes them too. */
+  readonly strip: TabStrip;
   leaf: Leaf | null = null;
   tagsCache: { name: string; notes: string[] }[] = [];
   /** The panel is drawn only while it is on screen: collapsed (or closed, on a phone), a change only marks it stale and the next opening draws once. */
@@ -60,6 +64,8 @@ export class Panel {
       ["calendar", "calendar", t.calendarTab],
       // The table (ADR 0107): only while its switch is on.
       ["table", "dice", tt.tab],
+      // The table's music (ADR 0116 as amended 2026-10-31): only while its switch is on.
+      ["music", "music", st.tab],
     ];
     // The periodic settings changed (the folder's layer read again): the
     // calendar's weeks, month and year follow (ADR 0093 item 9).
@@ -78,6 +84,8 @@ export class Panel {
       b.setAttribute("aria-controls", this.body.id);
       b.dataset["tab"] = id;
       b.dataset["icon"] = ic;
+      // The game's tabs stay in a short bar before the others (tabStrip.ts).
+      if (id === "table" || id === "music") b.dataset["keep"] = "";
       b.addEventListener("click", () => {
         this.current = id;
         if (id === "focuses") void loadFocuses().then(() => this.paint());
@@ -90,10 +98,10 @@ export class Panel {
       this.current = id as PanelTab;
       if (id === "focuses") void loadFocuses().then(() => this.paint());
       this.refresh();
-    });
+    }, () => settingsDialog.show("appearance"));
     this.tabs.title = t.tabsHint;
     this.tabs.addEventListener("keydown", (e) => {
-      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]")).filter((b) => !b.hidden && !b.hasAttribute("data-overflow"));
+      const all = Array.from(this.tabs.querySelectorAll<HTMLButtonElement>("button[role=tab]")).filter((b) => !b.hidden && !b.hasAttribute("data-overflow") && !b.hasAttribute("data-gone"));
       const i = all.indexOf(e.target as HTMLButtonElement);
       if (i < 0 || e.altKey || e.metaKey || e.ctrlKey) return;
       const n = all.length;
@@ -119,6 +127,7 @@ export class Panel {
     // The Mesa tab exists only while the table does (ADR 0107 item 14).
     addEventListener("verso:features-changed", () => this.followTable());
     watchUnread(() => tableOn() && this.current === "table" && rightShown());
+    watchMusicOnScreen(() => this.current === "music" && rightShown());
     this.followTable();
   }
   /** The Mesa tab shown or hidden with its switch; a panel left on it goes back to the outline. */
@@ -126,7 +135,9 @@ export class Panel {
     const on = tableOn();
     const tab = this.tabs.querySelector<HTMLElement>('[data-tab="table"]');
     if (tab) tab.hidden = !on;
-    if (!on && this.current === "table") {
+    const music = this.tabs.querySelector<HTMLElement>('[data-tab="music"]');
+    if (music) music.hidden = !soundOn();
+    if ((!on && this.current === "table") || (!soundOn() && this.current === "music")) {
       this.current = "outline";
       this.refresh();
     }
@@ -470,6 +481,10 @@ export class Panel {
       }
       case "table": {
         paintTable(this.body);
+        break;
+      }
+      case "music": {
+        paintMusic(this.body);
         break;
       }
     }

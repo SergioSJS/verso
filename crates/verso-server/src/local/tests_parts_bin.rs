@@ -33,8 +33,12 @@ fn the_bin_gives_a_phone_only_what_was_the_chosen_folders() {
         lab.serve();
         let cookie = lab.pair("iPad", true, Role::Editor).await.unwrap();
         let mut ws = open_part(&lab, &cookie, "Projetos").await;
-        let gone = call(&mut ws, 2, "delete_note", json!({ "path": "Sub/s.md" })).await;
-        assert!(gone.get("ok").is_some(), "{gone}");
+        // The phone is an editor of the chosen folder signed in as the
+        // computer's owner, who deletes outside a table (ADR 0113 section B,
+        // amended 2026-11-01): the entry is its own deletion, recorded as the
+        // server records one.
+        let kept = call(&mut ws, 2, "delete_note", json!({ "path": "Sub/s.md" })).await;
+        assert!(kept.get("ok").is_some(), "{kept}");
         let list = call(&mut ws, 3, "trash_list", json!({})).await;
         let entries = list["ok"]["entries"].as_array().unwrap();
         assert_eq!(entries.len(), 1, "{list}");

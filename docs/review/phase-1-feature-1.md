@@ -3,7 +3,7 @@
 - Date: 2026-09-21
 - Reviewer: Opus 5, in the role of core Rust reviewer ([ADR 0032](../adr/0032-author-and-reviewer-roles.md))
 - Author of the code under review: Fable 5.1 ([ADR 0032](../adr/0032-author-and-reviewer-roles.md))
-- Input: four readings, each in its own session, of the diff and of the repository, without access to the author's session — PR #7 (merge `2448a3d`), then the follow-up commits `14daba5`, `e5ff1a9` and `71a4bcd` on the branch `phase1/dialect-review`.
+- Input: four readings, each in its own session, of the diff and of the repository, without access to the author's session — PR #7 (merge `e5a0a8d`), then the follow-up commits `ed35552`, `8ce1b01` and `26d744c` on the branch `phase1/dialect-review`.
 - Roadmap item: Phase 1, feature 1 — `verso-dialect`, parsing of links, blocks, headings and frontmatter ([`../roadmap.md`](../roadmap.md)).
 - State: every BLOCKING finding of the four readings is resolved in code, and
   the fourth reading found none: its verdict is that the branch may merge as the
@@ -39,10 +39,10 @@ needs to be decided.
 
 | Reading | Input | BLOCKING | IMPORTANT | MINOR |
 |---|---|---|---|---|
-| 1 | PR #7, merge `2448a3d` | 1 | 5 | 8 |
-| 2 | `14daba5` | 3 | 2 | 3 |
-| 3 | `e5ff1a9` | 1 | 3 | 5 |
-| 4 | `71a4bcd` | 0 | 2 | 5 |
+| 1 | PR #7, merge `e5a0a8d` | 1 | 5 | 8 |
+| 2 | `ed35552` | 3 | 2 | 3 |
+| 3 | `8ce1b01` | 1 | 3 | 5 |
+| 4 | `26d744c` | 0 | 2 | 5 |
 
 The BLOCKING findings are all one shape: something that was supposed to be
 bounded was not, or a guardrail that was supposed to be able to fail could not.
@@ -54,7 +54,7 @@ CI announces.
 
 ---
 
-## 1. First reading — PR #7 (merge `2448a3d`)
+## 1. First reading — PR #7 (merge `e5a0a8d`)
 
 The PR turns the empty crate into a read-only extractor: `parse(&str) ->
 Document` runs `pulldown-cmark` with `ENABLE_WIKILINKS` and
@@ -67,51 +67,51 @@ a fixture harness and six AI-draft fixtures.
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | BLOCKING | A frontmatter of about 4 000 nested block sequences (an 8 KB note) overflows the stack inside the YAML loading driver and aborts the process with `SIGABRT` — not a panic, so nothing upstream can catch it. It breaks Q18 property 1, "`parse` returns for every input", which is `DECIDED` | **Fixed** in `14daba5`, completed in `e5ff1a9` and `71a4bcd`. The nesting is bounded on `saphyr-parser`'s event stream, before any tree exists; over the limit the frontmatter is reported with its span and `values` as an error, and the body is still parsed. Seen failing: with the check disabled the new test aborts. The *numbers* are Q17 and are the maintainer's (section 6, item 1) |
-| 2 | IMPORTANT | The fuzz guardrail structurally could not find finding 1: `-max_len=4096`, and the crashing input needs about 8 KB | **Fixed** in `14daba5`. `-max_len=65536 -timeout=20`, versioned seeds in `fuzz/seeds/`, and a regression test in `crates/verso-dialect/tests/regressions.rs` |
-| 3 | IMPORTANT | The PR's "what was assumed" table does not match the code for `^id`: an `^id` alone after a blank line **is** reported; one at the end of a tight list item is **not** | **Fixed** in `14daba5`, in the doc of the recognizer and in the PR's table. Q3 stays `[OPEN]` and nothing was implemented either way (section 6, item 5) |
-| 4 | IMPORTANT | The fixture harness rejects `syntax: wikilink`, which spec §4.2 says may be omitted | **Fixed** in `14daba5`. `wikilink` and omitting it are the same assertion; `markdown` fails with a message pointing at Q20 |
+| 1 | BLOCKING | A frontmatter of about 4 000 nested block sequences (an 8 KB note) overflows the stack inside the YAML loading driver and aborts the process with `SIGABRT` — not a panic, so nothing upstream can catch it. It breaks Q18 property 1, "`parse` returns for every input", which is `DECIDED` | **Fixed** in `ed35552`, completed in `8ce1b01` and `26d744c`. The nesting is bounded on `saphyr-parser`'s event stream, before any tree exists; over the limit the frontmatter is reported with its span and `values` as an error, and the body is still parsed. Seen failing: with the check disabled the new test aborts. The *numbers* are Q17 and are the maintainer's (section 6, item 1) |
+| 2 | IMPORTANT | The fuzz guardrail structurally could not find finding 1: `-max_len=4096`, and the crashing input needs about 8 KB | **Fixed** in `ed35552`. `-max_len=65536 -timeout=20`, versioned seeds in `fuzz/seeds/`, and a regression test in `crates/verso-dialect/tests/regressions.rs` |
+| 3 | IMPORTANT | The PR's "what was assumed" table does not match the code for `^id`: an `^id` alone after a blank line **is** reported; one at the end of a tight list item is **not** | **Fixed** in `ed35552`, in the doc of the recognizer and in the PR's table. Q3 stays `[OPEN]` and nothing was implemented either way (section 6, item 5) |
+| 4 | IMPORTANT | The fixture harness rejects `syntax: wikilink`, which spec §4.2 says may be omitted | **Fixed** in `ed35552`. `wikilink` and omitting it are the same assertion; `markdown` fails with a message pointing at Q20 |
 | 5 | IMPORTANT | The harness silently picks a side in a contradiction inside spec §4.1 | **Recorded, not resolved.** The maintainer's (section 6, item 3). `CLAUDE.md` §1 rule 3 forbids picking a side |
-| 6 | IMPORTANT | The `wasm` and `fuzz` jobs run on Linux only; [ADR 0029](../adr/0029-guardrails-in-ci.md) says the feature guardrails run on macOS and Linux | **Fixed** in `14daba5`. Both jobs run the two-OS matrix |
-| 7 | MINOR | `LineIndex::pos`'s doc comment does not describe what the code does (the fallback is `col = 1`, not a count) | **Fixed** in `14daba5` (comment) |
+| 6 | IMPORTANT | The `wasm` and `fuzz` jobs run on Linux only; [ADR 0029](../adr/0029-guardrails-in-ci.md) says the feature guardrails run on macOS and Linux | **Fixed** in `ed35552`. Both jobs run the two-OS matrix |
+| 7 | MINOR | `LineIndex::pos`'s doc comment does not describe what the code does (the fallback is `col = 1`, not a count) | **Fixed** in `ed35552` (comment) |
 | 8 | MINOR | `---\n---\n` and a frontmatter closed by `...` both give `frontmatter: None`, undeclared; a metadata block at offset 0 that is rejected is indistinguishable from "no frontmatter" | **Recorded** in the PR's assumptions table; behaviour unchanged, it is Q24 |
 | 9 | MINOR | Q15 is answered in code (tables, footnotes, task lists, strikethrough, math and highlight are all off) without being declared | **Recorded** in the PR's assumptions table |
-| 10 | MINOR | Span conventions differ between constructs: a heading's stops before the line break, a callout's included it | **Fixed** in `14daba5`; refined in `e5ff1a9` (see reading 2, finding 8) |
-| 11 | MINOR | The fuzz target checks neither the frontmatter span nor any position | **Fixed** in `14daba5` |
+| 10 | MINOR | Span conventions differ between constructs: a heading's stops before the line break, a callout's included it | **Fixed** in `ed35552`; refined in `8ce1b01` (see reading 2, finding 8) |
+| 11 | MINOR | The fuzz target checks neither the frontmatter span nor any position | **Fixed** in `ed35552` |
 | 12 | MINOR | `property_4` of the round-trip test cannot fail: it is true by the type system | **Kept** as executable documentation, as the reading suggested; the real check belongs to `verso-fs`, feature 2 |
 | 13 | MINOR | The fuzz package sits outside `cargo deny` and `[workspace.lints]` | **Kept.** The reading reads it as acceptable under [ADR 0029](../adr/0029-guardrails-in-ci.md), since it never links into a product crate; adding `cargo deny check` for its manifest is one CI step, not taken |
 | 14 | MINOR | `fixtures/callout/simple` asserts `kind` and `title`, which its own `observed:` says were not observed | **The maintainer's** (section 6, item 4). The fixture was approved with PR #7 and was not touched |
 
-## 2. Second reading — `14daba5`
+## 2. Second reading — `ed35552`
 
 Verdict of the reading: not mergeable as the resolution of the first one.
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | BLOCKING | The depth bound does not bound the tree. `saphyr` expands an alias by cloning the anchored node, so the bound on the event stream misses it: a chain of 1 000 aliases (about 20 KB, event depth 2, expanded depth 1 001) still aborts, and a 347-byte alias fan-out expands to millions of nodes, 3.0 s and 2.1 GB of peak memory | **Fixed** in `e5ff1a9`. The pre-pass keeps an explicit stack of open collections, records the height and the size of every anchored node, and charges each alias what the loader will clone there, against the depth limit and a new node limit. Seen failing with the charge disabled. Aliases still expand as before: nothing of Q24 was decided |
-| 2 | BLOCKING | The docs-mirror guardrail is red: three fuzz seeds are tracked `*.md` files outside `docs/pt-BR/` and get asked for twins (the check had been run before `git add`, when they were untracked) | **Fixed** in `e5ff1a9`. Seeds are data, not documents: `.txt`; the seeds' README was folded into the fuzz target's doc comment |
-| 3 | BLOCKING | The CI fuzz job never started: `fuzz/corpus/parse` is gitignored and `cargo-fuzz` 0.13.2 does not create a corpus directory it is given by name | **Fixed** in `e5ff1a9` (`mkdir -p` before the run) |
-| 4 | IMPORTANT | `MAX_YAML_DEPTH = 64` answers Q17, which is `[OPEN]`, and is recorded only in a code comment and in a `pub const` | **Partly fixed**: `pub(crate)` from `e5ff1a9`, so it is not part of the public API. The record in `docs/` is in the same PR as this document (spec §9, Q17); the number itself is the maintainer's (section 6, item 1) |
-| 5 | IMPORTANT | Q18 property 1 is still violated through the base parser: `pulldown-cmark` 0.13.4 panics on a ten-byte input. `#[ignore]` is a record, not a resolution, and `parse`'s doc claimed "never panics" | **Partly fixed**: the doc was corrected in `e5ff1a9` and now names the exception. The record in `docs/` is in the same PR as this document ([ADR 0037](../adr/0037-base-parser.md), Consequences); the way out is the maintainer's (section 6, item 2) |
-| 6 | MINOR | The rationale for the bound names the wrong recursion: it is `saphyr-parser`'s loading driver, not the loader, which is iterative | **Fixed** in `e5ff1a9` |
+| 1 | BLOCKING | The depth bound does not bound the tree. `saphyr` expands an alias by cloning the anchored node, so the bound on the event stream misses it: a chain of 1 000 aliases (about 20 KB, event depth 2, expanded depth 1 001) still aborts, and a 347-byte alias fan-out expands to millions of nodes, 3.0 s and 2.1 GB of peak memory | **Fixed** in `8ce1b01`. The pre-pass keeps an explicit stack of open collections, records the height and the size of every anchored node, and charges each alias what the loader will clone there, against the depth limit and a new node limit. Seen failing with the charge disabled. Aliases still expand as before: nothing of Q24 was decided |
+| 2 | BLOCKING | The docs-mirror guardrail is red: three fuzz seeds are tracked `*.md` files outside `docs/pt-BR/` and get asked for twins (the check had been run before `git add`, when they were untracked) | **Fixed** in `8ce1b01`. Seeds are data, not documents: `.txt`; the seeds' README was folded into the fuzz target's doc comment |
+| 3 | BLOCKING | The CI fuzz job never started: `fuzz/corpus/parse` is gitignored and `cargo-fuzz` 0.13.2 does not create a corpus directory it is given by name | **Fixed** in `8ce1b01` (`mkdir -p` before the run) |
+| 4 | IMPORTANT | `MAX_YAML_DEPTH = 64` answers Q17, which is `[OPEN]`, and is recorded only in a code comment and in a `pub const` | **Partly fixed**: `pub(crate)` from `8ce1b01`, so it is not part of the public API. The record in `docs/` is in the same PR as this document (spec §9, Q17); the number itself is the maintainer's (section 6, item 1) |
+| 5 | IMPORTANT | Q18 property 1 is still violated through the base parser: `pulldown-cmark` 0.13.4 panics on a ten-byte input. `#[ignore]` is a record, not a resolution, and `parse`'s doc claimed "never panics" | **Partly fixed**: the doc was corrected in `8ce1b01` and now names the exception. The record in `docs/` is in the same PR as this document ([ADR 0037](../adr/0037-base-parser.md), Consequences); the way out is the maintainer's (section 6, item 2) |
+| 6 | MINOR | The rationale for the bound names the wrong recursion: it is `saphyr-parser`'s loading driver, not the loader, which is iterative | **Fixed** in `8ce1b01` |
 | 7 | MINOR | The frontmatter is scanned and parsed twice, about twice the YAML work | **Kept.** Irrelevant at frontmatter sizes; it disappears if the value tree is ever built from events directly |
-| 8 | MINOR | The callout span trims every trailing line break, while its comment says one | **Fixed** in `e5ff1a9`: one `\n` or `\r\n` |
+| 8 | MINOR | The callout span trims every trailing line break, while its comment says one | **Fixed** in `8ce1b01`: one `\n` or `\r\n` |
 
-## 3. Third reading — `e5ff1a9`
+## 3. Third reading — `8ce1b01`
 
 | # | Level | Finding | Resolution |
 |---|---|---|---|
-| 1 | BLOCKING | The fuzz guardrail is inert. libFuzzer runs seeds from the smallest up, and the ten-byte seed on which `pulldown-cmark` itself panics ran first, ending every CI job before a single mutation. The job was permanently red without ever fuzzing | **Fixed** in `71a4bcd`. The input is no longer a seed; it stays in `crates/verso-dialect/tests/regressions.rs`, `#[ignore]`d, with the condition for removing the `#[ignore]` written in it. The job now fuzzes its 60 seconds from the one seed that remains, `fuzz/seeds/deep-yaml.txt` |
-| 2 | IMPORTANT | The node budget was compared against the sum of the subtree sizes, not against the node count, so a flat mapping of 2 500 keys was refused | **Fixed** in `71a4bcd`. Each node is charged once, when it closes; an alias is charged the size of the node it clones |
+| 1 | BLOCKING | The fuzz guardrail is inert. libFuzzer runs seeds from the smallest up, and the ten-byte seed on which `pulldown-cmark` itself panics ran first, ending every CI job before a single mutation. The job was permanently red without ever fuzzing | **Fixed** in `26d744c`. The input is no longer a seed; it stays in `crates/verso-dialect/tests/regressions.rs`, `#[ignore]`d, with the condition for removing the `#[ignore]` written in it. The job now fuzzes its 60 seconds from the one seed that remains, `fuzz/seeds/deep-yaml.txt` |
+| 2 | IMPORTANT | The node budget was compared against the sum of the subtree sizes, not against the node count, so a flat mapping of 2 500 keys was refused | **Fixed** in `26d744c`. Each node is charged once, when it closes; an alias is charged the size of the node it clones |
 | 3 | IMPORTANT | The two numbers that answer Q17 are recorded only in Rust source | **Recorded** in the same PR as this document, under Q17 of [`../spec/dialect.md`](../spec/dialect.md) §9. Nothing is decided by the record: the question stays `[OPEN]` and the numbers are the maintainer's (section 6, item 1) |
 | 4 | IMPORTANT | The upstream `pulldown-cmark` panic is recorded only in Rust source | **Recorded** in the same PR as this document, under Consequences of [ADR 0037](../adr/0037-base-parser.md). Nothing is decided by the record: Status and Decision did not change and the way out is the maintainer's (section 6, item 2) |
-| 5 | MINOR | A tag outside the core schema adds a level to the tree `saphyr` builds, and the pre-pass did not charge it | **Fixed** in `71a4bcd`. A differential test measures the tree `saphyr` actually builds for eleven shapes — tags, self-referential aliases, complex keys, the boundaries — and asserts that the pre-pass accepts exactly what fits |
+| 5 | MINOR | A tag outside the core schema adds a level to the tree `saphyr` builds, and the pre-pass did not charge it | **Fixed** in `26d744c`. A differential test measures the tree `saphyr` actually builds for eleven shapes — tags, self-referential aliases, complex keys, the boundaries — and asserts that the pre-pass accepts exactly what fits |
 | 6 | MINOR | The anchor lookup is linear, which makes the pre-pass quadratic in the worst case | **Kept.** The worst case is bounded by the node budget of finding 2 |
-| 7 | MINOR | Off-by-one in the depth check: the node itself was not counted, so 64 collections plus a scalar passed | **Fixed** in `71a4bcd`: that shape is depth 65 and is refused |
+| 7 | MINOR | Off-by-one in the depth check: the node itself was not counted, so 64 collections plus a scalar passed | **Fixed** in `26d744c`: that shape is depth 65 and is refused |
 | 8 | MINOR | The inventory of the fuzz seeds moved into a Rust doc comment, where a reader of the documentation does not find it | **Kept.** This review document names the seeds instead: after finding 1, the only one left is `fuzz/seeds/deep-yaml.txt`, the deep frontmatter |
-| 9 | MINOR | A test message sliced the first 40 bytes of the input unconditionally | **Fixed** in `71a4bcd` |
+| 9 | MINOR | A test message sliced the first 40 bytes of the input unconditionally | **Fixed** in `26d744c` |
 
-## 4. Fourth reading — `71a4bcd`
+## 4. Fourth reading — `26d744c`
 
 Verdict of the reading: **no BLOCKING**; the branch may merge as the resolution
 of the original review.
@@ -120,11 +120,11 @@ of the original review.
 |---|---|---|---|
 | 1 | IMPORTANT (against the branch; pre-existing on `main`, not caused by the diff) | With the fuzz guardrail actually running, a 10-minute run found a 5 068-byte UTF-8 input on which `parse` does not return in practical time: CPU-bound, exponential in the input length, roughly doubling per 100 bytes (3 600 bytes: 1.3 s; 4 000 bytes: 11 s). Measured afterwards by the author, `pulldown-cmark` 0.13.4 **alone** emits 157 million events for the first 3 600 bytes of that input, against 676 events and 313 µs for the whole file on upstream `main`: the defect is in the base parser, and `verso-dialect`'s own pass is linear over the base's events. It contradicts the purpose [ADR 0029](../adr/0029-guardrails-in-ci.md) states for this guardrail ("a malformed file hanging the app"), and Q17 already names it — "quadratic parser … fuzzing catches crashes, not slowness". Consequence: the CI fuzz job can go red on any PR by finding it (no red in 8 runs of 60 s, one red in a run of 600 s) | **Recorded, not fixed.** Q17 is `[OPEN]` and the way out is the same decision as the panic ([ADR 0037](../adr/0037-base-parser.md), Consequences; section 6, item 2). The author keeps the reproducer as an `#[ignore]`d regression test in `crates/verso-dialect/tests/regressions.rs`, reading `crates/verso-dialect/tests/data/pulldown-0.13.4-exponential.txt` with `include_str!` |
 | 2 | IMPORTANT | With the seed gone (third reading, finding 1), nothing in CI announces the upstream release: the `#[ignore]`d tests can stay ignored forever, including after a `cargo update` | **Deferred with this record**, the maintainer's (section 6, item 6). Two options are recorded and neither is chosen: a non-blocking CI step that runs the ignored tests; or a `deny.toml` ban on `pulldown-cmark > 0.13.4` whose reason names the test to un-ignore |
-| 3 | MINOR | `size_of_children` is redundant: it is always `size - (1 + wrapper)` | **Fixed** in `17dae4d` |
+| 3 | MINOR | `size_of_children` is redundant: it is always `size - (1 + wrapper)` | **Fixed** in `ff575e2` |
 | 4 | MINOR | `open_depth` duplicates state the frame stack already carries | **Kept**, at the author's discretion |
 | 5 | MINOR | The differential test pins the model only on its boundary shapes | **Kept**, at the author's discretion. The reading itself verified the exact thresholds on 40 hand-built shapes, 300 random documents and 13 400 random fragments, with no disagreement |
-| 6 | MINOR | The pre-pass over-counts duplicate mapping keys (the strict side) | **Noted** in the test's comment in `17dae4d` |
-| 7 | MINOR | Two imprecisions in a comment and in a test: which tags add a node, and a byte slice in a test message | **Fixed** in `17dae4d` and `bace77b` |
+| 6 | MINOR | The pre-pass over-counts duplicate mapping keys (the strict side) | **Noted** in the test's comment in `ff575e2` |
+| 7 | MINOR | Two imprecisions in a comment and in a test: which tags add a node, and a byte slice in a test message | **Fixed** in `ff575e2` and `ec5bd1a` |
 
 ## 5. Verified and correct
 
@@ -175,7 +175,7 @@ Nothing in this list is decided here.
    panics inside the base parser, which contradicts what
    [ADR 0037](../adr/0037-base-parser.md) expected of it and violates Q18
    property 1 (upstream issue #1129). The second, found by the fuzz guardrail
-   on `71a4bcd`: a 5 068-byte UTF-8 input
+   on `26d744c`: a 5 068-byte UTF-8 input
    on which the base parser takes exponential time — 157 million events for
    the first 3 600 bytes, roughly doubling per 100 bytes — so `parse` does not
    return in practical time. Both are fixed on upstream `main` (verified as of

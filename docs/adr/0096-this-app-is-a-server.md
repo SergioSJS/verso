@@ -794,8 +794,17 @@ accepted. Nothing was built or run to write it.
 
 **Correction, 2026-10-21** (the review of the batch, M11): the paragraph above
 was written on 2026-10-15, before the build. The feature is built: see *As
-built* above, `feat/local-server-build` merged by `404ba0d4` (2026-10-15),
-the server on Windows by `273fc25c`, the folders served as a tree by
-`7550a68a`; the roadmap's V.20 row says built 2026-10-15 (macOS and Linux,
+built* above, `feat/local-server-build` merged by `3a721c11` (2026-10-15),
+the server on Windows by `38ddc78b`, the folders served as a tree by
+`8e2aff64`; the roadmap's V.20 row says built 2026-10-15 (macOS and Linux,
 Windows after, item 17 (a)). The "Not built" in the paragraph and in the
 index row was true when written and is no longer.
+
+**Amendment (2026-11-01).** Item 12 says a paired phone is "never owner". That
+holds for managing, sharing, inviting and the owner's seat at a table. For
+**deleting** outside a table, a phone signed in as the computer's owner now
+deletes even on a folder served in part, the maintainer having answered B8's
+provisional 2: *"Se tiver logado com a conta do dono, deveria sim ser B"* (if
+it is signed in with the owner's account, it should be b: the owner's phone
+deletes always). See ADR 0113, "Amended 2026-11-01". A reader phone still
+deletes nothing.

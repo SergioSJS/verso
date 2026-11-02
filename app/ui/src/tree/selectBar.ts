@@ -28,7 +28,10 @@ function paint(): void {
   const n = selectedPaths().length;
   count.textContent = t.selection.count(n);
   for (const b of [move, copy, bin]) b.disabled = n === 0;
-  for (const b of [move, bin]) b.hidden = !may("", "delete");
+  // Moving is an editor's outside a table; the bin only the folder's owner's
+  // (ADR 0113 section B, amended 2026-10-31).
+  move.hidden = !may("", "move");
+  bin.hidden = !may("", "delete");
 }
 
 export function installSelectBar(): void {

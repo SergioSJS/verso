@@ -211,12 +211,14 @@ pub fn sweep(server: &Server, folder: &str) -> Option<Swept> {
         db: &server.db,
         folder,
     };
-    match bin::sweep(&path, &mut book, bin::now(), days, quota) {
+    let cap = server.config.trash_max;
+    match bin::sweep(&path, &mut book, bin::now(), days, quota, cap) {
         Ok(swept) => {
             for (item, why) in &swept.removed {
                 let reason = match why {
                     bin::Why::Expired => "trash_expired",
                     bin::Why::OverQuota => "trash_over_quota",
+                    bin::Why::OverCap => "trash_over_cap",
                 };
                 crate::log::info(&format!("folder {}: {reason}: {}", f.dir, item.record.path));
                 audit(server, None, reason, &item.record.original, folder);
@@ -309,7 +311,8 @@ pub fn console_view(server: &Server, folder: &str) -> Result<Value, String> {
         "ownerDays": owner,
         "defaultDays": server.config.trash_days,
         "ceiling": admin_days,
-        "early": bin::over_quota(&items, quota),
+        "early": bin::over_quota(&items, quota)
+            || bin::over_quota(&items, server.config.trash_max),
     }))
 }
 
@@ -328,13 +331,12 @@ pub async fn command(
     // names of files they do not see.
     // And a window that is a player at some table of the folder has none:
     // the bin would name what the table hides from it, and give it back.
+    // Asked as a change of the folder, not as a delete: outside a table only
+    // the owner deletes (ADR 0113 section B, amended 2026-10-31), and the
+    // bin stays any writer's to see and restore from (item 7, unchanged).
     if door.veiled()
         || !door
-            .may(
-                crate::access::Action::Delete,
-                "",
-                crate::access::Kind::Folder,
-            )
+            .may(crate::access::Action::Edit, "", crate::access::Kind::Folder)
             .allowed()
     {
         return Err(refused("the trash is for those who may change this folder"));

@@ -111,14 +111,18 @@ fn parse(args: &[OsString]) -> (Options, Result<Command, Msg>) {
 }
 
 /// Whether a path names something the app opens — an existing directory,
-/// or a Markdown file, opened without its folder (ADR 0114 item 8, the
-/// one-line revision of ADR 0042) — asked of `verso-fs`: the one crate
+/// or a Markdown or structured-data file (`.json`, `.yaml`, `.yml`,
+/// `.toml`, `.xml`, `.csv`), opened without its folder (ADR 0114 items 8
+/// and 34, the revisions of ADR 0042) — asked of `verso-fs`: the one crate
 /// that touches the disk (ADR 0026 rule 5), whose `Root::open` and
 /// `kind_of` are the entry edge where a path string is accepted. Nothing
 /// is read.
 fn names_a_directory(path: &Path) -> bool {
     verso_fs::Root::open(path, Vec::new()).is_ok()
-        || verso_fs::kind_of(path) == verso_fs::PathKind::MarkdownFile
+        || matches!(
+            verso_fs::kind_of(path),
+            verso_fs::PathKind::MarkdownFile | verso_fs::PathKind::DataFile
+        )
 }
 
 /// [`parse`] with the disk stood in for: `is_dir` says whether a first
@@ -1274,9 +1278,10 @@ mod tests {
                 folder: dir.path().to_path_buf()
             }
         );
-        // A file that is not Markdown is not a folder, and neither is a
-        // path to nowhere; a `.md` file opens, without its folder (ADR
-        // 0114 item 8).
+        // A file that is neither Markdown nor structured data is not a
+        // folder, and neither is a path to nowhere; a `.md` file opens,
+        // without its folder (ADR 0114 item 8), and so does a data file
+        // (item 34).
         let file = file.path().to_string_lossy().into_owned();
         assert_eq!(
             parse(&args(&[&file])).1.unwrap_err(),
@@ -1292,6 +1297,30 @@ mod tests {
             Command::Open {
                 folder: note.path().to_path_buf()
             }
+        );
+        for suffix in [".json", ".yaml", ".yml", ".toml", ".xml", ".csv", ".JSON"] {
+            let data = tempfile::Builder::new()
+                .prefix("dados")
+                .suffix(suffix)
+                .tempfile_in(dir.path())
+                .unwrap();
+            assert_eq!(
+                parse(&args(&[data.path().to_str().unwrap()])).1.unwrap(),
+                Command::Open {
+                    folder: data.path().to_path_buf()
+                },
+                "{suffix}"
+            );
+        }
+        let text = tempfile::Builder::new()
+            .prefix("texto")
+            .suffix(".txt")
+            .tempfile_in(dir.path())
+            .unwrap();
+        let text = text.path().to_string_lossy().into_owned();
+        assert_eq!(
+            parse(&args(&[&text])).1.unwrap_err(),
+            Msg::UnknownSubcommand(text)
         );
         let missing = dir.path().join("nao-existe").to_string_lossy().into_owned();
         assert_eq!(

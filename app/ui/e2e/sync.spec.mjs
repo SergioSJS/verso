@@ -156,13 +156,13 @@ test("a folder syncs with a server, says its state, asks before deleting and sho
   await say(app, running);
   // Another build of the same version on the server: both builds are
   // named, in the window's language (the contracts only in the log).
-  const versions = { server_version: "0.7.0-beta.1", server_build: "1dac246", server_contract: "0589761", app_version: "0.7.0-beta.1", app_build: "efa6f12", app_contract: "3f2a9c1" };
-  await say(app, { ...running, state: "error", problem: "version", message: "the server runs Verso 0.7.0-beta.1 (build 1dac246, …)", versions });
-  await expect(app.page.locator(".sync-problem")).toHaveText(/o servidor tem outro build do Verso 0\.7\.0-beta\.1 \(servidor 1dac246, este app efa6f12\): atualize os dois para o mesmo/i);
+  const versions = { server_version: "0.7.0-beta.1", server_build: "d416898", server_contract: "0589761", app_version: "0.7.0-beta.1", app_build: "f9a91d6", app_contract: "3f2a9c1" };
+  await say(app, { ...running, state: "error", problem: "version", message: "the server runs Verso 0.7.0-beta.1 (build d416898, …)", versions });
+  await expect(app.page.locator(".sync-problem")).toHaveText(/o servidor tem outro build do Verso 0\.7\.0-beta\.1 \(servidor d416898, este app f9a91d6\): atualize os dois para o mesmo/i);
   // The status bar says it in a few words and keeps its buttons in view
   // (2026-10-16: the whole sentence pushed them out); the title has it all.
   await expect(app.page.locator("#sync-state")).toHaveText("Erro: o servidor está numa versão diferente deste app: atualize o que estiver atrás");
-  await expect(app.page.locator("#sync-state")).toHaveAttribute("title", /servidor 1dac246, este app efa6f12/);
+  await expect(app.page.locator("#sync-state")).toHaveAttribute("title", /servidor d416898, este app f9a91d6/);
   await expect(app.page.locator(".status-keys")).toBeVisible();
   await expect(app.page.locator("#report-bug")).toBeInViewport();
   await say(app, running);

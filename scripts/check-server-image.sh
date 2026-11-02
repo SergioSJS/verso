@@ -92,6 +92,11 @@ done
 # Read from the parsed file, so a comment cannot pass for it.
 parsed="$(docker compose -f "$compose" config)"
 echo "$parsed" | grep -qF 'published: "7340"' || { echo "$compose does not publish 7340"; exit 1; }
+# A memory limit on the container (ADR 0075, Amendment 2026-10-31), in both
+# compose files, read from the parsed file: 768 MB is 805306368 bytes.
+for c in packaging/server/docker-compose.yml packaging/server/docker-compose.host-network.yml; do
+  docker compose -f "$c" config | grep -qE '^\s+mem_limit: "?805306368"?$' || { echo "$c does not limit the container's memory to 768m"; exit 1; }
+done
 ! echo "$parsed" | grep -qF 'host_ip:' || { echo "$compose binds its port to one address"; exit 1; }
 ! echo "$parsed" | grep -qE '^\s+VERSO_(PUBLIC_URL|TRUSTED_PROXY):' || { echo "$compose requires a variable that is optional"; exit 1; }
 docker run -d --name "$name" -p "127.0.0.1:$port:7340" \

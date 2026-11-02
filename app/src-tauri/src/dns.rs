@@ -69,11 +69,15 @@ const MOST_SERVERS: usize = 6;
 /// finish the TLS and WebSocket handshakes.
 const TCP_FOR: Duration = Duration::from_secs(6);
 const SHAKE_FOR: Duration = Duration::from_secs(10);
-/// The most a dial of all the addresses takes.
+/// The most a dial of all the addresses takes. The tests' ceiling is shorter
+/// than `SHAKE_FOR` (so `a_dial_has_a_ceiling` can tell it from a handshake's
+/// own time) but long enough for a loaded machine: at 600 ms a dial to a
+/// healthy in-process server timed out when the CPU was busy, and the link
+/// said `unreachable`.
 #[cfg(not(test))]
 const DIAL_TOTAL: Duration = Duration::from_secs(25);
 #[cfg(test)]
-const DIAL_TOTAL: Duration = Duration::from_millis(600);
+const DIAL_TOTAL: Duration = Duration::from_secs(5);
 
 /// How an address came to be tried.
 #[derive(Debug, Clone, PartialEq, Eq)]

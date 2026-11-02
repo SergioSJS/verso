@@ -601,6 +601,10 @@ const VERDICTS: &[(&str, &str, bool)] = &[
         true,
     ),
     ("create_folder", r#"{"path":"Pasta"}"#, true),
+    // A phone is an editor of the chosen folder, signed in as the folder's
+    // owner: outside a table the owner deletes, even on a folder served in
+    // part (ADR 0113 section B, amended 2026-11-01: "celular do dono apaga
+    // sempre").
     ("delete_note", r#"{"path":"a.md"}"#, true),
     ("rename_note", r#"{"from":"a.md","to":"b.md"}"#, true),
     (
@@ -671,6 +675,13 @@ const VERDICTS: &[(&str, &str, bool)] = &[
     ),
     ("table_pin", r#"{"id":"1","pinned":true}"#, false),
     ("table_delete", r#"{"id":"1"}"#, false),
+    ("table_time", "{}", false),
+    (
+        "table_cannot_play",
+        r#"{"channel":"music","revision":1}"#,
+        false,
+    ),
+    ("table_share_listen", r#"{"listen":true}"#, false),
     ("campaign_status", "{}", true),
     ("trash_list", "{}", true),
     (
@@ -1104,6 +1115,9 @@ fn every_allowlisted_command_has_a_verdict_on_a_chosen_folder() {
         "table_roll",
         "table_pin",
         "table_delete",
+        "table_time",
+        "table_cannot_play",
+        "table_share_listen",
         "campaign_status",
         "trash_list",
         "trash_restore",

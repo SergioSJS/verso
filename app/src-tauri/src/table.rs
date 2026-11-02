@@ -9,7 +9,7 @@
 //! has no table, and the window shows the rolls of this run itself.
 
 use super::*;
-use verso_contract::{DiceStyles, TableEntry, TableJoin, TablePage};
+use verso_contract::{AudioShare, AudioShareStart, DiceStyles, TableEntry, TableJoin, TablePage};
 
 fn no_table() -> ContractError {
     refused("the table is a server's; a folder of this computer alone has none")
@@ -128,5 +128,102 @@ pub fn table_delete(id: String, table: Option<String>) -> Result<(), ContractErr
 #[specta::specta]
 pub fn table_clear(keep_pinned: Option<bool>, table: Option<String>) -> Result<(), ContractError> {
     let _ = (keep_pinned, table);
+    Err(no_table())
+}
+
+/// Play a sound file of the folder for everyone at the table (ADR 0116
+/// section A): the game master's alone. `channel` is `music` (none: it);
+/// with `ask`, nothing plays when some players of the table do not see the
+/// file, and the answer names them. A folder of this computer alone has no
+/// table: its window plays the file by itself.
+#[tauri::command]
+#[specta::specta]
+pub fn table_play(
+    path: String,
+    channel: Option<String>,
+    position_ms: Option<f64>,
+    looping: Option<bool>,
+    duration_ms: Option<f64>,
+    ask: Option<bool>,
+    table: Option<String>,
+) -> Result<verso_contract::TablePlayed, ContractError> {
+    let _ = (path, channel, position_ms, looping, duration_ms, ask, table);
+    Err(no_table())
+}
+
+/// Change what plays at the table, as the game master: `wish` is `pause`,
+/// `resume`, `seek` (`value`: the position, ms), `stop`, `master` (`value`:
+/// the volume, 0 to 100), `loop` (`looping`) or `duration` (`value`: the
+/// track's length, ms), made on the state at `revision` (an older one is
+/// refused).
+#[tauri::command]
+#[specta::specta]
+pub fn table_sound(
+    wish: String,
+    revision: f64,
+    channel: Option<String>,
+    value: Option<f64>,
+    looping: Option<bool>,
+    table: Option<String>,
+) -> Result<Option<verso_contract::TablePlayback>, ContractError> {
+    let _ = (wish, revision, channel, value, looping, table);
+    Err(no_table())
+}
+
+/// The server's clock, for the window to keep its offset from it (ADR 0116
+/// item 10).
+#[tauri::command]
+#[specta::specta]
+pub fn table_time(table: Option<String>) -> Result<verso_contract::TableTime, ContractError> {
+    let _ = table;
+    Err(no_table())
+}
+
+/// This window cannot play the track at `revision`: the game master is told
+/// who (ADR 0116 item 13).
+#[tauri::command]
+#[specta::specta]
+pub fn table_cannot_play(
+    revision: f64,
+    channel: Option<String>,
+    table: Option<String>,
+) -> Result<(), ContractError> {
+    let _ = (revision, channel, table);
+    Err(no_table())
+}
+
+/// Start sharing live audio to the table, as the game master (ADR 0116
+/// section B): `share` names the source, its kind and the bitrate; with
+/// `replace`, the table's live share ends in its favour (without, a second
+/// share is answered `exists`). The answer carries the share's number for
+/// the frames' header, and the count and rate only the sharer is told.
+#[tauri::command]
+#[specta::specta]
+pub fn table_share_start(
+    share: AudioShareStart,
+    table: Option<String>,
+) -> Result<AudioShare, ContractError> {
+    let _ = (share, table);
+    Err(no_table())
+}
+
+/// Stop the table's live share, as the game master; the sharer's window may
+/// stop it from outside the table's panel.
+#[tauri::command]
+#[specta::specta]
+pub fn table_share_stop(table: Option<String>) -> Result<(), ContractError> {
+    let _ = table;
+    Err(no_table())
+}
+
+/// Receive the table's live share (`listen`), or no longer: a window that
+/// asks gets the last two seconds, then the live frames, as binary messages
+/// on its connection; one that fell ten seconds behind is told
+/// (`table-share-behind`) and asks again. The sharer hears its source
+/// itself.
+#[tauri::command]
+#[specta::specta]
+pub fn table_share_listen(listen: bool, table: Option<String>) -> Result<(), ContractError> {
+    let _ = (listen, table);
     Err(no_table())
 }

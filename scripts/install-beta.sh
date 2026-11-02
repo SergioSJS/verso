@@ -13,20 +13,28 @@
 #     the app binary at compile time and dist-web/ becomes the bundle's
 #     ui-web/ (tauri.conf.json `resources`, served to phones by "This app is
 #     a server", ADR 0096). An app built before the window is the old window.
-#  2. Builds `verso-app` and `verso` natively (arch -arm64): nvm's Node may
-#     be x86_64 under Rosetta, and a build script linked from there fails
-#     ("missing compatible architecture"). `cargo clean -p verso-app` first,
-#     so the embedded window is never a stale one. With the Command Line
-#     Tools' MacOSX27.0.sdk beside 26.5, links fail ("tapi … arm64e.x1"):
-#     SDKROOT is set to 26.5 when both are there and SDKROOT is unset.
-#  3. Puts the two binaries, ui-web/, the version and the Info.plist keys of
-#     app/src-tauri/Info.plist (Local Network words, Bonjour services) into a
-#     copy of the installed bundle, and signs it ad hoc, as release.yml does.
-#     With no installed beta to start from, it stops and says how to make one.
+#  2. Builds the bundle the way release.yml builds it: `tauri build --bundles
+#     app` with the beta's identifier and name (Info.plist merged, the .md
+#     and data-file document types, the icons, ui-web/ — whatever the configuration says),
+#     then `verso` (the command line) beside `verso-app`, signed ad hoc.
+#     Natively (arch -arm64): an x86_64 Node under Rosetta breaks the native
+#     packages. `cargo clean -p verso-app` first, so the embedded window is
+#     never a stale one. With the Command Line Tools' MacOSX27.0.sdk beside
+#     26.5, links fail ("tapi … arm64e.x1"): SDKROOT is set to 26.5 when both
+#     are there and SDKROOT is unset. Until 2026-10-31 this script copied the
+#     installed bundle and patched it: anything new in the configuration (the
+#     .md document types, for one) never reached the beta.
+#  3. Checks the bundle against its sources before installing it: every key
+#     of app/src-tauri/Info.plist, the document types of the macOS
+#     configuration (Markdown and the data files of ADR 0114 item 31, each
+#     with its system type), the version, ui-web/ equal to app/ui/dist-web/, both
+#     binaries arm64, the signature.
 #  4. Quits the running beta (the process is verso-app, not "Verso Beta") and
 #     stops, replacing nothing, if it does not quit — unsaved work.
 #  5. Moves the old bundle aside (its path is printed, for a rollback),
-#     installs the new one, opens it, and waits for the log's
+#     installs the new one, asks macOS whether it offers the beta under
+#     "Open with" for a .md and each data file (.json, .yaml, .yml, .toml,
+#     .xml, .csv; ADR 0114 item 33), opens it, and waits for the log's
 #     "started <version> (<commit>)" line; an ERROR logged in the first
 #     seconds fails the script.
 set -euo pipefail
@@ -43,7 +51,7 @@ dirty=0
 for a in "$@"; do
   case "$a" in
     --dirty) dirty=1 ;;
-    -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d'; exit 0 ;;
     *) fail "unknown option $a (see --help)" ;;
   esac
 done
@@ -72,41 +80,53 @@ step "1/5 the window (app/ui)"
 [ -f app/ui/dist/index.html ] || fail "app/ui/dist/index.html missing after the build"
 [ -f app/ui/dist-web/index.html ] || fail "app/ui/dist-web/index.html missing after the build"
 
-step "2/5 verso-app and verso (release, arm64)"
+step "2/5 the bundle, as release.yml builds it (arm64)"
 target="$(cargo metadata --format-version 1 --no-deps | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).target_directory))')"
+built="$target/release/bundle/macos/Verso Beta.app"
+rm -rf "$built"
 arch -arm64 cargo clean --release -p verso-app
-arch -arm64 env VERSO_COMMIT="$commit" cargo build --release --locked -p verso-app -p verso-cli
-for b in verso-app verso; do
-  [ -x "$target/release/$b" ] || fail "$target/release/$b not built"
-  file "$target/release/$b" | grep -q arm64 || fail "$target/release/$b is not arm64"
-done
-
-step "3/5 the bundle"
-if [ -d "$APP" ]; then
-  from="$APP"
-elif [ -d "$target/release/bundle/macos/Verso Beta.app" ]; then
-  from="$target/release/bundle/macos/Verso Beta.app"
-else
-  fail "no Verso Beta.app to start from. Make one once, with an arm64 Node:
-  npm --prefix app/ui exec -- tauri build --bundles app --config '{\"identifier\":\"com.versomd.app.beta\",\"productName\":\"Verso Beta\"}'
-or install the latest beta release, then run this again."
-fi
+arch -arm64 env VERSO_COMMIT="$commit" npm --prefix app/ui exec -- tauri build --bundles app \
+  --config '{"identifier":"com.versomd.app.beta","productName":"Verso Beta"}'
+arch -arm64 env VERSO_COMMIT="$commit" cargo build --release --locked -p verso-cli
+[ -d "$built" ] || fail "tauri build made no $built"
 stage="$(mktemp -d "${TMPDIR:-/tmp}/verso-beta.XXXXXX")"
 new="$stage/Verso Beta.app"
-ditto "$from" "$new"
-cp "$target/release/verso-app" "$new/Contents/MacOS/verso-app"
+ditto "$built" "$new"
 cp "$target/release/verso" "$new/Contents/MacOS/verso"
-rm -rf "$new/Contents/Resources/ui-web"
-ditto app/ui/dist-web "$new/Contents/Resources/ui-web"
-plist="$new/Contents/Info.plist"
-plutil -replace CFBundleShortVersionString -string "$version" "$plist"
-plutil -replace CFBundleVersion -string "$version" "$plist"
-words="$(plutil -extract NSLocalNetworkUsageDescription raw -o - app/src-tauri/Info.plist)" || fail "no NSLocalNetworkUsageDescription in app/src-tauri/Info.plist"
-plutil -replace NSLocalNetworkUsageDescription -string "$words" "$plist"
-services="$(plutil -extract NSBonjourServices json -o - app/src-tauri/Info.plist)" || fail "no NSBonjourServices in app/src-tauri/Info.plist"
-plutil -replace NSBonjourServices -json "$services" "$plist"
 codesign --force --deep --sign - "$new"
+
+step "3/5 the bundle against its sources"
+plist="$new/Contents/Info.plist"
+for b in verso-app verso; do
+  [ -x "$new/Contents/MacOS/$b" ] || fail "$b missing from the bundle"
+  file "$new/Contents/MacOS/$b" | grep -q arm64 || fail "$b is not arm64"
+done
+[ "$(plutil -extract CFBundleIdentifier raw -o - "$plist")" = com.versomd.app.beta ] || fail "the bundle is not the beta's identifier"
+[ "$(plutil -extract CFBundleShortVersionString raw -o - "$plist")" = "$version" ] || fail "the bundle's version is not $version"
+# Every key of the Info.plist the configuration merges, with its value
+# (plistlib: plutil cannot render every value as JSON).
+python3 - app/src-tauri/Info.plist "$plist" <<'PY' || fail "the bundle's Info.plist lacks keys of app/src-tauri/Info.plist"
+import plistlib, sys
+want = plistlib.load(open(sys.argv[1], "rb")); got = plistlib.load(open(sys.argv[2], "rb"))
+bad = [k for k, v in want.items() if got.get(k) != v]
+if bad: print("missing or different:", ", ".join(bad), file=sys.stderr); sys.exit(1)
+PY
+# The document types (ADR 0114 items 2 and 31), as the macOS configuration
+# says: Markdown and each data file, with its extensions, role, rank and
+# system type.
+node -e '
+  const want = require("./app/src-tauri/tauri.macos.conf.json").bundle.fileAssociations;
+  const got = JSON.parse(process.argv[1]);
+  for (const a of want) {
+    const t = got.find((d) => d.CFBundleTypeName === a.name);
+    if (!t || a.ext.some((e) => !(t.CFBundleTypeExtensions ?? []).includes(e)) || t.CFBundleTypeRole !== a.role || t.LSHandlerRank !== a.rank
+        || (a.contentTypes ?? []).some((c) => !(t.LSItemContentTypes ?? []).includes(c)))
+      { console.error("document type " + a.name + " missing or different"); process.exit(1); }
+  }
+' "$(plutil -extract CFBundleDocumentTypes json -o - "$plist" 2>/dev/null || echo '[]')" || fail "the bundle does not declare the .md and data-file document types"
+diff -rq app/ui/dist-web "$new/Contents/Resources/ui-web" >/dev/null || fail "ui-web/ in the bundle is not app/ui/dist-web/"
 codesign --verify --deep --strict "$new"
+echo "bundle checked: identifier, version, Info.plist keys, document types, ui-web/, arm64, signature"
 
 step "4/5 quit the running beta"
 running() { pgrep -f "Verso Beta.app/Contents/MacOS/verso-app" >/dev/null; }
@@ -123,6 +143,24 @@ if [ -d "$APP" ]; then
   mv "$APP" "$old"
 fi
 ditto "$new" "$APP"
+# Launch Services reads the new document types now, not at its next scan.
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" || true
+diff -rq "$new" "$APP" >/dev/null || fail "the installed bundle is not the one checked${old:+ (previous bundle: $old)}"
+# Offered under "Open with" for a .md and each data file (ADR 0114 items 2
+# and 33): asked of Launch Services for a file of each kind.
+for kind in md json yaml yml toml xml csv; do
+  probe="$stage/probe.$kind"
+  case "$kind" in
+    md) printf '# probe\n' ;;
+    json) printf '{"probe": 1}\n' ;;
+    yaml|yml|toml) printf 'probe = 1\n' ;;
+    xml) printf '<probe/>\n' ;;
+    csv) printf 'probe\n1\n' ;;
+  esac > "$probe"
+  osascript -l JavaScript -e 'ObjC.import("AppKit"); function run(a) { const l = $.NSWorkspace.sharedWorkspace.URLsForApplicationsToOpenURL($.NSURL.fileURLWithPath(a[0])); const o = []; for (let i = 0; i < l.count; i++) o.push(ObjC.unwrap(l.objectAtIndex(i).path)); return o.join("\n"); }' "$probe" | grep -qx "$APP" \
+    || fail "macOS does not offer Verso Beta under Open with for a .$kind"
+done
+echo "installed: the checked bundle; offered under Open with for .md .json .yaml .yml .toml .xml .csv"
 mark=0
 [ -f "$LOG" ] && mark="$(wc -l < "$LOG")"
 open "$APP"

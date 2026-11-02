@@ -89,6 +89,22 @@ test("an editor leaves the note the host heard they only see", async () => {
   assert.equal(access.may("Minha.md", "edit"), true);
 });
 
+test("an editor of a synced folder is offered no delete, only the folder's owner is (B8, item 8 of 2026-11-01)", async () => {
+  // No word from the server's capabilities yet (the seat is not known): the
+  // sync state's role is what the window has, and it is enough.
+  state("editor");
+  access.forgetAccess();
+  assert.equal(access.may("Nota.md", "delete"), false);
+  assert.equal(access.may("Pasta", "delete"), false);
+  // A move and an edit stay the editor's: the notice says why, as the server's window does.
+  assert.equal(access.may("Nota.md", "move"), true);
+  state("reader");
+  assert.equal(access.may("Nota.md", "delete"), false);
+  state("owner");
+  assert.equal(access.may("Nota.md", "delete"), true);
+  assert.equal(access.may("Pasta", "delete"), true);
+});
+
 test("the folder's owner is never second-guessed, and the host is not asked", async () => {
   await settle();
   asked.length = 0;

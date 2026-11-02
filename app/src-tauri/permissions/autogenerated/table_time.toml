@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-table-time"
+description = "Enables the table_time command without any pre-configured scope."
+commands.allow = ["table_time"]
+
+[[permission]]
+identifier = "deny-table-time"
+description = "Denies the table_time command without any pre-configured scope."
+commands.deny = ["table_time"]

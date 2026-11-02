@@ -27,7 +27,7 @@ export { FOLDER_CAN };
 
 const DESKTOP: Capabilities = {
   host: "desktop",
-  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN],
+  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN, "terminal"],
   latency_ms: null,
 };
 
@@ -81,6 +81,12 @@ export function canWrite(): boolean {
  *  for a host with no server's model (`access.ts` is what asks). */
 export function folderAccessNow(): FolderAccess | null {
   return known.access ?? null;
+}
+
+/** The server's size cap for a folder's bin, in bytes, as last answered;
+ *  null when there is none (ADR 0080). */
+export function trashCapNow(): number | null {
+  return known.trash_cap ?? null;
 }
 
 /** Which side the window talks to: the desktop app or a server. */

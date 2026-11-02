@@ -84,6 +84,13 @@ pub(crate) fn forwards(cmd: &str) -> bool {
                 | "table_pin"
                 | "table_delete"
                 | "table_clear"
+                | "table_play"
+                | "table_sound"
+                | "table_time"
+                | "table_cannot_play"
+                | "table_share_start"
+                | "table_share_stop"
+                | "table_share_listen"
                 | "campaign_status"
                 | "campaign_make"
                 | "campaign_unmake"
@@ -195,7 +202,7 @@ pub(crate) struct Remote {
     /// The last command's round trip, in milliseconds.
     latency: std::sync::atomic::AtomicU32,
     pending: Pending,
-    tx: mpsc::Sender<Message>,
+    pub(crate) tx: mpsc::Sender<Message>,
     /// Told when the connection is taken as closed without either task
     /// seeing it close: the reader ends, as on a close.
     dead: Arc<tokio::sync::Notify>,
@@ -233,6 +240,18 @@ impl Remote {
     pub(crate) fn hang_up(&self) {
         close(&self.pending);
         self.dead.notify_one();
+    }
+
+    /// One frame of a live share (ADR 0116 item 19) as a binary message on
+    /// this connection, the sharer's own: no id, no answer. Audio is real
+    /// time, so a full queue drops the frame (a listener's jitter buffer
+    /// absorbs one lost frame) and never takes the connection for dead, as a
+    /// question does. False once the connection is closed.
+    pub(crate) fn send_audio(&self, frame: Vec<u8>) -> bool {
+        match self.tx.try_send(Message::Binary(frame.into())) {
+            Ok(()) | Err(mpsc::error::TrySendError::Full(_)) => true,
+            Err(mpsc::error::TrySendError::Closed(_)) => false,
+        }
     }
 
     /// A command of the contract, answered by the server.
@@ -419,7 +438,7 @@ impl Remote {
 /// machine: the server serves it all, and what a secure context is for
 /// (offline, notifications) is said off in the window (ADR 0073 item 6,
 /// amended 2026-10-16).
-fn server_url(url: &str) -> Result<String, ContractError> {
+pub(crate) fn server_url(url: &str) -> Result<String, ContractError> {
     let parsed = reqwest::Url::parse(url.trim()).map_err(|_| refused("not an address"))?;
     let host = parsed.host_str().ok_or_else(|| refused("not an address"))?;
     match parsed.scheme() {
@@ -824,6 +843,8 @@ pub(crate) enum Heard {
     Gone(Value, Option<String>),
     /// The account's role in the folder changed: `owner`, `editor`, `reader`.
     Role(String),
+    /// A live share's audio frame, as it came (ADR 0116, `audio_share::hear`).
+    Audio(Vec<u8>),
     /// The connection closed.
     Closed,
 }
@@ -1109,6 +1130,11 @@ pub(crate) async fn dial_hello(
             // (sync 2): its header, then the piece as it is.
             let (parsed, piece) = match message {
                 Message::Text(text) => (serde_json::from_str::<Value>(&text).ok(), None),
+                // Or an audio frame, told by its first byte, for the window.
+                Message::Binary(bytes) if crate::audio_share::hear::is_frame(&bytes) => {
+                    let _ = heard_tx.send(Heard::Audio(bytes.to_vec()));
+                    continue;
+                }
                 Message::Binary(bytes) => match verso_core::sync::unframe(&bytes) {
                     Some((header, piece)) => (
                         serde_json::from_slice::<Value>(header).ok(),
@@ -1203,6 +1229,9 @@ async fn connect<R: tauri::Runtime>(
                 // again when it reconnects; the role is the server's to
                 // enforce meanwhile.
                 Heard::Role(_) => {}
+                Heard::Audio(frame) => {
+                    crate::audio_share::hear::deliver(std::slice::from_ref(&label_r), &frame);
+                }
                 Heard::Closed => break,
             }
         }
@@ -1449,25 +1478,4 @@ pub(crate) fn file<R: tauri::Runtime>(
     relative: &str,
 ) -> Option<Served> {
     of(app, label).map(|r| r.file(relative))
-}
-
-#[cfg(test)]
-mod tests_server_url {
-    use super::server_url;
-
-    /// Plain HTTP is a server's address from any machine, not only this
-    /// one (ADR 0073 item 6, amended 2026-10-16); other schemes are not.
-    #[test]
-    fn http_is_a_servers_address_from_any_machine() {
-        for (given, kept) in [
-            ("http://192.168.1.20:7340/", "http://192.168.1.20:7340"),
-            ("http://zima.local:7340", "http://zima.local:7340"),
-            ("https://notas.casa/x", "https://notas.casa"),
-            ("http://localhost:7340", "http://localhost:7340"),
-        ] {
-            assert_eq!(server_url(given).unwrap(), kept, "{given}");
-        }
-        assert!(server_url("ftp://notas.casa").is_err());
-        assert!(server_url("notas.casa").is_err());
-    }
 }

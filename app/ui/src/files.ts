@@ -19,6 +19,7 @@ import { allFiles, allNotes } from "./folder";
 import { closedTabs, recents } from "./history";
 import { forgetDrawn, images } from "./images";
 import { Pane } from "./layout/pane";
+import { binWarning } from "./trashWarn";
 import { dropLimitMb } from "./attachName";
 import { settings } from "./settings";
 import { imp } from "./importStrings";
@@ -55,6 +56,19 @@ export function readable(path: string | string[] = "", action: Action = "create"
   ui.status.textContent = st.readOnly;
   readerAttempt(undefined, false, paths[0]);
   return false;
+}
+/** Whether `paths` may go to the bin; if not, the person is told why. Outside
+ *  a table only the folder's owner deletes (ADR 0113 section B, amended
+ *  2026-10-31): an editor, who still moves them, is told so, not "you only
+ *  read". */
+export function deletable(paths: string[]): boolean {
+  if (paths.every((p) => may(p, "delete"))) return true;
+  if (paths.every((p) => may(p, "move"))) {
+    ui.status.textContent = t.errOwnerDeletes;
+    readerAttempt(undefined, true, null, t.errOwnerDeletes);
+    return false;
+  }
+  return readable(paths, "delete");
 }
 export function fileBase64(f: File): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -309,10 +323,10 @@ export async function deleteNote(path: string): Promise<void> {
 }
 /** Anything to the bin: a note, another file, or a folder with what it holds. */
 export async function deleteEntry(path: string, kind: Kind): Promise<void> {
-  if (!readable(path, "delete")) return;
+  if (!deletable([path])) return;
   const label = kind === "folder" ? path.split("/").pop() ?? path : name(path);
   // Deleting a shared folder ends its shares, said first (ADR 0081 item 13).
-  const question = kind === "folder" ? `${t.confirmDeleteFolder(label)}${sharedUnder(path) ? ` ${sh.deleteEndsShares}` : ""}` : t.confirmDelete(label);
+  const question = [kind === "folder" ? `${t.confirmDeleteFolder(label)}${sharedUnder(path) ? ` ${sh.deleteEndsShares}` : ""}` : t.confirmDelete(label), binWarning([path])].filter(Boolean).join(" ");
   if (!(await ask(question, { yes: t.deleteEntry, no: t.cancel }))) return;
   // What goes to the bin goes with its last words: saved first, or not moved.
   const unsaved = await flushed(leavesUnder(path));
@@ -427,8 +441,8 @@ export async function moveEntries(paths: string[], folder: string): Promise<bool
 }
 /** Several entries to the bin, asked once. */
 export async function deleteEntries(paths: string[]): Promise<void> {
-  if (!readable(paths, "delete")) return;
-  if (!(await ask(t.selection.confirmDelete(paths.length), { yes: t.deleteEntry, no: t.cancel }))) return;
+  if (!deletable(paths)) return;
+  if (!(await ask([t.selection.confirmDelete(paths.length), binWarning(paths)].filter(Boolean).join(" "), { yes: t.deleteEntry, no: t.cancel }))) return;
   // Inside a folder also given: it goes with the folder.
   const top = paths.filter((p) => !paths.some((q) => q !== p && p.startsWith(`${q}/`)));
   let gone = 0;

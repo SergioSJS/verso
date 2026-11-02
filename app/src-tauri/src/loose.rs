@@ -3,7 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! One Markdown file handed to the app (ADR 0114, sections B and D, item
-//! 20): what the system hands over is classified by one look at the disk
+//! 20), or a structured-data file (`.json`, `.yaml`, `.yml`, `.toml`,
+//! `.xml`, `.csv`; item 32, amended 2026-10-31, which the window opens in
+//! the diagram): what the system hands over is classified by one look at the disk
 //! (in `verso-fs`), a file is routed — to the window of a folder it lies
 //! in, else to the loose-files window — and the loose window's own
 //! commands live here. Every path stays on this side (rule 4): the window
@@ -48,7 +50,8 @@ pub(crate) fn path_from_arg(arg: &str, cwd: &Path) -> PathBuf {
 }
 
 /// What the system handed the app, said to the window in front when it
-/// is not a folder or a Markdown file (item 6): the kind, and the name.
+/// is not a folder, a Markdown file or a data file (items 6 and 32): the
+/// kind, and the name.
 fn say_refused<R: tauri::Runtime>(app: &tauri::AppHandle<R>, kind: &str, path: &Path) {
     let name = path
         .file_name()
@@ -69,13 +72,15 @@ fn say_refused<R: tauri::Runtime>(app: &tauri::AppHandle<R>, kind: &str, path: &
 
 /// A path the system handed the app — the command line, a second launch,
 /// macOS's open event, the menu's recents: a folder opens as today, a
-/// Markdown file as a loose file; anything else is said and the window
-/// stays as it was (ADR 0114 item 6).
+/// Markdown file or a data file as a loose file (items 6 and 32); anything
+/// else is said and the window stays as it was (ADR 0114 item 6).
 pub(crate) fn path_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, path: PathBuf) {
     let path = verso_core::canonical_path(&path);
     match verso_core::kind_of(&path) {
         verso_core::PathKind::Directory => hand_over(app, Handed::Path(path)),
-        verso_core::PathKind::MarkdownFile => file_handed(app, path),
+        verso_core::PathKind::MarkdownFile | verso_core::PathKind::DataFile => {
+            file_handed(app, path);
+        }
         verso_core::PathKind::OtherFile => say_refused(app, "other", &path),
         verso_core::PathKind::Missing => {
             // A recent file that is gone leaves the menu (Q4).
@@ -119,7 +124,7 @@ fn loose_target<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<String> 
     labels.into_iter().next()
 }
 
-/// A Markdown file handed to the app, routed (item 7): inside a folder a
+/// A Markdown or data file handed to the app, routed (item 7): inside a folder a
 /// window shows, that window opens it as a tab; else the loose-files
 /// window takes it as a tab, made when there is none. Before the setup made
 /// the main window (a double-click that launches the app), the main window
@@ -271,8 +276,16 @@ pub(crate) fn window_gone<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &
     left(app, label);
 }
 
-/// The system's file picker for one Markdown file (File › Open File…),
-/// handed over as a double-click is.
+/// What File › Open File… offers (ADR 0114 item 34, 2026-10-31): the
+/// Markdown extensions and the structured-data ones of item 31, as one
+/// filter so that every system shows the same list. Each is one the disk
+/// look ([`verso_core::kind_of`]) opens loose, which a test holds.
+const PICKER_EXTENSIONS: [&str; 8] = [
+    "md", "markdown", "json", "yaml", "yml", "toml", "xml", "csv",
+];
+
+/// The system's file picker for one Markdown or data file (File › Open
+/// File…), handed over as a double-click is.
 pub(crate) fn pick_file_and_hand<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     parent: Option<&tauri::Window<R>>,
@@ -281,7 +294,7 @@ pub(crate) fn pick_file_and_hand<R: tauri::Runtime>(
     let mut dialog = app
         .dialog()
         .file()
-        .add_filter("Markdown", &["md", "markdown"]);
+        .add_filter("Markdown, JSON, YAML, TOML, XML, CSV", &PICKER_EXTENSIONS);
     if let Some(parent) = parent {
         dialog = dialog.set_parent(parent);
     }
@@ -588,11 +601,12 @@ pub(crate) async fn loose_save_copy<R: tauri::Runtime>(
 ) -> Result<bool, ContractError> {
     let (tx, mut rx) = tauri::async_runtime::channel(1);
     let parent = window.clone();
+    let (filter_name, filter_exts) = copy_filter(&name);
     app.dialog()
         .file()
         .set_parent(&parent)
         .set_file_name(&name)
-        .add_filter("Markdown", &["md", "markdown"])
+        .add_filter(filter_name, filter_exts)
         .save_file(move |picked| {
             let _ = tx.try_send(picked);
         });
@@ -604,6 +618,24 @@ pub(crate) async fn loose_save_copy<R: tauri::Runtime>(
         .await
         .map_err(|e| failed(e.to_string()))??;
     Ok(true)
+}
+
+/// The save dialog's filter for a copy of `name` (item 11): Markdown for a
+/// note, the file's own extension for a data file (item 32), so that a
+/// copy of `dados.json` is not offered as Markdown.
+fn copy_filter(name: &str) -> (&'static str, &'static [&'static str]) {
+    let ext = Path::new(name)
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    match ext.as_str() {
+        "json" => ("JSON", &["json"]),
+        "yaml" | "yml" => ("YAML", &["yaml", "yml"]),
+        "toml" => ("TOML", &["toml"]),
+        "xml" => ("XML", &["xml"]),
+        "csv" => ("CSV", &["csv"]),
+        _ => ("Markdown", &["md", "markdown"]),
+    }
 }
 
 /// File › Open File… from the window: the picker, then the file handed
@@ -718,6 +750,46 @@ mod tests {
             path_from_arg("file:///C:/Users/ana/n.md", cwd),
             PathBuf::from(r"C:\Users\ana\n.md")
         );
+    }
+
+    #[test]
+    fn the_picker_offers_exactly_what_opens_loose() {
+        // Every extension the picker lists is one the disk look sends to
+        // the loose window, and every kind it opens is in the list.
+        let dir = tempfile::tempdir().unwrap();
+        for ext in PICKER_EXTENSIONS {
+            let file = tempfile::Builder::new()
+                .prefix("arquivo")
+                .suffix(&format!(".{}", ext.to_uppercase()))
+                .rand_bytes(0)
+                .tempfile_in(dir.path())
+                .unwrap()
+                .into_temp_path()
+                .keep()
+                .unwrap();
+            let kind = verso_core::kind_of(&file);
+            assert!(
+                matches!(
+                    kind,
+                    verso_core::PathKind::MarkdownFile | verso_core::PathKind::DataFile
+                ),
+                "{ext}: {kind:?}"
+            );
+        }
+        for ext in ["txt", "pdf", "png"] {
+            assert!(!PICKER_EXTENSIONS.contains(&ext));
+        }
+    }
+
+    #[test]
+    fn a_copy_is_offered_under_the_file_s_own_kind() {
+        assert_eq!(copy_filter("nota.md").0, "Markdown");
+        assert_eq!(copy_filter("dados.JSON"), ("JSON", &["json"][..]));
+        assert_eq!(copy_filter("c.yml").1, &["yaml", "yml"]);
+        assert_eq!(copy_filter("c.toml").0, "TOML");
+        assert_eq!(copy_filter("c.xml").0, "XML");
+        assert_eq!(copy_filter("c.csv").0, "CSV");
+        assert_eq!(copy_filter("sem extensão").0, "Markdown");
     }
 
     #[test]

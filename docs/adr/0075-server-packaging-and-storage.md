@@ -407,3 +407,31 @@ turns the update check off (item 7). *(Accepted on 2026-10-12, as built:
   a test-only variable), so the real issuance, DuckDNS with a live token and
   an Oracle machine remain manual checks (`docs/reference/manual-checks.md`).
 
+
+## Amendment 2026-10-31 — a memory limit on the container
+
+`[DECIDED 2026-10-31, to be built]` On the night of 2026-10-29 a 60 MB note
+took the 1 GB server down by running out of memory; with a limit on the
+container, running out kills the container, which restarts, and not the host.
+Put to the maintainer as B9 of the list of 2026-10-31 — a memory limit on the
+container by default, a) yes (e.g. 768 MB), b) no — and approved as
+recommended, a: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). The compose files and the guided installer set a
+memory limit on the server's container by default, sized to the machine (about
+768 MB on a 1 GB server); the exact rule is the build's, said in its As built.
+
+**As built (2026-10-31).** Both compose files (`packaging/server/docker-compose.yml`
+and `docker-compose.host-network.yml`) declare `mem_limit: 768m`, a fixed value:
+a compose file cannot size itself to the machine, so the comment beside it says
+to raise it to about three quarters of the memory on a larger one. The
+`docker run` example of `docs/reference/server-install.md` carries `--memory
+768m`, and note 24 of both demo vaults shows the line in its two compose files.
+`scripts/check-server-image.sh` fails if either file's parsed form lacks the
+limit (805306368 bytes). The guided installer and the .deb install a systemd
+service, not a container, so there is no container to limit there and the unit
+is unchanged; a `MemoryMax=` for it would be a decision of its own, not taken.
+
+**Amended 2026-10-31 (the maintainer, on that As built: *"Sim"*).** The
+systemd unit (`packaging/server/universo.service`, installed by the .deb, the
+.rpm and the guided installer) carries `MemoryMax=75%`: three quarters of the
+machine's memory, the container's rule sized by systemd itself (768 MB on a
+1 GB server). A drop-in changes it.

@@ -14,7 +14,7 @@ export const POLICY = {
   dropped: ("script style link meta base frame frameset object embed applet param template noscript noembed noframes title " +
     "textarea select option optgroup datalist output progress meter canvas audio video source track map area portal xmp " +
     "plaintext listing slot head svg math").split(" ").sort(),
-  global: "class id title lang dir style align data-target data-tag data-callout data-fold data-task-line".split(" ").sort(),
+  global: "class id title lang dir style align data-target data-tag data-callout data-fold data-task-line data-oracle-line".split(" ").sort(),
   own: {
     a: ["href"],
     iframe: ["src", "width", "height", "style", "title", "allow", "allowfullscreen", "loading", "sandbox"].sort(),

@@ -12,6 +12,7 @@ pub mod access;
 pub mod access_cmds;
 pub mod admin;
 pub mod api;
+pub mod audio_relay;
 pub mod audit;
 pub mod auth;
 pub mod board_sight;
@@ -75,6 +76,8 @@ pub mod sync;
 pub mod table;
 pub mod table_image;
 pub mod table_look;
+pub mod table_share;
+pub mod table_sound;
 pub mod texts;
 pub mod tls;
 pub mod transfers;
@@ -83,6 +86,7 @@ pub mod twins;
 pub mod update;
 pub mod visit;
 pub mod writers;
+pub mod wrong_host;
 mod yjs_bounds;
 
 use std::sync::Arc;
@@ -493,6 +497,8 @@ mod tests_night_sync;
 #[cfg(test)]
 mod tests_offline;
 #[cfg(test)]
+mod tests_owner_deletes;
+#[cfg(test)]
 mod tests_pieces;
 #[cfg(test)]
 mod tests_prove;
@@ -522,6 +528,10 @@ mod tests_sync;
 mod tests_table;
 #[cfg(test)]
 mod tests_table_images;
+#[cfg(test)]
+mod tests_table_share;
+#[cfg(test)]
+mod tests_table_sound;
 #[cfg(test)]
 mod tests_threats;
 #[cfg(test)]

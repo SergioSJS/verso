@@ -47,8 +47,11 @@ import { installScreen } from "./screen/frame";
 import { installNotify } from "./notify";
 import { installSources } from "./notify/sources";
 import { installServerTable } from "./table/join";
+import { installTableSound } from "./table/sound/run";
+import { installStatusItem } from "./table/sound/status";
 import { hearAccess, mayHere, may } from "./access";
 import { can, loadCan } from "./can";
+import { mayEndTerminals, pushSwitch } from "./terminal/open";
 import { copyFilesInto, newUntitled } from "./files";
 import { windowDrop } from "./windowDrop";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
@@ -287,6 +290,8 @@ const repaintNotes = (): void => {
   }
 };
 window.addEventListener("verso:features-changed", repaintNotes);
+// The terminal's switch (ADR 0115 item 7): the host is told; off, its tabs close.
+window.addEventListener("verso:features-changed", () => void pushSwitch());
 // "Data diagram" switched (ADR 0106 item 12): the open tabs follow at once.
 window.addEventListener("verso:features-changed", () => {
   for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of [...p.leaves]) syncDataView(l);
@@ -447,6 +452,8 @@ installNotify(() => settingsDialog.show("notify"));
 installDropHost();
 installSources();
 installServerTable();
+installTableSound();
+installStatusItem();
 window.addEventListener("verso:open-statblock-settings", () => {
   settingsDialog.show("statblocks");
 });
@@ -475,7 +482,7 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
     // The folder's trash (ADR 0080 item 4): no row in the tree, a way in here.
-    ...(may("", "delete") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
+    ...(may("", "trash") ? [sep, [trashStrings().open, () => settingsDialog.show("trash"), "trash"] as MenuItem] : []),
   ];
   showMenu(e.clientX, e.clientY, items);
 });
@@ -591,6 +598,8 @@ window.addEventListener("focus", () => {
  * cannot be saved (a conflict waiting, a write refused) keeps the window
  * open unless the user says to let it go. */
 void getCurrentWindow().onCloseRequested(async (e) => {
+  // A terminal running a program is asked about first (ADR 0115 item 13).
+  if (!(await mayEndTerminals())) return e.preventDefault();
   const all = spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves));
   const unsaved = await flushed(all);
   if (unsaved.length === 0) return;
@@ -602,6 +611,7 @@ void getCurrentWindow().onCloseRequested(async (e) => {
  * window to save first. This one saves its tabs and closes itself — or
  * stays, when text could not be saved and the user keeps it. */
 void listen("quit-requested", async () => {
+  if (!(await mayEndTerminals())) return;
   const unsaved = await flushed(spaces.flatMap((s) => s.layout.panes().flatMap((p) => p.leaves)));
   if (unsaved.length > 0) {
     const names = unsaved.map((l) => l.tabName.textContent || l.path).join("\n");
@@ -683,12 +693,12 @@ if (!popout) void listen<[string, string]>("open-note", (e) => {
 if (!popout) void listen<string>("folder-handed", (e) => {
   if (e.payload === getCurrentWindow().label) void openOpened(() => commands.openInitial());
 });
-/* A Markdown file handed to the app (ADR 0114 item 7): the host names the
+/* A Markdown or data file handed to the app (ADR 0114 items 7 and 32): the host names the
  * loose-files window, which opens it as a tab. */
 if (!popout) void listen<string>("file-handed", (e) => {
   if (e.payload === getCurrentWindow().label) void openOpened(() => commands.openInitial());
 });
-/* Something handed that is neither a folder nor a Markdown file (ADR 0114
+/* Something handed that is neither a folder nor a file Verso opens (ADR 0114
  * item 6): said in words, the window stays as it was. */
 if (!popout) void listen<[string, string, string]>("handed-refused", (e) => {
   if (e.payload[0] === getCurrentWindow().label) handedRefused(e.payload[1], e.payload[2], handedRefusedText);
@@ -758,6 +768,12 @@ export function runEditCommand(command: string): void {
   // entered again, ADR 0057) nor a change that came from the disk.
   const cm = active instanceof HTMLElement ? active.closest<HTMLElement>(".cm-editor") : null;
   const view = cm ? EditorView.findFromDOM(cm) : null;
+  // A terminal has no undo; Select All selects what it shows (ADR 0115).
+  const terminal = layout().activeLeaf;
+  if (terminal?.kind === "terminal" && active instanceof HTMLElement && terminal.el.contains(active)) {
+    if (command === "select-all") (terminal as unknown as { selectAll(): void }).selectAll();
+    return;
+  }
   if (view) {
     (command === "undo" ? undo : command === "redo" ? redo : selectAll)(view);
     return;
@@ -812,7 +828,9 @@ export const started: Promise<void> = (async () => {
     // (and a browser that keeps a server's folder offline says so the same way, ADR 0092 item 7)
     if (!popout && (can("local_folders") || offline.available)) hearSync((section) => settingsDialog.show(section));
   });
-  await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed]);
+  // The host knows the terminal's switch before a restored tab asks for one.
+  const terminalPushed = loadCan().then(() => pushSwitch());
+  await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed, terminalPushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
   // window joins it rather than open another.

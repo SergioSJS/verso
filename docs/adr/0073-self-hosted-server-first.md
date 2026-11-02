@@ -117,7 +117,7 @@
   the receiver opens and syncs as a folder; per note and per block (spec
   Q9) stay open. The old wording of the Status is kept.
   2026-10-12 — item 7, with [0082](0082-live-co-editing-of-a-synced-folder.md) built (accepted
-  2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12): the
+  2026-10-11; 7c08a9a, ccabedd, acc02df, 76b4c11 and b73b6f2, merged into `feat/universo` by 8e93bbd on 2026-10-12): the
   desktop app on a **synced** local folder joins the rooms too. A note of
   such a folder joins the server's room while the device is connected,
   over the sync's own link, as the browser and the online desktop do;
@@ -682,3 +682,29 @@ the iPad to go from the browser to a native app** (0073.ipad) — postponed,
 it stays in the browser until there is a concrete complaint; **passing on a
 cost if storage of ours ever exists** (0073.custo) — out of scope, as the ADR
 already conditions it on a company, a means of payment and an invoice.
+
+**Decided (2026-10-31): a friendly page in place of the 421.**
+`[DECIDED 2026-10-31, to be built]` With `VERSO_PUBLIC_URL` set, a request by
+another name (the server's old address) gets a technical 421 page in English
+(Decision, the `Host` rule). Put to the maintainer as B13 of the list of
+2026-10-31 — a) a friendly page that names the right address, b) leave it —
+and approved as recommended, a: *"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). The refusal stays — it is the
+DNS-rebinding rule of [0045](0045-server-and-mcp-security.md) — but a browser
+is shown a page, in the person's language, saying the server's address is
+now the public one and linking to it.
+
+**As built (2026-10-31, B13).** `crates/verso-server/src/wrong_host.rs`,
+called from `http::guard` where the `Host` is refused. The status stays 421
+and the rule (`auth::host_ok`) is untouched. With `VERSO_PUBLIC_URL` set
+(`http` or `https`) and a request that is a browser's page load — GET or HEAD,
+`Accept` naming `text/html`, no `Upgrade`, not under `/api` — the body is one
+HTML page, both languages (pt-BR and English, the first of `Accept-Language`
+first), titled "This address has changed" / "Este endereço mudou", with a link
+to the public URL's scheme and authority. The address is the configured one,
+HTML-escaped; nothing of the request is written into the page. The page has
+its own strict headers (`default-src 'none'`, inline style only,
+`frame-ancestors 'none'`, `no-store`, `nosniff`, `no-referrer`). Any other
+request, and a server with no public URL (nothing to name), gets the JSON
+refusal as before, with the protocol header. The server-rendered page's two
+languages are in the module, not in `app/ui/src/strings.ts`: no UI loads at
+that address.

@@ -10,7 +10,7 @@ ADR of its own; nothing here decides how the window looks on a phone.
 ## How it was measured
 
 On 2026-10-09, by an Opus 5.5 session, on the harness built from `main`
-(7ce2407) with the demo vault, through Playwright with touch on:
+(825fd9c) with the demo vault, through Playwright with touch on:
 
 | Viewport | Engine | Stands for |
 |---|---|---|

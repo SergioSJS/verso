@@ -203,6 +203,9 @@ fn a_window_on_a_servers_folder_is_answered_by_the_server() {
         !has("reveal") && !has("copy_path") && !has("agents"),
         "{caps}"
     );
+    // The desktop host captures audio for the table, whatever the folder's
+    // side (ADR 0116 item 27).
+    assert!(has("audio_share"), "{caps}");
     // How far the server is, measured on this side.
     assert!(caps["latency_ms"].is_u64(), "{caps}");
     let note = call(&main, "read_note", json!({ "path": "Sessao.md" })).unwrap();
@@ -489,6 +492,9 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
         "updates",
         "devtools",
         "local_folders",
+        // This computer's shell, in the home directory (ADR 0115 Q4).
+        "terminal",
+        "audio_share",
         // An old server never says it: a folder window by default.
         "index",
         "search",
@@ -509,5 +515,21 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
     }
     // Asked twice, nothing is added twice.
     remote::with_app_abilities(&mut caps);
-    assert_eq!(caps["can"].as_array().unwrap().len(), 7 + 11);
+    assert_eq!(caps["can"].as_array().unwrap().len(), 9 + 11);
+}
+
+/// Plain HTTP is a server's address from any machine, not only this
+/// one (ADR 0073 item 6, amended 2026-10-16); other schemes are not.
+#[test]
+fn http_is_a_servers_address_from_any_machine() {
+    for (given, kept) in [
+        ("http://192.168.1.20:7340/", "http://192.168.1.20:7340"),
+        ("http://zima.local:7340", "http://zima.local:7340"),
+        ("https://notas.casa/x", "https://notas.casa"),
+        ("http://localhost:7340", "http://localhost:7340"),
+    ] {
+        assert_eq!(crate::remote::server_url(given).unwrap(), kept, "{given}");
+    }
+    assert!(crate::remote::server_url("ftp://notas.casa").is_err());
+    assert!(crate::remote::server_url("notas.casa").is_err());
 }

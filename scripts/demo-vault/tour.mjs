@@ -157,13 +157,15 @@ const STOPS = [
     cards: [
       ["n-arquivos", "14 - Arquivos e Pastas.md", 420],
       ["n-avulso", "33 - Abrir um Arquivo Avulso.md", 420],
+      ["n-obsidian", "37 - Compatibilidade com o Obsidian.md", 420],
     ],
     tip:
       "Renomear atualiza os links que apontam para a nota, mostrando cada um antes. Uma imagem colada vai para assets ao lado da nota; " +
       "arrastar uma nota da árvore para o texto cria um link; ⌘-clique e ⇧-clique selecionam várias, que se movem juntas; " +
       "a lixeira é a pasta .trash, como no Obsidian — Abrir a lixeira (paleta) mostra o que foi apagado, restaura e guarda 30 dias; " +
       "Histórico de versões (paleta, menu da aba ou o relógio da barra de status) mostra quem mudou a nota e quando, e restaura uma versão. " +
-      "Dois cliques num .md abrem o arquivo sozinho, sem pasta e sem nada escrito ao lado; a faixa acima das abas leva à pasta inteira.",
+      "Dois cliques num .md abrem o arquivo sozinho, sem pasta e sem nada escrito ao lado — e um .json, .yaml, .toml, .xml ou .csv abre do mesmo jeito, no diagrama; a faixa acima das abas leva à pasta inteira. " +
+      "Vindo do Obsidian? A nota 37 diz o que funciona igual na mesma pasta, o que o Verso acrescenta e o que não existe.",
     extra(b, x, y, f) {
       keys(b, "d-arq", x + 740, y + 160, [[["⌘", "N"], "nova nota"], [["⌘", "⇧", "N"], "nova nota com nome"], [["F2"], "renomear"], [["⌘", "⌫"], "para a lixeira"]], f);
     },
@@ -258,10 +260,14 @@ const STOPS = [
     heading: "🤖 Terminal e agentes",
     color: VIOLET,
     canvasColor: "6",
-    cards: [["n-terminal", "17 - Terminal, CLI e Agentes.md", 640]],
+    cards: [
+      ["n-terminal", "17 - Terminal, CLI e Agentes.md", 640],
+      ["n-terminal-ia", "35 - Terminal e Agentes de IA.md", 640],
+    ],
     tip:
       "Instale o comando verso em Ajustes › Terminal e agentes e busque nas notas pelo terminal. " +
-      "Com um clique o cofre entra no Claude Desktop ou no Claude Code: o agente lê as notas e nunca escreve nelas.",
+      "Com um clique o cofre entra no Claude Desktop ou no Claude Code: o agente lê as notas e nunca escreve nelas. " +
+      "Ligado em Ajustes › Recursos, um terminal deste computador abre numa aba, na raiz da pasta (paleta › Novo terminal); Ferramentas de IA acha o Claude Code, o Gemini CLI, o Codex e outros no seu shell e os abre ali.",
     extra(b, x, y, f) {
       b.shape("rectangle", "d-terminal", x + 740, y + 160, 620, 380, { stroke: "#212529", bg: "#212529", rough: 0, frame: f });
       b.write("d-terminal-t", x + 770, y + 190, "$ verso search ~/Notas reunião\nTemplates/Nota de Reunião.md: …\n\n$ verso backlinks ~/Notas \"projetos/Projeto Alpha\"\nDiário/2026-09-24.md: 22:3  [[Projeto Alpha]]", {
@@ -356,6 +362,7 @@ const STOPS = [
       ["n-servidor", "23 - Verso num Servidor.md", 420],
       ["n-instalar", "24 - Instalar o seu UniVerso, Passo a Passo.md", 420],
       ["n-oracle", "34 - UniVerso num Servidor Grátis da Oracle.md", 420],
+      ["n-nas", "38 - Instalar o servidor num NAS ou VPS.md", 420],
       ["n-nuvem", "29 - Sincronizar com uma Nuvem.md", 420],
       ["n-rodar", "32 - Rodando uma Mesa.md", 420],
     ],
@@ -364,7 +371,7 @@ const STOPS = [
       "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota, um board ou um arquivo de texto aberto nela é editado junto, ao vivo. " +
       "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo. " +
       "Botão direito numa pasta › Tornar esta pasta uma mesa: convida as jogadoras só para ela, cada nota fica oculta até você liberar, e um link para o que ainda não apareceu chega com um cadeado. " +
-      "Para montar o seu, a nota 24 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup; a nota 34 é o roteiro para quem nunca montou um servidor, numa máquina grátis da Oracle, com o menu do instalador (sh universo.sh). " +
+      "Para montar o seu, a nota 24 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup; a nota 34 é o roteiro para quem nunca montou um servidor, numa máquina grátis da Oracle, com o menu do instalador (sh universo.sh); a nota 38 escolhe o caminho pela máquina que você tem — um NAS (CasaOS, ZimaOS, outros com Docker) ou um VPS — e traz o HTTPS, o endereço público, os backups e os limites da lixeira. " +
       "Sem servidor: Ajustes › Sincronizar › Sincronizar com… liga a pasta a um Nextcloud (WebDAV) ou a um bucket S3 que você já tem — a nota 29 mostra os passos e como limitar a chave a uma pasta; a senha fica no chaveiro do sistema, e o celular continua precisando de um UniVerso.",
   },
   {
@@ -378,6 +385,7 @@ const STOPS = [
       ["n-diagrama", "28 - Dados Estruturados como Diagrama.md", 600],
       ["n-cores", "30 - Amostras de Cor.md", 600],
       ["n-mesa", "31 - A Mesa.md", 600],
+      ["n-som", "36 - Som e Música na Mesa.md", 600],
     ],
     tip:
       "Um arquivo JSON, YAML, TOML, XML ou CSV tem o seletor Texto | Diagrama: caixas para mover, recolher e buscar, sem tocar no arquivo. " +
@@ -386,7 +394,7 @@ const STOPS = [
       "Numa nota compartilhada quem rola é o servidor, e todos veem quem rolou. Rolar dados…, na paleta, rola sem nota. " +
       "Um callout `> [!secret]` é o segredo do mestre: num UniVerso, quem só lê a nota a recebe sem ele; Ver como leitor mostra como. " +
       "Um código de cor — `#1d9e75`, `rgb()`, `hsl()` — ganha um quadradinho da cor, e no editor um clique nele abre o seletor. " +
-      "A aba Mesa, no painel da direita, junta toda rolagem, sorteio e pergunta ao oráculo: quem fez, quando e de qual nota. Numa pasta de UniVerso é a mesa de todos: quem está lá, mensagens, imagens, rolagem secreta, linhas fixadas e o registro guardado no servidor.",
+      "A aba Mesa, no painel da direita, junta toda rolagem, sorteio e pergunta ao oráculo: quem fez, quando e de qual nota. Numa pasta de UniVerso é a mesa de todos: quem está lá, mensagens, imagens, rolagem secreta, linhas fixadas e o registro guardado no servidor. Ao lado, a aba Música: cada pasta com arquivos de som é uma lista e cada nota com links de som uma playlist; o mestre toca, e todos da mesa ouvem no mesmo ponto, cada um com o seu volume (nota 36). Um embed de som, `![[faixa.mp3]]`, é um player na nota e, num board, um cartão: toca só para você, e o mestre o leva à mesa com Tocar para a mesa. No app para computador o mestre também compartilha o som das páginas abertas no Verso, com Compartilhar áudio… (nota 36).",
   },
   {
     id: "mundos-rpg",

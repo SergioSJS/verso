@@ -15,7 +15,7 @@ test("the demo content goes into an empty folder whole, in its own folders", asy
   await app.command("Importar cofre de exemplo");
   await app.page.locator(".confirm-box button.save").click();
   await expect.poll(() => app.files()).toEqual(DEMO_FILES);
-  // Its folders, and none it no longer has (a51aab2: `daily`, `templates`).
+  // Its folders, and none it no longer has (bf12a4d: `daily`, `templates`).
   expect(await app.folders()).toEqual([...new Set(DEMO_FILES.flatMap(parents))].sort());
   // Byte for byte.
   for (const p of DEMO_FILES) {
@@ -44,10 +44,10 @@ test("importing again over an earlier version's demo adds what is missing and na
 
 test("importing over an untouched older demo note updates it and says how many were created, updated and kept", async ({ app }) => {
   await app.open("?vault=empty");
-  // The first welcome note ever shipped (git 8c8df942): the person's
+  // The first welcome note ever shipped (git a126538b): the person's
   // untouched copy of an older tutorial, not an edit. The folder also holds
   // a note of the person's own under a demo file's name.
-  const old = readFileSync(new URL("./data/welcome-8c8df942.md.txt", import.meta.url), "utf8");
+  const old = readFileSync(new URL("./data/welcome-a126538b.md.txt", import.meta.url), "utf8");
   const want = Buffer.from(demo.slice(demo.indexOf('"path": "00 - Bem-vindo ao Verso.md"')).match(/"b64": "([^"]*)"/)?.[1] ?? "", "base64").toString("utf8");
   expect(old).not.toBe(want);
   await app.writeOutside("00 - Bem-vindo ao Verso.md", old);
@@ -69,9 +69,9 @@ test("importing over an untouched older demo note updates it and says how many w
 test("a note the tutorial renamed: the untouched old copy goes to the trash, the new notes are there", async ({ app }) => {
   await app.open("?vault=empty");
   // The dice note as the demo had it before it became note 25 (git
-  // be5f60d7), untouched, and the person's edited copy of another renamed
+  // 8f6fa462), untouched, and the person's edited copy of another renamed
   // note.
-  const old = readFileSync(new URL("./data/dice-24-be5f60d7.md.txt", import.meta.url), "utf8");
+  const old = readFileSync(new URL("./data/dice-24-8f6fa462.md.txt", import.meta.url), "utf8");
   await app.writeOutside("24 - Dados e Tabelas Sorteadas.md", old);
   await app.writeOutside("daily/2026-09-24.md", "# O meu dia\\n");
   await app.folderChanged(["24 - Dados e Tabelas Sorteadas.md", "daily/2026-09-24.md"], true);

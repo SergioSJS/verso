@@ -123,9 +123,13 @@ fn an_editor_restores_only_the_owner_deletes_for_good_a_reader_sees_none() {
                 .unwrap();
             r.server.db.grant(&id, &a.id, role).unwrap();
         }
+        // The owner deletes (outside a table, the owner alone: ADR 0113
+        // section B, amended 2026-10-31); the editor still has the bin.
+        let mut own = opened(&r, &admin, &id).await;
+        let gone = call(&mut own, 2, "delete_note", json!({ "path": "Sessao.md" })).await;
+        assert!(gone.get("ok").is_some(), "{gone}");
         let ed = sign_in(&r, "ed@casa.lan", "senha muito longa").await;
         let mut ws = opened(&r, &ed, &id).await;
-        call(&mut ws, 2, "delete_note", json!({ "path": "Sessao.md" })).await;
         let list = call(&mut ws, 3, "trash_list", json!({})).await;
         assert_eq!(list["ok"]["can_purge"], false, "{list}");
         assert_eq!(list["ok"]["can_set"], false);
@@ -308,5 +312,128 @@ fn the_sweep_expires_old_entries_and_keeps_the_bin_under_the_quota() {
         let acts = actions(&r, &id);
         assert!(acts.contains(&"trash_expired".to_owned()), "{acts:?}");
         assert!(acts.contains(&"trash_over_quota".to_owned()), "{acts:?}");
+    });
+}
+
+/// B11 (ADR 0080, decided 2026-10-31): a bin is kept under the server's size
+/// cap, the oldest entries out first, and the sweep removes exactly those
+/// entries of `.trash/`: a live note of the same name and the other notes
+/// stay.
+#[test]
+fn the_sweep_keeps_the_bin_under_the_size_cap_oldest_first_and_only_the_bin() {
+    block_on(async {
+        let r = crate::tests::start_with(|c| c.trash_max = Some(100)).await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = opened(&r, &b, &id).await;
+        let mut n = 2;
+        for (name, len) in [("antiga", 60), ("media", 60), ("nova", 60)] {
+            call(
+                &mut ws,
+                n,
+                "create_note",
+                json!({ "name": name, "text": "x".repeat(len) }),
+            )
+            .await;
+            call(
+                &mut ws,
+                n + 1,
+                "delete_note",
+                json!({ "path": format!("{name}.md") }),
+            )
+            .await;
+            n += 2;
+        }
+        // A live note with the oldest entry's name, made after its deletion.
+        call(
+            &mut ws,
+            n,
+            "create_note",
+            json!({ "name": "antiga", "text": "viva" }),
+        )
+        .await;
+        let day = verso_core::trash::DAY;
+        let now = verso_core::trash::now();
+        for (name, age) in [("antiga.md", 3), ("media.md", 2), ("nova.md", 1)] {
+            r.server
+                .db
+                .put_trash_record(
+                    &id,
+                    &verso_core::trash::record(
+                        &format!(".trash/{name}"),
+                        name,
+                        now - age * day,
+                        Some("Admin"),
+                        false,
+                    ),
+                )
+                .unwrap();
+        }
+        let s = std::sync::Arc::clone(&r.server);
+        let f = id.clone();
+        tokio::task::spawn_blocking(move || crate::trash::sweep(&s, &f))
+            .await
+            .unwrap()
+            .unwrap();
+        // 180 bytes against 100: the two oldest go, none by age (all within
+        // 30 days) and none by quota (there is none).
+        assert!(!in_bin(&r, ".trash/antiga.md"));
+        assert!(!in_bin(&r, ".trash/media.md"));
+        assert!(in_bin(&r, ".trash/nova.md"));
+        let acts = actions(&r, &id);
+        assert_eq!(
+            acts.iter().filter(|a| *a == "trash_over_cap").count(),
+            2,
+            "{acts:?}"
+        );
+        assert!(!acts.contains(&"trash_expired".to_owned()), "{acts:?}");
+        assert!(!acts.contains(&"trash_over_quota".to_owned()), "{acts:?}");
+        // Outside the bin nothing moved: the live note and the folder's own.
+        for (call_id, path, text) in [(900, "antiga.md", "viva"), (901, "Sessao.md", "# Sessao\n")]
+        {
+            let note = call(&mut ws, call_id, "read_note", json!({ "path": path })).await;
+            assert_eq!(note["ok"]["text"], text, "{note}");
+        }
+        // Under the cap a second sweep removes nothing more.
+        let s = std::sync::Arc::clone(&r.server);
+        let f = id.clone();
+        let again = tokio::task::spawn_blocking(move || crate::trash::sweep(&s, &f))
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(again.removed.is_empty());
+        assert!(in_bin(&r, ".trash/nova.md"));
+    });
+}
+
+/// I5 (ADR 0080, decided 2026-11-01): a deletion that alone passes the size
+/// cap is not purged by the sweep while it is younger than a day, and the
+/// window is told the cap in the capabilities, to warn before.
+#[test]
+fn an_entry_younger_than_a_day_outlives_the_size_cap_and_the_cap_is_told() {
+    block_on(async {
+        let r = crate::tests::start_with(|c| c.trash_max = Some(100)).await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = opened(&r, &b, &id).await;
+        let caps = call(&mut ws, 2, "capabilities", json!({})).await;
+        assert_eq!(caps["ok"]["trash_cap"], 100.0, "{caps}");
+        call(
+            &mut ws,
+            3,
+            "create_note",
+            json!({ "name": "enorme", "text": "x".repeat(500) }),
+        )
+        .await;
+        call(&mut ws, 4, "delete_note", json!({ "path": "enorme.md" })).await;
+        let s = std::sync::Arc::clone(&r.server);
+        let f = id.clone();
+        let swept = tokio::task::spawn_blocking(move || crate::trash::sweep(&s, &f))
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(swept.removed.is_empty());
+        assert!(in_bin(&r, ".trash/enorme.md"));
+        assert!(!actions(&r, &id).contains(&"trash_over_cap".to_owned()));
     });
 }

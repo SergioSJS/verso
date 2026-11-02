@@ -146,6 +146,8 @@ export abstract class Leaf {
     const pane = this.pane;
     this.destroy();
     pane.remove(this);
+    // Any page embedded in the tab closes with it (a board's cards too).
+    window.dispatchEvent(new Event("verso:leaf-gone"));
     if (had) landIn(pane);
   }
   setPreview(p: boolean): void {

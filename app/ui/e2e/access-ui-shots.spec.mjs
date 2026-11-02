@@ -105,7 +105,7 @@ for (const width of [1500, 390]) {
     test(`the table strip on the folder's page, ${tag} @layout`, async ({ app, page }) => {
       await setup(app, "owner", width, theme);
       await tree(app, width);
-      await page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+      await page.locator('#notes summary[data-folder="Mundo"] button.folder-page').click();
       if (width <= 760) await page.evaluate(() => document.body.classList.remove("side-open"));
       await expect(page.locator(".table-card-owner")).toBeVisible();
       await page.waitForTimeout(300);
@@ -116,7 +116,7 @@ for (const width of [1500, 390]) {
     test(`the player's line on the folder's page, ${tag} @layout`, async ({ app, page }) => {
       await setup(app, "player", width, theme);
       await tree(app, width);
-      await page.locator('#notes summary[data-folder="Mundo"] .folder-label').click();
+      await page.locator('#notes summary[data-folder="Mundo"] button.folder-page').click();
       if (width <= 760) await page.evaluate(() => document.body.classList.remove("side-open"));
       await expect(page.locator(".table-card-player")).toBeVisible();
       await page.waitForTimeout(300);

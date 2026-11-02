@@ -343,6 +343,7 @@ docker run -d --name universo --restart unless-stopped \
   -p 7340:7340 \
   --read-only --tmpfs /tmp --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
   --security-opt no-new-privileges:true \
+  --memory 768m \
   -v /srv/universo/data:/data \
   -v /srv/universo/folders:/folders \
   -e VERSO_ADMIN_EMAIL=you@example.com \
@@ -431,6 +432,14 @@ Plain HTTP on the home network is fine; anyone on that network can read
 what crosses it. For a proxy that alone should reach the port, change the
 line to `"127.0.0.1:7340:7340"`; HTTPS (section 8) is optional and later.
 
+The compose file limits the container's memory to 768 MB (`mem_limit: 768m`;
+`--memory 768m` in `docker run`), which suits a machine of 1 GB (ADR 0075,
+Amendment 2026-10-31). A note of 60 MB took a 1 GB server down by running it
+out of memory on 2026-10-29; with the limit, running out kills the container,
+which restarts (`restart: unless-stopped`), and not the host. On a larger
+machine raise it to about three quarters of the memory. The systemd package
+is not a container and has no such limit of its own.
+
 The compose file keeps the container's log to three files of 10 MB at most
 (`logging:` with Docker's `json-file` driver, `max-size: "10m"`,
 `max-file: "3"`): Docker rotates it, not the server. A window may write to
@@ -500,7 +509,9 @@ network set `VERSO_LISTEN=0.0.0.0:7340`; for HTTPS, TLS goes in front
 (section 8). The unit is hardened (`ProtectSystem=strict`, writes only under
 `/var/lib/universo`, `ProtectHome=read-only`, other processes hidden by
 `ProtectProc=invisible`, the system calls of an ordinary service only,
-`UMask=0027`; a new folder is made `0750`). A folders directory elsewhere
+`UMask=0027`; a new folder is made `0750`) and limited to three quarters of
+the machine's memory (`MemoryMax=75%`; running out restarts the server, not
+the machine). A folders directory elsewhere
 needs a drop-in, which an upgrade keeps:
 
 ```sh
@@ -608,6 +619,7 @@ value counts as not set.
 | `VERSO_SMTP_URL` | no | the host's mail server (`smtps://user:password@host:465`, or `smtp://…:587?tls=required`): sign-in links, "forgot the password" and invitations sent by e-mail |
 | `VERSO_MAIL_FROM` | no | the sender of those e-mails; `Verso <verso@` the public address's host `>` by default |
 | `VERSO_FOLDER_QUOTA` | no | the quota a new folder gets: bytes, or a size such as `500MB` or `10GB`; none when unset. The console (`/admin`, Folders) changes each folder's ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
+| `VERSO_TRASH_MAX` | `1GB` | the most a folder's trash may hold (a size such as `500MB` or `2GB`; `0` or `none` for no cap). Past it the oldest items go first, the versions a device's write replaced included, whatever their age; nothing outside `.trash/` is ever touched ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md), decided 2026-10-31) |
 | `VERSO_TRASH_DAYS` | 30 | how many days a folder's trash (`.trash/`) keeps deleted files, and the versions a device's write replaced; `0` keeps them forever. The console's folder page sets each folder's, and the folder's owner may shorten it from the window ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). The trash is swept at start and once a day; it is shown, not counted against a quota, and when a folder's trash alone passes its quota the oldest items expire early |
 | `VERSO_HISTORY_DAYS` | 365 | how many days a folder's version history keeps versions of its text files (notes, boards, bases, `.txt`, `.json`, `.csv`); `0` keeps them with no limit, 36500 at most. Every version is kept for a day, one an hour for 30 days, one a day after that; a file's newest version is never thinned away. The history lives in `history.sqlite` of the data directory, never in the folder; the console's folder page sets each folder's days and shows its size, which is not counted against a quota — when a folder's history alone passes its quota its oldest versions go early ([ADR 0091](../adr/0091-version-history.md)) |
 | `VERSO_AUDIT_DAYS` | 365 | how many days the audit log keeps a row (sign-ins, sessions, tokens, invitations, grants, shares, the trash's actions, with the address); `0` keeps them forever, 36500 at most. A sweep at start and once a day deletes older rows, by time alone: no page or command deletes a row. The console's overview says the retention ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 10) |
@@ -913,7 +925,7 @@ on 2026-10-10, numbers kept in `scripts/sync-lab/results.jsonl`:
 
 - **Memory**: about 20 MB with a few devices connected and a folder of 150
   files; 460 MB with 200 connections writing at once (macOS), 1 GB on a
-  Linux VM. A file in transit is not held whole since 2b1f2c4
+  Linux VM. A file in transit is not held whole since 82fb2c3
   (2026-10-12): each transfer holds one piece of 1 MiB, read from the disk
   as a device asks for it or written to a temporary file as it arrives
   (**Large files**, below); two transfers per device each way (files over
@@ -930,10 +942,10 @@ And a VM sized like the smallest VPS, on 2026-10-11 (and, on 2026-10-12, a
 guest of 453 MiB: the last bullet): 1 vCPU, 1 GB of
 memory (the guest's `free -m` showed 956 MB in total), a 10 GB virtual disk
 on Proxmox, the Ubuntu 26.04 server cloud image with no desktop, and
-UniVerso, the build b8ebc5f (server code 552f0f6), installed from the
+UniVerso, the build b12da50 (server code 5169f34), installed from the
 `.deb` exactly as in section 5 (with `VERSO_UPDATE_CHECK=off`). The binary
 inside that `.deb` was not the release's: it was a dynamically linked glibc
-build compiled on an Ubuntu build VM (`verso 0.7.0-beta.1 (b8ebc5f)`), with
+build compiled on an Ubuntu build VM (`verso 0.7.0-beta.1 (b12da50)`), with
 the `.deb` built by hand around it, while the release builds the server
 statically against musl (`cargo zigbuild` for `*-unknown-linux-musl`) and the
 published `.deb`, `.rpm` and image carry that build. This matters for
@@ -974,9 +986,9 @@ one LAN hop away. The numbers are in the campaign's log
   revision check refusing a stale write, as it should. The campaign's first
   run, whose output was cut, read 137 ms for one writer and p50 6.5 s for
   fifty: the same picture. The same load on a 16-CPU Mac: p50 about 530 ms,
-  132.9 operations per second (the row "round 2 final build 3fb8c3b" of
+  132.9 operations per second (the row "round 2 final build e9da47d" of
   `results.jsonl`).
-- **Large files** (since 2b1f2c4, 2026-10-12): a file in transit is never
+- **Large files** (since 82fb2c3, 2026-10-12): a file in transit is never
   whole in the server's memory. A device that fetches it is sent pieces
   of 1 MiB, each read from the disk when the device asks for it; a device
   that sends one has each piece written to a temporary file beside where
@@ -988,15 +1000,15 @@ one LAN hop away. The numbers are in the campaign's log
   fetches to a temporary file piece by piece. Measured on 2026-10-12 on a
   Mac (Apple silicon, the release profile with mimalloc, `verso serve` on
   the loopback), one 60 MB file fetched by three devices at once, the RSS
-  read every 20 ms, two runs of each: the build before (858d0ef) went from
+  read every 20 ms, two runs of each: the build before (533bc67) went from
   99 MB — its walk had read the file whole — to a peak of 246 MB, and
-  held 245–246 MB 30 s later; 2b1f2c4 went from 42 MB to a peak of
-  42–46 MB, and held 43–47 MB 30 s later; 2b1f2c4 sending to an app of
+  held 245–246 MB 30 s later; 82fb2c3 went from 42 MB to a peak of
+  42–46 MB, and held 43–47 MB 30 s later; 82fb2c3 sending to an app of
   sync 1 (base64) peaked at 65 MB. On the 1-core VM with the static musl
   build (**Ten devices, and the 453 MiB guest again**, below), ten devices
-  fetching a 61 MB folder at once peaked at 403 MB with 858d0ef and at
-  46 MB with 8e2c2f1 (which carries 2b1f2c4) on the 1 GB guest; on the
-  453 MiB guest 858d0ef was killed by the OOM killer and 8e2c2f1 peaked at
+  fetching a 61 MB folder at once peaked at 403 MB with 533bc67 and at
+  46 MB with a1c1b16 (which carries 82fb2c3) on the 1 GB guest; on the
+  453 MiB guest 533bc67 was killed by the OOM killer and a1c1b16 peaked at
   49 MB.
 - **Squeezed memory** (the glibc build): the balloon was inflated towards
   512 MB right after
@@ -1006,7 +1018,7 @@ one LAN hop away. The numbers are in the campaign's log
   back in 5 s, the devices reconnected and nothing was lost. Afterwards, on
   that 705 MB guest (asked 512), a 10-minute soak (RSS 18 MB), a 50-device
   load (RSS 352 MB) and a new 60 MB file fetched by three devices at once
-  (the code before 95d11dc) ran without a kill. On a guest
+  (the code before 02dc5cf) ran without a kill. On a guest
   of 767 MB (asked 384) a 30-device load ran (RSS 379 MB). Squeezing to
   what the guest saw as 393 MB (asked 256), with that memory still held,
   killed the process once more (anon RSS 376 MB), back in 5 s; a 30-device
@@ -1069,7 +1081,7 @@ one LAN hop away. The numbers are in the campaign's log
 - **A 453 MiB guest** (2026-10-12, 00:40–01:30 UTC): VM 107 set to 512 MB
   with the Proxmox balloon off, so the memory was the guest's own and was
   not given back under pressure; its `free -m` showed 453 MiB in total. The
-  shipped kind of binary, static musl + mimalloc at 7729940 (built with
+  shipped kind of binary, static musl + mimalloc at 14ac192 (built with
   musl-gcc on the Ubuntu build VM, not with the release's cargo-zigbuild),
   installed from a `.deb` built with nfpm (section 15). Two bursts of
   `scripts/server-load.mjs` with 50 devices for 60 s: peak RSS 200 MB
@@ -1086,21 +1098,21 @@ one LAN hop away. The numbers are in the campaign's log
   made on the Ubuntu build VM the release's way — `cargo zigbuild
   --release --locked -p verso-cli --target x86_64-unknown-linux-musl`, with
   cargo-zigbuild 0.23.4 and ziglang 0.15.2, the versions the release
-  workflow pins; static binaries that say `verso 0.7.0-beta.1 (858d0ef)`
-  and `verso 0.7.0-beta.1 (8e2c2f1)`, 8e2c2f1 carrying 2b1f2c4 — each
+  workflow pins; static binaries that say `verso 0.7.0-beta.1 (533bc67)`
+  and `verso 0.7.0-beta.1 (a1c1b16)`, a1c1b16 carrying 82fb2c3 — each
   packaged with nfpm beside the window built from the same commit and
   installed over the one before on VM 107 with `apt-get install
   --reinstall`, the data kept. The guest first at 1024 MB with the balloon
   on and not inflated (`free -m`: 956 MB in total), then at 512 MB with
   the balloon off (453 MiB), and back to 1024 MB at the end. The writers:
   `scripts/server-load.mjs` from the build VM, one LAN hop away, each
-  build's own copy (sync 1 against 858d0ef; sync 2, binary pieces, against
-  8e2c2f1). The first sync: `scripts/server-load.mjs` has no mode that
+  build's own copy (sync 1 against 533bc67; sync 2, binary pieces, against
+  a1c1b16). The first sync: `scripts/server-load.mjs` has no mode that
   fetches a folder, so a script of the campaign's kit (`cloud-fetch.mjs`,
   kept outside the repository) opened the folder "Caderno" from that many
   simulated devices at once over the same protocol (device sessions,
   `sync_state`, then `sync_read` of every file, piece by piece, each
-  file's hash checked), sync 2 against 8e2c2f1 unless said. The folder
+  file's hash checked), sync 2 against a1c1b16 unless said. The folder
   had grown since 2026-10-11 to 197 files and 181 MB, with two more 60 MB
   files from that day's tests: "61 MB" below is the folder without those
   two (195 files, the original 60 MB file among them), "181 MB" is all of
@@ -1111,7 +1123,7 @@ one LAN hop away. The numbers are in the campaign's log
   were `put_hot:changed`, the revision check. Writes are `put_new` p50 /
   p99:
 
-  | Guest | Run | 858d0ef | 8e2c2f1 |
+  | Guest | Run | 533bc67 | a1c1b16 |
   |---|---|---|---|
   | 956 MB | at rest | 10 MB | 10 MB |
   | 956 MB | 1 writer, 20 s | 157 operations, 7.8/s; 112 ms / 2.5 s; peak 89 MB, after 25 MB | — |
@@ -1131,18 +1143,18 @@ one LAN hop away. The numbers are in the campaign's log
 
   Read plainly: before pieces, a fetch's peak grew with the devices and
   the files fetched (266, 403, 493 MB on the 1 GB guest), and ten devices
-  fetching 61 MB did not fit in 453 MiB; with 8e2c2f1 the peak stayed at
+  fetching 61 MB did not fit in 453 MiB; with a1c1b16 the peak stayed at
   38–97 MB however many devices fetched and however large the folder, on
   both guests, with no kill. Writing, the two builds are alike: a peak of
   68–295 MB with 1–50 writers, back to 17–41 MB within 30 s (one run, 50
-  writers on 453 MiB with 8e2c2f1, still held 97 MB). Ten writers ran at
+  writers on 453 MiB with a1c1b16, still held 97 MB). Ten writers ran at
   12–13.5 operations a second for 1 and 5 minutes on 1 core and 1 GB, and
   at 8–10 on 453 MiB; fifty at 9–12 and at about 5. The differences
   between the builds in the write rows are within the spread already seen
   between two runs of one binary (up to about 45 %), and the 50-writer
-  p99 of 21 s with 8e2c2f1 on 1 GB was not repeated. The Carga folder the
+  p99 of 21 s with a1c1b16 on 1 GB was not repeated. The Carga folder the
   writers write to grew through the round, to 7273 files and 461 MB, and
-  the data directory to 675 MB, and 8e2c2f1 ran after 858d0ef on each
+  the data directory to 675 MB, and a1c1b16 ran after 533bc67 on each
   guest, with more data under it. The 50-writer rate on 1 GB (9–12 a
   second) is below the allocator measurement's 15.4 and 18.5 on the same
   guest, which had a folder of 3094 files; the cause is not proven. The
@@ -1153,7 +1165,7 @@ one LAN hop away. The numbers are in the campaign's log
 |---|---|---|
 | For | a small team: up to the ten devices measured, notes and attachments of any size (decided by the maintainer on 2026-10-12 from the 453 MiB measurements below) | a family or a team of up to ~10 people, several devices each (an estimate: ten simulated devices were measured on 1 core and 1 GB on 2026-10-12, writing for 5 minutes at 13.5 operations a second with `put_new` p50 about 1 s and a peak RSS of 170 MB, and fetching a 181 MB folder at once with a peak of 45 MB; ten people with several devices each, through the apps, were not) |
 | CPU | 1 core, x64 or ARM64 (measured, rows "cloud 1 GB" of `results.jsonl`: one writer about 100 ms a write; a burst of 50 writers queues on the disk, p50 4.5 s) | 2 cores |
-| Memory | 512 MB — measured 2026-10-12 on a guest that saw 453 MiB with the balloon off (**A 453 MiB guest**, above): the shipped musl + mimalloc build ran two bursts of 50 writers with no OOM kill, a peak RSS of 200 MB and about half the 1 GB guest's throughput (likely cause, not proven: the data and the folder exceed the guest's page cache); enough for a small team — decided by the maintainer on 2026-10-12 from these measurements (*"pelos testes seu, 512 mb serviria"*); the campaign's two kills, on guests whose balloon was on, came from memory the glibc build held after a burst; on 2026-10-12, on the same 453 MiB guest, 858d0ef was killed twice in two runs when ten devices fetched a 61 MB folder at once, and 8e2c2f1 (pieces from the disk) did not die in any run — ten devices fetching 181 MB at once peaked at 44 MB, fifty writers at 204 MB (**Ten devices, and the 453 MiB guest again**, above); if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB; the size of the files you sync no longer counts in the server's memory: since 2b1f2c4 a transfer holds one piece of 1 MiB (**Large files**, above) |
+| Memory | 512 MB — measured 2026-10-12 on a guest that saw 453 MiB with the balloon off (**A 453 MiB guest**, above): the shipped musl + mimalloc build ran two bursts of 50 writers with no OOM kill, a peak RSS of 200 MB and about half the 1 GB guest's throughput (likely cause, not proven: the data and the folder exceed the guest's page cache); enough for a small team — decided by the maintainer on 2026-10-12 from these measurements (*"pelos testes seu, 512 mb serviria"*); the campaign's two kills, on guests whose balloon was on, came from memory the glibc build held after a burst; on 2026-10-12, on the same 453 MiB guest, 533bc67 was killed twice in two runs when ten devices fetched a 61 MB folder at once, and a1c1b16 (pieces from the disk) did not die in any run — ten devices fetching 181 MB at once peaked at 44 MB, fifty writers at 204 MB (**Ten devices, and the 453 MiB guest again**, above); if the process is killed, the unit brings it back in 5 s with nothing lost | 2 GB; the size of the files you sync no longer counts in the server's memory: since 82fb2c3 a transfer holds one piece of 1 MiB (**Large files**, above) |
 | Disk | an SSD; the notes' size × 2 + 1 GB (the bin, `.trash`, keeps what was deleted) | a local SSD for `VERSO_DATA_DIR`; the notes on an SSD or a NAS |
 | Examples | a Raspberry Pi 4 with 2 GB, the smallest VPS | a mini PC, a NAS with Docker, a 2 GB VPS |
 
@@ -1163,7 +1175,7 @@ when the maintainer closed it from these measurements, and went further:
 serviria"*; the Memory row above). What was measured: a 1 GB guest served four
 devices, a 20-minute soak, bursts of 50 writers and a 60 MB file to three
 devices at once (that fetch no longer holds the file in memory since
-2b1f2c4: **Large files**, above); on 2026-10-12 it served ten simulated
+82fb2c3: **Large files**, above); on 2026-10-12 it served ten simulated
 devices writing for 5 minutes and fetching the whole 181 MB folder at
 once (**Ten devices, and the 453 MiB guest again**, above). Simulated
 devices on the LAN are not ten people's apps: the table's "up to ~10
@@ -1173,7 +1185,7 @@ Whether the server should send a large file's pieces from the disk
 instead of holding the file whole was `[OPEN]` until 2026-10-12, when the
 maintainer asked for the campaign's open items to be done (*"Ajuste todas
 essas pendências agora"*, relayed in the session that built it): built in
-2b1f2c4 (**Large files**, above). Closed by the maintainer the same day,
+82fb2c3 (**Large files**, above). Closed by the maintainer the same day,
 about 16:00 BRT, on the round's seven decisions: *"Todos aprovados"*; the
 pieces stay 1 MiB ([ADR 0079](../adr/0079-sync-a-local-folder-with-a-server.md),
 Revisions, item 12).
@@ -1189,12 +1201,12 @@ maintainer on 2026-10-12, about 16:00 BRT (*"Todos aprovados"*), with no
 exception to `unsafe_code = "forbid"` (ADR 0029), the only way to reach
 the call. The pieces from the disk made it unnecessary: what a transfer
 held is no longer there to give back — three devices fetching a 60 MB file
-held 43–47 MB 30 s later with 2b1f2c4, against 245–246 MB with the build
+held 43–47 MB 30 s later with 82fb2c3, against 245–246 MB with the build
 before (**Large files**, above), and on the 453 MiB guest ten devices
 fetching 181 MB at once peaked at 44 MB with no kill in any run (the
 table's Memory row). *(`[OPEN]` from that morning until the decision.)*
 `MIMALLOC_PURGE_DELAY=0` in the environment changed nothing measurable on
-macOS (the build before 2b1f2c4 still held 245 MB 30 s after the fetch of
+macOS (the build before 82fb2c3 still held 245 MB 30 s after the fetch of
 **Large files**); not tried on Linux, where by mimalloc's own notes a
 purge uses `MADV_DONTNEED`.
 
@@ -1218,7 +1230,7 @@ on a real machine. Verified since:
   `/etc/universo/universo.env` and the `universo` user; installed again,
   which started from the same data, the five sides equal (section 14).
 - 2026-10-12: the `.deb` (amd64), verified with the static musl binary at
-  7729940 (musl + mimalloc, built with musl-gcc on the Ubuntu build VM,
+  14ac192 (musl + mimalloc, built with musl-gcc on the Ubuntu build VM,
   packaged with nfpm from `packaging/server/nfpm.yaml` with
   `VERSO_VERSION=0.7.0-beta.1`) on Debian 12 (systemd 252): install (the
   not-running message, the `universo` user made, the unit disabled), start
@@ -1262,12 +1274,12 @@ on a real machine. Verified since:
 - 2026-10-12: the release's path for the static binary on x86_64:
   `cargo zigbuild --release --locked -p verso-cli --target
   x86_64-unknown-linux-musl` with cargo-zigbuild 0.23.4 and ziglang 0.15.2
-  (the versions the release workflow pins), at 858d0ef and at 8e2c2f1, on
+  (the versions the release workflow pins), at 533bc67 and at a1c1b16, on
   the Ubuntu build VM (`file`: statically linked); each packaged as a
   `.deb` with nfpm and installed over the one before on Ubuntu 26.04 with
   `apt-get install --reinstall` (the service restarted, the data kept),
   then measured on the 1-core VM at 1 GB and at 453 MiB, a file in pieces
-  from the disk (8e2c2f1) among it (section 14, **Ten devices, and the 453
+  from the disk (a1c1b16) among it (section 14, **Ten devices, and the 453
   MiB guest again**).
 - 2026-10-13: the hardening of [ADR 0083](../adr/0083-security-hardening-of-universo.md)
   item 11, in Docker on an Apple-silicon Mac (colima, Linux 6.8, arm64),
@@ -1284,6 +1296,28 @@ on a real machine. Verified since:
   package built by nfpm, not a VM, not amd64. Before that day the compose
   file did not pass `docker compose config` (an unquoted colon in a
   tagline); it does now, and the script checks it.
+- 2026-11-02: the table's live share relay (ADR 0116 items 19 and 20) on
+  VM 107 (1 core, 1 GB) running `universo:rpg-7b346cd` in Docker. A Node
+  driver outside the repository: one sharer sends 3000 frames (20 ms, a
+  12-byte header and 240 bytes, 50 a second) over 60 s; N listeners of the
+  same account join the table before the first frame. Each run, the
+  server's process CPU, RSS and the container's network bytes, read from
+  `/proc` at the start and at the end of the run:
+
+  | N | payload kbit/s per listener | wire kbit/s, all listeners | server CPU | RSS | frames lost / late over 200 ms |
+  |---|---|---|---|---|---|
+  | 1 | 100.8 | 271.5 | 2.5 % | 34.1 MiB | 0 / 0 |
+  | 5 | 100.8 | 787 | 4.7 % | 34.5 MiB | 0 / 0 |
+  | 10 | 100.8 | 1433 | 7.5 % | 35.5 MiB | 0 / 0 |
+  | 20 | 100.8 | 2720 | 14.2 % | 38.3 MiB | 0 / 0 |
+
+  One-way latency on the LAN (sender and listener on the same Mac clock)
+  p50 3–4 ms, p95 3–5 ms, max 9–28 ms. About 129 kbit/s on the wire per
+  listener (the payload plus TCP, IP and Ethernet overhead) and about 0.6
+  points of the core per listener. The wire figure at zero listeners,
+  about 142 kbit/s, is not explained. The frames are not Opus: the server
+  decodes nothing, so their bytes do not change its cost. The ring (24 KB)
+  and the tunnel of online mode were not measured.
 
 Not verified yet:
 

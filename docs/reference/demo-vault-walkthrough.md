@@ -77,7 +77,7 @@ point 13).
    Level: S (the embed is the folder), H (the import); E:
    `import.spec.mjs`. Caught: the import
    created the folders the demo no longer has, and on a case-insensitive disk
-   put `Templates/` into `templates/` (`a51aab2`).
+   put `Templates/` into `templates/` (`bf12a4d`).
 2. The welcome note shows the "Comece pelo tour" callout with its two links.
    Level: S (the links), H.
 3. Import again into a folder that holds an earlier version's demo. Expect:
@@ -115,21 +115,21 @@ point 13).
    (no board written, the text measured with its font) and
    `board-file.spec.mjs` (no board written after a press, a pan and a zoom
    right after opening). Caught: drawn text cut while its font loaded
-   (`a147e8e`); a press right after opening wrote the board (2026-10-01).
+   (`b1c5d58`); a press right after opening wrote the board (2026-10-01).
 2. Sumário: the stops are listed in their numbers' order; a click on each
    shows it whole and legible, its notes live on their cards; closing the
    Sumário keeps the stop in view. Level: H; E: `board-tour.spec.mjs`.
-   Caught: a group was only brought to the middle at 10% (`a147e8e`); the
+   Caught: a group was only brought to the middle at 10% (`b1c5d58`); the
    stops were laid out in a snake while the outline lists them row by row
-   (`26c3b06`); closing the Sumário brought the whole board back over the
+   (`ae5f6b2`); closing the Sumário brought the whole board back over the
    stop, and the window shrank while the notes' Mermaid diagrams were drawn,
    so a stop chosen then was shown off centre (2026-10-01).
 3. ⌘W closes the tab and the app stays open; ⌘⇧T reopens it. Level: A (the
    native menu); E: `tabs.spec.mjs`, the keys and the menu's event as the
    host sends it. Caught: ⌘W closed the window, and with one window open
-   quit the app (`a51aab2`).
+   quit the app (`bf12a4d`).
 4. On a board, ⌘P opens "Abrir…". Level: H; E: `board-tour.spec.mjs`.
-   Caught: Excalidraw kept the key (`a147e8e`).
+   Caught: Excalidraw kept the key (`b1c5d58`).
 5. Note 13: ⌘R reloads the window with the note typed in saved first; with a
    note that cannot be saved (a conflict waiting), the window stays and says
    why. Level: H; E: `notes.spec.mjs`.
@@ -309,13 +309,13 @@ point 13).
    only the notes of `projetos/`; the formula's column and the budget's sum;
    the kanban in a column per status; the calendar back in September 2026
    shows the three projects. Level: H. Caught: with no filter the base
-   listed the whole vault (`26c3b06`).
+   listed the whole vault (`ae5f6b2`).
 2. Note 04: the embedded view and the `base` block listing the daily notes.
    Level: H.
 3. ⌘⇧D (⌘D until 2026-10-06, ADR 0061): `Diário/<today>.md` is made from `Templates/Diário.md`, `{{title}}`
    and `{{date}}` filled. Level: S (the folders), H; E: `notes.spec.mjs`.
    Caught: the notes said `daily/` and `templates/`, which the app does not
-   use by default (`26c3b06`).
+   use by default (`ae5f6b2`).
 4. Right panel (⌘⌥→) › Calendário: dots on 24 and 25 September and on today.
    Level: H; E: `notes.spec.mjs`.
 5. The typed note (note 21, ADR 0052): `Personagens/Capitão Ruy` shows
@@ -418,7 +418,7 @@ point 13).
    shows them at once. Level: A (the core's rewrite); E: `notes.spec.mjs`,
    the window's side — the notes and the board rewritten, the panel at once;
    the relation in a frontmatter is followed by hand. Caught: the renamed
-   note showed no backlinks until reopened (`a51aab2`).
+   note showed no backlinks until reopened (`bf12a4d`).
 2. The PDF: its bar as note 06 names it; select a line, "Citar seleção nas
    anotações": `assets/manual-verso — Anotações.md` holds the quote, linked
    to its page. Level: A.
@@ -485,6 +485,11 @@ point 13).
    `crates/verso-core/tests/trash.rs` (the sweep's guardrail, the quota's
    guard), `crates/verso-fs/src/trashbin/tests.rs` (no symlink followed);
    A: the files on disk and the log's lines (`manual-checks.md`).
+   Amendment 2026-11-01 (I5): on a server whose bin cap (`VERSO_TRASH_MAX`) a
+   folder passes by itself, "Mover para a lixeira" adds *Atenção: isto tem …,
+   mais que o limite da lixeira do servidor … sem poder ser restaurado*; it
+   stays in the bin a day at least (E: `trash-cap-warning.spec.mjs`; S: the
+   `due` and server-sweep tests).
 12. Note 14, "O Histórico de Versões" ([ADR 0091](../adr/0091-version-history.md)):
    open a note, type a line, wait for its save, and open *Histórico de
    versões* from the palette, the tab's menu, the tree's menu or the clock
@@ -532,7 +537,7 @@ point 13).
    "Ver página" and "Ver nota" switch. Level: A.
 2. `Web/Cartão de visita.html`: the page with its own style, in Página;
    its source in Fonte. Level: A. Caught: the page was blank — served as
-   bytes, which `nosniff` kept the frame from showing (`a51aab2`).
+   bytes, which `nosniff` kept the frame from showing (`bf12a4d`).
 3. "Desenho do Excalidraw" opens on its drawing, to look at — no tools —
    with "Converter em board" and "Ver o texto" over it; "Ver o texto" shows
    the note's text, "Ver o desenho" brings the drawing back, and the file is
@@ -557,7 +562,7 @@ point 13).
    `y`. Level: U (the model), A.
 2. A card's sharp corners and an elbow arrow come back as they were after the
    board is opened again, the arrow bound to its cards. Level: U. Caught:
-   the panel's style was not saved (`c1a754b`).
+   the panel's style was not saved (`7335eb0`).
 3. A drawing sent behind a card (⌘⌥[) stays behind it when the board is
    opened again: the file keeps its place among the cards (`under`).
    Level: U (the model), H; E: `board-practice.spec.mjs`. Caught: it came
@@ -597,11 +602,11 @@ point 13).
    double click its name, rename it: the outline says the new name; the file
    holds the group with it. Level: U (the outline), H; E:
    `board-practice.spec.mjs`, the frame and its name. Caught: the outline
-   kept the old name (`a51aab2`), and again for a name typed over the frame,
+   kept the old name (`bf12a4d`), and again for a name typed over the frame,
    which Excalidraw changes in place (2026-10-01).
 4. Lesson 7: ⌘⌥] brings the circle to the front, ⌘⌥[ sends the square to the
    back; ⌘] and ⌘[ one step. Level: H; E: `board-practice.spec.mjs`, ⌘⌥]
-   and ⌘⌥[. Caught: ⌘⌥] and ⌘⌥[ did nothing on a Mac (`a51aab2`).
+   and ⌘⌥[. Caught: ⌘⌥] and ⌘⌥[ did nothing on a Mac (`bf12a4d`).
 5. Lesson 8: "Nota ou arquivo" › the welcome note: its card, painted with
    Fundo; double click the text card: "Texto do cartão (Markdown)"; the
    edit is saved in the file. Level: H; E: `board-practice.spec.mjs`, the
@@ -613,11 +618,11 @@ point 13).
    Projeto Alpha holds `inspira: "[[Projeto Beta]]"`; the edge keeps its
    label and relation. Level: H (the board), A (the note written); E:
    `board-practice.spec.mjs`. Caught: the label stayed invisible until the
-   board was opened again (`a51aab2`).
+   board was opened again (`bf12a4d`).
 8. Lesson 11: ⌘F `tesouro` finds it, as typed; the view stays put while the
    board saves. Level: H; E: `board-practice.spec.mjs`. Caught: the field
    corrected the word, and every save moved the view back to the first match
-   (`a51aab2`).
+   (`bf12a4d`).
 9. Lesson 12: "Fundo da tela" in the ☰ menu; the board's JSON in Texto.
    Level: H.
 10. Lesson 8, pictures: drop a picture on the board (or paste one): a card
@@ -904,7 +909,7 @@ point 13).
    with Esc: nothing changes. Level: H (the drag: E, `labels.spec.mjs`,
    "note cover banner displays and drag repositioning updates banner_y"; the
    keys: by hand).
-4. A folder's page: its folder note on top, a table of its items below. In
+4. A folder's page (opened from the button at the end of the folder's row): its folder note on top, a table of its items below. In
    a folder with no folder note, "Criar nota da pasta". The folder note is
    no row of the tree; the folder's menu, "Abrir nota da pasta", opens it
    (E: `order-pins.spec.mjs`, "a folder's note is not a row of the tree; the
@@ -987,9 +992,11 @@ hand, on a phone and an iPad, the server's window in the browser.
    on its name, not only the arrow — opens or closes it; the row is 44 px
    tall; the small folder button at the row's end opens the folder's page
    (named "Abrir a página da pasta", a Tab stop of its own); a long press
-   opens the row's menu, whose first item is the same. With a mouse: the
-   arrow toggles, the name opens the page, no button. Level: H (a phone);
-   E: `tree-folder-tap.spec.mjs`.
+   opens the row's menu, whose first item is the same. With a mouse
+   (since 2026-10-31, B15): a click anywhere on the row, the name as much as
+   the arrow, toggles it; the same button shows at the row's end on hover
+   and on focus (a Tab stop that shows itself when reached) and opens the
+   page. Level: H (a phone); E: `tree-folder-tap.spec.mjs` (both).
 3. The graph on a phone: the controls closed behind "Ajustes do grafo"; the
    help speaks of the pinch; two fingers zoom it. Level: H; E:
    `responsive.spec.mjs`, "the graph" (two tests).
@@ -1107,7 +1114,18 @@ rest below and in `manual-checks.md`.
    `sync.spec.mjs`). What crosses — first sync, two devices, a deletion, a
    rename, a conflict, a mass deletion, a 9 MiB file, a reader, offline —
    the host's Rust tests against a real server (`tests_sync.rs`); two
-   real computers, by hand (`manual-checks.md`). With the server down,
+   real computers, by hand (`manual-checks.md`). A note edited in the
+   server's window and renamed there (or its folder renamed, or moved
+   with others) arrives on this computer as a rename — *renomeado aqui*
+   in *Atividade recente*, never *apagado aqui*, nothing in `.trash/` —
+   with the window's bytes, and an open tab of it follows it to its new
+   name (*Renomeada ou movida em outro aparelho: … A aba foi junto.*); an
+   edit made here meanwhile goes with it to the new name, a name taken
+   here keeps both (the host's tests against a real server,
+   `tests_sync_rename.rs`, a seeded property among them; the engine's,
+   `sync/tests_moved.rs`; the server's log naming each file's own old path,
+   `tests_sync.rs`, `a_window_move_names_each_files_own_old_path_in_the_log`;
+   the real Mac and server, by hand, `manual-checks.md`). With the server down,
    *Sincronizar esta pasta*, the list of its folders in *Servidores* and the
    folder switcher say *Não foi possível alcançar o servidor
    localhost:7351 — ele está fora do ar ou sem rede.* where the person
@@ -1246,6 +1264,11 @@ rest below and in `manual-checks.md`.
     a note the reader has open, and the reader's tab reads the note again
     without it. A reader's device that syncs the folder holds the note
     without the block, and a change only inside it is no change there.
+    A die inside the block and one in the open with the same code (both
+    `dice: 1d20`): the owner rolls either, and the reader hears neither,
+    nor finds it in the note's rolls on joining again (the roll may be the
+    hidden die's); a code written only in the open is heard (ADR 0088,
+    amendment of 2026-10-31).
     Level: H; R: `tests_secret.rs` (every command of the contract as a
     reader, a live note, sync, a share, a role made reader), the core's
     `tests/workspace/reader.rs`, the index's `tests/secret.rs`, the
@@ -1342,8 +1365,14 @@ the folder `Campanha Fractal/` beside it ([ADR
    the line about the *oficial novato*, which was typed by hand, stays. With
    the caret outside a callout, the button reads *Inserir na nota* and a new
    callout appears at the caret, never inside a quote, a table or a code
-   fence. Level: H; E: `oracle.spec.mjs`; U: `test/oracleLocate.test.mjs`,
-   `test/oracle.test.mjs`.
+   fence. With two `[!oracle]` callouts in a note, change the second one's
+   text outside Verso (the reading view draws only that callout again):
+   its *Consultar Oráculo* opens with its own question and writes into it,
+   never into the first, and never says the callout moved (ADR 0102,
+   amendment of 2026-10-31: the core numbers each callout's line,
+   `data-oracle-line`). Level: H; E: `oracle.spec.mjs`; U:
+   `test/oracleLocate.test.mjs`, `test/oracle.test.mjs`; R: the dialect's
+   `render.rs`.
 3. The oracle's settings. *Ajustes* › *RPG & Mesa Solo* › *Oráculos e Solo RPG*
    opens with one sentence of what the oracle does, *Experimentar o oráculo*
    (the dialog opens over the page) and *Compartilhado com quem abre esta
@@ -1736,14 +1765,23 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 
 ## A file opened without its folder (ADR 0114, note 33, 2026-10-30)
 
-1. In a terminal, `verso ~/Downloads/nota.md` (or `open -a "Verso Beta" nota.md`, a double-click in Finder with Verso chosen under Open with, or File › Open File…): the app opens the file in a window with no tree, no ribbon and no search; the bar above the tabs says `nota.md · em Downloads` and has **Abrir a pasta inteira no Verso**; the right panel keeps the outline only; the palette lists no new note, no graph, no bin. Level: A; E: `loose.spec.mjs`, the window with `?loose=1`.
+1. In a terminal, `verso ~/Downloads/nota.md` (or `open -a "Verso Beta" nota.md`, a double-click in Finder with Verso chosen under Open with, or File › Open File…): the app opens the file in a window with no tree, no ribbon and no search; the bar above the tabs says `nota.md · em Downloads` and has **Abrir a pasta inteira**; the right panel keeps the outline only; the palette lists no new note, no graph, no bin, no split, no version history. Level: A; E: `loose.spec.mjs`, the window with `?loose=1`.
+   - The bar is the window's top row: on macOS its text starts right of the three window buttons, centred on them, and dragging the bar's empty part moves the window (a double click zooms it); on Windows and Linux it stays clear of the app's own buttons at the right and the menu button at the left. Narrow the window to its minimum (360 px): the bar stays on one line, the names shorten with an ellipsis, the buttons stay. Level: A (the real buttons); E: `loose.spec.mjs` (`&frame=mac`, `&frame=windows`, 360 and 1280 px).
+   - Under the bar: no crumb row with a lone "/", no "Propriedades" header for a file without front matter; the status bar shows the words, the palette, the notifications, the bug report and the right panel — no clock of version history, no **dividir**. Level: A; E: `loose.spec.mjs`.
 2. Edit a line: the file on disk changes and nothing appears beside it (no `.verso`, no index sidecar for `~/Downloads` under the configuration directory). Level: A; E: `loose.spec.mjs` (the file in memory); `crates/verso-fs/tests/scope.rs` and `crates/verso-core/tests/loose.rs` (nothing beside the file).
 3. Open a second `.md` from another folder: a second tab of the same window; `cargo`-style folder commands typed into the palette are refused with "not available for a file opened without its folder". Level: A; E: `loose.spec.mjs`; `app/src-tauri/src/tests.rs` (`a_file_handed_to_the_running_app_opens_in_the_loose_window`).
 4. A `[[Vizinha]]` whose note is beside the file opens as a tab; `[[Longe]]` says there is no note of that name and creates nothing; `![[foto.png]]` beside the file shows; `![[Vizinha]]` is drawn as a link. Level: A; E: `loose.spec.mjs`.
 5. `chmod 444 nota.md` and open it: read only with the reason above the text and the editor locked; a 9 MiB file opens in Source, read only. Level: A; E: `loose.spec.mjs` (`?ro=permissions`, `?ro=too_large`).
 6. Delete the file in Finder while open: the tab keeps the text with **Gravar aqui de novo** and **Salvar uma cópia…**; the first makes the file again, the second opens the system's save dialog. Level: A.
-7. **Abrir a pasta inteira no Verso**: the confirmation names the folder; the folder opens as a normal window. A file inside a folder opened before shows "Este arquivo fica em …" with **Abrir a pasta**. Level: A; E: `loose.spec.mjs` (`?known=1`).
+7. **Abrir a pasta inteira**: the confirmation names the folder; the folder opens as a normal window. A file inside a folder opened before (e.g. `~/Downloads/verso-vault-test/projetos/projetos.md`) shows one more button named after that folder, **Abrir “verso-vault-test”**, which opens it without a confirmation; when that folder is the file's own, it is the only button. In a narrow window, the whole folder's button is a folder mark (its tooltip says the words). Level: A; E: `loose.spec.mjs` (`?known=1`).
 8. Settings › Arquivos e links › **Abrir arquivos .md com o Verso por padrão**: the gesture of this system; on Windows the button opens Default apps. Level: A.
+9. A data file (ADR 0114 items 31–34, 2026-10-31): `verso ~/Downloads/inventario.json` (item 34, the command line) or File › Open File… (the picker lists `.json`, `.yaml`, `.yml`, `.toml`, `.xml` and `.csv` beside Markdown; E: the host's tests, `cargo test -p verso-app` and `-p verso-cli`), or `open -a "Verso Beta" ~/Downloads/inventario.json` (or Open with › Verso on a `.json`, `.yaml`, `.yml`, `.toml`, `.xml` or `.csv`): the loose window opens it **in the diagram**, the bar with the diagram's icon and the file's name; the diagram's menu has no **Salvar como board…**. **Texto** shows the text; edit a value and the file on disk changes, nothing beside it; back on **Diagrama**, the box shows the new value. Change the file in another editor while the text tab is open with nothing typed: the text follows; with something typed, the conflict banner. Level: A; E: `loose.spec.mjs` (`?loose=1&file=Inventário.json`, `&file=config.yaml`); `app/src-tauri/src/tests_loose.rs` (`a_data_file_handed_opens_loose_and_is_read_and_written_as_text`).
+10. A `.json` that does not parse (`{ "a": [1, 2`) opens as its text, with the diagram's line above it ("O texto não é válido: … Aberto como texto."); with Ajustes › Aplicação › Recursos › **Diagrama de dados** off, any data file opens as text. Level: A; E: `loose.spec.mjs` (`&file=quebrado.json`).
+11. A `.txt` handed the same way says it is not a file Verso opens and nothing opens. Level: A; E: `tests_loose.rs`.
+
+## A note above 16 MiB (spec Q17, 2026-10-31)
+
+1. Put a Markdown file of more than 16 MiB (e.g. `head -c 17000000 /dev/zero | tr '\0' a > Grande.md`, one long line is enough) in the folder and open it: above the text a line says the note is over 16 MiB and out of the index, so search and backlinks do not see it; a normal note shows no such line. Level: H; E: `big-note-notice.spec.mjs`; the core's side (`INDEX_MOST`) is in `verso-core`'s tests.
 
 ## The guided installer (ADR 0075 amendment, note 34, 2026-10-30)
 
@@ -1755,3 +1793,136 @@ On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an accou
 4. Option 3, First admin: the password is typed hidden, twice; the e-mail and password sign in on the phone; `/etc/universo/universo.env` holds no admin password afterwards. Level: A; E: `scripts/check-installer.sh` (including a pty: nothing echoed).
 5. Option 7, Support: the file has no password, token or e-mail, and says so at the top. Option 10: the backup and update timers are off until turned on; `sh universo.sh schedule status` shows them. Level: A; E: `scripts/check-installer.sh`.
 
+
+## Server hardening of 2026-10-31 (B9, B11, B13)
+
+1. The memory limit (B9): in note 24 (both vaults) both compose files carry `mem_limit: 768m` with a line saying why; `docker compose config` of the file prints `mem_limit: "805306368"`. Level: A on a real container: `docker stats universo` shows a 768 MiB limit. Check: `scripts/check-server-image.sh`.
+2. The trash's size cap (B11): on a test server started with `VERSO_TRASH_MAX=1MB`, delete notes or files in a folder until its trash passes 1 MB: within seconds the oldest entries are gone from the trash (the folder page in the console shows the new size, and the audit log has `trash_over_cap` lines), the newest stay, and nothing outside `.trash/` is touched. Level: H (server); E: `tests_trash.rs`, `tests/trash.rs` of verso-core.
+3. The old address (B13): on a server with `VERSO_PUBLIC_URL=https://<its name>` set, open `http://<its IP>:7340` in a browser: a page, not a bare line, in the browser's language first and the other below, saying the address has changed, with a link that opens the public one; the page names no address you typed. `curl -si http://<its IP>:7340/api/me` still answers `421` with JSON (`"error":"host"`). Level: A for the browser; E: `tests_http.rs`, `wrong_host.rs`.
+
+## Only the folder's owner deletes, outside a table (ADR 0113 B, amended 2026-10-31)
+
+On a UniVerso, with the owner's account and an editor's (two browsers, or the browser and the desktop app), a folder with a shared subfolder `Mesa` shared to a third account as editor, and no table, as in notes 14 and 23:
+
+1. As the editor, right-click a note in the tree: no **Mover para a lixeira**; the selection's menu and the selection bar have **Mover para…** and no bin; the palette has no **Apagar**. Level: A; E: `e2e-server/zz-owner-deletes.spec.mjs`.
+2. As the editor, select a note and press Delete (or ⌘⌫): the notice and the status line say "Só o dono da pasta apaga aqui: nada foi apagado…" (EN: "Only the folder's owner deletes here…"); the note stays. Level: A; E: `zz-owner-deletes.spec.mjs`.
+3. As the editor, rename a note, move it to another folder, create a note: each works. **Abrir a lixeira** is still there, and restores what the owner deleted. Level: A; E: `tests_owner_deletes.rs`.
+4. As the editor, drag a note from `Mesa` to the folder's root: refused, "Tirar um arquivo de uma pasta compartilhada é apagá-lo para quem a recebe…"; moving it inside `Mesa`, or a note into `Mesa`, works. As the owner, the same drag works. Level: A; E: `tests_owner_deletes.rs`.
+5. As the share's receiver (editor of `Mesa`): no delete offered either. Level: A; E: `tests_owner_deletes.rs`.
+6. On the editor's desktop, the folder synced here: delete a note in Finder, wait for a pass: the note is back, and Ajustes › Sincronizar lists "Um arquivo apagado aqui voltou…". Move a note out of `Mesa` in Finder: after a pass it is back in `Mesa`, listed as "Um arquivo tirado aqui de uma pasta compartilhada voltou para ela". Level: A; E: `tests_sync_access.rs`.
+7. As the owner, every delete is offered and works; inside a table nothing changed (a player still never deletes, the game master does). Level: A; E: `access-vectors.json`.
+
+## Compatibility with Obsidian and the NAS or VPS install (notes 37 and 38, 2026-10-31)
+
+Docs only; no code changed. Both lessons exist in `demo-vault/` (pt-BR) and `demo-vault-en/` (EN), are paired in `scripts/demo-vault/names.mjs`, sit in the Tour (cards in *Arquivos* and *Num servidor*) and in note 00's list.
+
+1. Open the Tour board: the *Arquivos* group has a card for note 37 and the *Num servidor* group one for note 38, in both languages; double-click each and read the note. Level: H; E: `node scripts/demo-vault.mjs check`.
+2. Note 34 ends with a link to note 37, and note 37 ends with one to note 38 (the check refuses a chain that skips). Level: H.
+3. Note 37, section 6, on a copy of a real Obsidian vault: open it with `⌘ O`; a note in Fonte reads as Obsidian wrote it and the file's date is unchanged after closing without typing; an edit in Verso shows in Obsidian; a `.canvas` with one card moved changes one line in the Git diff; the Excalidraw drawing's **Converter em board** shows the board before creating it; `> [!secret]` reads as a callout in Obsidian; with Obsidian's daily-note settings in `.obsidian/`, **Ajustes › Notas periódicas** offers **Usar os ajustes do Obsidian**. Level: A (needs Obsidian installed).
+4. Note 37 states only what `docs/spec/dialect.md` (sections 5 to 7), ADRs 0011, 0012, 0030 and 0070 and the lessons it links say: if one of those changes (embedded HTML, the accepted forms of `tags` and `aliases`, the plugin shim), reread sections 3 and 4 of the note. Level: H.
+5. Note 38, section 2, against `packaging/server/docker-compose.yml`: the paths, `mem_limit: 768m` and the `user:` line it describes are the file's. Section 3 against `sh universo.sh --help`: the commands `install`, `https [--duckdns NAME]`, `admin`, `swap`, `firewall`, `status`, `backup [--keygen|--encrypt]`, `restore`, `schedule backup|update|status|off`, `update`, `support`, `reset-admin` exist. Level: H; E: `scripts/check-installer.sh` for the script.
+6. Note 38, section 7: `VERSO_TRASH_DAYS` (30) and `VERSO_TRASH_MAX` (1GB) are the defaults of `docs/reference/server-install.md` section 7; the unit's `MemoryMax=75%` is `packaging/server/universo.service`. Level: H.
+7. Note 38 end to end on a real NAS (ZimaOS or CasaOS) and a real Ubuntu VPS, as a layperson would: not run for this change; the other Docker NAS brands are not covered by the project and the note says so. Level: A.
+
+## Share audio, the window (ADR 0116 section B, task S6, note 36)
+
+As the game master in the desktop app of a table (a debug build lists a test tone as the one source; a release lists none until a capture back-end is built), and as a player in a browser:
+
+1. The Música tab has **Compartilhar áudio…** in the empty state and in the header; the player's tab and a browser's have none. With no source, the picker says *A captura de som chega numa próxima atualização* and **Começar a compartilhar** is off. Level: A; E: `e2e/share-audio.spec.mjs`.
+2. With the test tone: pick it, **Começar a compartilhar**; the first time the notice shows, once. The tab shows *Compartilhando …*, the meter moves and says *Som chegando*; *2 ouvintes · 96 kbit/s* (counts as the server reports). The player's window shows *Fulano está compartilhando …*, **Ouvir a mesa** (until a touch), then the tone. Level: A (C for the real count); E: `e2e/share-audio.spec.mjs`, `e2e-server/` (S10).
+3. **Parar de compartilhar** in the tab, in the Mesa tab's row or in the status bar: the tone ends for the player, which says *Compartilhamento encerrado*. A second share while one is live asks *Substituir?*; **Cancelar** keeps the first. Level: A; E: `share-audio.spec.mjs`.
+4. A source that is silent (a muted app): within 3 seconds the card says *Silêncio: nada está sendo captado…*. A capture that cannot start leaves no share at the table and says why in the status bar. Level: A; E: `share-audio.spec.mjs`.
+5. On a phone (390 × 844) every control above is 44 px and the picker fits; the keyboard moves through the picker with the arrows and Tab stays inside it. Level: A; E: `share-audio.spec.mjs` (`@layout`).
+
+## Share audio on Windows (ADR 0116 item 17 as narrowed on 2026-11-01, task S8, note 36)
+
+As the game master in the installed desktop app on Windows 11 at a UniVerso table, with a browser as the listener:
+
+1. Open a page as a page (YouTube, say) and play it. **Compartilhar áudio…** lists **Páginas abertas no Verso: youtube.com** and says that only the pages' sound goes, never Verso's own sounds or other programs'. Level: A (the real Windows); the words are `shareHost.test.mjs`, the name rule `winpages.rs`.
+2. Share it: the listener hears the video; roll dice in the sharer's window: they do not hear the dice. Level: A.
+3. With no page open the picker says *Abra uma página no Verso…*; on Windows 10 it says *Compartilhar áudio no Windows precisa do Windows 11…*, Start off. Level: A (words: unit test).
+4. **Parar de compartilhar**, closing the window and quitting each end the share. Level: A.
+5. **Two pages** (S10): with two pages open and one playing, the list names only that one; both playing, both are named. Level: A.
+
+## Share audio on the Mac (ADR 0116 section B, tasks S7, S7b, note 36)
+
+As the game master in the installed desktop app on a Mac (macOS 14.4 or later) at a UniVerso table, with a browser as the listener:
+
+1. Open a page as a page (YouTube, say) and play it. **Compartilhar áudio…** lists **Páginas abertas no Verso** as the only source; no application is listed. Level: A (the real Mac).
+2. Share it: the listener hears the page within a second or two, and the tab shows *Som chegando*. Spotify or another app playing at the same time does not reach the listener. Level: A.
+3. The list names only the page that plays, with two pages open (S10). On the Mac the name reads *Pages open in Verso: open.spotify.com* (WebKit's media playback state); a paused page is not named. Level: A.
+4. The first share shows macOS's *Gravação de Áudio do Sistema* prompt naming Verso. Refuse (or reset with `tccutil reset AudioCapture com.versomd.app`): the status bar says *O macOS não deixou o Verso gravar o som do sistema…* with the System Settings path, and the table keeps no share. Level: A; the words are `shareHost.test.mjs`.
+5. Verso's own sounds (dice, chimes, the table's music, an audio player in a note) are not in the listener's share, and they play in the sharer's window a few hundredths of a second late. Level: A.
+6. A video or a page shown inside a note is shared, and the first-share notice says so. Level: A.
+7. On a macOS below 14.4 the picker says *Compartilhar áudio no Mac precisa do macOS 14.4 ou mais novo…* and Start is off. Level: A.
+8. **Parar de compartilhar**, closing the window and quitting the app each end the share and leave no capture running. Level: A; the lifecycle is `macos_source` tests.
+
+## Share audio on Linux (ADR 0116 section B, task S9, note 36)
+
+On the installed app (.deb or .rpm, or the AppImage with `pulseaudio-utils` installed by hand), in a desktop session with PipeWire or PulseAudio, as the game master at a UniVerso table, with a browser as the listener. The harness cannot reach the real capture:
+
+1. **The pages' process, first** (A): open a page as a page and play it. `pactl list sink-inputs` shows a stream whose `application.process.id` is a `WebKitWebProcess`, and `ls -l /proc/<that pid>/fd | grep pages-profile` (or its `maps`) shows a path under the pages' profile folder. If not, the share refuses with the no-pages message and `verso.log` says so; report it, the marker needs another proof. Level: A.
+2. **Pages** (A): **Compartilhar áudio…** lists **Páginas abertas no Verso**; share it; the listener hears the page within a second or two and the tab shows *Som chegando*. Pause the page: *Silêncio*. Stop ends it for the listener. Level: A.
+3. The list names only the page that plays, with two pages open (S10). On Linux the name reads *Pages open in Verso: open.spotify.com* (WebKitGTK's `is_playing_audio`); a paused page is not named. Level: A.
+4. **Nothing outside Verso** (A): play something in a browser or a music player at the same time: the listener never hears it.
+5. **Verso's own sounds** (A): dice, a chime, the table's music and an audio player in a note are not in the share; they play in the sharer's speakers a few hundredths of a second late, from a stream named *Verso (own sounds while sharing)*, and come back as before after Stop.
+6. **A page or video inside a note** (A): it is NOT shared on Linux; the hint says to open it as a page. Level: A.
+7. **No page, no tools** (A): with no page open the picker says *Abra uma página no Verso…*; without `pactl` and `parec` it says to install `pulseaudio-utils`. Level: A.
+8. **Stop, window close, quit** (A): each ends the share; `pgrep -a 'parec|pacat'` finds nothing left. Level: A.
+
+## Music at the table (ADR 0116 phase 1, note 36## Music at the table (ADR 0116 phase 1, note 36, 2026-10-31)
+
+On a UniVerso folder made a table, with the game master's window (the desktop app or a browser) and a player's (a second browser, or a phone), as in note 36. Copy `assets/sons/taverna.mp3` and `assets/sons/estrada.mp3` into a folder `Música` of the table, or play them from note 36:
+
+1. Ajustes › Recursos › RPG e mesa has **Som da mesa**, on. The right panel has a **Música** tab beside **Mesa**; in it the master sees *Tocando agora · Nada tocando…*, **Pastas** (the `Música` folder, two tracks) and **Playlists**; the player sees the same lists with no play button and *Só o mestre toca…*. No `<audio>` element exists yet (item 30). Level: A; E: `e2e/table-sound.spec.mjs`.
+2. As the master, **Tocar “taverna”** in Pastas: both windows show *taverna*, *De: Música*, and the time; the player's has no play, pause, next, stop or table volume, only **Seu volume**, **Silenciar** and **Seguir a mesa**. Both hear it at the same point (a clap test: under half a second apart). Level: A; E: `e2e-server/table-sound.spec.mjs`.
+3. **Pausar**, the **Posição** bar, **Volume da mesa** at 40: the player's window follows each within a second. The player's **Seguir a mesa** off: their window goes silent, the master's still plays. **Filtrar músicas** with "est": only *estrada* stays. Level: A; E: `table-sound.spec.mjs`.
+4. Open the **Mesa** tab: while a track plays, one slim row at its top (the name; for the master previous, pause, next; **Volume** opens your own volume and mute); nothing when nothing plays; the chat input does not move. A click on the name opens the Música tab. Level: A; E: `table-sound.spec.mjs` (`@layout`, the row's height).
+5. Open note 36: a play button beside each sound link, for the master only; the play beside *A taverna*, then **Próxima faixa**: *A estrada*; Next is greyed at the list's end; **Repetir** twice (*a lista*): Next goes back to the first. Let a track end: the master's window plays the next of the list. Level: A; E: `table-sound.spec.mjs`, `tableSound.test.mjs`.
+6. A file no player sees (leave it hidden): playing it asks "N jogadores não veem este arquivo (names). Liberar para a mesa e tocar?"; **Tocar sem eles**: the player's tab says *uma faixa que você não vê* with why, and the browser's Network tab shows no request for the file; the master's tab says who does not hear. **Liberar e tocar** on another: the player hears it. Level: A; E: `tests_table_sound.rs`, `e2e-server/table-sound.spec.mjs`.
+7. Close the master's window: the music goes on for the player; the player reloads: it lands where it was. Everyone leaves and comes back: nothing plays. Level: A; E: `tests_table_sound.rs`.
+8. With both the Mesa and Música tabs closed, the status bar shows the note glyph and the track's name; a click opens Música. On a phone (390 × 844) Música is a sheet, every button 44 px and reachable. Level: A; E: `table-sound.spec.mjs` (`@layout`).
+9. A folder of this computer alone: the Música tab plays for this window and says *Só nesta janela: a pasta não tem mesa*. Level: A; E: `table-sound.spec.mjs`.
+
+## Audio embeds with a player (ADR 0116 amendment, notes 06 and 36, 2026-11-01)
+
+In either vault, in the desktop app and in a browser of a UniVerso folder:
+
+1. Open note 06, section *Som na Nota* / *Sound in the Note*: `![[assets/sons/taverna.mp3]]` is a player — a round play button, the file's name, `0:00 / 0:49`, the bar, **Silenciar** and **Volume**, and **Tocar na aba Música** (a folder of this computer) — not the engine's own controls. Play: the button becomes **Pausar**, the bar moves; drag it, or Tab to it and press the arrows. Level: A; E: `e2e/audio-embed.spec.mjs`.
+2. **Editar**: the player stands where the embed is written; put the caret inside `![[…]]` and the text shows. **Fonte**: only the text. Switch modes while it plays: the sound goes on in the player of the mode shown. The note's file is unchanged (`git diff` of the vault: nothing). Level: A; E: `audio-embed.spec.mjs`.
+3. Start the second sample (`![](assets/sons/estrada.mp3)` in note 06's list): the first pauses. **Silenciar** on one mutes both; the volume set on one is the other's too, and after a reload. Level: A; E: `audio-embed.spec.mjs`, `audioEmbed.test.mjs`.
+4. A click on the name **taverna.mp3** opens a tab of its own with the same player (so does the file in the tree). Level: A; E: `audio-embed.spec.mjs`.
+5. Training board, lesson **16 · Som num cartão**: the card is the player; play, drag the bar and mute right on the card without entering it; the card still moves by its head and resizes by its corner. Drag `estrada.mp3` from the tree, and an MP3 from Finder or Explorer: each becomes a card. Level: A; E: `audio-embed.spec.mjs` (the card, the bar dragged through the board).
+6. At a table, as the game master, note 36 *Um player na nota*: **Tocar para a mesa** plays it in the Music tab for everyone, from the scene above; a file some players do not see asks the release question. With the table's music playing, play an embed: the table's music goes lower and the player says so; play another track from the Music tab: the embed pauses with *Pausado: a música da mesa começou.* Level: A; E: `audio-embed.spec.mjs`.
+7. As a player of that table (the hidden track set to *Toda a mesa: Não vê* in Acesso…; a file with no access of its own follows the notes that embed it, ADR 0113 K.3): an embed of a file you see plays for you alone, with no **Tocar para a mesa**; the embed of the hidden file is *🔒 (ainda não revelado)* and its board card is locked; the page holds no trace of its name. Level: A; E: `e2e-server/audio-embed.spec.mjs`.
+8. On a phone (390 × 844): every control of the player is 44 px, there is no volume slider (the phone's buttons), **Silenciar** works; the board's card plays from a tap. Level: A; E: `audio-embed.spec.mjs` (`@layout`).
+
+## The embedded terminal (ADR 0115, note 35, 2026-10-31)
+
+In the desktop app, on a folder of this computer (the demo vault will do). The U tests named are in `app/src-tauri/src/tests_terminal.rs` (a real shell on a real pseudo-terminal) unless said:
+
+1. The palette has no **Novo terminal** and a folder's menu no **Abrir terminal aqui** until Ajustes › Recursos › **Terminal** is on; the "Tudo" shortcut leaves it off. Turned on, both appear, and Ajustes › Terminal e agentes gains the Terminal rows (Novo terminal, Ferramentas de IA, Option como Meta on the Mac, Shell do terminal on Windows, the screen reader mode). Level: A; E: `terminal.spec.mjs` (off by default; the host refuses a stale `terminal_open`), `test/capabilities.test.mjs`; U: `app/src-tauri/src/tests_terminal.rs` (`the_terminal_is_a_capability_and_the_switch_gates_it`).
+2. **Novo terminal**: a tab *Terminal — demo-vault* opens; the line above says `zsh em demo-vault` (PowerShell on Windows); the first time in this folder one line says programs change the files directly and the history keeps each change, with **Entendi**; a second terminal does not say it again. `pwd` prints the folder's root; `echo olá, ação` comes back whole. Level: A; E: `terminal.spec.mjs`; U: `a_shell_answers_what_is_typed_and_learns_its_size`, `the_shell_starts_in_its_directory_and_keeps_accents`.
+3. Right-click *Personagens* in the tree › **Abrir terminal aqui**: *Terminal — Personagens*, and `pwd` ends in `Personagens`. Level: A; E: `terminal.spec.mjs`; U: `a_shell_starts_at_the_windows_folder_and_never_outside_it`.
+4. **Ferramentas de IA**: nothing is asked before the click; the menu lists the six tools, *Abrir …* for the installed ones and *… não está instalado — página de instalação* for the others. *Abrir Claude Code* (where installed) opens *Terminal 2 — demo-vault* already running `claude`; a missing one opens its page in the browser. Level: A; E: `terminal.spec.mjs`; U: `the_detection_reads_the_shells_answer`, `the_detection_asks_the_login_shell`.
+5. Keys: ⌘⇧] leaves the terminal for the next tab, ⌘P and ⌘⇧P open the switcher and the palette, ⌘K the search; with `sleep 100` running, Ctrl+C stops it; with text selected, ⌘C copies and ⌘V pastes. Option+e then e types `é` (Option as Meta off). Level: A; E: `terminal.spec.mjs`, `test/terminal.test.mjs` (the key table).
+6. `sleep 1000 &` then `sleep 100`, and ⌘W: the question says a program is running; **Cancelar** keeps the tab, **Fechar** ends it; `ps` in another terminal shows no `sleep` left. `exit` in a terminal closes its tab and the status line says *O terminal terminou (código 0).* Level: A; E: `terminal.spec.mjs`; U: `a_closed_terminal_leaves_no_process_of_its_tree`, `a_terminal_is_busy_while_a_program_runs_in_it`.
+7. With a terminal open, ⌘R: the tab comes back and finds the same shell, with what it wrote. Quit the app with `sleep 100` running: it asks first. Level: A; E: `terminal.spec.mjs`; U: `a_reloaded_window_finds_its_terminal_again`.
+8. In a terminal, `echo "linha nova" >> "00 - Bem-vindo ao Verso.md"` with that note open and untouched: the note shows the line; the history (the clock in the status bar) lists the change as made outside Verso, and restoring the version before it takes the line out. Level: A (the watcher and the history: their own tests).
+9. A window on a server's folder (Ajustes › Servidores, a folder of the server not synced here): **Novo terminal** opens in the home folder with the line *Esta pasta não está neste computador…*. The browser's window of that server, the phone and a loose-files window (a `.md` opened by itself, note 33) show no terminal anywhere, the switch on. Level: A; E: `terminal.spec.mjs` (`showServerFolder`, `?side=server`, `?loose=1`); U: `a_server_folders_window_has_the_terminal_and_the_server_never_does`, `tests_loose.rs`.
+10. Turn **Terminal** off in Ajustes › Recursos with two terminals open: both tabs close and their shells end. Level: A; U: `the_switch_off_ends_every_terminal`.
+
+## The right panel's tabs hidden, reordered, brought back (ADR 0072 amendment, note 13, 2026-11-01)
+
+On the app (desktop and a phone, 390 × 844), with a folder open and, for steps 5 and 6, a table with Table sound on:
+
+1. Right-click the **Links** tab (on a phone, press and hold it): the menu offers **Mover para a esquerda / direita**, **Ocultar esta aba**, **Restaurar abas** and **Ajustar abas…**. **Ocultar esta aba**: the tab leaves the bar, the status line says how to bring it back, and the **⋯** button appears even if every other tab fits. Level: H; E: `right-tabs-hide.spec.mjs`.
+2. **⋯** lists **Mostrar “Links”**; choosing it brings the tab back and opens it. Close and reopen the app: a hidden tab is still hidden, the order is kept. Level: H; E: `right-tabs-hide.spec.mjs`.
+3. With the mouse, drag a tab along the bar: it lifts and follows the pointer, the others make room; a hidden tab keeps its place in the order. Level: H; E: `right-tabs-hide.spec.mjs`, `right-tabs.spec.mjs`.
+4. **Ajustes › Aparência › Abas do painel direito**: every tab with a switch and up/down arrows; the bar follows at once; **Restaurar abas** brings the default order and every tab back. On a phone the rows and buttons are 44 px. Hide every tab but one: the last one's switch refuses. Level: H; E: `right-tabs-hide.spec.mjs`, `tabModel.test.mjs`.
+5. With **Mesa** and **Música** hidden and a track playing, the status bar still names it; a click on it opens **Música**, shown in the bar while it is the chosen tab; choosing another tab hides it again. Level: H; E: `right-tabs-hide.spec.mjs`.
+6. A narrow panel (or a phone): the tabs that do not fit are in **⋯** in your order; **Mesa** and **Música** are in the bar first. Level: H; E: `right-tabs.spec.mjs`, `tabModel.test.mjs`.
+
+- **Owner's phone deletes on a part (ADR 0113 amendment, 2026-11-01).** Serve a vault in part (*Transformar em servidor*, tick only `Projetos`), pair a phone with *Pode editar as notas*: in the share, **Mover para a lixeira** on a note works and the entry shows in *Lixeira* as deleted by the owner; a phone paired without *Pode editar* is not offered it. S: `local::tests_parts` (the allowlist table, `delete_note`/`delete_entry` answer), `local::tests_parts_bin`, `access::vectors` ("editor-owns"); E: `test/access.test.mjs`.
+- **A synced editor is offered no delete (ADR 0113 B8, item 8 of 2026-11-01).** In the desktop app, a folder synced with a server where this account is an editor: right-click a note, the menu has no *Mover para a lixeira*; select two and the bar has no delete; `Delete` on a note says *só a dona da pasta apaga*. The owner's own synced window still offers it. S: `test/access-synced.test.mjs`.
+- **A phone's right-panel tabs (ADR 0072 amendment, 2026-11-01).** On a phone, open the right panel on the Outline tab: eight tabs of 34 × 44 px fit in the drawer at 390 px; on a 320 px or 360 px phone the ones that do not fit are in **⋯**, in your order. E: `right-tabs-phone.spec.mjs`.

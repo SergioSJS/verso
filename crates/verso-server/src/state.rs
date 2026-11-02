@@ -278,6 +278,10 @@ pub struct Client {
     /// 6), whatever the credential. The role above is the window's
     /// ceiling; this is who it is.
     pub owner: bool,
+    /// Whether the account is the folder's owner, through a share too (a
+    /// phone served a part of the folder): who deletes outside a table (ADR
+    /// 0113 B8, amended 2026-11-01). Never a game master's seat by itself.
+    pub owns: bool,
     /// Whether the window is a paired phone's.
     pub phone: bool,
     pub tx: Outbox,
@@ -369,6 +373,11 @@ pub struct Server {
     pub campaigns: crate::campaign::Cache,
     /// The windows at each folder's table (ADR 0107).
     pub tables: crate::table::Tables,
+    /// The tables' music, in memory only (ADR 0116 section A).
+    pub sounds: crate::table_sound::Sounds,
+    /// The tables' live shares and their frames, in memory only (ADR 0116
+    /// section B).
+    pub relay: crate::audio_relay::Relay,
     /// The pace of a connection's table messages, images and rolls (ADR
     /// 0107 item 12).
     pub table_pace: crate::pace::Pace,
@@ -477,6 +486,8 @@ impl Server {
             rooms: crate::collab::Rooms::default(),
             campaigns: crate::campaign::Cache::default(),
             tables: crate::table::Tables::default(),
+            sounds: crate::table_sound::Sounds::default(),
+            relay: crate::audio_relay::Relay::default(),
             ceremonies: crate::passkeys::Ceremonies::default(),
             mail: std::sync::OnceLock::new(),
             signin_links: Mutex::new(HashMap::new()),
@@ -662,6 +673,7 @@ impl Server {
                         Some(r) => {
                             c.folder = Some((folder.to_owned(), r));
                             c.owner = r == Role::Owner;
+                            c.owns = c.owner;
                             c.tx.send(&serde_json::json!({ "role": r }));
                             if !r.writes() {
                                 demoted.push(id.clone());

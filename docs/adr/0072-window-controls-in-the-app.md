@@ -195,3 +195,80 @@ order is kept in the window's storage (`verso.rightTabOrder`) and a tab newer
 than the saved order goes where it stands among the defaults
 (`app/ui/src/panel/tabStrip.ts`; tried in `e2e/right-tabs.spec.mjs` with the
 Windows frame and platform emulated).
+
+### Amendment (2026-11-01): the right panel's tabs can be hidden and brought back
+
+The maintainer, in chat, on the right panel having eight tabs (outline, links,
+tags, favourites, explore, calendar, Table, Music), the Table and the Music
+kept in view and the others folded into the "⋯" on a narrow panel, in pt-BR:
+*"bom mas deveria ser possível esconder e reordenar e reaparecer abas"* (good,
+but it should be possible to hide, reorder and bring tabs back). His standing
+rules apply: every hide has a way back; the phone is first-class (390 × 844);
+UX first. Built (`app/ui/src/panel/tabModel.ts` decides, `tabStrip.ts` draws,
+`tabsSettings.ts` is the Settings block; tried in `e2e/right-tabs-hide.spec.mjs`
+and `test/tabModel.test.mjs`), the choices being the author's, to confirm:
+
+- **Hide**: the tab's menu (right click; a long press on a touch screen, which
+  `touch.ts` makes where iOS fires no `contextmenu`; the menu key on a
+  focused tab) › **Hide this tab**.
+- **Reorder** (kept from 2026-10-23): a pointer drag with the mouse, `Alt+←/→`,
+  and **Move left / Move right** in the tab's menu, which is what the phone
+  has (a finger scrolls and long-presses, so the drag is the mouse's and the
+  pen's). A hidden tab keeps its place in the order among the others.
+- **Bring back**: the "⋯" button now also stands whenever a tab is hidden, even
+  with everything else fitting, and lists the hidden tabs (**Show "…"**), then
+  **Reset tabs** and **Tab settings…**; the bar's empty space and the "⋯"
+  have the same menu on a right click. **Settings › Appearance › Right panel
+  tabs** lists every tab with a switch and up/down: the sure way back.
+- **The chosen tab always shows**, hidden or not. Something that opens a
+  hidden tab (the status bar's item and the mini-player's name open Music)
+  shows it in the bar for as long as it is chosen, and it goes again when
+  another tab is chosen: the person's choice is never undone, and nothing
+  opens into a tab that is not on screen (a panel naming no tab would be the
+  alternative). A tab hidden while chosen hands the choice to its neighbour on
+  the right (else the left).
+- **The last tab cannot be hidden** (its switch refuses and the status line
+  says why). A tab that is not available (the Table's and the Music's while
+  their switches are off) is neither in the bar nor in Settings, and a
+  hidden mark kept for it waits.
+- **The fold now follows the person's order.** On a narrow panel the tabs that
+  do not fit go into the "⋯", the chosen tab kept first, then the Table and
+  the Music (ADR 0116 as amended 2026-10-31: the game's two tabs in view, the
+  author's choice then *to be confirmed*), then the rest **in the order the
+  person set**; hidden tabs are not counted. So on a phone the panel still
+  shows the two tabs of the game after the chosen one.
+- **Kept per device** in the window's storage, as the order and the ribbon's
+  buttons are (`verso.rightTabOrder`, `verso.rightTabsOff`), never in the
+  notes; settings do not sync today, so neither does this.
+- **On a phone** the tabs, the Settings rows and their buttons are 44 px.
+
+### Amendment (2026-11-01, later): the tabs' choices confirmed, and the phone's size
+
+The maintainer was asked the choices above that were the author's, to
+confirm. His words: *"Todas pode seguir sua recomendação com exceção: Abas no
+celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …,
+imagino que celular um pouco mais estreito não vai caber tudo"* ("follow your
+recommendation on all of them, except: tabs on the phone is a mix of a and b,
+a) 34×44 px, the 8 fit and the rest goes to the ⋯; I imagine a somewhat
+narrower phone will not fit them all"). So:
+
+- **Confirmed (item 2 = a)**: a hidden tab that something opens (Music from the
+  mini-player) shows only while it is open and goes again when another tab is
+  chosen.
+- **Confirmed (item 3 = a)**: the order and the hidden set stay **per device**
+  (`verso.rightTabOrder`, `verso.rightTabsOff`); an account-wide setting only
+  later, if the per-device one bothers.
+- **Decided (item 4)**: on a phone a tab is **34 px wide by 44 px high**. The
+  drawer is `min(85vw, 320px)` and its close button takes 44 of it, so the
+  eight tabs (8 × 34 = 272) fit exactly at 390 px with no gap between them
+  (`.right-tabs { gap: 0 }` on a coarse pointer); on a narrower phone the
+  tabs that do not fit go into the "⋯", the chosen tab first, then the game's
+  two, then the person's order. Built in `app/ui/css/panels.css`, tried in
+  `e2e/right-tabs-phone.spec.mjs` (the drawer's width at 390, 360 and 320).
+  A tab 34 px wide is under the 44 px a finger usually gets: the maintainer
+  chose it knowing so (a "mix of a and b": the height keeps 44).
+
+The two choices marked *to confirm* in the amendment of 2026-11-01 above (a
+hidden tab that is opened shows only while open; the order and the hidden
+set stored per device) are **confirmed**, in the maintainer's answer to the
+list of 2026-11-01: *"Todas pode seguir sua recomendação com exceção: Abas no celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …, imagino que celular um pouco mais estreito não vai caber tudo; 7. Se tiver logado com a conta do dono, deveria sim ser B; 11. deveria ser vc conferindo, B"* (follow your recommendation on all of them, except: tabs on the phone are a mix of a and b; 7: signed in as the owner it should be b; 11: it should be you checking, b).

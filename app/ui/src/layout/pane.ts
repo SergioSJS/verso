@@ -23,8 +23,13 @@ import { typeKey } from "../datagraph/model";
 import { lastView } from "../datagraph/store";
 import { GraphLeaf } from "../leaves/graph";
 import { ThemeLeaf } from "../leaves/theme";
+import { TerminalLeaf } from "../leaves/terminal";
+import type { TerminalPlace } from "../terminal/open";
+import { tw } from "../terminal/strings";
 import type { BuildSpec } from "../theme/builder";
 import { ImageLeaf } from "../leaves/image";
+import { AudioLeaf } from "../leaves/audio";
+import { audioTarget } from "../audio/state";
 import { askDiscard, Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
 import { PdfLeaf } from "../leaves/pdf";
@@ -212,6 +217,8 @@ export class Pane {
       // A data file opens as the diagram when that was the view last used for its type (ADR 0106 item 9).
       const type = kind === "text" && diagramFormat(path) !== null ? typeKey(path) : null;
       if (type && lastView(type) === "diagram") leaf = new DataLeaf(this);
+      // A sound file is its player (ADR 0116, amendment of 2026-11-01).
+      else if (audioTarget(path)) leaf = new AudioLeaf(this);
       else leaf = kind === "note" ? new NoteLeaf(this) : kind === "image" ? new ImageLeaf(this) : kind === "pdf" ? new PdfLeaf(this) : kind === "frame" ? new FrameLeaf(this) : kind === "base" ? new BaseLeaf(this) : kind === "board" ? new BoardLeaf(this) : new TextLeaf(this);
       remember(path);
       this.place(leaf, preview);
@@ -250,6 +257,14 @@ export class Pane {
       void leaf.load(path);
     }
     this.activate(leaf, false);
+    return leaf;
+  }
+  /** A terminal in a tab of this pane (ADR 0115 item 9): a new shell, or
+   *  one of this run found again (`attach`). */
+  openTerminal(place: TerminalPlace): Leaf {
+    const leaf = new TerminalLeaf(this, place);
+    this.insert(leaf);
+    this.activate(leaf, true);
     return leaf;
   }
   /** The theme builder (ADR 0100), in a tab of this pane: one at a time. */
@@ -333,7 +348,7 @@ export class Pane {
       })(), "maximize"] as MenuItem] : []),
       ...(leaf.path && !can("windows") && server ? [[st.openInBrowserTab, () => void commands.openWindow(leaf.path).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
-      ...(leaf.kind === "theme" ? [] : [
+      ...(leaf.kind === "theme" || leaf.kind === "terminal" ? [] : [
       [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
       [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
       ] as MenuItem[]),
@@ -359,6 +374,13 @@ export class Pane {
         ...(can("reveal") ? [[t.reveal, () => void commands.reveal(leaf.path), "folderOpen"] as MenuItem] : []),
       ] : []),
       ...(leaf.kind === "note" ? [[t.graph, () => this.openGraph(leaf.path), "graph"] as MenuItem] : []),
+      // A terminal's Clear, and the keys that leave it (ADR 0115 items 10 and 24):
+      // the row puts the keyboard on the tab, out of the terminal.
+      ...(leaf instanceof TerminalLeaf ? [
+        sep,
+        [tw.clear, () => leaf.clear(), "close"] as MenuItem,
+        [tw.leaveKeys(leaf.leaveKeys()), () => leaf.tab.focus(), "keyboard"] as MenuItem,
+      ] : []),
       // A periodic note's previous and next (ADR 0093 item 8).
       ...(leaf.kind === "note" ? periodicMenu(leaf.path).map((m) => m as MenuItem) : []),
       // 5. Close actions

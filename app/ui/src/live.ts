@@ -18,6 +18,7 @@ import type { SyntaxNode } from "@lezer/common";
 import { tableArrows, type TableEditorOptions } from "./tableEditor";
 import { heldImage } from "./sanitize";
 import { hasCapability } from "./capabilities";
+import { audioTarget } from "./audio/state";
 import { ImageWidget, HeldImageWidget, TaskCheckboxWidget, CodeCopyWidget, DiagramButtonWidget, IframeWidget } from "./live/widgets";
 import { inlineText, mathSpans, aloneInParagraph, InlineMathWidget } from "./live/math";
 import { blankGaps } from "./live/gaps";
@@ -80,6 +81,14 @@ export type LiveOptions = {
   roll?: { resolve: (target: string, from: string) => string | null; open: (path: string) => void };
   /** A `dice:` code drawn as its die (ADR 0088), or null. */
   dice?: (code: string, occ?: number) => WidgetType | null;
+  /** The player in place of an embed of a sound file (ADR 0116, amendment
+   *  of 2026-11-01), or null when the target names none of the folder. */
+  audio?: (target: string) => WidgetType | null;
+  /** The play button after a link to a sound file (ADR 0116 item 15), or null. */
+  sound?: (target: string, at: number) => WidgetType | null;
+  /** The die a code's text names (its notation, or its table), or null when
+   *  it is no die drawn here: identical dice are counted by it. */
+  diceKey?: (code: string) => string | null;
   /** A statblock card's dice — the note's own dice, which roll in a room
    *  through the server — and why its trackers cannot write now (ADR 0099
    *  items 4 and 5). */
@@ -149,6 +158,38 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
   // (The fold itself is a state field below: a replacement that spans
   // lines cannot come from a view plugin.)
   const fmEnd = frontmatterEnd(doc);
+
+  // Which of the note's identical dice a code is, counted as the reading
+  // view counts them (dice/card.ts `wireDice`): the codes before it that
+  // name the same die, so that a roll heard from another window lands on the
+  // same chip whichever view each person is in — not every earlier copy of
+  // its text, which a fenced example or the frontmatter would add.
+  let ranks: Map<number, number> | null = null;
+  const rankOf = (at: number, keyOf: (code: string) => string | null): number => {
+    if (!ranks) {
+      const found = new Map<number, number>();
+      const seen = new Map<string, number>();
+      tree.iterate({
+        from: 0,
+        to: view.viewport.to,
+        enter: (node) => {
+          if (fmEnd >= 0 && node.from < fmEnd) return node.to > fmEnd ? undefined : false;
+          // A code block holds no inline code: not walked into.
+          if (node.name === "FencedCode" || node.name === "CodeBlock") return false;
+          if (node.name !== "InlineCode") return undefined;
+          const key = keyOf(doc.sliceString(node.from, node.to));
+          if (key !== null) {
+            const n = seen.get(key) ?? 0;
+            seen.set(key, n + 1);
+            found.set(node.from, n);
+          }
+          return false;
+        },
+      });
+      ranks = found;
+    }
+    return ranks.get(at) ?? 0;
+  };
 
   // A blank line that only separates two blocks is a thin gap, full height
   // under the caret (ADR 0061, revised 2026-10-22); a further blank line in
@@ -230,7 +271,9 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
           // Which of the note's identical codes this is: two dice of the
           // same notation are two dice (dice/card.ts).
           let occ = 0;
-          if (!shown && opts.dice) {
+          // Counted only for a code that is a die: the walk is not made for a note without one.
+          if (!shown && opts.dice && opts.diceKey) occ = opts.diceKey(text) === null ? 0 : rankOf(node.from, opts.diceKey);
+          else if (!shown && opts.dice) {
             const before = doc.sliceString(0, node.from);
             for (let at = before.indexOf(text); at >= 0; at = before.indexOf(text, at + text.length)) occ++;
           }
@@ -436,6 +479,12 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             const m1 = marks[1];
             if (m0 && m1) alt = doc.sliceString(m0.to, m1.from);
             const size = sizeOf(alt);
+            // `![](sons/a.mp3)`: the player, as for `![[a.mp3]]` (spec Q20).
+            const player = audioTarget(rawUrl) ? opts.audio?.(rawUrl) : null;
+            if (player) {
+              out.push({ from: node.from, to: node.to, deco: Decoration.replace({ widget: player }) });
+              return;
+            }
             const src = /^https?:\/\//i.test(rawUrl) ? rawUrl : opts.imageUrl(rawUrl);
             if (src && heldImage(src)) {
               // Remote content off: a link, as in the reading view (the
@@ -476,9 +525,17 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       if (math.some((r) => start < r.to && end > r.from)) continue;
       const target = (inner.split("|")[0] ?? "").split("#")[0] ?? "";
       const alias = inner.includes("|") ? (inner.split("|")[1] ?? "") : null;
-      const shown = embed && IMAGE.test(target)
+      const sound = embed && audioTarget(target);
+      const shown = embed && (IMAGE.test(target) || sound)
         ? view.state.selection.ranges.some((r) => r.empty && r.from <= end && r.to >= start && !(r.from === r.to && (r.from === start || r.from === end)))
         : touched(start, end);
+      if (sound && !shown) {
+        const player = opts.audio?.(target);
+        if (player) {
+          out.push({ from: start, to: end, deco: Decoration.replace({ widget: player }) });
+          continue;
+        }
+      }
       if (embed && IMAGE.test(target) && !shown) {
         const url = opts.imageUrl(target);
         if (url) {
@@ -492,6 +549,8 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         to: end,
         deco: Decoration.mark({ class: embed ? "cm-lp-wikilink cm-lp-embed" : "cm-lp-wikilink", attributes: { "data-target": target } }),
       });
+      const play = opts.sound?.(target, start);
+      if (play) out.push({ from: end, to: end, deco: Decoration.widget({ widget: play, side: 1 }) });
       if (!shown) {
         // Hide "[[" (or "![["), the "target|" before an alias, and "]]".
         hide(start, start + (embed ? 3 : 2));

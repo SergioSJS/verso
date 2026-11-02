@@ -62,7 +62,8 @@ pub fn key(server: &Server, folder: &Folder) -> ApiResult<String> {
 
 mod door;
 pub use door::{
-    Door, asker_of, filtered, has_table, has_table_cached, log_role, may_client, projects, veiled,
+    Door, NO_DELETE_OWNER, NO_MOVE_OUT_OF_SHARE, asker_of, filtered, has_table, has_table_cached,
+    log_role, may_client, projects, veiled,
 };
 mod rules;
 pub use rules::{

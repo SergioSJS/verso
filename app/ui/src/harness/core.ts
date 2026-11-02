@@ -177,6 +177,8 @@ export class Core {
   readonly folders = new Set<string>();
   /** The folder's trash and what is known of it (ADR 0080). */
   readonly bin = new Bin(this);
+  /** The server's size cap for a bin, in bytes; none by default (ADR 0080). */
+  trashCap: number | null = null;
   readonly localServer = new LocalServerHarness();
   /** A large picture's tiles and a reader's board (ADR 0090). */
   readonly maps = new Maps();
@@ -1399,8 +1401,10 @@ export class Core {
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
       host: "desktop",
-      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN],
+      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN, "terminal", "audio_share"],
       latency_ms: null,
+      // A server's size cap for a bin (ADR 0080), set by a test.
+      ...(this.trashCap === null ? {} : { trash_cap: this.trashCap }),
     }),
     folder_space: (): FolderSpace => {
       let notes = 0;

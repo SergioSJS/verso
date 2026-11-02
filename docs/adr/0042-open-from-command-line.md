@@ -29,7 +29,11 @@
   Q8): a first argument that names an existing Markdown file (`.md`,
   `.markdown`) opens that file without its folder, by the same rule as a
   folder, and `verso open <file>` is the escape hatch; the usage error now
-  reads "no folder or Markdown file by that name".
+  reads "no folder or Markdown file by that name". 2026-10-31 — **decided by
+  the maintainer** ([ADR 0114](0114-opening-one-markdown-file-without-a-folder.md)
+  item 34, N1 of the list of 2026-10-31): the same goes for an existing
+  `.json`, `.yaml`, `.yml`, `.toml`, `.xml` or `.csv` file; built 2026-10-31 (`names_a_directory`; the
+  usage error now reads "no folder, Markdown file or data file by that name").
 
 ## Context
 
@@ -173,11 +177,11 @@ with the window.
   saved its tabs and opened it, as for any
   switch. Until 2026-09-23 it went through `open -a Verso --args`, which an
   app already running never received (`docs/review/phase-2.md`, reading 3,
-  finding 20; fixed in `b43e914` at the maintainer's request). `open` refuses a
+  finding 20; fixed in `0381644` at the maintainer's request). `open` refuses a
   document that is not there. `verso open` still asks the disk nothing before
   it launches; when nothing could be started, the CLI asks `verso-fs` whether
   the folder is there and says "no folder at …" (exit 3), or, the folder being
-  there, that the app was not found (`1fc5c79`). A first version retried with
+  there, that the app was not found (`ecfdfd9`). A first version retried with
   `--args`, which an app already running ignores, so a typo was reported as
   "opening"; the Opus reading of the answers found it. A binary run directly —
   `$VERSO_APP`, a development tree, Windows, Linux — starts a process that,
@@ -205,6 +209,9 @@ the folder in a window of its own** — a window of the app that shows no
 folder takes it, else a new window does (ADR 0065). On every system the
 app is one instance: a second launch hands its folder to the running app
 and exits (Tauri's single-instance plugin), and on macOS the command line
-goes back to `open -a`, as decided above. Since `9d60cfc` (2026-09-25) it
+goes back to `open -a`, as decided above. Since `a28f633` (2026-09-25) it
 had run the installed bundle's binary and `open -n`, which started a
 second app — one that, run while the first was open, showed no window.
+
+- Revisions: 2026-11-01 — **confirmed by the maintainer** (item 10, a): the
+  usage error stays "no folder, Markdown file or data file by that name". *"Todas pode seguir sua recomendação com exceção: Abas no celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …, imagino que celular um pouco mais estreito não vai caber tudo; 7. Se tiver logado com a conta do dono, deveria sim ser B; 11. deveria ser vc conferindo, B"* (follow your recommendation on all of them, except: tabs on the phone are a mix of a and b; 7: signed in as the owner it should be b; 11: it should be you checking, b).

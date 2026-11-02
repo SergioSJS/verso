@@ -19,7 +19,7 @@
   `obsidian.d.ts`, and the public documentation at `obsidian.md/help`. Nothing
   comes from inspecting the app, and the window was not driven: no note was
   opened in it, nothing was clicked.
-- Verso: `1222492` (v0.2.0-beta.1, the head of `main`), run on a copy of the
+- Verso: `6cc0714` (v0.2.0-beta.1, the head of `main`), run on a copy of the
   same inputs outside the vault, with a scratch configuration directory.
 - Author: Opus 5.5 (documents, [ADR 0032](../adr/0032-author-and-reviewer-roles.md)).
   Reader: a fresh Opus 5.5 session, standing in for Fable 5.1 by the
@@ -101,7 +101,7 @@ rule is taken as given.
 ### 2.2 Verso
 
 - Built in this worktree (`cargo build -p verso-cli`); `verso --version`
-  answers `0.2.0-beta.1 (1222492)`.
+  answers `0.2.0-beta.1 (6cc0714)`.
 - The same inputs were copied to a scratch folder outside the vault — `diff -r`
   against the vault's folder found no difference — and indexed with
   `VERSO_CONFIG_DIR` pointing at a scratch directory, never the default one:
@@ -926,7 +926,7 @@ neither frontmatter nor body: the parser reports no link in them,
 (`render.rs`). Obsidian reads them as body — for `...`, a thematic break and a
 paragraph over lines 1 to 3 (the observation of draft c, below); for the
 spaces, the sections were not recorded. Checked in Verso on 2026-09-24, with
-the parser of `1222492`, whose `parse.rs`, `events.rs` and `tags.rs` are
+the parser of `6cc0714`, whose `parse.rs`, `events.rs` and `tags.rs` are
 unchanged at the head of this stack: `---`, `title: Taverna [[Adega]]`,
 `...`, `[[Porão]]` gives one link, `Porão`, and `[[Adega]]` is gone, from the
 parser and from the index's unresolved targets alike; the same with spaces
@@ -1947,14 +1947,14 @@ observed:
 
 ## 15. How the maintainer decides and verifies, without reading code
 
-**Check that the change is what it says.** The memo came in `e3c53fc`, on the
+**Check that the change is what it says.** The memo came in `323d070`, on the
 local stack, which was not pushed; the corrections of its reading came later,
 in the commit that adds section 16:
 
 ```
-git show --stat e3c53fc                                        # two files: this memo and its pt-BR twin
+git show --stat 323d070                                        # two files: this memo and its pt-BR twin
 git log --oneline -- docs/reference/obsidian-observations.md   # every commit that touched it
-git log -1 --format='%an <%ae>%n%b' e3c53fc                    # author and Signed-off-by are yours
+git log -1 --format='%an <%ae>%n%b' 323d070                    # author and Signed-off-by are yours
 bash scripts/check-docs-mirror.sh                              # "docs mirror: ok"
 bash scripts/check-fixtures.sh                                 # fixtures/ untouched
 ```
@@ -2026,7 +2026,7 @@ its labels, and what was done with each:
 | Section 8 counted a block closed by `...`, and spaces after `---`, as agreement, while Verso reads those lines as neither frontmatter nor body; draft 8.4 c's only link sat after the block, where both apps agree | IMPORTANT | Checked, and it holds. The divergence is in sections 3, 8.2 and 8.3, with point 7 of the recommendation; draft c gains a link inside the block, fails today, and says that its new line was not observed |
 | Section 11.2's `fim` row cited an input that section 10.1 did not list | IMPORTANT | The input, `q4-charset.md`, recovered and recorded in section 10.1; sections 11.2 and 13 point to it |
 | Two Q23 rows and recommendation 6 went against closed Q12's wording without saying so, and so does a comment in `store.rs` | IMPORTANT | Recorded in section 12.3, with the note that recommendation 6 would amend Q12; no side taken |
-| Section 15 compared against `origin/main`, which does not fit the local stack | IMPORTANT | `git show --stat e3c53fc` instead |
+| Section 15 compared against `origin/main`, which does not fit the local stack | IMPORTANT | `git show --stat 323d070` instead |
 | The header named Fable 5.1 as the reviewer | IMPORTANT | The header names the reader and the maintainer's decision; this section |
 | Section 2.1 said, with no source, that the vault's two plugins do not parse notes | MINOR | Softened: not checked |
 | Section 2.3 did not consider LiveSync carrying the run and its deletion elsewhere | MINOR | Recorded for the maintainer |

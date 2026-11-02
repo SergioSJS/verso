@@ -23,8 +23,8 @@ for (const [lang, general, rpgNav, all, none, link, rpgLine] of [
     if (lang === "en") await page.addInitScript(() => localStorage.setItem("verso.settings", JSON.stringify({ lang: "en" })));
     await openPage(app, page, general);
     const body = page.locator(".settings-body");
-    // The general page: one switch, the shortcuts, no sub-headings, a way to the RPG page.
-    expect(await body.locator("input[type=checkbox]").count()).toBe(2);
+    // The general page: the data diagram, colour swatches and terminal (ADR 0115, off by default) switches, the shortcuts, no sub-headings, a way to the RPG page.
+    expect(await body.locator("input[type=checkbox]").count()).toBe(3);
     await expect(body.locator("fieldset fieldset")).toHaveCount(0);
     await expect(body.getByText(rpgLine)).toBeVisible();
     await expect(body.getByRole("button", { name: all, exact: true })).toHaveCount(0);
@@ -37,14 +37,14 @@ for (const [lang, general, rpgNav, all, none, link, rpgLine] of [
     await expect(page.locator('.settings-nav-item[aria-current="true"]')).toContainText(rpgNav);
 
     const rpg = body.getByRole("group", { name: rpgNav, exact: true });
-    expect(await rpg.locator("> .setting input[type=checkbox]").count()).toBe(7);
+    expect(await rpg.locator("> .setting input[type=checkbox]").count()).toBe(8);
     await expect(body.getByRole("group", { name: /RPG e mesa|RPG and tabletop/ })).toBeVisible();
     await rpg.getByRole("button", { name: none, exact: true }).click();
     await expect(rpg.locator("input[type=checkbox]:checked")).toHaveCount(0);
     await page.screenshot({ path: `${SHOTS}/${lang}-rpg-off.png` });
     await rpg.getByRole("button", { name: all, exact: true }).click();
-    // Six come on; the 3D dice stays off.
-    await expect(rpg.locator("input[type=checkbox]:checked")).toHaveCount(6);
+    // Seven come on (Table sound among them, ADR 0116); the 3D dice stays off.
+    await expect(rpg.locator("input[type=checkbox]:checked")).toHaveCount(7);
     await page.locator(".settings-box").screenshot({ path: `${SHOTS}/${lang}-rpg.png`, animations: "disabled" });
 
     // The 3D dice's appearance is on this page (turn them on to see it).

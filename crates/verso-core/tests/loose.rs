@@ -337,6 +337,47 @@ fn save_here_again_does_not_make_the_folder_again() {
     let _ = &mut loose;
 }
 
+/// A structured-data file opened loose (ADR 0114 item 32, amended
+/// 2026-10-31): read and written as text over the revision read, refused
+/// when it changed meanwhile, held to the same bound, and nothing written
+/// beside it.
+#[test]
+fn a_data_file_is_read_and_written_as_text_within_its_scope() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("dados.yaml"), "---\nnome: Ana\n---\n").unwrap();
+    fs::write(dir.path().join("Outra.md"), "# Outra\n").unwrap();
+    let mut loose = Loose::open(&dir.path().join("dados.yaml")).unwrap();
+    assert_eq!(loose.name(), "dados.yaml");
+    let read = loose.read_text("dados.yaml").unwrap();
+    assert_eq!(read.text, "---\nnome: Ana\n---\n");
+    assert_eq!(read.path, "dados.yaml");
+    let written = loose
+        .write_text("dados.yaml", "nome: Bia\n", &read.revision)
+        .unwrap();
+    assert_eq!(written.text, "nome: Bia\n");
+    assert_ne!(written.revision, read.revision);
+    assert_eq!(
+        fs::read_to_string(dir.path().join("dados.yaml")).unwrap(),
+        "nome: Bia\n"
+    );
+    // Over the revision first read: the file changed since, refused.
+    let err = loose
+        .write_text("dados.yaml", "nome: Caio\n", &read.revision)
+        .unwrap_err();
+    assert!(
+        matches!(err, CoreError::Write(verso_fs::WriteError::Changed { .. })),
+        "{err:?}"
+    );
+    // The bound of item 13 holds for a data file too.
+    let big = "x".repeat(usize::try_from(verso_core::LOOSE_MAX_BYTES).unwrap() + 1);
+    assert!(
+        loose
+            .write_text("dados.yaml", &big, &written.revision)
+            .is_err()
+    );
+    assert_eq!(names(dir.path()), ["Outra.md", "dados.yaml"]);
+}
+
 #[cfg(unix)]
 #[test]
 fn the_permission_probe_is_kept_until_the_file_is_known_to_have_changed() {

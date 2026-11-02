@@ -172,7 +172,7 @@ configuration.
 - **HTML files** open as their page, in a sandboxed frame with scripts off.
   The tab's head offers the page and its source, as a note's head offers its
   modes; the source is edited as a text file, and the page comes back after
-  the source's last keystrokes are saved. Until `4afec51` the viewer was never
+  the source's last keystrokes are saved. Until `c64b6b8` the viewer was never
   reached: an `.html` file counted as a text file first
   (`../review/phase-2.md` §6, item 16).
 - **Text and code files** open in the editor, colored by their extension, and
@@ -260,7 +260,7 @@ first, and where each now lives:
   ([ADR 0048](../adr/0048-file-operations-in-ui.md), Accepted);
 - what the reading view renders — tables, footnotes, math, highlight,
   callouts, comments, body tags: as built (spec v0.16, Q5, Q6, Q13, Q15),
-  with a foldable callout now opening and closing from its title (`5b7fc69`);
+  with a foldable callout now opening and closing from its title (`7679916`);
   except, still open, callouts nested in callouts — drawn as callouts since
   2026-09-24, provisionally (spec v0.17, Q5) — and the `<iframe>`, `<video>`
   and `<audio>` the window drops ([embedded-media memo](embedded-media-decision.md));

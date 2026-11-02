@@ -31,6 +31,7 @@ import { allEntries, allFiles, allNotes, currentFolder } from "../folder";
 import { icon } from "../icons";
 import { renderSticker } from "../labels";
 import { served } from "../secret/blocks";
+import { audioCard, audioImages, audioTarget, placeAudio } from "../audio/embed";
 import { imageUrl, noteImages } from "../images";
 import { runHotkey } from "../keys";
 import { Pane } from "../layout/pane";
@@ -353,6 +354,7 @@ export class BoardLeaf extends TextLeaf {
           el.replaceChildren();
         };
       },
+      renderAudio: (el, path) => audioCard(el, listed(path), () => this.path, openNote),
       prompt: (label, initial, multiline) => promptText(label, initial, multiline, { yes: boardText.ok, no: boardText.cancel }),
       promote: (from, to, key) => promoteRelation(listed(from), to, key),
       editNote: (el, path, onExit) => {
@@ -1145,7 +1147,7 @@ export async function drawCard(el: HTMLElement, html: string, source: string): P
   const key = `${source}\n${html}`;
   // A note it embeds may have changed while it did not; a picture it
   // embeds is the same address, served as it was.
-  const embedsNote = Array.from(html.matchAll(/<span class="embed" data-target="([^"]*)"/g)).some((m) => !/\.(png|jpe?g|gif|webp|svg|bmp|avif|pdf)(#[^"]*)?$/i.test(m[1] ?? ""));
+  const embedsNote = Array.from(html.matchAll(/<span class="embed" data-target="([^"]*)"/g)).some((m) => !/\.(png|jpe?g|gif|webp|svg|bmp|avif|pdf)(#[^"]*)?$/i.test(m[1] ?? "") && !audioTarget(m[1] ?? ""));
   if (cardDrawn.get(el) === key && !embedsNote) return;
   cardDrawn.set(el, key);
   if (!el.firstChild) return renderReading(el, html, source);
@@ -1188,6 +1190,7 @@ export async function renderReading(el: HTMLElement, html: string, source: strin
   keyLinks(el);
   typeset(el);
   readingClicks(el, source);
+  audioImages(el);
   const pictures = noteImages(el, source);
   for (const code of el.querySelectorAll<HTMLElement>("pre > code.language-mermaid")) {
     const box = h("div", "mermaid-block");
@@ -1232,6 +1235,9 @@ export async function renderReading(el: HTMLElement, html: string, source: strin
         const p = span.parentElement;
         span.replaceWith(pic);
         if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
+      } else if (audioTarget(rel)) {
+        // A sound file a card's note embeds: its player.
+        placeAudio(span, rel, { path: () => source, text: () => "" }, () => null, openNote);
       } else {
         span.classList.add("file");
         span.title = rel;

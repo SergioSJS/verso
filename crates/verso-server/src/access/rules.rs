@@ -309,6 +309,15 @@ pub enum Action {
     },
     /// See the secret blocks of a file (0087).
     SeeSecretBlocks,
+    /// Control the table's music (ADR 0116 item 22): which track, play,
+    /// pause, seek, loop, the master volume. The game master's alone in V1,
+    /// whatever the credential; a later version hands it to a player by a
+    /// right of its own.
+    Play,
+    /// Share live audio to the table (ADR 0116 item 22, section B): the game
+    /// master's alone in V1, whatever the credential. Named so because
+    /// `Share` is 0113's action for shares.
+    Broadcast,
     /// Change who sees and who edits (the access of a path).
     ManageAccess,
     /// Make a table, open it, close it, set its limits.
@@ -343,6 +352,10 @@ pub struct Asker {
     /// A read link's visitor (0105).
     pub link: bool,
     pub admin: bool,
+    /// The account is the folder's owner, though the window holds a share's
+    /// role (a phone served a part of the folder): the owner's seat for a
+    /// deletion outside a table, not for a table (ADR 0113 B8, 2026-11-01).
+    pub owns_folder: bool,
 }
 
 /// The seat at a table, from the role alone.
@@ -599,9 +612,9 @@ impl AccessFacts {
 #[must_use]
 pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verdict {
     use Action::{
-        Attach, Clear, Create, Delete, DeleteEntry, Edit, Invite, InviteNew, ManageAccess,
-        ManageTable, Move, Rename, Roll, RollSecret, Say, See, SeeSecretBlocks, SeeSecretRolls,
-        SendFile, Share,
+        Attach, Broadcast, Clear, Create, Delete, DeleteEntry, Edit, Invite, InviteNew,
+        ManageAccess, ManageTable, Move, Play, Rename, Roll, RollSecret, Say, See, SeeSecretBlocks,
+        SeeSecretRolls, SendFile, Share,
     };
     use Reason::{
         Credential, NoRight, NoRole, NotAdmin, NotMaster, NotSeen, Phone, ReadOnly, TableClosed,
@@ -696,8 +709,17 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
             // whatever the folder's own role says.
             if !master && f.holds_table(t.path) {
                 Deny(NotMaster)
-            } else if master || (!in_table && who.at_least_editor()) {
+            } else if master {
                 needs_write()
+            } else if !in_table && who.at_least_editor() {
+                // Outside a table the folder's editor moves, and only the
+                // folder's owner deletes (section B, amended 2026-10-31:
+                // "apenas o dono da pasta pode apagar").
+                if action == Delete && !who.owns_folder {
+                    Deny(NotMaster)
+                } else {
+                    needs_write()
+                }
             } else if level < Level::See {
                 unseen()
             } else if seat == Seat::Visitor {
@@ -772,6 +794,24 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
                 edit(level)
             }
         }
+        // The game master's, with any credential (item 6: the seat decides,
+        // never the credential); a phone is never the owner (ADR 0096 item
+        // 12), so never the master.
+        Play => {
+            if master {
+                Allow
+            } else {
+                Deny(NotMaster)
+            }
+        }
+        // The live share: the same seat as the file state (item 22).
+        Broadcast => {
+            if master {
+                Allow
+            } else {
+                Deny(NotMaster)
+            }
+        }
         ManageAccess | ManageTable | Share | Invite => owner(),
         InviteNew => match owner() {
             Allow if !who.admin => Deny(NotAdmin),
@@ -804,6 +844,7 @@ mod tests {
             phone: false,
             link: false,
             admin: false,
+            owns_folder: false,
         }
     }
 
@@ -906,9 +947,63 @@ mod tests {
                 }
             }
         }
-        // A folder beside it stays the editor's, as outside any table.
+        // A folder beside it the editor moves, as outside any table; only
+        // the owner deletes it (B8, amended 2026-10-31).
         let t = Target::new("Outra", Kind::Folder);
-        assert!(may(&f, &ed, Action::Delete, &t).allowed());
+        assert!(may(&f, &ed, Action::Move, &t).allowed());
+        assert!(!may(&f, &ed, Action::Delete, &t).allowed());
+        assert!(may(&f, &gm, Action::Delete, &t).allowed());
+    }
+
+    #[test]
+    fn outside_a_table_only_the_folders_owner_deletes() {
+        // ADR 0113 section B, amended 2026-10-31 (B8): "apenas o dono da
+        // pasta pode apagar". An editor edits, creates, renames and moves.
+        let none = AccessFacts::default();
+        let beside = facts("Mesa", &[]);
+        let ed = player(Role::Editor);
+        let gm = player(Role::Owner);
+        let reader = player(Role::Reader);
+        for f in [&none, &beside] {
+            for (path, kind) in [
+                ("notas/a.md", Kind::Note),
+                ("mapa.canvas", Kind::Board),
+                ("img.png", Kind::Attachment),
+                ("notas", Kind::Folder),
+            ] {
+                let t = Target::new(path, kind);
+                assert_eq!(
+                    may(f, &ed, Action::Delete, &t),
+                    Verdict::Deny(Reason::NotMaster),
+                    "{path}"
+                );
+                for a in [Action::Edit, Action::Rename, Action::Move] {
+                    assert!(may(f, &ed, a, &t).allowed(), "{path} {a:?}");
+                }
+                assert!(may(f, &gm, Action::Delete, &t).allowed(), "{path}");
+                assert!(!may(f, &reader, Action::Delete, &t).allowed(), "{path}");
+            }
+            let folder = Target::new("notas", Kind::Folder);
+            assert!(may(f, &ed, Action::Create(Made::Note), &folder).allowed());
+        }
+        // The owner's credential still has to write.
+        let mut gm_read = player(Role::Owner);
+        gm_read.cap = Cap::Read;
+        assert_eq!(
+            may(
+                &none,
+                &gm_read,
+                Action::Delete,
+                &Target::new("a.md", Kind::Note)
+            ),
+            Verdict::Deny(Reason::Credential)
+        );
+        // Inside a table nothing changes: the game master deletes, a player
+        // (an editor too) does not (K.5).
+        let table = facts("Mesa", &[("Mesa/a.md", set(Level::Edit))]);
+        let a = Target::new("Mesa/a.md", Kind::Note);
+        assert!(may(&table, &gm, Action::Delete, &a).allowed());
+        assert!(!may(&table, &ed, Action::Delete, &a).allowed());
     }
 
     #[test]

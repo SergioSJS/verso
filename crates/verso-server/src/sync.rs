@@ -49,6 +49,7 @@ mod reader;
 pub use crate::transfers::Transfers;
 use crate::transfers::{Being, IDLE, Reading, Upload, room};
 use files::{put, read};
+pub(crate) use paths::moves_of;
 use paths::{Now, reconcile_paths};
 
 /// How often a device's question walks the folder again.
@@ -178,7 +179,48 @@ pub fn reconcile_by(
 ) -> Result<i64, ContractError> {
     let one = one_at_a_time(server, folder);
     let _only = lock(&one);
-    reconcile_held(server, folder, key, by, paths)
+    reconcile_held(server, folder, key, by, paths, &HashMap::new())
+}
+
+/// [`reconcile_by`] after a move made in a window (a rename, a folder's,
+/// several entries at once): `moved` names each entry's old path and its
+/// new one, so that the log's `renamedFrom` is the file's own — never
+/// another file of the same bytes a pairing by hash meets first, nor
+/// missing because the bytes changed — and a device follows each rename
+/// as it was made (ADR 0079, decided 2026-10-31, B12). A folder's pair is
+/// every file the log knows under it.
+pub fn reconcile_moved(
+    server: &Server,
+    key: &str,
+    actor: Option<&str>,
+    paths: &[String],
+    moved: &[(String, String)],
+) {
+    let folder = lock(&server.keys).get(key).cloned();
+    let Some(folder) = folder else {
+        return;
+    };
+    let one = one_at_a_time(server, &folder);
+    let _only = lock(&one);
+    let result = server
+        .db
+        .manifest_paths(&folder)
+        .map_err(verso_service::failed)
+        .and_then(|known| {
+            let pairs = paths::files_moved(&known, moved);
+            let mut all: Vec<String> = paths.to_vec();
+            for (to, from) in &pairs {
+                all.push(from.clone());
+                all.push(to.clone());
+            }
+            reconcile_held(server, &folder, key, Author::of(actor), &all, &pairs)
+        });
+    if let Err(e) = result {
+        crate::log::warn(&format!(
+            "keeping a folder's changes for sync: {}",
+            e.message
+        ));
+    }
 }
 
 /// The folder's lock: one reconciliation at a time, and a device's change
@@ -192,13 +234,15 @@ fn one_at_a_time(server: &Server, folder: &str) -> Arc<Mutex<()>> {
     )
 }
 
-/// [`reconcile`], the folder's lock already held.
+/// [`reconcile`], the folder's lock already held; `moved`, a window's moves
+/// ([`reconcile_moved`]): new path → old.
 fn reconcile_held(
     server: &Server,
     folder: &str,
     key: &str,
     by: Author<'_>,
     paths: &[String],
+    moved: &HashMap<String, String>,
 ) -> Result<i64, ContractError> {
     let fail = |e: String| verso_service::failed(e);
     let known = server.db.manifest(folder).map_err(fail)?;
@@ -334,7 +378,7 @@ fn reconcile_held(
         (folder, key),
         by,
         (&known, &gone),
-        created,
+        (created, moved),
         &quick_only,
     )
 }
@@ -394,15 +438,21 @@ fn listed_sizes(
     })
 }
 
+/// A file a reconciliation found new or changed: its path, hash, size and
+/// quick key.
+type Created = (String, String, i64, String);
+
 /// Record what a reconciliation found — the files gone, the files new or
-/// changed (a new one of the same bytes as one gone is a rename), the
-/// quick keys refreshed — and tell the devices on the folder the new head.
+/// changed (a new one of the same bytes as one gone is a rename; one a
+/// window's move names, `moved`: new path → old, is that rename whatever
+/// its bytes), the quick keys refreshed — and tell the devices on the
+/// folder the new head.
 fn record_changes(
     server: &Server,
     (folder, key): (&str, &str),
     by: Author<'_>,
     (known, gone): (&HashMap<String, crate::db::Known>, &[(String, String)]),
-    created: Vec<(String, String, i64, String)>,
+    (created, moved): (Vec<Created>, &HashMap<String, String>),
     quick_only: &[(String, String)],
 ) -> Result<i64, ContractError> {
     // What a reader is told of each note read (ADR 0087 item 4): its
@@ -452,11 +502,16 @@ fn record_changes(
         changes.push((path.clone(), None, None));
     }
     for (path, hash, size, quick) in created {
+        let named = moved
+            .get(&path)
+            .filter(|f| !taken.contains(*f) && gone.iter().any(|(p, _)| p == *f));
         let from = if known.contains_key(&path) {
             None
+        } else if let Some(f) = named {
+            Some(f.clone())
         } else {
             gone.iter()
-                .find(|(p, h)| *h == hash && !taken.contains(p))
+                .find(|(p, h)| *h == hash && !taken.contains(p) && !moved.values().any(|f| f == p))
                 .map(|(p, _)| p.clone())
         };
         if let Some(f) = &from {

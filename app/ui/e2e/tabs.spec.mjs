@@ -28,7 +28,7 @@ test("⌘W closes the tab — from the keys and from the app's menu — and ⌘�
   await expect(tab).toHaveCount(0);
   await app.key("Mod+Shift+t");
   await expect(tab).toHaveCount(1);
-  // File › Close Tab (⌘W) on a Mac: the host's menu tells the window (a51aab2).
+  // File › Close Tab (⌘W) on a Mac: the host's menu tells the window (bf12a4d).
   await app.emit("menu-close-tab", "main");
   await expect(tab).toHaveCount(0);
 });

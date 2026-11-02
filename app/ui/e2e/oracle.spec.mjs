@@ -141,3 +141,35 @@ test("the oracle lists a folder's tables from the index, and reads a table's not
   await expect(dialog.locator(".oracle-table-result-card")).toBeVisible();
   await expect(dialog.locator(".oracle-table-roll-text")).toHaveText(/^(sol|chuva|neve)$/);
 });
+
+test("the reading view writes into the callout on its line, after only that callout was drawn again (ADR 0102, 2026-10-31)", async ({ app, page }) => {
+  await app.open();
+  const two = (body) =>
+    ["# Cena", "", "> [!oracle] A porta está trancada?", "> Nota da porta.", "", "> [!oracle] Há alguém lá dentro?", `> ${body}`, "", "Fim.", ""].join("\n");
+  await openScene(app, two("Silêncio."));
+  await expect(askButton(page)).toHaveCount(2);
+  // The second callout changes outside: the view draws only its block again,
+  // and its button is the only one wired in that pass.
+  await app.writeOutside(NOTE, two("Passos no corredor."));
+  await app.folderChanged([NOTE], true);
+  const second = page.locator('.preview:visible .callout[data-callout="oracle"]').nth(1);
+  await expect(second).toContainText("Passos no corredor.");
+  await expect(second).toHaveAttribute("data-oracle-line", "6");
+
+  await askButton(page).nth(1).click();
+  const dialog = page.getByRole("dialog", { name: "Oráculo & Improvisação" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Pergunta de sim ou não")).toHaveValue("Há alguém lá dentro?");
+  await dialog.getByRole("button", { name: "Consultar", exact: true }).click();
+  await expect(dialog.locator(".oracle-outcome-badge")).not.toBeEmpty();
+  await dialog.getByRole("button", { name: "Gravar no callout" }).click();
+  await expect(dialog).toBeHidden();
+
+  await expect.poll(async () => answers(await lines(app)).length).toBe(1);
+  const ls = await lines(app);
+  // Into the second callout, below the person's line; the first is as it was.
+  expect(ls.slice(0, 5)).toEqual(["# Cena", "", "> [!oracle] A porta está trancada?", "> Nota da porta.", ""]);
+  expect(ls[5]).toBe("> [!oracle] Há alguém lá dentro?");
+  expect(ls[6]).toBe("> Passos no corredor.");
+  expect(ANSWER.test(ls[7] ?? "")).toBe(true);
+});

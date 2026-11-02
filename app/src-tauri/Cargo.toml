@@ -72,7 +72,7 @@ tokio-tungstenite = { version = "0.29", default-features = false, features = ["c
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 tokio = { version = "1", default-features = false, features = ["sync", "time", "macros", "net"] }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "http2", "gzip", "json"] }
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
 # The release files' signatures (ADR 0055, revised 2026-10-09): minisign,
 # as `tauri signer` writes them; the verifier Tauri's own updater uses.
@@ -82,6 +82,17 @@ base64 = "0.22"
 # item 8): the system's time zone, which std does not read. Already in the
 # tree through rmcp, with the same feature (MIT OR Apache-2.0).
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+# The embedded terminal (ADR 0115 item 2, accepted 2026-10-31): a shell of
+# this computer on a pseudo-terminal — `openpty` on macOS and Linux, ConPTY
+# on Windows — WezTerm's crate (MIT). It replaces what would otherwise be
+# our own bindings to openpty/ioctl and to CreatePseudoConsole, which need
+# `unsafe` in this tree (forbidden but in src/web_clip, ADR 0029). It
+# brings `serial2` (serial ports, MIT OR Apache-2.0), not optional in 0.9
+# and never called here; `nix` 0.28 beside the tree's 0.31; on Windows
+# `winreg` 0.10 and `shared_library` — all under licences cargo-deny
+# already allows.
+portable-pty = "0.9"
 
 # "This app is a server" (ADR 0096): the desktop starts the same service
 # `verso serve` runs, in this process, on the local network, on every system
@@ -97,8 +108,23 @@ verso-server = { path = "../../crates/verso-server" }
 # muda 0.19.3 are already in the lockfile); it replaces nothing of ours. The
 # mark is shipped as raw RGBA, so that `image-png` and the `image` crate it
 # pulls in stay out of the tree.
+# The Opus encoder of Share audio (ADR 0116 item 18): safe Rust bindings to
+# libopus (MIT OR Apache-2.0; libopus itself BSD-3-Clause, built from source
+# by its -sys crate, no system package needed). It replaces nothing of ours:
+# the app had no audio codec. The decoder in the window is WASM; this crate's
+# decoder is used by the host tests only.
+opus = "0.4"
+
 [target.'cfg(any(target_os = "macos", windows))'.dependencies]
 tauri = { version = "2", features = ["unstable", "devtools", "tray-icon"] }
+
+[target.'cfg(unix)'.dependencies]
+# Closing a terminal hangs up its shell's process group and the terminal's
+# foreground group, then kills them (ADR 0115 item 13): `killpg`, safe,
+# from the `nix` already in the tree (0.31, MIT, through verso-fs) with its
+# `signal` feature. It replaces a `libc::killpg` of our own, which would
+# need `unsafe`.
+nix = { version = "0.31", default-features = false, features = ["signal"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Clearing the download quarantine from the CLI binary and an extracted
@@ -117,9 +143,27 @@ xattr = "1.6"
 # because `NSView.clipsToBounds` is public only from macOS 14 and the app
 # supports macOS 11 and up. It replaces nothing of ours.
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSString", "NSGeometry"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification", "objc2-quartz-core"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSString", "NSGeometry", "NSArray", "NSDictionary", "NSValue", "NSUUID", "NSProcessInfo"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification", "objc2-quartz-core", "NSRunningApplication", "NSWorkspace", "libc"] }
 objc2-quartz-core = { version = "0.3", default-features = false, features = ["std", "CALayer"] }
+# Share audio on the Mac (src/audio_share/macos.rs; ADR 0116 item 17,
+# Q9 decided (a) 2026-10-31): Core Audio's process taps, which no safe Rust
+# crate serves (the evaluation is in ADR 0116, "As built (S7)"). The
+# bindings are objc2's (objc2-core-audio and objc2-core-audio-types 0.3.2,
+# Zlib OR Apache-2.0 OR MIT; objc2-core-foundation for the dictionary the
+# aggregate device takes, already in the tree; block2 0.6 for the IOProc block, MIT, and libc
+# for the parent of a process, MIT OR Apache-2.0, both already in the
+# tree). They replace hand-written `extern "C"` declarations of ours.
+objc2-core-audio = "0.3"
+objc2-core-audio-types = "0.3"
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFDictionary"] }
+block2 = "0.6"
+# Which pages play now, for the source's name (src/audio_share/macos.rs;
+# S10): WKWebView's public `requestMediaPlaybackState` (macOS 12 and up).
+# objc2-web-kit 0.3.2 (Zlib OR Apache-2.0 OR MIT) is already in the lockfile
+# through tauri/wry; this only names it directly. It replaces nothing of ours.
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "WKWebView"] }
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window
@@ -127,8 +171,24 @@ objc2-quartz-core = { version = "0.3", default-features = false, features = ["st
 # and Tauri already build, at the lockfile's versions (windows 0.61.3,
 # webview2-com 0.38.2; MIT OR Apache-2.0, MIT); they replace nothing of
 # ours.
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging", "Wdk_System_SystemServices", "Win32_System_SystemInformation"] }
 webview2-com = "0.38"
+# A terminal's shell and everything it starts are in a Job Object that kills
+# its tree when its handle closes — the terminal's end, or the app's, a
+# crash included (ADR 0115 item 13; ADR 0111 item 6's rule). A safe API
+# over the job calls (MIT OR Apache-2.0), on the `windows` 0.61 already in
+# the tree; it replaces our own CreateJobObject/AssignProcessToJobObject
+# calls, which would need `unsafe` outside src/web_clip.
+win32job = "2"
+# Share audio on Windows (src/audio_share/windows*.rs; ADR 0116 item 17,
+# "As built (S8)"). `wasapi` 0.26 (MIT) is a safe API over WASAPI, with the
+# process loopback of Windows 11 (`AudioClient::new_application_loopback_client`,
+# ActivateAudioInterfaceAsync) and the event-driven capture; it replaces our
+# own COM/WASAPI calls, which would need `unsafe`. It is the only new crate:
+# the Win32 and WebView2 calls we make ourselves (the build of Windows, the
+# browser process of the pages' WebView2, whether a page plays audio) use the
+# `windows` 0.61 and `webview2-com` above, in src/audio_share/windows.rs.
+wasapi = "0.26"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # The same on Linux (src/web_clip/linux.rs), with GTK's safe API: the GTK
@@ -140,8 +200,19 @@ gtk = "0.18"
 # binding wry already builds (2.0.2, MIT), at the feature (v2_20) that has
 # the signal. It replaces nothing of ours.
 webkit2gtk = { version = "2", features = ["v2_20"] }
+# Share audio on Linux (src/audio_share/linux*.rs; ADR 0116 item 17,
+# "As built (S9)"). `procfs` 0.17 (MIT OR Apache-2.0) reads /proc safely (a
+# process's name, parent, open files and mappings), to tell the pages'
+# WebKitWebProcess from every other process; it replaces our own /proc
+# reading, which `std::fs` (denied outside the declared files, ADR 0029)
+# could not do. Its default features (chrono, flate2) are off.
+procfs = { version = "0.17", default-features = false }
 
 [dev-dependencies]
+# The tests read back what a command wrote through the one crate that reads
+# a folder (ADR 0029: std::fs stays out of this crate, tests included). In
+# the tree already, under verso-core; it replaces nothing of ours.
+verso-fs = { path = "../../crates/verso-fs" }
 # The fakes of a WebDAV server and an S3 service the sync tests run against
 # (ADR 0104, Consequences: no test reaches a real provider).
 verso-cloud = { path = "../../crates/verso-cloud", features = ["fake"] }
@@ -191,3 +262,9 @@ expect_used = "forbid"
 disallowed_methods = "forbid"
 undocumented_unsafe_blocks = "forbid"
 multiple_unsafe_ops_per_block = "forbid"
+
+[features]
+# Lists the audio-sharing test tone (a 440 Hz sine, ADR 0116 item 17) in a
+# release build too. Debug builds list it already. No workflow sets this:
+# the shipped app never shows a test source.
+test-tone = []

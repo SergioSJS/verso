@@ -635,13 +635,16 @@ pub(crate) fn is_link_file(path: &str) -> bool {
 /// desktop's (ADR 0073 item 6): scripts, styles and connections from this
 /// server only; pictures, sound and embedded pages from the web as the
 /// reader allows them (the maintainer's answer I of 2026-10-09).
+/// `'wasm-unsafe-eval'` lets the window compile WebAssembly — the live
+/// share's Opus decoder (ADR 0116 item 18) — and nothing else: no `eval`,
+/// no script from elsewhere.
 fn page_policy(ws_origin: &str, tiles: &[String]) -> String {
     // The origins the person approved for a map's tiles (ADR 0094 item
     // 10): the window fetches them itself — the page's script and the map's
     // worker, whose own answer carries this policy — and reaches no other.
     let tiles: String = tiles.iter().map(|o| format!(" {o}")).collect();
     format!(
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; \
+        "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; \
          img-src 'self' data: blob: https:; media-src 'self' blob: https:; \
          frame-src 'self' https:; object-src 'none'; connect-src 'self' {ws_origin}{tiles}; \
          worker-src 'self' blob:; font-src 'self' data:; base-uri 'none'; \
@@ -799,6 +802,17 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
     let peer = auth::peer(&server, request.headers(), remote);
     if !auth::host_ok(&server, request.headers(), &peer) {
+        // A browser at the server's old address is shown a page naming the
+        // right one (ADR 0073, 2026-10-31); every other client gets the
+        // JSON refusal, the same 421.
+        if let Some(page) = crate::wrong_host::answer(
+            server.config.public_url.as_deref(),
+            request.method(),
+            request.uri().path(),
+            request.headers(),
+        ) {
+            return page;
+        }
         return ApiError::new(
             StatusCode::MISDIRECTED_REQUEST,
             "host",

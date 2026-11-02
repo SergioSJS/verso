@@ -33,7 +33,7 @@
   F20). Item 8: which side keeps the name, decided earlier the same day
   (Status), marked so. Consequences: a known limit, the campaign's
   finding F18. Item 4: the change log gains the device's name
-  (`changes.device`, server schema 6, commit 08e746e) — "who made it" now
+  (`changes.device`, server schema 6, commit a93d931) — "who made it" now
   names the device beside the account. The floor of item 9 and the
   device's name confirmed by the maintainer on 2026-10-11, in session:
   *"Mas eu tinha confirmado"* (but I had confirmed) — the
@@ -51,11 +51,11 @@
   WebSocket request and the server's in its hello.
   Item 12: the **1 GiB limit** the code keeps (`LARGEST`) is not one of
   those answers: the maintainer confirmed it later that evening, separately
-  (*"Pode ter esse limite de 1gb"*, recorded by 1cdf0a1), and on that
+  (*"Pode ter esse limite de 1gb"*, recorded by ffb0f8e), and on that
   confirmation it is decided, with the Status's "so that no file is left
   out for its size" amended to "no file under 1 GiB" — the old words kept
   there. 2026-10-12 — items 7 and 8, with [0082](0082-live-co-editing-of-a-synced-folder.md)
-  built (accepted 2026-10-11; f0d7398, 807c8c9, 2de0737, cb7b29d and 5add311, merged into `feat/universo` by 817886e on 2026-10-12):
+  built (accepted 2026-10-11; 7c08a9a, ccabedd, acc02df, 76b4c11 and b73b6f2, merged into `feat/universo` by 8e93bbd on 2026-10-12):
   a note of a synced folder joins the server's room while the device is
   connected. While the note is live, the local file has one writer in
   Verso, sync, which downloads the room's saves over it; a local change
@@ -85,7 +85,7 @@
   no version, is still sent and taken base64, as item 5 follows the
   version before. Item 12's "the pieces stay as they are" (2026-10-11,
   said of the 1 GiB limit) no longer holds for their size and their
-  wire. Built in 2b1f2c4. The items' words are unchanged. 2026-10-12 —
+  wire. Built in 82fb2c3. The items' words are unchanged. 2026-10-12 —
   item 12, the pieces' size: **1 MiB stays**, decided by the maintainer
   that day, about 16:00 BRT, among the round's seven decisions, all as
   recommended: *"Todos aprovados"* (all approved).
@@ -332,3 +332,62 @@ its size": the 1 GiB limit, accepted by the maintainer that day, is item
 Fable 5.1 on 2026-10-10/11, in the sync campaign's session; its final
 report, `verso-sync-campaign/relatorio-final.md`, is outside the
 repository)*.
+
+**Decided (2026-10-31): a rename made on the server arrives as a rename.**
+`[DECIDED 2026-10-31, built]` A rename made on the server (a window of
+the server) reached the Mac as a deletion and a creation, the old file going
+to the trash. Item 10 states the rename going up; the answer states it coming
+down. Put to the maintainer as B12 of the list of 2026-10-31 — a) fix it so
+it arrives as a rename, b) accept it — and approved as recommended, a:
+*"Todo resto pode ir de recomendado e aprovado"* (everything else may go as recommended, and is approved). A rename in the server's change log is applied on the device as
+one rename, never as a delete and a create.
+
+*As built (2026-10-31, B12).* The cause, seen in the Mac's log of the night
+of 2026-10-30 (`received: alvo-renomeado.md` and `deleted_here: alvo.md` in
+one pass): the device paired renames by hash alone (item 10's rule, read in
+the other direction), so a note written in the server's window and renamed
+before the device's next pass — its bytes there no longer the base's — was
+planned as a deletion of the old name and a new file, though the server's
+log said `renamedFrom`. Built:
+
+- **The device follows the log's renames.** The picture of the server keeps
+  what its feed said was renamed since the picture began (`Known.moved`: the
+  name there now → the name before the first of its renames, a chain
+  followed back across the deletion the log writes before each new name;
+  a rename back is none; a full listing knows none), and the engine's
+  `plan_moved` carries each out as one rename here — the file moved, the
+  folder's windows told (`FolderChanged.moved`, so a tab follows it) — and
+  then plans the file at its new name from its base: the server's newer
+  bytes fetched (item 7), an edit made here sent over the server's file as
+  the base left it (invariant 11), two edits a conflict under the new name
+  (item 8) — as a respelling here followed by an edit already crossed
+  (the engine's `respelled`). Nothing is followed that could lose a file: the new name taken
+  here (both are kept, this computer's as the conflict's copy), the old name
+  back on the server, the file gone here, the new name known to the base, a
+  first sync (item 11) — those keep the rules by path. Only the accents'
+  form changing is one name (item 2): nothing to move. `plan` itself, and
+  so the browser's copy of the engine and its vectors (ADR 0092 item 1), is
+  unchanged: a window kept offline in a browser still pairs by hash.
+- **The server's log names each file's own old path** for a window's move
+  (`rename_note`, `rename_entry`, `move_entries`, and what moved with them,
+  ADR 0060): the pairs come from the command's answer, a folder's as every
+  file the log knows under it, and are recorded as the rename whatever the
+  bytes, instead of the first gone file of the same bytes (two empty notes
+  of a renamed folder could be swapped, history and all).
+- **No contract change and no sync protocol change**: `renamedFrom` was
+  already in `sync_changes`; a device of before ignores the better pairs,
+  and a device of now with a server of before follows what that server's
+  log already names. The server is still best deployed first.
+- **A limit**: a device's picture keeps the renames only while its
+  connection lasts — the cursor is kept only while connected (item 5) — so a
+  rename with an edit made while the device was offline still arrives, at
+  the reconnection's full listing, by hash alone: unchanged bytes are a
+  rename, changed ones the old name to the bin (restorable) and the new
+  file. Tests seen failing first: `app/src-tauri/src/tests_sync_rename.rs`
+  (against a real server: an edit then a rename in the window, an edit
+  here, a conflict under the new name, a name taken here, a folder, several
+  moved, the window's notice, a chain, and a seeded property of renames
+  there against edits here that never deletes and loses no edit),
+  `crates/verso-core/src/sync/tests_moved.rs` (with a seeded property of
+  the plan carried out over random pictures) and `sync/remote/tests.rs`,
+  and the server's `a_window_move_names_each_files_own_old_path_in_the_log`.

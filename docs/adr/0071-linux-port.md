@@ -246,7 +246,7 @@ the same day; what the maintainer answered is in Status.)*
 ## Status
 
 **Shipped in 0.6.0-beta.1 on 2026-10-09** (`CHANGELOG.md`; pull request
-#41, merged in 51f89f6): x64, as an AppImage, a `.deb` and an `.rpm`. The
+#41, merged in 75d2340): x64, as an AppImage, a `.deb` and an `.rpm`. The
 items the maintainer answered on 2026-10-09 are listed below. Still
 `[OPEN]`: Snap; Wayland native or X11 forced where child web views need
 it; case-only names (spec Q8).
@@ -288,7 +288,7 @@ window needs one. **Answered by the maintainer on 2026-10-09**:
 case-only names (spec Q8).
 
 **As built on 2026-10-09** (branch `feat/linux-port`, not merged when
-written; merged by pull request #41, 51f89f6, and released in
+written; merged by pull request #41, 75d2340, and released in
 0.6.0-beta.1):
 - **The machines:** Ubuntu 26.04 with GNOME, Debian 12 with GNOME, Fedora 44
   with KDE Plasma, each with a `provisioned` snapshot. Fedora 44's KDE logs

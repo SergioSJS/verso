@@ -154,6 +154,31 @@ test("a roll heard from the room shows on the die that was clicked, not the firs
   await expect(dice.nth(1).locator(".dice-total")).toHaveText("19");
 });
 
+test("Live Preview counts a note's identical dice as the reading view does, so a heard roll lands on the same die in both (ADR 0088, 2026-10-31)", async ({ app, page }) => {
+  await app.open();
+  await page.evaluate(() => (window.__harness.rooms.up = true));
+  await page.evaluate((st) => {
+    window.__harness.core.handlers.folder_sync = () => st;
+  }, SYNCED);
+  await app.emit("sync-status", SYNCED);
+  // A fenced example holds the same text: no die, in either view.
+  const text = "# Ficha\n\nExemplo:\n\n```\n`dice: 1d20`\n```\n\nAtaque: `dice: 1d20` e defesa: `dice:1d20`.\n";
+  await app.writeOutside("Ficha.md", text);
+  await app.folderChanged(["Ficha.md"], true);
+  await app.quickOpen("Ficha");
+  await expect(page.locator('.preview:visible .dice[data-dice="1d20"]')).toHaveCount(2);
+  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  const dice = page.locator('.cm-content .dice[data-dice="1d20"]');
+  await expect(dice).toHaveCount(2);
+  // The first die of the note is the first, whatever the fence holds.
+  await dice.nth(0).getByRole("button", { name: "Rolar 1d20" }).click();
+  await expect.poll(async () => (await app.calls("collab_roll")).length).toBe(1);
+  expect((await app.calls("collab_roll"))[0].occurrence).toBe(0);
+  // Bia rolled the second in her reading view: here, on the second.
+  await page.evaluate(() => window.__harness.rooms.roll("Ficha.md", "Bia", "1d20", null, [17], 1));
+  await expect(dice.nth(1).locator(".dice-total")).toHaveText("17");
+});
+
 test("the palette's roller rolls a typed notation and says what it does not read", async ({ app, page }) => {
   await app.open();
   await app.command("Rolar dados");

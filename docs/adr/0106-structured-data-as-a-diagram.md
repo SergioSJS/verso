@@ -252,17 +252,17 @@ Accepted (2026-10-21). Items 1 to 3 in the maintainer's words of
 2026-10-20, the rest by his marks of 2026-10-21.
 
 As built 2026-10-21, on `feat/rpg-tools` (not pushed, not released):
-`2db25eb7` (the model, the parsers, the tidy-tree layout, the state and
-the search), `96ed0e2d` (the switch in Settings > Features), `71e77390`
-and `be77ad76` (the view, the tab, the Text | Diagram switch, "View as
-diagram" on a code block), `2be226ea` (end-to-end tests), `558b6659` (the
-tutorial note, samples, credits, changelog), `34aaba1b` (a review pass
-against this ADR), `f60c59b0` and `d71b5dc8` (lazy chunk, live switch);
-merged by `59a2e894` and `2ebbbfc4`.
+`2aefd228` (the model, the parsers, the tidy-tree layout, the state and
+the search), `1f74cb78` (the switch in Settings > Features), `d8ca5671`
+and `2deb3262` (the view, the tab, the Text | Diagram switch, "View as
+diagram" on a code block), `529b3424` (end-to-end tests), `b43d350f` (the
+tutorial note, samples, credits, changelog), `06ae1a1c` (a review pass
+against this ADR), `bdb23260` and `1f5cefe5` (lazy chunk, live switch);
+merged by `110f2d5e` and `d812ea5d`.
 
 As-built note, **not a decision of the maintainer's**: the code also parses
 **TSV** (a CSV with tabs) as CSV with tabs, an eighth format beside the
-seven of item 3 (`app/ui/src/datagraph/parse.ts`; commit `2db25eb7` says
+seven of item 3 (`app/ui/src/datagraph/parse.ts`; commit `2aefd228` says
 "eight formats"). No one decided it; it is recorded here so that it is
 either confirmed or dropped. **Confirmed on 2026-10-21** by the maintainer
 (D.4, option A): the diagram keeps reading `.tsv`, the same reader as CSV.
