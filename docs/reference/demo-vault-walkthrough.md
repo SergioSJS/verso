@@ -1850,7 +1850,7 @@ As the game master in the installed desktop app on a Mac (macOS 14.4 or later) a
 
 1. Open a page as a page (YouTube, say) and play it. **Compartilhar áudio…** lists **Páginas abertas no Verso** as the only source; no application is listed. Level: A (the real Mac).
 2. Share it: the listener hears the page within a second or two, and the tab shows *Som chegando*. Spotify or another app playing at the same time does not reach the listener. Level: A.
-3. The list names only the page that plays, with two pages open (S10). On the Mac this naming is not built yet: the list shows the source name alone, and that is the expected result until it is. Level: A.
+3. The list names only the page that plays, with two pages open (S10). On the Mac the name reads *Pages open in Verso: open.spotify.com* (WebKit's media playback state); a paused page is not named. Level: A.
 4. The first share shows macOS's *Gravação de Áudio do Sistema* prompt naming Verso. Refuse (or reset with `tccutil reset AudioCapture com.versomd.app`): the status bar says *O macOS não deixou o Verso gravar o som do sistema…* with the System Settings path, and the table keeps no share. Level: A; the words are `shareHost.test.mjs`.
 5. Verso's own sounds (dice, chimes, the table's music, an audio player in a note) are not in the listener's share, and they play in the sharer's window a few hundredths of a second late. Level: A.
 6. A video or a page shown inside a note is shared, and the first-share notice says so. Level: A.
@@ -1863,7 +1863,7 @@ On the installed app (.deb or .rpm, or the AppImage with `pulseaudio-utils` inst
 
 1. **The pages' process, first** (A): open a page as a page and play it. `pactl list sink-inputs` shows a stream whose `application.process.id` is a `WebKitWebProcess`, and `ls -l /proc/<that pid>/fd | grep pages-profile` (or its `maps`) shows a path under the pages' profile folder. If not, the share refuses with the no-pages message and `verso.log` says so; report it, the marker needs another proof. Level: A.
 2. **Pages** (A): **Compartilhar áudio…** lists **Páginas abertas no Verso**; share it; the listener hears the page within a second or two and the tab shows *Som chegando*. Pause the page: *Silêncio*. Stop ends it for the listener. Level: A.
-3. The list names only the page that plays, with two pages open (S10). On Linux this naming is not built yet: the list shows the source name alone, and that is the expected result until it is. Level: A.
+3. The list names only the page that plays, with two pages open (S10). On Linux the name reads *Pages open in Verso: open.spotify.com* (WebKitGTK's `is_playing_audio`); a paused page is not named. Level: A.
 4. **Nothing outside Verso** (A): play something in a browser or a music player at the same time: the listener never hears it.
 5. **Verso's own sounds** (A): dice, a chime, the table's music and an audio player in a note are not in the share; they play in the sharer's speakers a few hundredths of a second late, from a stream named *Verso (own sounds while sharing)*, and come back as before after Stop.
 6. **A page or video inside a note** (A): it is NOT shared on Linux; the hint says to open it as a page. Level: A.

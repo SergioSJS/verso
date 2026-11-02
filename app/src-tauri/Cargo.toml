@@ -158,6 +158,11 @@ objc2-core-audio = "0.3"
 objc2-core-audio-types = "0.3"
 objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFDictionary"] }
 block2 = "0.6"
+# Which pages play now, for the source's name (src/audio_share/macos.rs;
+# S10): WKWebView's public `requestMediaPlaybackState` (macOS 12 and up).
+# objc2-web-kit 0.3.2 (Zlib OR Apache-2.0 OR MIT) is already in the lockfile
+# through tauri/wry; this only names it directly. It replaces nothing of ours.
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "WKWebView"] }
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]

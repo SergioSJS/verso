@@ -14,7 +14,7 @@
 //! and never Verso's own (the dice, the chimes, the table's music), which
 //! play in the window's environment.
 
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "macos", target_os = "linux", test))]
 use verso_contract::{SOURCE_NAME_MOST, name_ok};
 
 /// The id of the one source.
@@ -57,7 +57,7 @@ pub struct Page {
     pub host: String,
 }
 
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "macos", target_os = "linux", test))]
 /// The host name of a page's address, without `www.`; empty if none.
 #[must_use]
 pub fn host_of(url: &str) -> String {
@@ -76,15 +76,23 @@ pub fn host_of(url: &str) -> String {
 }
 
 #[cfg(any(windows, test))]
-/// What the picker calls the source: *Pages open in Verso*, and the sites
-/// that play now when some do (`Pages open in Verso: open.spotify.com`).
-/// Always a name the contract accepts.
+/// What the picker calls the source, from WebView2's pages (see `name_of`).
 #[must_use]
 pub fn source_name(pages: &[Page]) -> String {
+    name_of(pages.iter().map(|p| (p.playing, p.host.as_str())))
+}
+
+#[cfg(any(windows, target_os = "macos", target_os = "linux", test))]
+/// What the picker calls the source: *Pages open in Verso*, and the sites
+/// that play now when some do (`Pages open in Verso: open.spotify.com`).
+/// Takes each open page as (playing now, host). Always a name the contract
+/// accepts.
+#[must_use]
+pub fn name_of<'a>(pages: impl IntoIterator<Item = (bool, &'a str)>) -> String {
     let mut hosts: Vec<&str> = Vec::new();
-    for p in pages.iter().filter(|p| p.playing && !p.host.is_empty()) {
-        if !hosts.contains(&p.host.as_str()) {
-            hosts.push(&p.host);
+    for (_, host) in pages.into_iter().filter(|(p, h)| *p && !h.is_empty()) {
+        if !hosts.contains(&host) {
+            hosts.push(host);
         }
     }
     let base = PAGES_NAME;
@@ -150,6 +158,10 @@ mod tests {
                 page(false, "c.net")
             ]),
             "Pages open in Verso: a.com, b.org"
+        );
+        assert_eq!(
+            name_of([(true, "a.com"), (false, "b.com"), (true, "")]),
+            "Pages open in Verso: a.com"
         );
         let long = page(true, &"x".repeat(300));
         let name = source_name(&[long]);
