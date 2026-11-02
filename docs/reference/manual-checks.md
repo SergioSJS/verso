@@ -1418,17 +1418,17 @@ them; if they still happen, a step that makes them happen is enough.
 ## Share audio, the window (ADR 0116 section B, task S6)
 
 1. **The real count and rate** (A, the desktop app on a server's table with a second device): while the debug build's test tone is shared, the card's listeners and rate match the server's (`table-share-state`), and the meter moves with the tone (the harness fakes both).
-2. **Silence** (A, on each system once capture exists): a source that is muted or DRM-blocked says *Silêncio…* within 3 seconds; then plays and the card says *Som chegando*.
+2. **Silence** (A, each system): a source that is muted or DRM-blocked says *Silêncio…* within 3 seconds; then plays and the card says *Som chegando*.
 3. **VoiceOver / NVDA** (A): the picker reads its options with their kinds; the meter reads *Nível do som* with its words; *Compartilhando …* / *Compartilhamento encerrado* are announced; Stop sharing has a name in the tab, the row and the status bar.
-4. **The macOS permission** (A, when the macOS capture is built): the *System Audio Recording* prompt at the first capture; refused, the share says why and leaves nothing at the table.
+4. **The macOS permission** (A, the Mac): the *System Audio Recording* prompt at the first capture; refused, the share says why and leaves nothing at the table.
 
-## Share audio on Windows (ADR 0116 item 17 as narrowed on 2026-11-01, task S8)
+## Share audio on Windows (ADR 0116 section B, as narrowed on 2026-11-01, task S8)
 
 On the installed beta, as the game master of a UniVerso table, with a browser listener, on **Windows 11** and then on **Windows 10**. None of this is reachable from the harness (the `#[ignore]`d `win_real_capture` test checks the loopback, the format and the stop with a tone; `scripts/check-windows.sh` runs the rest):
 
 1. **A page** (A, Win 11): open a page as a page (not inside a note), e.g. a YouTube video, and play it. **Compartilhar áudio…** lists **Páginas abertas no Verso: youtube.com**, with the hint; share it; the listener hears the video within a second or two and the meter says *Som chegando*. Pause the video: *Silêncio* within 3 seconds.
 2. **Verso's own sounds not sent** (A, the point of the profile split): while sharing, roll dice and trigger a table chime in the sharer's window, and play the table's music: the listener hears none of them (they hear the table's music through their own player, as always). If they do, the pages' environment is not apart: report it (check Task Manager: a second group of `msedgewebview2.exe` under Verso when a page is open).
-3. **Two pages** (A): with two pages open and one playing, the name shows only that site; both playing, both are carried together.
+3. **Two pages, the list names the playing one** (S10, A): with two pages open and one playing, the list names only that site; both playing, both are named and carried together.
 4. **Login across pages** (A): sign in to a site in one page; open another page of the same site: signed in. The first time after this update the pages ask for the sign-in again.
 5. **A page inside a note** (A): a site shown inside a note (it allows framing) is not shared; its sound is not in the share. The hint says to open it as a page.
 6. **No page** (A): with no page open the picker says *Abra uma página no Verso…*.
@@ -1436,31 +1436,34 @@ On the installed beta, as the game master of a UniVerso table, with a browser li
 8. **Stop, window close, quit** (A): each ends the share; the listener sees it end; no `Verso` audio session stays in the volume mixer's list after the page closes.
 9. **Linux and macOS 14+** (A, only that the pages still open and play: the capture is not built there): a page opens and plays in its own profile; a login holds across pages.
 
-## Share audio on Linux (ADR 0116 item 17 as narrowed on 2026-11-01, task S9)
+## Share audio on Linux (ADR 0116 section B, as narrowed on 2026-11-01, task S9)
 
-On the installed app (.deb or .rpm; a desktop session with PipeWire or PulseAudio and `pulseaudio-utils`), as the game master of a UniVerso table, with a browser listener. None of this is reachable from the harness (the `#[ignore]`d `linux_real_capture_of_pages_delivers_audio_and_stops` needs a page of Verso playing).
+On the installed app (.deb or .rpm, or the AppImage with `pulseaudio-utils` installed by hand; a desktop session with PipeWire or PulseAudio), as the game master of a UniVerso table, with a browser listener. None of this is reachable from the harness (the `#[ignore]`d `linux_real_capture_of_pages_delivers_audio_and_stops` needs a page of Verso playing).
 
 1. **Which process is the pages'** (A, the point the design rests on and the first thing to check): open a page as a page and play it; in a terminal, `pactl list sink-inputs` shows a stream whose `application.process.id` is a `WebKitWebProcess`; `ls -l /proc/<that pid>/fd | grep pages-profile` (or its `maps`) shows a path under the pages' profile folder. If it does not, the share refuses with the no-pages message and `verso.log` says so: tell the maintainer, the identification needs another marker.
 2. **Pages** (A): **Compartilhar áudio…** lists **Páginas abertas no Verso**; share it; the browser listener hears the page within a second or two and the meter says *Som chegando*. Pause the page: *Silêncio*. Stop ends it for the listener.
-3. **Nothing outside Verso** (A): play something in a browser or a music player at the same time: the listener never hears it.
-4. **Verso's own sounds not sent** (A): while sharing, roll dice, trigger a chime, play the table's music and an audio player in a note: the listener hears none of it through the share; they come out of the sharer's speakers a few hundredths of a second late, from a stream named *Verso (own sounds while sharing)*; after Stop they come back as before.
-5. **A page inside a note** (A): a site shown inside a note is NOT in the share (it plays in the window's own process on Linux); the hint says to open it as a page.
-6. **No page / no tools** (A): with no page open the picker says *Abra uma página no Verso…*; on a machine without `pactl`/`parec` it says to install `pulseaudio-utils`.
-7. **Stop, window close, quit** (A): each ends the share; no `parec` or `pacat` process is left (`pgrep -a 'parec|pacat'`).
-8. **PulseAudio-only and PipeWire** (A, one machine each): both list and share the same way; there is no whole-output-device recording on either.
+3. **The list names the pages playing** (S10, A): with two pages open and one playing, the list names only that one; both playing, both are named. Naming is built on Windows only so far: on Linux the list shows the source name alone, and that is recorded as not met until it is built, not hidden.
+4. **Nothing outside Verso** (A): play something in a browser or a music player at the same time: the listener never hears it.
+5. **Verso's own sounds not sent** (A): while sharing, roll dice, trigger a chime, play the table's music and an audio player in a note: the listener hears none of it through the share; they come out of the sharer's speakers a few hundredths of a second late, from a stream named *Verso (own sounds while sharing)*; after Stop they come back as before.
+6. **A page inside a note** (A): a site shown inside a note is NOT in the share (it plays in the window's own process on Linux); the hint says to open it as a page.
+7. **No page / no tools** (A): with no page open the picker says *Abra uma página no Verso…*; on a machine without `pactl`/`parec` it says to install `pulseaudio-utils`.
+8. **Stop, window close, quit** (A): each ends the share; no `parec` or `pacat` process is left (`pgrep -a 'parec|pacat'`).
+9. **PulseAudio-only and PipeWire** (A, one machine each): both list and share the same way; there is no whole-output-device recording on either.
 
-## Share audio on the Mac (ADR 0116 item 17, tasks S7 and S7b)
+## Share audio on the Mac (ADR 0116 section B, as narrowed on 2026-11-01, tasks S7 and S7b)
 
 On the installed beta, macOS 14.4 or later, as the game master of a UniVerso table, with a browser listener (a second device). None of this is reachable from the harness or from `cargo test` (the real-capture test, `cargo test -p verso-app --lib mac_real_capture -- --ignored --nocapture`, checks the tap, the format and the stop with something playing, and asks the permission for the terminal):
 
-1. **Pages** (A): open a page in Verso (a child web view) and play something in it; open **Share audio…**: the one source is **Pages open in Verso** (no app, no *Everything this Mac plays*); share it; the browser listener hears the page within a second or two, and the meter says *Som chegando*. Pause the page: the meter says *Silêncio* within 3 seconds. **Parar de compartilhar** ends it for the listener; Activity Monitor / Sound settings show no leftover "Verso" aggregate device. With no page that ever made sound, the picker says to open one (no-pages message). Another app (Spotify, a browser) playing at the same time must NOT reach the listener.
-2. **The prompt** (A): on a Mac that never allowed it (reset with `tccutil reset AudioCapture com.versomd.app`), the first share shows the system prompt naming Verso, with the text of `NSAudioCaptureUsageDescription` (both languages). **Don't Allow**: the status bar says macOS did not let Verso record and where to allow it; nothing is left at the table; allowing it in System Settings and sharing again works.
-3. **Verso's own sounds not sent** (A, decision A2 of the 2026-11-02 note in ADR 0116): share a page that plays while you roll dice and trigger a table chime in the sharer's window: the listener must not hear the dice or the chime, and the sharer still hears them (a few hundredths of a second late). Stop the share: they are back at once, with no change. The table's music and an audio player in a note (play a vault file in each, also in a folder on a server) must not reach the listener either, and must still sound, with their volume and mute working, in the sharer's window; they must play before and after the share, and after a first play with the audio switched off. Known and said in the notice: a video or page inside a note is heard by the listener too. A development build started from a terminal finds no pages (its responsible process is the terminal): use the installed beta.
-4. **Window close and quit** (A): close the sharer's window, then quit the app, while sharing: the listener sees the share end; no aggregate device stays.
-5. **A page that starts later** (A): before any page made sound the picker says to open one; start playing in a page and reopen the picker: the source is there. A share of a page that pauses and resumes keeps going.
-6. **An older macOS** (A, a Mac or VM below 14.4, if one exists): the picker says it needs a newer macOS, with Start off.
+1. **Pages** (A): open a page in Verso (a child web view) and play something in it; open **Share audio…**: the one source is **Pages open in Verso**, and no application is listed; share it; the browser listener hears the page within a second or two, and the meter says *Som chegando*. Pause the page: the meter says *Silêncio* within 3 seconds. **Parar de compartilhar** ends it for the listener; Activity Monitor / Sound settings show no leftover "Verso" aggregate device. With no page that ever made sound, the picker says to open one (no-pages message). Another app (Spotify, a browser) playing at the same time must NOT reach the listener.
+2. **The list names the pages playing** (S10, A): with two pages open and one playing, the list names only that one. Naming is built on Windows only so far: on the Mac the list shows the source name alone, and that is recorded as not met until it is built, not hidden.
+3. **The prompt** (A): on a Mac that never allowed it (reset with `tccutil reset AudioCapture com.versomd.app`), the first share shows the system prompt naming Verso, with the text of `NSAudioCaptureUsageDescription` (both languages). **Don't Allow**: the status bar says macOS did not let Verso record and where to allow it; nothing is left at the table; allowing it in System Settings and sharing again works.
+4. **Verso's own sounds not sent** (A, decision A2 of the 2026-11-02 note in ADR 0116): share a page that plays while you roll dice and trigger a table chime in the sharer's window: the listener must not hear the dice or the chime, and the sharer still hears them (a few hundredths of a second late). Stop the share: they are back at once, with no change. The table's music and an audio player in a note (play a vault file in each, also in a folder on a server) must not reach the listener either, and must still sound, with their volume and mute working, in the sharer's window; they must play before and after the share, and after a first play with the audio switched off.
+5. **A page or video inside a note** (A): it IS shared on the Mac, and the first-share notice says so (a known leak, not a bug to fix here): the listener hears it, and the notice is the check.
+6. **Window close and quit** (A): close the sharer's window, then quit the app, while sharing: the listener sees the share end; no aggregate device stays.
+7. **A page that starts later** (A): before any page made sound the picker says to open one; start playing in a page and reopen the picker: the source is there. A share of a page that pauses and resumes keeps going.
+8. **An older macOS** (A, a Mac or VM below 14.4, if one exists): the picker says it needs a newer macOS, with Start off.
 
-## Music at the table (ADR 0116 phase 1, 2026-10-31)
+## Music at the table (ADR 0116 phase 1## Music at the table (ADR 0116 phase 1, 2026-10-31)
 
 On the real engines, which the harness's stubbed `play()` does not reach; a UniVerso table with the master in the desktop app and players in browsers and phones (note 36):
 

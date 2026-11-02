@@ -1299,3 +1299,15 @@ Verso; fail closed) and A2 apply as on the Mac.
   (WebKitGTK does not name the process of a web view). If it does not, the
   share fails closed with the no-pages message; the marker would then be
   replaced by another proof, not loosened.
+
+### As built (phase 2, 2026-11-02): Share audio, per system
+
+No decision status changes, and item 20's original text stays as written. This section summarises what the phase 2 code (S6 to S9, the amendments of 2026-11-01 and the A2 note of 2026-11-02) does, and what is not yet verified on a real machine (task S13).
+
+- **Sources, all systems.** Only the pages open in Verso (child web views opened as a page). Never other programs, the whole system, or Verso's own sounds (dice, chimes, alerts, the table's synced music, audio embeds). During a share the window's own sounds play from the host process, a few hundredths of a second later on macOS and Linux; they are not in the listeners' stream.
+- **Listeners.** Browser and phone listen only; the button is not drawn there. Measured on the 1-core test server on 2026-11-02: about 129 kbit/s per listener on the wire, about 0.6 CPU point per listener (20 listeners: 14%), no frame lost; end-to-end latency about 400 to 600 ms.
+- **macOS 14.4 or later.** A Core Audio process tap on the audio objects of the WebKit GPU process that Verso is responsible for, and only that. The first share asks macOS for System Audio Recording (the name macOS gives it). Video and iframes shown inside notes ARE shared: a known leak, which the first-share notice says. Below 14.4 the picker says it needs a newer macOS.
+- **Windows 11 only.** Process loopback (`wasapi`) of the browser process tree of the pages' own WebView2 environment (`ICoreWebView2::BrowserProcessId`). The list names the sites playing now (`IsDocumentPlayingAudio`). Windows 10 has no process loopback: the picker says it needs Windows 11, and no share starts. Pages keep their logins in a profile of their own, so users sign in once more after the update.
+- **Linux.** PipeWire or PulseAudio through `pactl`, `parec` and `pacat` (`pulseaudio-utils`; recommended by the .deb and .rpm, installed by hand for the AppImage). A playback stream is taken only from a `WebKitWebProcess` descendant of Verso that holds a `pages-profile` path; each stream is recorded alone, never a whole-sink monitor, and anything not proven is left out (fail closed). Video and iframes inside notes are NOT shared. Without the tools the picker says so.
+- **Not built yet (both Mac and Linux).** The source list does not name the pages that are playing: only Windows does. On those two systems it shows the source name alone until the naming is built (manual-checks, S10).
+- **Not verified on a real machine (S13).** The macOS permission prompt and the tap on a real desktop; that the Windows pages environment's tree carries only the pages' sound, on Windows 11; that the Linux pages' process holds the `pages-profile` marker on a real session; and the listener's real count and rate on a table. The manual checks per system list each item.

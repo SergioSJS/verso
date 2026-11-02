@@ -1842,18 +1842,35 @@ As the game master in the installed desktop app on Windows 11 at a UniVerso tabl
 2. Share it: the listener hears the video; roll dice in the sharer's window: they do not hear the dice. Level: A.
 3. With no page open the picker says *Abra uma página no Verso…*; on Windows 10 it says *Compartilhar áudio no Windows precisa do Windows 11…*, Start off. Level: A (words: unit test).
 4. **Parar de compartilhar**, closing the window and quitting each end the share. Level: A.
+5. **Two pages** (S10): with two pages open and one playing, the list names only that one; both playing, both are named. Level: A.
 
-## Share audio on the Mac (ADR 0116 item 17, task S7, note 36)
+## Share audio on the Mac (ADR 0116 section B, tasks S7, S7b, note 36)
 
 As the game master in the installed desktop app on a Mac (macOS 14.4 or later) at a UniVerso table, with a browser as the listener:
 
-1. Play something in Spotify or Música. **Compartilhar áudio…** lists **Tudo o que este computador toca** first, then the apps that have made sound, by name (never a window title; Verso itself is not listed). Level: A (the real Mac); the listing shape is `apps.rs` unit tests.
-2. The first share: macOS asks for **Gravação de Áudio do Sistema** naming Verso. Allow, and the listener hears the app; the tab shows *Som chegando*. Level: A.
-3. Refuse (or reset with `tccutil reset AudioCapture com.versomd.app`): the status bar says *O macOS não deixou o Verso gravar o som do sistema…* with the System Settings path, and the table keeps no share. Level: A; the words are `shareHost.test.mjs`.
-4. On a macOS below 14.4 the picker says *Compartilhar áudio no Mac precisa do macOS 14.4 ou mais novo…* and Start is off. Level: A.
-5. **Parar de compartilhar**, closing the window and quitting the app each end the share and leave no capture running. Level: A; the lifecycle is `macos_source` tests.
+1. Open a page as a page (YouTube, say) and play it. **Compartilhar áudio…** lists **Páginas abertas no Verso** as the only source; no application is listed. Level: A (the real Mac).
+2. Share it: the listener hears the page within a second or two, and the tab shows *Som chegando*. Spotify or another app playing at the same time does not reach the listener. Level: A.
+3. The list names only the page that plays, with two pages open (S10). On the Mac this naming is not built yet: the list shows the source name alone, and that is the expected result until it is. Level: A.
+4. The first share shows macOS's *Gravação de Áudio do Sistema* prompt naming Verso. Refuse (or reset with `tccutil reset AudioCapture com.versomd.app`): the status bar says *O macOS não deixou o Verso gravar o som do sistema…* with the System Settings path, and the table keeps no share. Level: A; the words are `shareHost.test.mjs`.
+5. Verso's own sounds (dice, chimes, the table's music, an audio player in a note) are not in the listener's share, and they play in the sharer's window a few hundredths of a second late. Level: A.
+6. A video or a page shown inside a note is shared, and the first-share notice says so. Level: A.
+7. On a macOS below 14.4 the picker says *Compartilhar áudio no Mac precisa do macOS 14.4 ou mais novo…* and Start is off. Level: A.
+8. **Parar de compartilhar**, closing the window and quitting the app each end the share and leave no capture running. Level: A; the lifecycle is `macos_source` tests.
 
-## Music at the table (ADR 0116 phase 1, note 36, 2026-10-31)
+## Share audio on Linux (ADR 0116 section B, task S9, note 36)
+
+On the installed app (.deb or .rpm, or the AppImage with `pulseaudio-utils` installed by hand), in a desktop session with PipeWire or PulseAudio, as the game master at a UniVerso table, with a browser as the listener. The harness cannot reach the real capture:
+
+1. **The pages' process, first** (A): open a page as a page and play it. `pactl list sink-inputs` shows a stream whose `application.process.id` is a `WebKitWebProcess`, and `ls -l /proc/<that pid>/fd | grep pages-profile` (or its `maps`) shows a path under the pages' profile folder. If not, the share refuses with the no-pages message and `verso.log` says so; report it, the marker needs another proof. Level: A.
+2. **Pages** (A): **Compartilhar áudio…** lists **Páginas abertas no Verso**; share it; the listener hears the page within a second or two and the tab shows *Som chegando*. Pause the page: *Silêncio*. Stop ends it for the listener. Level: A.
+3. The list names only the page that plays, with two pages open (S10). On Linux this naming is not built yet: the list shows the source name alone, and that is the expected result until it is. Level: A.
+4. **Nothing outside Verso** (A): play something in a browser or a music player at the same time: the listener never hears it.
+5. **Verso's own sounds** (A): dice, a chime, the table's music and an audio player in a note are not in the share; they play in the sharer's speakers a few hundredths of a second late, from a stream named *Verso (own sounds while sharing)*, and come back as before after Stop.
+6. **A page or video inside a note** (A): it is NOT shared on Linux; the hint says to open it as a page. Level: A.
+7. **No page, no tools** (A): with no page open the picker says *Abra uma página no Verso…*; without `pactl` and `parec` it says to install `pulseaudio-utils`. Level: A.
+8. **Stop, window close, quit** (A): each ends the share; `pgrep -a 'parec|pacat'` finds nothing left. Level: A.
+
+## Music at the table (ADR 0116 phase 1, note 36## Music at the table (ADR 0116 phase 1, note 36, 2026-10-31)
 
 On a UniVerso folder made a table, with the game master's window (the desktop app or a browser) and a player's (a second browser, or a phone), as in note 36. Copy `assets/sons/taverna.mp3` and `assets/sons/estrada.mp3` into a folder `Música` of the table, or play them from note 36:
 
