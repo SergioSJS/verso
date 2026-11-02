@@ -16,7 +16,7 @@ import { icon } from "../../icons";
 import { said } from "./controls";
 import { liveShare } from "./share";
 import { mine, sources, startOwn } from "./mine";
-import { ss } from "./shareWords";
+import { PAGES_ID, ss } from "./shareWords";
 import { st } from "./strings";
 
 const BITRATES = [64, 96, 128] as const;
@@ -122,6 +122,12 @@ export async function chooseSource(): Promise<{ source: AudioSource; kbps: numbe
         radio.addEventListener("change", () => (chosen = src));
         row.append(radio, icon(KIND_ICON[src.kind], ""), h("span", "share-pick-name", src.name), h("span", "share-pick-kind", ss.kind[src.kind]));
         set.append(row);
+        if (src.id === PAGES_ID) {
+          const hint = h("p", "share-pick-hint share-pick-pages", ss.pagesHint);
+          hint.id = "share-pick-pages-hint";
+          radio.setAttribute("aria-describedby", hint.id);
+          set.append(hint);
+        }
         if (i === 0) focus = radio;
       }
       box.append(set);

@@ -1834,6 +1834,15 @@ As the game master in the desktop app of a table (a debug build lists a test ton
 4. A source that is silent (a muted app): within 3 seconds the card says *Silêncio: nada está sendo captado…*. A capture that cannot start leaves no share at the table and says why in the status bar. Level: A; E: `share-audio.spec.mjs`.
 5. On a phone (390 × 844) every control above is 44 px and the picker fits; the keyboard moves through the picker with the arrows and Tab stays inside it. Level: A; E: `share-audio.spec.mjs` (`@layout`).
 
+## Share audio on Windows (ADR 0116 item 17 as narrowed on 2026-11-01, task S8, note 36)
+
+As the game master in the installed desktop app on Windows 11 at a UniVerso table, with a browser as the listener:
+
+1. Open a page as a page (YouTube, say) and play it. **Compartilhar áudio…** lists **Páginas abertas no Verso: youtube.com** and says that only the pages' sound goes, never Verso's own sounds or other programs'. Level: A (the real Windows); the words are `shareHost.test.mjs`, the name rule `winpages.rs`.
+2. Share it: the listener hears the video; roll dice in the sharer's window: they do not hear the dice. Level: A.
+3. With no page open the picker says *Abra uma página no Verso…*; on Windows 10 it says *Compartilhar áudio no Windows precisa do Windows 11…*, Start off. Level: A (words: unit test).
+4. **Parar de compartilhar**, closing the window and quitting each end the share. Level: A.
+
 ## Share audio on the Mac (ADR 0116 item 17, task S7, note 36)
 
 As the game master in the installed desktop app on a Mac (macOS 14.4 or later) at a UniVerso table, with a browser as the listener:

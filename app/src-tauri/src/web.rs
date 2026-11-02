@@ -304,10 +304,13 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
     let chrome = chrome_offset(&window);
     let wv = window
         .add_child(
-            tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
-                .user_agent(WEB_USER_AGENT)
-                .on_navigation(web_only)
-                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
+            pages_profile(
+                tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url)),
+                &window,
+            )
+            .user_agent(WEB_USER_AGENT)
+            .on_navigation(web_only)
+            .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
             tauri::LogicalPosition::new(visible.x, visible.y + chrome),
             tauri::LogicalSize::new(visible.w.max(1.0), visible.h.max(1.0)),
         )
@@ -323,6 +326,38 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
     .map_err(failed)?;
     Ok(label)
 }
+
+/// The pages' profile: every embedded page runs in a web engine
+/// environment of its own, apart from the window's (ADR 0056 amendment of
+/// 2026-11-01; ADR 0116). The window's own sounds (the dice, the chimes, the
+/// table's music) then play in a process the pages do not share, so sharing
+/// the sound of the pages (Share audio) can never carry them. All pages
+/// share the one profile, so a login made in one page holds in the others.
+/// - Windows and Linux: a data directory of its own under the app's local
+///   data (WebView2 starts a second environment, with its own browser and
+///   audio processes; WebKitGTK a second web context).
+/// - macOS 14 and later: a named `WKWebsiteDataStore`; before 14 the system
+///   has none to give and the pages keep the window's store.
+fn pages_profile<R: tauri::Runtime>(
+    builder: tauri::webview::WebviewBuilder<R>,
+    window: &tauri::Window<R>,
+) -> tauri::webview::WebviewBuilder<R> {
+    use tauri::Manager;
+    let builder = builder.data_store_identifier(PAGES_STORE);
+    match window.path().app_local_data_dir() {
+        Ok(dir) => builder.data_directory(dir.join(PAGES_PROFILE)),
+        Err(_) => builder,
+    }
+}
+
+/// The folder of the pages' profile, under the app's local data directory.
+const PAGES_PROFILE: &str = "pages-profile";
+
+/// The pages' website data store on macOS (a fixed identifier, the UUID
+/// `7c4b7d2e-3f9a-4e0b-9a51-5a2d6f0c8e11`).
+const PAGES_STORE: [u8; 16] = [
+    0x7c, 0x4b, 0x7d, 0x2e, 0x3f, 0x9a, 0x4e, 0x0b, 0x9a, 0x51, 0x5a, 0x2d, 0x6f, 0x0c, 0x8e, 0x11,
+];
 
 /// Move a web page's view to follow its box: the page at `slot`, drawn
 /// only inside `visible` (`WebPlace`). The page's own scroll is never

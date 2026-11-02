@@ -6392,7 +6392,6 @@ dependencies = [
  "webview2-com",
  "win32job",
  "windows 0.61.3",
- "windows 0.62.2",
  "xattr",
  "yrs",
  "zip",

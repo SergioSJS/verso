@@ -2,20 +2,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Windows: the sources of Share audio (ADR 0116 item 17), safe code over the
+//! Windows: the source of Share audio (ADR 0116 item 17, as narrowed on
+//! 2026-11-01: only what plays inside Verso's pages), safe code over the
 //! `wasapi` crate and the few calls of `windows.rs`.
 //!
-//! - **Windows 11 (build 20348 and later)**: *Everything this PC plays* is
-//!   process loopback that **leaves out Verso's own process tree** (the web
-//!   view's processes are in it), so the dice and chimes are not sent back
-//!   to the table; each running application that holds an audio session is
-//!   one more source, captured as its process tree (a browser's sound comes
-//!   from helper processes), by the name its program's file description
-//!   gives, never a window title. No prompt: Windows asks nothing.
-//! - **Windows 10**: process loopback does not exist. The one source is the
-//!   default output's device loopback, *everything*, Verso's sounds
-//!   included; its id is [`winapps::SYSTEM_ALL_ID`] so the window says so and
-//!   mutes Verso's own sounds (dice, chimes) while the share runs.
+//! The one source is *Pages open in Verso*: the child web views (ADR 0056)
+//! live in a WebView2 environment of their own (`web.rs`), so they have a
+//! browser process and an audio service apart from the window's, whose
+//! dice, chimes and table music stay out. The capture is **process
+//! loopback of that browser process's tree** (Windows 11, build 20348 and
+//! later); Windows asks no permission. On Windows 10 there is no process
+//! loopback, and device loopback would carry every application and the dice,
+//! so the share is not available there and the picker says so.
+//!
+//! The pages' audio is one stream: the audio service mixes every page of the
+//! environment, so a share carries all open pages' sound together; the
+//! picker names the sites that play now (`IsDocumentPlayingAudio`).
 //!
 //! A capture is event driven on a thread of its own, which owns every COM
 //! object it makes and releases them before it ends. It asks Windows for
@@ -29,220 +31,143 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
+use tauri::Manager;
 use verso_contract::{AudioSource, AudioSourceKind, CHANNELS, SAMPLE_RATE};
 use wasapi::{
-    AudioClient, Direction, SampleType, SessionState, StreamMode, WaveFormat, deinitialize,
-    initialize_mta,
+    AudioClient, Direction, SampleType, StreamMode, WaveFormat, deinitialize, initialize_mta,
 };
 
 use super::convert::Converter;
 use super::source::{PcmSink, Running, Source};
-use super::winapps::{self, App, Proc};
 use super::windows;
+use super::winpages::{self, NEEDS_WINDOWS_11, NO_PAGES, PAGES_ID, Page};
 
-/// How long the capture waits for a packet before it sends silence and looks
-/// at its stop flag again.
-const QUIET: Duration = Duration::from_millis(100);
-
-/// The name of "everything", in the host's own words (the window shows its
-/// own in the person's language).
-const EVERYTHING: &str = "Everything this PC plays";
-
-/// Runs `work` on a thread with COM initialised (multithreaded) and
-/// released after, and answers what it answered. COM is per thread, and the
-/// threads that run commands have not initialised it.
-fn with_com<T: Send + 'static>(work: impl FnOnce() -> T + Send + 'static) -> Option<T> {
-    std::thread::Builder::new()
-        .name("audio-share-com".to_owned())
-        .spawn(move || {
-            let ok = initialize_mta().is_ok();
-            let out = work();
-            if ok {
-                deinitialize();
-            }
-            out
-        })
-        .ok()?
-        .join()
-        .ok()
-}
-
-/// The processes that hold an audio session on the default output now
-/// (playing or paused; not expired ones).
-fn session_pids() -> Vec<u32> {
-    with_com(|| {
-        let sessions = wasapi::DeviceEnumerator::new()
-            .and_then(|e| e.get_default_device(&Direction::Render))
-            .and_then(|d| d.get_iaudiosessionmanager())
-            .and_then(|m| m.get_audiosessionenumerator())
-            .ok()?;
-        let count = sessions.get_count().ok()?;
-        let mut out = Vec::new();
-        for i in 0..count {
-            let Ok(session) = sessions.get_session(i) else {
-                continue;
-            };
-            if matches!(session.get_state(), Ok(SessionState::Expired)) {
-                continue;
-            }
-            if let Ok(pid) = session.get_process_id() {
-                out.push(pid);
-            }
-        }
-        Some(out)
-    })
-    .flatten()
-    .unwrap_or_default()
-}
-
-/// The applications with sound now, and the process table they were found
-/// in.
-fn running() -> (Vec<App>, Vec<Proc>) {
-    let procs = windows::processes();
-    let apps = winapps::apps(&session_pids(), &procs, std::process::id());
-    (apps, procs)
-}
-
-/// The name a person knows `app` by: its program's file description.
-fn name_of(app: &App) -> String {
-    let said = windows::description_of(app.root).unwrap_or_default();
-    winapps::clean(&said, &app.exe)
-}
-
-/// Why nothing can be listed that the person could fix: nothing here (every
-/// supported Windows lists at least *everything*).
-#[must_use]
-pub fn unavailable() -> Option<&'static str> {
-    None
-}
-
-/// *Everything* first, then (Windows 11) each application that has an audio
-/// session.
-#[must_use]
-pub fn list() -> Vec<AudioSource> {
-    let build = windows::os_build();
-    if !winapps::per_app(build) {
-        return vec![everything(winapps::SYSTEM_ALL_ID)];
-    }
-    let mut out = vec![everything(winapps::SYSTEM_ID)];
-    let (apps, _) = running();
-    let mut named: Vec<AudioSource> = apps
+/// The pages open in `label`'s window, asked of WebView2 on the main thread.
+/// Blocks for the answers, so it must not run on the main thread: the audio
+/// commands are async for this.
+fn pages_blocking<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -> Vec<Page> {
+    let labels: Vec<String> = crate::lock(&app.state::<crate::App>().web_views)
         .iter()
-        .map(|a| AudioSource {
-            id: winapps::id_of(a),
-            name: name_of(a),
-            kind: AudioSourceKind::App,
-        })
+        .filter(|(_, owner)| owner.as_str() == label)
+        .map(|(view, _)| view.clone())
         .collect();
-    named.sort_by_key(|s| s.name.to_lowercase());
-    out.extend(named);
+    let mut out = Vec::new();
+    for view in labels {
+        let Some(wv) = app.get_webview(&view) else {
+            continue;
+        };
+        let host = wv
+            .url()
+            .map(|u| winpages::host_of(u.as_str()))
+            .unwrap_or_default();
+        let (tx, rx) = channel();
+        if wv
+            .with_webview(move |pw| {
+                let _ = tx.send(windows::page_facts(&pw));
+            })
+            .is_err()
+        {
+            continue;
+        }
+        if let Ok(Ok((pid, playing))) = rx.recv_timeout(Duration::from_secs(2)) {
+            out.push(Page { pid, playing, host });
+        }
+    }
     out
 }
 
-fn everything(id: &str) -> AudioSource {
-    AudioSource {
-        id: id.to_owned(),
-        name: EVERYTHING.to_owned(),
-        kind: AudioSourceKind::System,
+async fn pages<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) -> Vec<Page> {
+    let (app, label) = (app.clone(), label.to_owned());
+    tauri::async_runtime::spawn_blocking(move || pages_blocking(&app, &label))
+        .await
+        .unwrap_or_default()
+}
+
+/// The sources of this window now, or why there are none that the person
+/// can fix: a Windows older than 11, or no page open.
+pub async fn list<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> Result<Vec<AudioSource>, &'static str> {
+    if !winpages::per_app(windows::os_build()) {
+        return Err(NEEDS_WINDOWS_11);
     }
-}
-
-/// The source `id` names on this Windows, or `None`.
-#[must_use]
-pub fn open(id: &str) -> Option<Box<dyn Source>> {
-    let per_app = winapps::per_app(windows::os_build());
-    if id == winapps::SYSTEM_ID && per_app {
-        return Some(Box::new(WinSource::EverythingButVerso));
+    let pages = pages(app, label).await;
+    if pages.is_empty() {
+        return Err(NO_PAGES);
     }
-    if id == winapps::SYSTEM_ALL_ID && !per_app {
-        return Some(Box::new(WinSource::Device));
+    Ok(vec![AudioSource {
+        id: PAGES_ID.to_owned(),
+        name: winpages::source_name(&pages),
+        kind: AudioSourceKind::Page,
+    }])
+}
+
+/// The source `id` names for this window, or `None`.
+pub async fn open<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+    id: &str,
+) -> Option<Box<dyn Source>> {
+    if id != PAGES_ID {
+        return None;
     }
-    let key = winapps::exe_of(id).filter(|_| per_app)?;
-    Some(Box::new(WinSource::App {
-        key: key.to_owned(),
-    }))
-}
-
-/// What a capture listens to.
-enum Target {
-    /// Everything but the process tree of this pid.
-    ButTree(u32),
-    /// Only the process tree of this pid.
-    OnlyTree(u32),
-    /// The default output as it is.
-    Device,
-}
-
-enum WinSource {
-    EverythingButVerso,
-    Device,
-    App { key: String },
-}
-
-impl WinSource {
-    /// Whom to capture, resolved when the share starts (an application's
-    /// processes come and go).
-    fn target(&self) -> Result<Target, String> {
-        match self {
-            Self::EverythingButVerso => Ok(Target::ButTree(std::process::id())),
-            Self::Device => Ok(Target::Device),
-            Self::App { key } => {
-                let (apps, _) = running();
-                match apps.into_iter().find(|a| &a.key == key) {
-                    Some(app) => Ok(Target::OnlyTree(app.root)),
-                    None => Err(format!(
-                        "{key} is not making sound right now: start playing in it, then choose it again"
-                    )),
-                }
-            }
-        }
+    if !winpages::per_app(windows::os_build()) {
+        return Some(Box::new(Pages(Err(NEEDS_WINDOWS_11))));
     }
+    let pid = pages(app, label).await.first().map(|p| p.pid);
+    Some(Box::new(Pages(pid.ok_or(NO_PAGES))))
 }
 
-impl Source for WinSource {
+/// The pages source, resolved when the share starts: the pages
+/// environment's browser process, or why there is none.
+struct Pages(Result<u32, &'static str>);
+
+impl Source for Pages {
     fn describe(&self) -> AudioSource {
-        match self {
-            Self::EverythingButVerso => everything(winapps::SYSTEM_ID),
-            Self::Device => everything(winapps::SYSTEM_ALL_ID),
-            Self::App { key } => AudioSource {
-                id: format!("{}{key}", winapps::APP_PREFIX),
-                name: winapps::pretty(key),
-                kind: AudioSourceKind::App,
-            },
+        AudioSource {
+            id: PAGES_ID.to_owned(),
+            name: winpages::source_name(&[]),
+            kind: AudioSourceKind::Page,
         }
     }
 
     fn start(self: Box<Self>, sink: PcmSink) -> Result<Running, String> {
-        let target = self.target()?;
-        let stop = Arc::new(AtomicBool::new(false));
-        let (ready_tx, ready_rx) = channel::<Result<(), String>>();
-        let flag = Arc::clone(&stop);
-        let thread = std::thread::Builder::new()
-            .name("audio-share-win".to_owned())
-            .spawn(move || capture(&target, &flag, sink, &ready_tx))
-            .map_err(|e| e.to_string())?;
-        match ready_rx.recv() {
-            Ok(Ok(())) => {}
-            Ok(Err(why)) => {
-                let _ = thread.join();
-                return Err(why);
-            }
-            Err(_) => {
-                let _ = thread.join();
-                return Err("the capture thread ended before it began".to_owned());
-            }
-        }
-        Ok(Running::new(move || {
-            stop.store(true, Ordering::SeqCst);
-            let _ = thread.join();
-        }))
+        let pid = self.0.map_err(str::to_owned)?;
+        start_tree(pid, sink)
     }
+}
+
+/// Capture the process tree of `pid` on a thread of its own.
+fn start_tree(pid: u32, sink: PcmSink) -> Result<Running, String> {
+    let stop = Arc::new(AtomicBool::new(false));
+    let (ready_tx, ready_rx) = channel::<Result<(), String>>();
+    let flag = Arc::clone(&stop);
+    let thread = std::thread::Builder::new()
+        .name("audio-share-win".to_owned())
+        .spawn(move || capture(pid, &flag, sink, &ready_tx))
+        .map_err(|e| e.to_string())?;
+    match ready_rx.recv() {
+        Ok(Ok(())) => {}
+        Ok(Err(why)) => {
+            let _ = thread.join();
+            return Err(why);
+        }
+        Err(_) => {
+            let _ = thread.join();
+            return Err("the capture thread ended before it began".to_owned());
+        }
+    }
+    Ok(Running::new(move || {
+        stop.store(true, Ordering::SeqCst);
+        let _ = thread.join();
+    }))
 }
 
 /// The capture thread: COM in, the stream, the loop, everything out in the
 /// reverse order. `ready` hears once whether the stream began.
 fn capture(
-    target: &Target,
+    pid: u32,
     stop: &AtomicBool,
     mut sink: PcmSink,
     ready: &std::sync::mpsc::Sender<Result<(), String>>,
@@ -252,7 +177,7 @@ fn capture(
         let _ = ready.send(Err(format!("COM could not start: {com:?}")));
         return;
     }
-    if let Err(why) = run(target, stop, &mut sink, ready) {
+    if let Err(why) = run(pid, stop, &mut sink, ready) {
         // `ready` may have been told already; a second answer is ignored.
         let _ = ready.send(Err(why));
     }
@@ -260,7 +185,7 @@ fn capture(
 }
 
 fn run(
-    target: &Target,
+    pid: u32,
     stop: &AtomicBool,
     sink: &mut PcmSink,
     ready: &std::sync::mpsc::Sender<Result<(), String>>,
@@ -269,14 +194,10 @@ fn run(
         let what = what.to_owned();
         move |err: wasapi::WasapiError| format!("{what}: {err}")
     };
-    let mut client = match target {
-        Target::ButTree(pid) => AudioClient::new_application_loopback_client(*pid, false),
-        Target::OnlyTree(pid) => AudioClient::new_application_loopback_client(*pid, true),
-        Target::Device => wasapi::DeviceEnumerator::new()
-            .and_then(|en| en.get_default_device(&Direction::Render))
-            .and_then(|d| d.get_iaudioclient()),
-    }
-    .map_err(e("no audio client"))?;
+    // The pages environment's browser process and everything under it: its
+    // audio service is in the tree.
+    let mut client =
+        AudioClient::new_application_loopback_client(pid, true).map_err(e("no audio client"))?;
     let format = WaveFormat::new(
         32,
         32,
@@ -299,7 +220,9 @@ fn run(
         .get_audiocaptureclient()
         .map_err(e("no capture client"))?;
     let mut converter = Converter::new(SAMPLE_RATE, usize::from(CHANNELS))?;
-    client.start_stream().map_err(e("the stream did not start"))?;
+    client
+        .start_stream()
+        .map_err(e("the stream did not start"))?;
     let _ = ready.send(Ok(()));
 
     let frame_bytes = format.get_blockalign() as usize;
@@ -352,65 +275,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_list_has_everything_first_and_only_apps_after_it() {
-        let list = list();
-        assert!(!list.is_empty());
-        assert_eq!(list[0].kind, AudioSourceKind::System);
-        let per_app = winapps::per_app(windows::os_build());
-        assert_eq!(
-            list[0].id,
-            if per_app {
-                winapps::SYSTEM_ID
-            } else {
-                winapps::SYSTEM_ALL_ID
-            }
-        );
-        if !per_app {
-            assert_eq!(list.len(), 1, "Windows 10 lists only everything");
-        }
-        assert!(
-            list[1..]
-                .iter()
-                .all(|s| s.kind == AudioSourceKind::App && s.id.starts_with("app:"))
-        );
-        // Verso is never offered to itself.
-        assert!(list.iter().all(|s| !s.id.contains("verso")));
-    }
-
-    #[test]
-    fn ids_open_only_where_the_system_can_capture_them() {
-        let per_app = winapps::per_app(windows::os_build());
-        assert_eq!(open("system").is_some(), per_app);
-        assert_eq!(open("system-all").is_some(), !per_app);
-        assert_eq!(open("app:spotify.exe").is_some(), per_app);
-        assert!(open("app:").is_none());
-        assert!(open("test-tone").is_none());
-        assert!(open("nothing").is_none());
-    }
-
-    #[test]
     fn the_build_is_read() {
         // Windows 10 1809 (17763) is the oldest this app runs on.
         assert!(windows::os_build() >= 17_763, "{}", windows::os_build());
-        assert!(!windows::processes().is_empty());
-        let own = std::process::id();
-        assert!(windows::processes().iter().any(|p| p.pid == own));
     }
 
     #[test]
-    fn an_application_that_makes_no_sound_is_told_so_not_started() {
-        if !winapps::per_app(windows::os_build()) {
-            return;
-        }
-        let src = Box::new(WinSource::App {
-            key: "verso-nobody-runs-this.exe".into(),
-        });
-        let err = src.start(Box::new(|_| {})).err().unwrap_or_default();
-        assert!(err.contains("not making sound"), "{err}");
+    fn a_share_with_no_page_or_an_old_windows_is_refused_not_started() {
+        let err = Box::new(Pages(Err(NO_PAGES)))
+            .start(Box::new(|_| {}))
+            .err()
+            .unwrap_or_default();
+        assert_eq!(err, NO_PAGES);
+        let err = Box::new(Pages(Err(NEEDS_WINDOWS_11)))
+            .start(Box::new(|_| {}))
+            .err()
+            .unwrap_or_default();
+        assert_eq!(err, NEEDS_WINDOWS_11);
     }
 
     /// Plays a 440 Hz tone on the default output until `stop` is set, from a
-    /// thread with COM of its own. Answers false if there is no output.
+    /// thread with COM of its own. `None` if there is no output.
     fn play_tone(stop: Arc<AtomicBool>) -> Option<std::thread::JoinHandle<()>> {
         let (ok_tx, ok_rx) = channel::<bool>();
         let handle = std::thread::spawn(move || {
@@ -455,85 +340,52 @@ mod tests {
         }
     }
 
-    /// Captures `source` for 3 s while the tone plays; the frames and peak.
-    fn capture_while_tone(source: Box<dyn Source>) -> Option<(usize, f32)> {
+    /// The real thing, for a Windows 11 machine with an audio output: `cargo
+    /// test -p verso-app --lib win_real_capture -- --ignored --nocapture`.
+    /// The test plays a tone through the default output from its own
+    /// process, and captures that process's tree by process loopback, as a
+    /// share captures the pages' browser process. It must deliver about 3 s
+    /// of 48 kHz stereo with the tone's level, and stopping must return.
+    /// (Which process the pages' audio comes from is the manual check.)
+    #[test]
+    #[ignore = "needs Windows 11 with an audio output device"]
+    fn win_real_capture_of_a_tone_delivers_audio_and_stops() {
         use std::sync::Mutex;
+        if !winpages::per_app(windows::os_build()) {
+            println!(
+                "WINDOWS {}: no process loopback, nothing to test",
+                windows::os_build()
+            );
+            return;
+        }
         let stop = Arc::new(AtomicBool::new(false));
-        let player = play_tone(Arc::clone(&stop))?;
+        let Some(player) = play_tone(Arc::clone(&stop)) else {
+            println!("NO AUDIO OUTPUT DEVICE: the real capture could not be tested here");
+            return;
+        };
         std::thread::sleep(Duration::from_millis(500));
         let got = Arc::new(Mutex::new((0_usize, 0.0_f32)));
         let seen = Arc::clone(&got);
-        let running = source
-            .start(Box::new(move |pcm| {
+        let running = start_tree(
+            std::process::id(),
+            Box::new(move |pcm| {
                 if let Ok(mut g) = seen.lock() {
                     g.0 += pcm.len() / 2;
                     g.1 = pcm.iter().fold(g.1, |m, x| m.max(x.abs()));
                 }
-            }))
-            .expect("capture starts");
+            }),
+        )
+        .expect("capture starts");
         std::thread::sleep(Duration::from_secs(3));
         drop(running);
         stop.store(true, Ordering::SeqCst);
         let _ = player.join();
-        let out = *got.lock().expect("lock");
-        Some(out)
-    }
-
-    /// The real thing, for a Windows machine with an audio output: `cargo
-    /// test -p verso-app --lib win_real_capture -- --ignored --nocapture`.
-    /// The test plays a tone through the default output, and captures it by
-    /// the default output's device loopback (every Windows) and, on Windows
-    /// 11, by process loopback of its own process tree. Each must deliver
-    /// about 3 s of 48 kHz stereo with the tone's level, and stopping must
-    /// return.
-    #[test]
-    #[ignore = "needs a Windows machine with an audio output device"]
-    fn win_real_capture_of_a_tone_delivers_audio_and_stops() {
-        let Some((frames, peak)) = capture_while_tone(Box::new(WinSource::Device)) else {
-            println!("NO AUDIO OUTPUT DEVICE: the real capture could not be tested here");
-            return;
-        };
-        println!("device loopback: frames {frames}, peak {peak}");
+        let (frames, peak) = *got.lock().expect("lock");
+        println!("process loopback (own tree): frames {frames}, peak {peak}");
         assert!(
             (100_000..=190_000).contains(&frames),
             "about 3 s of 48 kHz: {frames}"
         );
         assert!(peak > 0.05, "the tone did not arrive: peak {peak}");
-        if winapps::per_app(windows::os_build()) {
-            let own = std::process::id();
-            let source = Box::new(WinTree(own));
-            let (frames, peak) = capture_while_tone(source).expect("an output, as before");
-            println!("process loopback (own tree): frames {frames}, peak {peak}");
-            assert!((100_000..=190_000).contains(&frames), "{frames}");
-            assert!(peak > 0.05, "the tone did not arrive: peak {peak}");
-        }
-    }
-
-    /// A source of one process tree by pid, for the test above.
-    struct WinTree(u32);
-
-    impl Source for WinTree {
-        fn describe(&self) -> AudioSource {
-            everything("test")
-        }
-
-        fn start(self: Box<Self>, sink: PcmSink) -> Result<Running, String> {
-            let stop = Arc::new(AtomicBool::new(false));
-            let (ready_tx, ready_rx) = channel::<Result<(), String>>();
-            let flag = Arc::clone(&stop);
-            let target = Target::OnlyTree(self.0);
-            let thread = std::thread::spawn(move || capture(&target, &flag, sink, &ready_tx));
-            match ready_rx.recv() {
-                Ok(Ok(())) => Ok(Running::new(move || {
-                    stop.store(true, Ordering::SeqCst);
-                    let _ = thread.join();
-                })),
-                Ok(Err(why)) => {
-                    let _ = thread.join();
-                    Err(why)
-                }
-                Err(_) => Err("ended".to_owned()),
-            }
-        }
     }
 }

@@ -45,12 +45,12 @@ mod macos_source;
 mod session;
 mod source;
 mod tone;
-#[cfg(any(windows, test))]
-mod winapps;
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
 mod windows_source;
+#[cfg(any(windows, test))]
+mod winpages;
 
 pub(crate) use session::Shares;
 
@@ -76,6 +76,54 @@ fn link<R: tauri::Runtime>(
         .or_else(|| sync_commands::synced_of(app, label).and_then(|s| s.live.remote()))
 }
 
+/// What this system can capture for this window, and why there is none
+/// when the person can fix it. Windows shares only the pages open in Verso
+/// (ADR 0116 amendment of 2026-11-01), which are the window's own to name.
+#[cfg(windows)]
+async fn platform_sources<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> (Vec<AudioSource>, Option<&'static str>) {
+    let mut list = source::list();
+    match windows_source::list(app, label).await {
+        Ok(pages) => {
+            list.extend(pages);
+            (list, None)
+        }
+        Err(why) => (list, Some(why)),
+    }
+}
+
+#[cfg(not(windows))]
+async fn platform_sources<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    _label: &str,
+) -> (Vec<AudioSource>, Option<&'static str>) {
+    (source::list(), source::unavailable())
+}
+
+/// The source `id` names for this window.
+#[cfg(windows)]
+async fn open_source<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+    id: &str,
+) -> Option<Box<dyn source::Source>> {
+    match source::open(id) {
+        Some(found) => Some(found),
+        None => windows_source::open(app, label, id).await,
+    }
+}
+
+#[cfg(not(windows))]
+async fn open_source<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    _label: &str,
+    id: &str,
+) -> Option<Box<dyn source::Source>> {
+    source::open(id)
+}
+
 /// Listening: the frames the server sends a window, handed to it.
 pub(crate) mod hear;
 #[cfg(test)]
@@ -89,15 +137,15 @@ mod tests_level;
 /// pages open in Verso, the system (never a window title).
 #[tauri::command]
 #[specta::specta]
-pub fn audio_sources_list<R: tauri::Runtime>(
+pub async fn audio_sources_list<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
 ) -> Result<Vec<AudioSource>, ContractError> {
     allowed(&app, window.label())?;
-    let list = source::list();
+    let (list, unavailable) = platform_sources(&app, window.label()).await;
     // Nothing to list for a reason the person can fix: said, not silent.
     if list.is_empty()
-        && let Some(why) = source::unavailable()
+        && let Some(why) = unavailable
     {
         return Err(refused(why));
     }
@@ -110,7 +158,7 @@ pub fn audio_sources_list<R: tauri::Runtime>(
 /// (`table_share_start`'s answer, which the window asks first).
 #[tauri::command]
 #[specta::specta]
-pub fn audio_share_start<R: tauri::Runtime>(
+pub async fn audio_share_start<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
     id: String,
@@ -124,7 +172,7 @@ pub fn audio_share_start<R: tauri::Runtime>(
     if share < SHARE_ID_FIRST || !is_audio_frame(&share.to_be_bytes()) {
         return Err(refused("that is not a share number the server gives"));
     }
-    let Some(chosen) = source::open(&id) else {
+    let Some(chosen) = open_source(&app, window.label(), &id).await else {
         return Err(refused("no such source to share"));
     };
     let Some(connection) = link(&app, window.label()) else {
@@ -150,6 +198,8 @@ pub fn audio_share_start<R: tauri::Runtime>(
         .map_err(|why| match why.as_str() {
             // The person's to fix, not a fault of the app: no ERROR in the log.
             source::PERMISSION_DENIED | source::NEEDS_NEWER_MAC => refused(why),
+            #[cfg(windows)]
+            winpages::NEEDS_WINDOWS_11 | winpages::NO_PAGES => refused(why),
             _ => failed(why),
         })?;
     shares.on_window_gone(window.label(), farewell(connection));
