@@ -66,6 +66,7 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: u8) -> Arc<S
         mail_from: None,
         folder_quota: None,
         trash_days: 30,
+        trash_max: None,
         history_days: 90,
         audit_days: 365,
     };

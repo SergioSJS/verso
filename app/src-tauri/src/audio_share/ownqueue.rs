@@ -193,7 +193,8 @@ impl OwnQueue {
         }
     }
 
-    /// Forget everything waiting.
+    /// Forget everything waiting (the hosts that play the window's sounds).
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     pub fn clear(&mut self) {
         self.frames.clear();
         self.pos = 0.0;

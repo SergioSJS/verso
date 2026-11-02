@@ -413,8 +413,14 @@ pub fn audio_share_own_pcm<R: tauri::Runtime>(
     }
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
-        let _ = (window, block);
-        Ok(())
+        // Here `audio_share_own_begin` answers false: a window never routes
+        // its sounds to this host, so a block is a mistake, said as one.
+        let _ = window;
+        if block.0.is_empty() {
+            Ok(())
+        } else {
+            Err(refused("this system plays the window's own sounds itself"))
+        }
     }
 }
 
