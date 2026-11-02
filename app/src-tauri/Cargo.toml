@@ -195,6 +195,13 @@ gtk = "0.18"
 # binding wry already builds (2.0.2, MIT), at the feature (v2_20) that has
 # the signal. It replaces nothing of ours.
 webkit2gtk = { version = "2", features = ["v2_20"] }
+# Share audio on Linux (src/audio_share/linux*.rs; ADR 0116 item 17,
+# "As built (S9)"). `procfs` 0.17 (MIT OR Apache-2.0) reads /proc safely (a
+# process's name, parent, open files and mappings), to tell the pages'
+# WebKitWebProcess from every other process; it replaces our own /proc
+# reading, which `std::fs` (denied outside the declared files, ADR 0029)
+# could not do. Its default features (chrono, flate2) are off.
+procfs = { version = "0.17", default-features = false }
 
 [dev-dependencies]
 # The tests read back what a command wrote through the one crate that reads

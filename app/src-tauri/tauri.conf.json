@@ -37,8 +37,8 @@
     "category": "Productivity",
     "shortDescription": "Notes in Markdown, in plain files you own",
     "linux": {
-      "deb": { "section": "text", "depends": ["xdg-utils"] },
-      "rpm": { "depends": ["xdg-utils"], "compression": { "type": "zstd", "level": 3 } },
+      "deb": { "section": "text", "depends": ["xdg-utils"], "recommends": ["pulseaudio-utils"] },
+      "rpm": { "depends": ["xdg-utils"], "recommends": ["pulseaudio-utils"], "compression": { "type": "zstd", "level": 3 } },
       "appimage": { "bundleMediaFramework": false }
     },
     "windows": {

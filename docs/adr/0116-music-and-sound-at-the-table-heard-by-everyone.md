@@ -1248,3 +1248,46 @@ chose.
 - **Not verified by a test** (manual-checks, S8): that the pages' sound really
   comes from the pages environment's tree and the window's does not, on a
   Windows 11 with the installed app.
+
+**Note of 2026-11-03 (S9): Linux, as built.** No decision status changes. The
+maintainer's rule (only music or sound playing in pages open inside Verso;
+never dice, chimes, the table's music, audio embeds, nor anything outside
+Verso; fail closed) and A2 apply as on the Mac.
+
+- *Design:* the pages already run in a second WebKitGTK web context
+  (`web.rs`), so in a `WebKitWebProcess` of their own. A playback stream (a
+  PulseAudio sink input; PipeWire serves the protocol) is a page's only if
+  its `application.process.id` is a process named `WebKitWebProcess`, a
+  descendant of Verso's pid, holding a file, mapping or working directory
+  under the `pages-profile` folder, and not Verso's own pid. Each such stream
+  is recorded alone with `parec --monitor-stream=<index>` (48 kHz stereo
+  `f32`), the streams are mixed every 10 ms and fed to the existing encoder
+  path; the set is re-read every second. There is no whole-sink monitor
+  anywhere. A system that cannot prove a stream gets none of it
+  (`NO_PAGES`); without `pactl`/`parec` the picker says so
+  (`NEEDS_PULSE_TOOLS`), the only "not available" answer, which also covers a
+  system with neither PipeWire nor PulseAudio.
+- *A2 on Linux:* `audio_share_own_begin` now answers true on Linux when
+  `pacat` is installed; the window's `ownOutput` routing sends its final
+  output as PCM to the host, which plays it through `pacat`, a child of Verso
+  that is no web process, so it is never taken. The window's own web process
+  is not the pages' one, so even without `pacat` it is never captured.
+- *Per OS, what is not separable:* on Linux a video or iframe shown inside a
+  note plays in the window's web process (same context), so it is NOT shared
+  (the notice and hint say it). On the Mac the same case IS shared.
+- *Alternatives considered:* the `pipewire` crate (MIT; node-level capture,
+  needs libpipewire-dev in CI, the Dockerfile and the packages, and a
+  PipeWire-only system) was not used: the PulseAudio protocol reaches both
+  servers with one code path, per-stream monitoring is exactly the rule, and
+  it adds no build dependency or `unsafe`. `libpulse-binding` (LGPL) is out
+  of the licence allowlist.
+- *Dependencies:* `procfs` 0.17 (MIT OR Apache-2.0, Linux only, default
+  features off) reads `/proc` where `std::fs` is denied in this crate
+  (ADR 0029); the .deb and .rpm recommend `pulseaudio-utils` (`pactl`,
+  `parec`, `pacat`). No `unsafe` of ours, so `audio_share/linux.rs` stays
+  unused.
+- *Not verified by a test (manual-checks, S9):* that the pages' web process
+  really holds a path under `pages-profile` on a real desktop session
+  (WebKitGTK does not name the process of a web view). If it does not, the
+  share fails closed with the no-pages message; the marker would then be
+  replaced by another proof, not loosened.
