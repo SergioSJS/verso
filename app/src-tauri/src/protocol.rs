@@ -27,6 +27,22 @@ fn is_app_origin(origin: &str) -> bool {
     )
 }
 
+/// Let the app's own origin read an answer that carries no CORS header yet
+/// (a server's file served to a desktop window on `verso://`).
+pub(crate) fn allow_app_origin(headers: &mut Vec<(&'static str, String)>, origin: Option<&str>) {
+    let Some(o) = origin.filter(|o| is_app_origin(o)) else {
+        return;
+    };
+    if headers
+        .iter()
+        .any(|(n, _)| n.eq_ignore_ascii_case("Access-Control-Allow-Origin"))
+    {
+        return;
+    }
+    headers.push(("Access-Control-Allow-Origin", o.to_owned()));
+    headers.push(("Vary", "Origin".to_owned()));
+}
+
 /// What `verso://` answers to one request, apart from the transport
 /// (`verso_service::files::serve`): only the app's own views are
 /// answered, and only their origin may read a response from script.
@@ -89,8 +105,12 @@ pub(crate) fn serve_file<R: tauri::Runtime>(
         let state = app.state::<App>();
         // A window on a server's folder reads its files from the server.
         if is_app_view(&label)
-            && let Some(served) = remote::file(&app, &label, &relative)
+            && let Some(mut served) = remote::file(&app, &label, &relative)
         {
+            // The server answers its own origin only; the window's origin may
+            // read the answer too, as for a local folder's file (a sound
+            // taken into Web Audio needs it, ADR 0116).
+            allow_app_origin(&mut served.headers, origin.as_deref());
             let mut response = tauri::http::Response::builder().status(served.status);
             for (name, value) in &served.headers {
                 response = response.header(*name, value);

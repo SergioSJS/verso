@@ -117,6 +117,72 @@ function tryDo(fn: () => void): void {
   }
 }
 
+// A sound file in an <audio> element (the table's music, an audio player in a note) joins the same output, so a
+// Mac's share does not carry it. An element can enter Web Audio only if the page may read its bytes: a file of the
+// page's own origin (the web build and a server's `/f/`), or a `verso://` file of the desktop, which the host
+// answers with the window's origin allowed (`protocol.rs`) when the element asks with `crossorigin`.
+
+const sameOrigin = (u: URL): boolean => u.origin === location.origin;
+const isVerso = (u: URL): boolean => u.protocol === "verso:" || u.hostname === "verso.localhost";
+const parse = (url: string): URL | null => {
+  try {
+    return new URL(url, location.href);
+  } catch {
+    return null;
+  }
+};
+/** Elements that failed to load with `crossorigin` and play plainly from then on. */
+const plain = new WeakSet<HTMLMediaElement>();
+const nodes = new WeakMap<HTMLMediaElement, GainNode>();
+
+/** Call before giving `el` its `src`: a `verso://` file is asked for with `crossorigin`, so Web Audio may take it. */
+export function prepareMedia(el: HTMLMediaElement, url: string): void {
+  const u = parse(url);
+  if (u && !sameOrigin(u) && isVerso(u) && !plain.has(el)) el.crossOrigin = "anonymous";
+  else el.removeAttribute("crossorigin");
+}
+
+/**
+ * The file did not load: if it was asked for with `crossorigin`, ask again without (plain playback, through the
+ * element's own output; a Mac's share carries that sound). True when it did, so the failure is not yet one.
+ */
+export function retryPlain(el: HTMLMediaElement): boolean {
+  if (el.getAttribute("crossorigin") === null) return false;
+  plain.add(el);
+  const src = el.currentSrc || el.src;
+  el.removeAttribute("crossorigin");
+  el.src = src;
+  return true;
+}
+
+/** The gain node `el` was routed through, if it was. */
+export function mediaNode(el: HTMLMediaElement): GainNode | null {
+  return nodes.get(el) ?? null;
+}
+
+/**
+ * Route `el` through a gain node to the window's own output. Permanent for the element (Web Audio allows it once),
+ * so only when the context RUNS (an element joined to a context that never runs would be mute) and the element's
+ * bytes are readable. Null when not routed: the element then plays by its own output.
+ */
+export function routeMedia(el: HTMLMediaElement, ctx: AudioContext): GainNode | null {
+  const had = nodes.get(el);
+  if (had) return had;
+  if (ctx.state !== "running") return null;
+  const u = parse(el.currentSrc || el.src);
+  if (!u) return null;
+  const readable = sameOrigin(u) || (isVerso(u) && el.getAttribute("crossorigin") === "anonymous");
+  if (!readable) return null;
+  try {
+    const gain = ctx.createGain();
+    ctx.createMediaElementSource(el).connect(gain).connect(ownOutput(ctx));
+    nodes.set(el, gain);
+    return gain;
+  } catch {
+    return null;
+  }
+}
+
 /** For tests: forget every output and the route. */
 export function resetOwnOutputForTests(): void {
   outs.clear();

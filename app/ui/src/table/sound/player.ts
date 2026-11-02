@@ -15,7 +15,7 @@
 // track is: a nudge of the rate, or a seek.
 
 import { audioContext, unlockAudio } from "../../dice3d/audio";
-import { ownOutput } from "../../dice3d/ownOutput";
+import { prepareMedia, retryPlain, routeMedia } from "../../dice3d/ownOutput";
 import type { Music } from "./source";
 import { expectedMs, fix } from "./sync";
 
@@ -42,14 +42,6 @@ export type Want = {
 
 const CHECK_MS = 2000;
 
-const sameOrigin = (url: string): boolean => {
-  try {
-    return new URL(url, location.href).origin === location.origin;
-  } catch {
-    return false;
-  }
-};
-
 export class Player {
   readonly el: HTMLAudioElement;
   private node: GainNode | null = null;
@@ -65,6 +57,8 @@ export class Player {
     this.el.className = "table-sound-audio";
     this.el.hidden = true;
     this.el.addEventListener("error", () => {
+      // Asked for with `crossorigin` and refused: once more, plainly.
+      if (this.src && retryPlain(this.el)) return;
       if (this.src) this.ev.failed();
     });
     this.el.addEventListener("loadedmetadata", () => {
@@ -93,6 +87,7 @@ export class Player {
     }
     if (url !== this.src) {
       this.src = url;
+      prepareMedia(this.el, url);
       this.el.src = url;
     }
     this.route();
@@ -110,17 +105,13 @@ export class Player {
   }
 
   private route(): void {
-    if (this.routed || !this.src || !sameOrigin(this.src)) return;
+    if (this.routed || !this.src) return;
     const ctx = audioContext();
     if (!ctx) return;
-    try {
-      const source = ctx.createMediaElementSource(this.el);
-      this.node = ctx.createGain();
-      source.connect(this.node).connect(ownOutput(ctx));
-      this.routed = true;
-    } catch {
-      // The element plays by its own volume.
-    }
+    const node = routeMedia(this.el, ctx);
+    if (!node) return;
+    this.node = node;
+    this.routed = true;
   }
 
   private setGain(g: number): void {

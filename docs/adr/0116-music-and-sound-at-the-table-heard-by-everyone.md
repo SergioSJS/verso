@@ -1201,11 +1201,14 @@ chose.
   while sharing. Outside a share, and on Windows and Linux, nothing changes.
   Video and iframes inside notes cannot be routed and are shared too on the
   Mac; the first-share notice says so. The table's music and the audio
-  embeds play from `verso://` files, another origin, so they cannot enter
-  Web Audio without CORS and are in the same case (said in the notice); the
-  route through `createMediaElementSource` with `crossorigin` was not tried
-  because it could not be tried in the real WebKit here. The sources of S7
-  (*Everything*, applications) are removed on the Mac.
+  embeds play from `verso://` files, another origin: their elements are
+  asked for with `crossorigin="anonymous"` (the host answers the window's
+  origin on every `verso://` file, a server's included, `protocol.rs`) and
+  go through `createMediaElementSource` to the same own output, once the
+  context runs; a file the engine refuses with `crossorigin` is asked for
+  again plainly and is then a known leak. Not tried in the real WebKit
+  here: see `manual-checks.md`. The sources of S7 (*Everything*,
+  applications) are removed on the Mac.
 
 ### As built (S8, 2026-11-01): audio capture on Windows
 

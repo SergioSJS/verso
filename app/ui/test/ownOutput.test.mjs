@@ -132,7 +132,77 @@ describe("no sound of Verso's own goes straight to the destination", () => {
     test(f, () => {
       const code = readFileSync(f, "utf8").replace(/\/\/.*$/gm, "");
       assert.doesNotMatch(code, /\.connect\([^)]*destination\)/, "connects to the destination");
-      assert.match(code, /ownOutput\(/);
+      assert.match(code, /ownOutput\(|routeMedia\(/);
     });
   }
+});
+
+describe("an <audio> element joins the same output", () => {
+  globalThis.location = { href: "https://app.test/", origin: "https://app.test" };
+  const el = (src) => {
+    const attrs = new Map();
+    return {
+      src,
+      currentSrc: "",
+      get crossOrigin() {
+        return attrs.get("crossorigin") ?? null;
+      },
+      set crossOrigin(v) {
+        attrs.set("crossorigin", v);
+      },
+      getAttribute: (n) => attrs.get(n) ?? null,
+      removeAttribute: (n) => attrs.delete(n),
+    };
+  };
+  const ctxOf = (state) => {
+    const ctx = fakeCtx();
+    ctx.state = state;
+    ctx.createMediaElementSource = (e) => new FakeNode("source:" + e.src);
+    return ctx;
+  };
+  beforeEach(() => m.resetOwnOutputForTests());
+
+  test("a verso:// file is asked for with crossorigin, before its src; a file of the page's own origin is not", () => {
+    for (const url of ["verso://localhost/a.mp3", "http://verso.localhost/a.mp3"]) {
+      const a = el("");
+      m.prepareMedia(a, url);
+      assert.equal(a.crossOrigin, "anonymous", url);
+    }
+    const own = el("");
+    m.prepareMedia(own, "https://app.test/f/a.mp3");
+    assert.equal(own.crossOrigin, null);
+    const web = el("");
+    m.prepareMedia(web, "https://example.com/a.mp3");
+    assert.equal(web.crossOrigin, null, "an external address is left as it is");
+  });
+
+  test("it is routed to the own output once, only on a running context, and only if its bytes are readable", () => {
+    const a = el("verso://localhost/a.mp3");
+    m.prepareMedia(a, a.src);
+    assert.equal(m.routeMedia(a, ctxOf("suspended")), null, "never joined to a context that does not run");
+    const ctx = ctxOf("running");
+    const node = m.routeMedia(a, ctx);
+    assert.ok(node);
+    assert.equal(m.routeMedia(a, ctx), node, "once");
+    assert.equal(m.mediaNode(a), node);
+    assert.ok([...node.to].includes(m.ownOutput(ctx)), "its gain leads to the own output");
+    // Without crossorigin (or an external file) it is not routed: it would play silence.
+    const b = el("verso://localhost/b.mp3");
+    assert.equal(m.routeMedia(b, ctx), null);
+    const c = el("https://example.com/c.mp3");
+    assert.equal(m.routeMedia(c, ctx), null);
+    const w = el("https://app.test/f/w.mp3");
+    assert.ok(m.routeMedia(w, ctx));
+  });
+
+  test("a file that fails with crossorigin is asked for again without it, once, and then plays plainly", () => {
+    const a = el("verso://localhost/a.mp3");
+    m.prepareMedia(a, a.src);
+    assert.equal(m.retryPlain(a), true);
+    assert.equal(a.crossOrigin, null);
+    assert.equal(m.retryPlain(a), false, "a second failure is a failure");
+    m.prepareMedia(a, "verso://localhost/other.mp3");
+    assert.equal(a.crossOrigin, null, "it stays plain");
+    assert.equal(m.routeMedia(a, ctxOf("running")), null);
+  });
 });
