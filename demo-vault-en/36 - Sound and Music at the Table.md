@@ -69,7 +69,7 @@ A sound **embed** becomes a player in the note itself, as in Obsidian ([[06 - Do
 
 ![[assets/sons/taverna.mp3]]
 
-- It plays **only for whoever presses it**, in this window: a way to hear a track before playing it for the table.
+- It plays **only for whoever presses it**, in this window: a way to hear a track before playing it for the table. Its buttons: play and pause, the bar with the time, **Loop**, **Mute** and the volume. Once the player is the table's, **Loop** is the Music tab's.
 - For the game master, the player also has **Play for the table**: the track goes to the Music tab, with the scene of the heading above it, and Verso asks the same question as above when some player does not see the file. Alone, with no table, the button reads **Play in the Music tab**.
 - If the table's music is playing and you press play on a player in a note, **the table's music goes lower** while it plays — the player says so — and comes back when it stops. If the game master starts music for the table while your player plays, **yours pauses**: *Paused: the table's music started.*
 - A player at the table only gets the audio player of a file they see. The embed of a hidden file shows as **🔒 (not revealed yet)**, without its name; on a board, its card is locked. Mind: a file with no access of its own follows the notes that include it — embedded in a note the players see, they see it too. To keep a track back, right-click it › **Access…** › *Whole table: Does not see*.

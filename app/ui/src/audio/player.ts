@@ -27,11 +27,11 @@ import { h, ui } from "../dom";
 import { canPlay } from "../table/sound/formats";
 import { audioContext, unlockAudio } from "../dice3d/audio";
 import { mediaNode, prepareMedia, retryPlain, routeMedia } from "../dice3d/ownOutput";
-import { control, onSound, setDuck, sound, soundAlone, tableAudible } from "../table/sound/run";
+import { control, onSound, reportLength, setDuck, sound, soundAlone, tableAudible } from "../table/sound/run";
 import { playForTable, soundButtons, type SoundHost } from "../table/sound/links";
-import { clockText, expectedMs } from "../table/sound/sync";
+import { clockText, expectedMs, lengthOf } from "../table/sound/sync";
 import { aw } from "./strings";
-import { type Heard, type Link, type Own, UNLINKED, duckFactor, linkStep, startAtMs, toggleWish, handovers, orphanStops, ownGain, ownPrefs, tableStarted, timeText } from "./state";
+import { type Heard, type Link, type Own, UNLINKED, duckFactor, linkStep, startAtMs, toggleWish, loopShown, handovers, orphanStops, ownGain, ownPrefs, tableStarted, timeText } from "./state";
 
 export type AudioEmbedOptions = {
   /** The file, relative to the open folder. */
@@ -86,6 +86,7 @@ class AudioEmbed {
   private readonly toggle: HTMLButtonElement;
   private readonly bar: HTMLInputElement;
   private readonly time: HTMLElement;
+  private readonly loopBtn: HTMLButtonElement;
   private readonly muteBtn: HTMLButtonElement;
   private readonly vol: HTMLInputElement;
   private readonly tableBtn: HTMLButtonElement;
@@ -126,6 +127,8 @@ class AudioEmbed {
     this.bar.disabled = true;
     this.bar.setAttribute("aria-label", aw.position);
     main.append(top, this.bar);
+    this.loopBtn = h("button", "ghost iconic audio-embed-loop");
+    this.loopBtn.type = "button";
     this.muteBtn = h("button", "ghost iconic audio-embed-mute");
     this.muteBtn.type = "button";
     this.vol = h("input", "audio-embed-volume");
@@ -141,8 +144,8 @@ class AudioEmbed {
     this.note.setAttribute("role", "status");
     this.note.hidden = true;
     this.audio = this.makeAudio();
-    this.root.append(this.toggle, main, this.muteBtn, this.vol, this.tableBtn, this.note, this.audio);
-    if (o.onBoard) for (const c of [this.toggle, this.bar, this.muteBtn, this.vol, this.tableBtn]) c.classList.add("board-card-press");
+    this.root.append(this.toggle, main, this.loopBtn, this.muteBtn, this.vol, this.tableBtn, this.note, this.audio);
+    if (o.onBoard) for (const c of [this.toggle, this.bar, this.loopBtn, this.muteBtn, this.vol, this.tableBtn]) c.classList.add("board-card-press");
 
     this.playable = canPlay(o.path, (mime) => this.audio.canPlayType(mime));
     if (!this.playable) this.say(aw.cannotHere);
@@ -171,6 +174,11 @@ class AudioEmbed {
       this.drawTime(to * 1000);
     });
     this.bar.addEventListener("change", () => (this.dragging = false));
+    this.loopBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleLoop();
+    });
     this.muteBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -195,6 +203,7 @@ class AudioEmbed {
     });
     this.drawState();
     this.drawVolume();
+    this.drawLoop();
     this.drawTable();
     prune();
     live.add(this);
@@ -225,8 +234,8 @@ class AudioEmbed {
     if (a.dataset["bound"]) return;
     a.dataset["bound"] = "1";
     const me = () => owners.get(a);
-    a.addEventListener("loadedmetadata", () => me()?.drawTime());
-    a.addEventListener("durationchange", () => me()?.drawTime());
+    a.addEventListener("loadedmetadata", () => me()?.lengthRead());
+    a.addEventListener("durationchange", () => me()?.lengthRead());
     a.addEventListener("timeupdate", () => me()?.drawTime());
     a.addEventListener("play", () => me()?.started());
     a.addEventListener("playing", () => me()?.drawState());
@@ -237,6 +246,12 @@ class AudioEmbed {
       if (retryPlain(a)) return;
       if (a.getAttribute("src")) me()?.say(aw.failed);
     });
+  }
+
+  /** The element read the file's length: drawn, and told to the table when this embed is its player. */
+  lengthRead(): void {
+    if (this.bound()) reportLength(this.audio.duration * 1000);
+    this.drawTime();
   }
 
   /** Inside the person's gesture. */
@@ -253,8 +268,8 @@ class AudioEmbed {
     return this.link.bound && sound().controls() && !!sound().music();
   }
 
-  private driveTable(wish: "pause" | "resume" | "seek", value: number | null = null): void {
-    void control(wish, value).then((err) => {
+  private driveTable(wish: "pause" | "resume" | "seek" | "loop", value: number | null = null, looping?: boolean): void {
+    void control(wish, value, looping).then((err) => {
       if (err) ui.status.textContent = err;
     });
   }
@@ -272,6 +287,7 @@ class AudioEmbed {
     this.toggle.setAttribute("aria-label", label);
     this.toggle.title = label;
     this.root.classList.toggle("playing", playing);
+    this.drawLoop();
     this.drawTime();
   }
 
@@ -348,21 +364,44 @@ class AudioEmbed {
     this.toggle.setAttribute("aria-label", label);
     this.toggle.title = label;
     this.root.classList.toggle("playing", playing);
+    this.drawLoop();
   }
 
   /** `seekMs`: where the bar was just put, before the element has caught up. */
   drawTime(seekMs?: number): void {
     const d = this.audio.duration;
     const m = this.bound() ? sound().music() : null;
-    const length = m?.durationMs ?? (Number.isFinite(d) && d > 0 ? d * 1000 : null);
+    const length = lengthOf(m?.durationMs ?? null, d);
     const mine = (Number.isFinite(this.audio.currentTime) ? this.audio.currentTime : 0) * 1000;
-    const at = seekMs ?? (m ? expectedMs(m, sound().serverNow()) : mine);
+    // The same position as the Music tab: wrapped at the length when looping, stopped at its end otherwise.
+    const at = seekMs ?? (m ? expectedMs({ ...m, durationMs: length }, sound().serverNow()) : mine);
     this.time.textContent = timeText(at, length);
     this.bar.disabled = length === null || !this.playable;
     if (length !== null) this.bar.max = String(Math.max(1, Math.floor(length / 1000)));
     if (!this.dragging) this.bar.value = String(Math.floor(at / 1000));
     this.bar.setAttribute("aria-valuetext", aw.positionText(clockText(at), length === null ? null : clockText(length)));
     this.bar.style.setProperty("--done", length ? `${Math.min(100, (at / length) * 100)}%` : "0%");
+  }
+
+  /** Loop: bound, the table's (the Music tab's button); otherwise this element's own. */
+  private toggleLoop(): void {
+    const m = sound().music();
+    if (this.bound()) return this.driveTable("loop", null, !m?.looping);
+    this.audio.loop = !this.audio.loop;
+    this.drawLoop();
+  }
+
+  drawLoop(): void {
+    const on = loopShown(this.bound(), !!sound().music()?.looping, this.audio.loop);
+    const label = on ? aw.loopOn : aw.loopOff;
+    const ic = on ? "repeatOne" : "repeat";
+    if (this.loopBtn.dataset["icon"] !== ic) {
+      this.loopBtn.replaceChildren(icon(ic, ""));
+      this.loopBtn.dataset["icon"] = ic;
+    }
+    this.loopBtn.setAttribute("aria-label", label);
+    this.loopBtn.title = label;
+    this.loopBtn.setAttribute("aria-pressed", String(on));
   }
 
   drawVolume(): void {

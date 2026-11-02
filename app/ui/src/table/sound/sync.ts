@@ -73,6 +73,26 @@ export function expectedMs(t: Timing, serverNow: number): number {
   return at;
 }
 
+/** The length of a track as every player of it reads it: the table's own,
+ *  once learned, else what the element says. */
+export function lengthOf(tableMs: number | null, elementSeconds: number): number | null {
+  if (tableMs !== null && tableMs > 0) return tableMs;
+  return Number.isFinite(elementSeconds) && elementSeconds > 0 ? elementSeconds * 1000 : null;
+}
+
+/** Past this, two readings of one file's length differ for real (an engine's
+ *  estimate from the bitrate, before it has read the whole file). */
+export const LENGTH_TOLERANCE_MS = 500;
+
+/** What to tell the table about a length an element just read: the reading
+ *  when the table has none or holds another (an early estimate is corrected
+ *  by the element's later, exact one); null when there is nothing to say. */
+export function settleLength(storedMs: number | null, readMs: number): number | null {
+  if (!Number.isFinite(readMs) || readMs <= 0) return null;
+  if (storedMs === null || storedMs <= 0) return readMs;
+  return Math.abs(storedMs - readMs) > LENGTH_TOLERANCE_MS ? readMs : null;
+}
+
 /** Whether a track that does not loop has ended by the server's clock. */
 export function ended(t: Timing, serverNow: number): boolean {
   if (t.state !== "playing" || t.looping || t.durationMs === null || t.durationMs <= 0) return false;
