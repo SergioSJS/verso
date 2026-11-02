@@ -138,7 +138,7 @@ Besides files, the game master can share **the sound of an application on the co
 4. While you share, the tab shows *Sharing …*, a **level meter** with the words *Sound arriving* (or *Silence*, when the source gives no sound or is blocked), how many are listening and the rate. **Stop sharing** is in the tab, in the Table tab's row and in the status bar. You keep hearing the source directly; Verso never plays your own stream back to you.
 5. Everyone at the table sees *<name> is sharing …* and uses **their own volume**, **Mute** and **Follow the table**; if the browser waits for a touch, **Hear the table**. A second share asks before it replaces the first.
 
-> What works today is this screen and the path to the table. The **capture** of each application's sound arrives per system (macOS, Windows, Linux) in the next updates; until then the list of sources is empty and says so. On macOS the system will ask for the **System Audio Recording** permission at the first capture.
+> **On a Mac (macOS 14.4 or newer)** the list has **Everything this Mac plays** and each application that has made sound (Spotify, Music, a browser…), by name. If an app you want is not there, start playing in it and open **Share audio…** again. The first time, macOS asks to allow **System Audio Recording** for Verso. If you say no, Verso tells you, and you can allow it later in **System Settings > Privacy & Security > System Audio Recording** (in some versions *Screen & System Audio Recording*), then start again. A source that gives *Silence* while it plays usually means this permission is off. On an older macOS the picker says it needs a newer one. Windows and Linux arrive in the next updates; until then their list is empty and says so.
 
 ---
 

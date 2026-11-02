@@ -1422,6 +1422,17 @@ them; if they still happen, a step that makes them happen is enough.
 3. **VoiceOver / NVDA** (A): the picker reads its options with their kinds; the meter reads *Nível do som* with its words; *Compartilhando …* / *Compartilhamento encerrado* are announced; Stop sharing has a name in the tab, the row and the status bar.
 4. **The macOS permission** (A, when the macOS capture is built): the *System Audio Recording* prompt at the first capture; refused, the share says why and leaves nothing at the table.
 
+## Share audio on the Mac (ADR 0116 item 17, task S7)
+
+On the installed beta, macOS 14.4 or later, as the game master of a UniVerso table, with a browser listener (a second device). None of this is reachable from the harness or from `cargo test` (the real-capture test, `cargo test -p verso-app --lib mac_real_capture -- --ignored --nocapture`, checks the tap, the format and the stop with something playing, and asks the permission for the terminal):
+
+1. **An app** (A): play something in Spotify or Music, open **Share audio…**: the app is listed by name (not a window title) beside **Everything this Mac plays**; share it; the browser listener hears it within a second or two, and the meter says *Som chegando*. Pause the app: the meter says *Silêncio* within 3 seconds. **Parar de compartilhar** ends it for the listener; Activity Monitor / Sound settings show no leftover "Verso" aggregate device.
+2. **The prompt** (A): on a Mac that never allowed it (reset with `tccutil reset AudioCapture com.versomd.app`), the first share shows the system prompt naming Verso, with the text of `NSAudioCaptureUsageDescription` (both languages). **Don't Allow**: the status bar says macOS did not let Verso record and where to allow it; nothing is left at the table; allowing it in System Settings and sharing again works.
+3. **Verso's own sounds not sent** (A, the open point of ADR 0116 "As built (S7)"): share **Everything this Mac plays** while music plays, then roll dice and trigger a table chime in the sharer's window: the listener must not hear the dice or the chime. If it does, report it (WebKit's sound is made by a helper process the system starts, which public API does not tie to Verso).
+4. **Window close and quit** (A): close the sharer's window, then quit the app, while sharing: the listener sees the share end; no aggregate device stays.
+5. **An app that starts later** (A): an app that has not made sound since it started is not listed; start playing in it and reopen the picker: it is. A share of an app that pauses and resumes keeps going.
+6. **An older macOS** (A, a Mac or VM below 14.4, if one exists): the picker says it needs a newer macOS, with Start off.
+
 ## Music at the table (ADR 0116 phase 1, 2026-10-31)
 
 On the real engines, which the harness's stubbed `play()` does not reach; a UniVerso table with the master in the desktop app and players in browsers and phones (note 36):

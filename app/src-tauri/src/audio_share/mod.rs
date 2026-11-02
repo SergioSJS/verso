@@ -33,7 +33,15 @@ use verso_contract::{
 };
 use verso_service::refused;
 
+#[cfg(any(target_os = "macos", test))]
+mod apps;
+#[cfg(any(target_os = "macos", test))]
+mod convert;
 mod encode;
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+mod macos_source;
 mod session;
 mod source;
 mod tone;
@@ -80,7 +88,14 @@ pub fn audio_sources_list<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Vec<AudioSource>, ContractError> {
     allowed(&app, window.label())?;
-    Ok(source::list())
+    let list = source::list();
+    // Nothing to list for a reason the person can fix: said, not silent.
+    if list.is_empty()
+        && let Some(why) = source::unavailable()
+    {
+        return Err(refused(why));
+    }
+    Ok(list)
 }
 
 /// Capture the source `id` and encode it with Opus at `bitrate_kbps`
@@ -126,7 +141,11 @@ pub fn audio_share_start<R: tauri::Runtime>(
             share,
             Box::new(move |frame| sender.send_audio(frame)),
         )
-        .map_err(failed)?;
+        .map_err(|why| match why.as_str() {
+            // The person's to fix, not a fault of the app: no ERROR in the log.
+            source::PERMISSION_DENIED | source::NEEDS_NEWER_MAC => refused(why),
+            _ => failed(why),
+        })?;
     shares.on_window_gone(window.label(), farewell(connection));
     Ok(started)
 }

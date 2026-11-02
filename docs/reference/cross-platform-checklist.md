@@ -111,3 +111,11 @@
 | a read of the output cut at a fixed size and sent as text | a multi-byte character (`ç`, an emoji) split across two reads became two replacement characters | keep the bytes of a character not yet whole for the next read (`pty::whole_text`) |
 | the detection's answer read as it comes | ConPTY and prompt themes put cursor moves, titles and colours among the lines; startup files print greetings | the question between two marks, each line of the answer stripped of control sequences before it is read |
 | `⌘` and `Ctrl` treated alike in the terminal's keys | on Windows and Linux `Ctrl` is the shell's (Ctrl+C, Ctrl+R, Ctrl+D) | one table (`app/ui/src/terminal/keys.ts`): on macOS every `⌘` key stays the app's; elsewhere only the listed `Ctrl` keys do, and Ctrl+C copies only with a selection |
+
+## 8. Capturing the sound of another program (ADR 0116 item 17)
+
+- Each system has its own back-end in `app/src-tauri/src/audio_share/` (`macos.rs` + `macos_source.rs` built; `windows.rs`, `linux.rs` later); the format conversion (`convert.rs`) and the matching of processes to applications (`apps.rs`) are pure and shared. A new back-end plugs in through `source.rs` only.
+- macOS: Core Audio process taps need macOS 14.4 (below it the picker says so) and the user's *System Audio Recording* permission, asked at the first tap through `NSAudioCaptureUsageDescription` in `Info.plist`; there is no API to ask the status beforehand, so a refusal shows as an error from the tap or as silence. Enumerating the processes asks nothing.
+- The capture's thread belongs to the system: it only copies the buffer into a bounded channel. Never encode, lock or write on it.
+- Tear down in reverse order (stop, IOProc, aggregate device, tap) on Stop, window close and exit, or the system keeps a private device alive.
+- Every `unsafe` block in these files carries a `SAFETY:` comment and does one thing; the files are declared in `scripts/check-unsafe.mjs`.

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-// `unsafe` in two files and nowhere else (ADR 0029, revision of
-// 2026-10-15). The workspace forbids `unsafe_code`; the one exception, the
+// `unsafe` in the declared files and nowhere else (ADR 0029, revision of
+// 2026-10-15; the audio_share files added with ADR 0116 Q9, decided (a)
+// 2026-10-31: Core Audio / WASAPI / PipeWire capture, each block with a
+// SAFETY comment). The workspace forbids `unsafe_code`; the one exception, the
 // maintainer's decision of 2026-10-15 ("A e B juntos"), is the native
 // clipping of an embedded page, which needs the platform's own views:
 // app/src-tauri/src/web_clip/macos.rs and windows.rs. A `forbid` cannot be
@@ -26,7 +28,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-export const ALLOWED = /^app\/src-tauri\/src\/web_clip\/(macos|windows)\.rs$/;
+export const ALLOWED = /^app\/src-tauri\/src\/(web_clip\/(macos|windows)|audio_share\/(macos|windows|linux))\.rs$/;
 const APP = "app/src-tauri/Cargo.toml";
 const ROOT = "Cargo.toml";
 const WHY = "ADR 0029, revision of 2026-10-15";
@@ -91,7 +93,7 @@ export function rustProblems(files) {
     text.split("\n").forEach((line, n) => {
       const code = codeOf(line, state);
       if (UNSAFE.test(code) || LINT.test(code)) {
-        problems.push(`${path}:${n + 1}: unsafe outside app/src-tauri/src/web_clip/{macos,windows}.rs (${WHY}): ${line.trim()}`);
+        problems.push(`${path}:${n + 1}: unsafe outside app/src-tauri/src/web_clip/{macos,windows}.rs and audio_share/{macos,windows,linux}.rs (${WHY}): ${line.trim()}`);
       }
     });
   }
@@ -169,5 +171,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     for (const p of problems) console.log(p);
     process.exit(1);
   }
-  console.log("unsafe: only in app/src-tauri/src/web_clip/{macos,windows}.rs, the workspace still forbids it");
+  console.log("unsafe: only in web_clip/{macos,windows}.rs and audio_share/{macos,windows,linux}.rs, the workspace still forbids it");
 }
