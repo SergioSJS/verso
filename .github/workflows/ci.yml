@@ -58,6 +58,10 @@ env:
 jobs:
   checks:
     name: guardrails (Linux)
+    # A hung test holds a runner until GitHub's own 6 h: on 2026-10-31 and
+    # 2026-11-02 one Windows test never ended. Each job stops at about
+    # twice its usual length instead.
+    timeout-minutes: 60
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -195,6 +199,7 @@ jobs:
     # extended attributes, WebKit — on the platform Phase 2 ships on. Only
     # after a merge: a macOS minute bills as ten Linux ones.
     if: github.ref == 'refs/heads/main'
+    timeout-minutes: 45
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -221,6 +226,7 @@ jobs:
     # about 1.7 Linux ones. The image is pinned, as the Linux ones are.
     # scripts/check-windows.sh runs the same two steps before a push.
     if: github.ref == 'refs/heads/main'
+    timeout-minutes: 100
     runs-on: windows-2025
     defaults:
       run:
@@ -277,6 +283,7 @@ jobs:
     # server ships (`-O`, see the step).
     name: verso-dialect, canvas, pattern and server fuzz, 60s each (main, ADR 0029, ADR 0083, ADR 0094)
     if: github.ref == 'refs/heads/main'
+    timeout-minutes: 60
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -350,6 +357,7 @@ jobs:
     # the job is red only for a regression past the tolerances. A pull
     # request never runs it, and could not record a baseline if it did.
     if: github.ref == 'refs/heads/main'
+    timeout-minutes: 45
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
