@@ -11,7 +11,7 @@
 
 import { listen } from "@tauri-apps/api/event";
 import { commands, type AudioShare, type AudioSource, type ContractError } from "../../bindings";
-import { hostWhy, ss } from "./shareWords";
+import { hostWhy, sourceName, ss } from "./shareWords";
 import { can } from "../../can";
 import { errorSentence } from "../../errors";
 import { startCapture, type Capture } from "./capture";
@@ -104,7 +104,7 @@ const deps = {
  */
 export async function sources(): Promise<{ list: AudioSource[]; why: string | null }> {
   const r = await commands.audioSourcesList().catch(() => null);
-  if (r?.status === "ok") return { list: r.data.map((s) => (s.id === "system" ? { ...s, name: ss.kind.system } : s)), why: null };
+  if (r?.status === "ok") return { list: r.data.map((s) => (s.id === "system" ? { ...s, name: ss.kind.system } : { ...s, name: sourceName(s.id, s.name) })), why: null };
   return { list: [], why: r?.status === "error" ? hostWhy(r.error.message) : null };
 }
 

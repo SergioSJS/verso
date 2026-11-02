@@ -114,8 +114,10 @@
 
 ## 8. Capturing the sound of another program (ADR 0116 item 17)
 
-- Each system has its own back-end in `app/src-tauri/src/audio_share/` (`macos.rs` + `macos_source.rs` built; `windows.rs`, `linux.rs` later); the format conversion (`convert.rs`) and the matching of processes to applications (`apps.rs`) are pure and shared. A new back-end plugs in through `source.rs` only.
+- Each system has its own back-end in `app/src-tauri/src/audio_share/` (`macos.rs` + `macos_source.rs` built; `windows.rs` + `windows_source.rs` built; `linux.rs` later); the format conversion (`convert.rs`) and the matching of processes to applications (`apps.rs`) are pure and shared. A new back-end plugs in through `source.rs` only.
 - macOS: Core Audio process taps need macOS 14.4 (below it the picker says so) and the user's *System Audio Recording* permission, asked at the first tap through `NSAudioCaptureUsageDescription` in `Info.plist`; there is no API to ask the status beforehand, so a refusal shows as an error from the tap or as silence. Enumerating the processes asks nothing.
 - The capture's thread belongs to the system: it only copies the buffer into a bounded channel. Never encode, lock or write on it.
 - Tear down in reverse order (stop, IOProc, aggregate device, tap) on Stop, window close and exit, or the system keeps a private device alive.
 - Every `unsafe` block in these files carries a `SAFETY:` comment and does one thing; the files are declared in `scripts/check-unsafe.mjs`.
+- Windows: the only source is the pages open in Verso (ADR 0116 amendment of 2026-11-01): process loopback (build 20348 and later) of the **pages environment's browser process tree**, found with `ICoreWebView2::BrowserProcessId`. Windows 10 has no process loopback and gets no share (device loopback would carry other programs and the dice). Loopback gives no packet while nothing plays: the capture sends 100 ms of silence on a quiet wait. COM is per thread: the capture thread initialises and releases its own; WebView2 is asked on the main thread through `with_webview`, so the commands that do it are async.
+- The pages' own profile (`web.rs`, `pages_profile`): a data directory (Windows, Linux) or a named data store (macOS 14+) so that embedded pages never share the window's engine processes. A new web view created for a page must go through it.

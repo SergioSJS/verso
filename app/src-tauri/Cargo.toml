@@ -166,7 +166,7 @@ libc = "0.2"
 # and Tauri already build, at the lockfile's versions (windows 0.61.3,
 # webview2-com 0.38.2; MIT OR Apache-2.0, MIT); they replace nothing of
 # ours.
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging", "Wdk_System_SystemServices", "Win32_System_SystemInformation"] }
 webview2-com = "0.38"
 # A terminal's shell and everything it starts are in a Job Object that kills
 # its tree when its handle closes — the terminal's end, or the app's, a
@@ -175,6 +175,15 @@ webview2-com = "0.38"
 # the tree; it replaces our own CreateJobObject/AssignProcessToJobObject
 # calls, which would need `unsafe` outside src/web_clip.
 win32job = "2"
+# Share audio on Windows (src/audio_share/windows*.rs; ADR 0116 item 17,
+# "As built (S8)"). `wasapi` 0.26 (MIT) is a safe API over WASAPI, with the
+# process loopback of Windows 11 (`AudioClient::new_application_loopback_client`,
+# ActivateAudioInterfaceAsync) and the event-driven capture; it replaces our
+# own COM/WASAPI calls, which would need `unsafe`. It is the only new crate:
+# the Win32 and WebView2 calls we make ourselves (the build of Windows, the
+# browser process of the pages' WebView2, whether a page plays audio) use the
+# `windows` 0.61 and `webview2-com` above, in src/audio_share/windows.rs.
+wasapi = "0.26"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # The same on Linux (src/web_clip/linux.rs), with GTK's safe API: the GTK

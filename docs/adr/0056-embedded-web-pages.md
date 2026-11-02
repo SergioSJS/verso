@@ -454,3 +454,29 @@ child web view is drawn as a frame is, by a native clipping container
 (B); the mechanism is the author's.
 Revised on 2026-10-15, in session, accepted as recommended: the host's frameability check (one `HEAD`, or a `GET` read only as far as its headers, once per origin) is **accepted**, which revises the earlier line that "nothing is fetched on the host's side" for an approved origin; a page's own links to another origin and the frames nested inside a framed page stay `[OPEN]`, as recorded above.
 Decided on 2026-10-21 by the maintainer (D.3 of the decisions list, option A): when the frameability check of a site fails (network down, timed out), the app asks again after **30 seconds**, instead of remembering the failure until the window closes.
+
+### Amendment (2026-11-01): the pages have an engine profile of their own
+
+Decided by the maintainer, in chat, for Share audio (ADR 0116, amendment of
+the same day): *"B: um ambiente só p/ páginas"*. The embedded pages that are
+child web views (`web_open`) no longer run in the window's own web engine
+environment. They run in **one shared "pages" environment**, apart from the
+window's:
+
+- Windows: a WebView2 user-data folder of its own, `pages-profile` under the
+  app's local data directory, so WebView2 starts a second environment with its
+  own browser process and audio service. Linux: the same folder as a second
+  web context. macOS 14 and later: a named website data store (a fixed
+  identifier); before macOS 14 the system has none to give and the pages keep
+  the window's.
+- What it buys: the sound of the window itself (the dice, the chimes, the
+  table's music) plays in a process the pages do not share, so a share of the
+  pages' sound can never carry it.
+- What it costs, and what stays: all pages share the one profile, so a login
+  made in one page holds in the others, as before. **The cookies and logins
+  of pages made before this change are not carried over** (they lived in the
+  window's profile): a person signs in again once. Memory: a second set of
+  engine processes while a page is open.
+- Not changed: iframes (pages that allow framing) stay inside the note, in the
+  window's environment; they cannot be captured apart from the window's sounds,
+  so Share audio asks for a page opened as a page.

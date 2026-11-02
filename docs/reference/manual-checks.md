@@ -1422,6 +1422,20 @@ them; if they still happen, a step that makes them happen is enough.
 3. **VoiceOver / NVDA** (A): the picker reads its options with their kinds; the meter reads *Nível do som* with its words; *Compartilhando …* / *Compartilhamento encerrado* are announced; Stop sharing has a name in the tab, the row and the status bar.
 4. **The macOS permission** (A, when the macOS capture is built): the *System Audio Recording* prompt at the first capture; refused, the share says why and leaves nothing at the table.
 
+## Share audio on Windows (ADR 0116 item 17 as narrowed on 2026-11-01, task S8)
+
+On the installed beta, as the game master of a UniVerso table, with a browser listener, on **Windows 11** and then on **Windows 10**. None of this is reachable from the harness (the `#[ignore]`d `win_real_capture` test checks the loopback, the format and the stop with a tone; `scripts/check-windows.sh` runs the rest):
+
+1. **A page** (A, Win 11): open a page as a page (not inside a note), e.g. a YouTube video, and play it. **Compartilhar áudio…** lists **Páginas abertas no Verso: youtube.com**, with the hint; share it; the listener hears the video within a second or two and the meter says *Som chegando*. Pause the video: *Silêncio* within 3 seconds.
+2. **Verso's own sounds not sent** (A, the point of the profile split): while sharing, roll dice and trigger a table chime in the sharer's window, and play the table's music: the listener hears none of them (they hear the table's music through their own player, as always). If they do, the pages' environment is not apart: report it (check Task Manager: a second group of `msedgewebview2.exe` under Verso when a page is open).
+3. **Two pages** (A): with two pages open and one playing, the name shows only that site; both playing, both are carried together.
+4. **Login across pages** (A): sign in to a site in one page; open another page of the same site: signed in. The first time after this update the pages ask for the sign-in again.
+5. **A page inside a note** (A): a site shown inside a note (it allows framing) is not shared; its sound is not in the share. The hint says to open it as a page.
+6. **No page** (A): with no page open the picker says *Abra uma página no Verso…*.
+7. **Windows 10** (A, a machine or VM): the picker says it needs Windows 11, with Start off.
+8. **Stop, window close, quit** (A): each ends the share; the listener sees it end; no `Verso` audio session stays in the volume mixer's list after the page closes.
+9. **Linux and macOS 14+** (A, only that the pages still open and play: the capture is not built there): a page opens and plays in its own profile; a login holds across pages.
+
 ## Share audio on the Mac (ADR 0116 item 17, task S7)
 
 On the installed beta, macOS 14.4 or later, as the game master of a UniVerso table, with a browser listener (a second device). None of this is reachable from the harness or from `cargo test` (the real-capture test, `cargo test -p verso-app --lib mac_real_capture -- --ignored --nocapture`, checks the tap, the format and the stop with something playing, and asks the permission for the terminal):

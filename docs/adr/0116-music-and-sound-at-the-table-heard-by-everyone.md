@@ -1148,3 +1148,65 @@ macOS, over Core Audio process taps (item 17). No contract change.
   lifecycle in `macos_source.rs`, the check-unsafe test, `shareHost.test.mjs`
   (the words). A real capture test is `#[ignore]`d for the maintainer's Mac
   (`cargo test -p verso-app --lib mac_real_capture -- --ignored --nocapture`).
+
+### Amendment (2026-11-01): the sources are the pages open in Verso, and nothing else
+
+The maintainer, in chat: *"Os sons dos dados não deveria, já que ele toca pra
+geral. Compartilhado apenas sons que saem do app Verso"*, choosing **"Só o que
+toca no Verso"**; and, asked how to separate a page's sound from the window's
+on Windows, **"B: um ambiente só p/ páginas"**. This narrows decision 2 and
+items 16 and 17:
+
+- The only source of Share audio is the **sound of pages open in Verso** (the
+  child web views of ADR 0056). Never another application, never *everything
+  this computer plays*. The task's earlier app and system sources are not
+  built on Windows.
+- Verso's own sounds (dice, chimes, the table's music) are never in a share:
+  every listener already plays them locally.
+- Windows needs process loopback (Windows 11, build 20348 and later); on
+  Windows 10 the share is not available and the picker says it needs Windows
+  11 (device loopback would carry other programs and the dice).
+- A share carries all open pages' sound together (one environment, one audio
+  service); the picker names the sites playing now. A page inside a note (an
+  iframe) cannot be shared apart from the window: open it as a page.
+- The macOS and Linux sources follow in their own tasks (S7b, S9); the
+  macOS code of S7 is unchanged by this change.
+
+### As built (S8, 2026-11-01): audio capture on Windows
+
+- **Pages environment** (`web.rs`, `pages_profile`): see the amendment of
+  ADR 0056 of the same day. Windows, Linux and macOS 14+ create the page views
+  in their own profile; the capture is built for Windows only.
+- **Source** (`windows_source.rs`, `winpages.rs`): one source, `pages` (kind
+  page), named *Pages open in Verso* and, when some play, the sites that do
+  (`IsDocumentPlayingAudio` of WebView2 8). The refusals are
+  `audio capture needs Windows 11 or later` and `no page is open in Verso to
+  share`, said in the person's language by the window. `audio_sources_list` and
+  `audio_share_start` are async commands because WebView2 is asked on the main
+  thread.
+- **Capture**: `AudioClient::new_application_loopback_client(pid, true)` of
+  the `wasapi` crate on the **pages environment's browser process**
+  (`ICoreWebView2::BrowserProcessId`), which includes its renderers and audio
+  service. Event-driven on a thread of our own with COM initialised there;
+  48 kHz stereo `f32` asked of the engine, through `convert.rs` into the same
+  meter, encoder and sender; 100 ms of silence when no packet comes (loopback
+  gives none while nothing plays). Stop, window close and exit stop the stream
+  and join the thread, which releases its COM objects.
+- **Unsafe** (`audio_share/windows.rs`, declared): three single-operation
+  blocks: `RtlGetVersion` (the build gate), `BrowserProcessId` and
+  `IsDocumentPlayingAudio`, plus the controller's `CoreWebView2`. The
+  WASAPI/COM capture itself is the `wasapi` crate's safe API: no `unsafe` of ours.
+- **Crates evaluated**: `wasapi` 0.26 (MIT; a safe WASAPI API with process
+  loopback, sessions and event capture; built on `windows` 0.62, in the
+  lockfile) is used. `cpal` has no process loopback. Our own
+  `ActivateAudioInterfaceAsync` would need a COM completion handler and
+  `unsafe`. `windows` 0.61 and `webview2-com` 0.38, already direct
+  dependencies, serve the three small calls.
+- **Tests**: `winpages.rs` (the build gate, address host, names; every system),
+  `windows_source.rs` (build read, refusals; Windows), and an `#[ignore]`d
+  real capture, `cargo test -p verso-app --lib win_real_capture -- --ignored
+  --nocapture`, which plays a tone from the test process and captures its tree.
+  `shareHost.test.mjs` (the words).
+- **Not verified by a test** (manual-checks, S8): that the pages' sound really
+  comes from the pages environment's tree and the window's does not, on a
+  Windows 11 with the installed app.
