@@ -130,7 +130,7 @@ test("an audio embed in a note is Verso's player: play, pause, the bar and its t
   await expect(bar).toHaveAttribute("aria-valuetext", "0:30 de 1:00");
 
   // Mute, for every embed; the volume is the device's own on a phone.
-  const audioOf = (name) => page.evaluate((n) => { const a = [...document.querySelectorAll(".audio-embed audio")].find((x) => x.getAttribute("src").includes(n)); return { volume: a.volume, muted: a.muted }; }, name);
+  const audioOf = (name) => page.evaluate((n) => { const a = [...document.querySelectorAll(".audio-embed audio")].find((x) => x.getAttribute("src").includes(n)); return { volume: a.dataset.gain === undefined ? a.volume : Number(a.dataset.gain), muted: a.muted }; }, name);
   await taverna.getByRole("button", { name: "Silenciar" }).click();
   await expect(taverna.getByRole("button", { name: "Tirar do silêncio" })).toHaveAttribute("aria-pressed", "true");
   await expect(estrada.getByRole("button", { name: "Tirar do silêncio" })).toBeVisible();
@@ -251,7 +251,11 @@ test("the game master's embed plays for the table; the table's music is lowered 
   // Handed to the table: the local one stops, the table plays it, from its scene.
   await taverna.getByRole("button", { name: "Tocar para a mesa" }).click();
   await expect.poll(() => app.calls("table_play")).toEqual([expect.objectContaining({ path: "Música/taverna.wav", channel: "music" })]);
-  await expect(taverna.getByRole("button", { name: "Tocar “taverna”" })).toBeVisible();
+  // From then on the embed is the table's player of the track (the
+  // maintainer, 2026-11-02): it shows the table playing, and its table
+  // button is gone while it is bound.
+  await expect(taverna.getByRole("button", { name: "Pausar “taverna”" })).toBeVisible();
+  await expect(taverna.getByRole("button", { name: "Tocar para a mesa" })).toBeHidden();
   // A local embed while the table plays: the table is lowered, and it is said.
   await estrada.getByRole("button", { name: "Tocar “estrada”" }).click();
   await expect(estrada.locator(".audio-embed-note")).toHaveText("A música da mesa fica mais baixa enquanto isto toca.");

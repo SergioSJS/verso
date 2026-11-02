@@ -337,12 +337,17 @@ class AudioEmbed {
     const g = ownGain(own);
     const node = mediaNode(this.audio);
     if (node) {
-      // Through Web Audio the element's own volume is left alone and the gain does it.
+      // Through Web Audio the element's own volume is left alone and the gain
+      // does it; mute stays on the element too (it feeds the graph silence),
+      // so a muted embed is muted however its sound leaves.
       node.gain.value = own.muted || g === 0 ? 0 : g;
+      // What leaves, for whoever reads the element (the tests do).
+      this.audio.dataset["gain"] = String(g);
       this.audio.volume = 1;
-      this.audio.muted = false;
+      this.audio.muted = own.muted || g === 0;
       return;
     }
+    delete this.audio.dataset["gain"];
     try {
       this.audio.volume = g;
     } catch {

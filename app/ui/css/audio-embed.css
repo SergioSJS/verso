@@ -51,7 +51,7 @@
 /* Touch: 44 px targets; the volume is the device's own (iOS keeps an element's volume read-only), mute stays. */
 @media (pointer: coarse) {
   .audio-embed-toggle { width: 44px; height: 44px; }
-  .audio-embed-mute { width: 44px; height: 44px; }
+  .audio-embed-mute, .audio-embed-loop { width: 44px; height: 44px; }
   .audio-embed-name, .audio-embed-table { min-height: 44px; }
   .audio-embed-bar { height: 28px; }
   .audio-embed-volume { display: none; }
