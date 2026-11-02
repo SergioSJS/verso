@@ -22,6 +22,7 @@ use verso_contract::SAMPLE_RATE;
 /// buffers follow one another (one interleaved buffer of two channels, or
 /// two buffers of one, both give left then right). Frames beyond the
 /// shortest buffer's are dropped. Answers the channel count and the block.
+#[cfg(any(target_os = "macos", test))]
 #[must_use]
 pub fn join_buffers(buffers: &[(usize, &[f32])]) -> (usize, Vec<f32>) {
     let total: usize = buffers.iter().map(|(c, _)| *c).sum();
