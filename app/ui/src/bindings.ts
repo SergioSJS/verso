@@ -751,7 +751,7 @@ export const commands = {
 	/**  Stop capturing. */
 	audioShareStop: () => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_stop")),
 	/**
-	 *  The window is about to share on a Mac: its own sounds go to the host's
+	 *  The window is about to share on a Mac or a Linux machine: its own sounds go to the host's
 	 *  output from now on (ADR 0116, the 2026-11-02 note on A2), so the tap that
 	 *  carries the pages never hears them. `true` when the window should send
 	 *  its final output to `audio_share_own_pcm`; `false` anywhere else (nothing
