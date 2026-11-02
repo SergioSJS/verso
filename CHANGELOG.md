@@ -168,6 +168,7 @@ test release.
 
 ### Fixed
 
+- **The updater's zip reader is `zip` 9** (was 2.4): RUSTSEC/GHSA-q7v9-x93c-xqv3, an archive declaring a huge entry could abort the process while extracting; the update archive was already checked against its SHA-256 before extraction.
 - **The audio embed on a board card.** The player has its own grid layout now (play, name or time, bar, loop, mute, volume), so a note and a board card draw it alike; on a narrow card the volume slider yields.
 - **Music loop and track length.** A track's length is read again when the engine corrects it (an MP3 without a header was first sized from its bitrate, so a 50 s file showed 1:43), and the audio embed bound to the table now wraps at the same length as the Music tab instead of counting past the end.
 - **A table cell keeps its text when the window goes to the background**: in Edit mode, with the caret in a cell, switching to another app no longer blanks the cell. The cell that holds the focus is marked by script (the field stays the page's active element when the window leaves), instead of by `:focus`/`:focus-within`, which WebKit drops; a redraw of the table in the meantime no longer overwrites that field or its look. The window leaving never writes the document.
