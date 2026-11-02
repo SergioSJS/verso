@@ -203,7 +203,8 @@ pub enum Why {
 
 /// The entries that go now: each past `days` (0 keeps them forever), then,
 /// with a quota or a size `cap`, the oldest of the rest while the bin alone
-/// is larger than the smaller of the two (the quota wins a tie).
+/// is larger than the smaller of the two (the quota wins a tie). The size
+/// cap never removes an entry younger than a day: it counts, and waits.
 #[must_use]
 pub fn due(
     items: &[TrashItem],
@@ -236,6 +237,11 @@ pub fn due(
         for item in kept {
             if total <= limit {
                 break;
+            }
+            // The server's size cap counts an entry younger than a day but
+            // never removes it (ADR 0080, decided 2026-11-01): it waits.
+            if why == Why::OverCap && now - item.since() < DAY {
+                continue;
             }
             total = total.saturating_sub(item.size);
             out.push((item.record.path.clone(), why));

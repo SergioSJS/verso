@@ -212,3 +212,6 @@ and exits (Tauri's single-instance plugin), and on macOS the command line
 goes back to `open -a`, as decided above. Since `a28f633` (2026-09-25) it
 had run the installed bundle's binary and `open -n`, which started a
 second app — one that, run while the first was open, showed no window.
+
+- Revisions: 2026-11-01 — **confirmed by the maintainer** (item 10, a): the
+  usage error stays "no folder, Markdown file or data file by that name". *"Todas pode seguir sua recomendação com exceção: Abas no celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …, imagino que celular um pouco mais estreito não vai caber tudo; 7. Se tiver logado com a conta do dono, deveria sim ser B; 11. deveria ser vc conferindo, B"* (follow your recommendation on all of them, except: tabs on the phone are a mix of a and b; 7: signed in as the owner it should be b; 11: it should be you checking, b).

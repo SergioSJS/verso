@@ -298,7 +298,8 @@ carried a recommendation; the maintainer decided. Open items answered
     `read_file_text` and `links` of a board do the same; the revision is
     always that of the bytes on disk, and only the `file` strings of the
     text are rewritten (invariant 7). `[OPEN]` *(2026-10-31: whether it waits
-    for after V1 is to be discussed with the maintainer on 2026-11-02)*: the
+    for after V1 is to be discussed with the maintainer on 2026-11-02. Decided
+    2026-11-01, 13 = b: **into V1**, after the terminal and the music are polished; not built)*: the
     **sync** of a share to a device still carries a board's bytes as they are
     on the server
     (owner paths), and a share window without a table still joins the
@@ -459,3 +460,15 @@ same day); the rule lives in
 [0113](0113-one-access-model-for-a-table.md) section B. Items 5 and 11 are
 not settled by the list of 2026-10-31: the maintainer kept them apart, to be
 discussed with him on 2026-11-02.
+
+**2026-11-01 (the items held for the second, discussed early).** The maintainer
+answered the list: *"12. A 13. B 14. B - Mas vamos fazer depois, quero terminal e música redondinho primeiro 15. B - (idem) 16. B - (idem)"* (12 a; 13 b; 14 b, but later, he wants the terminal and the music polished first; 15 b, likewise; 16 b, likewise).
+
+- **Item 5 stays as decided on 2026-10-10 (12 = a):** a share never appears
+  inside the receiver's vault; it is under *Shared with me* and in the
+  folder switcher. **Confirmed 2026-11-01.**
+- **Item 11's shared board with the owner's paths (13 = b):** the sync of a
+  share carrying a board's bytes as they are on the server, and a share
+  window without a table joining the board's whole room, **move into V1**,
+  ordered after the terminal and the music are polished. `[DECIDED
+  2026-11-01, not built]`; the roadmap carries the row (V.49).

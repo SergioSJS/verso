@@ -241,3 +241,34 @@ and `test/tabModel.test.mjs`), the choices being the author's, to confirm:
   buttons are (`verso.rightTabOrder`, `verso.rightTabsOff`), never in the
   notes; settings do not sync today, so neither does this.
 - **On a phone** the tabs, the Settings rows and their buttons are 44 px.
+
+### Amendment (2026-11-01, later): the tabs' choices confirmed, and the phone's size
+
+The maintainer was asked the choices above that were the author's, to
+confirm. His words: *"Todas pode seguir sua recomendação com exceção: Abas no
+celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …,
+imagino que celular um pouco mais estreito não vai caber tudo"* ("follow your
+recommendation on all of them, except: tabs on the phone is a mix of a and b,
+a) 34×44 px, the 8 fit and the rest goes to the ⋯; I imagine a somewhat
+narrower phone will not fit them all"). So:
+
+- **Confirmed (item 2 = a)**: a hidden tab that something opens (Music from the
+  mini-player) shows only while it is open and goes again when another tab is
+  chosen.
+- **Confirmed (item 3 = a)**: the order and the hidden set stay **per device**
+  (`verso.rightTabOrder`, `verso.rightTabsOff`); an account-wide setting only
+  later, if the per-device one bothers.
+- **Decided (item 4)**: on a phone a tab is **34 px wide by 44 px high**. The
+  drawer is `min(85vw, 320px)` and its close button takes 44 of it, so the
+  eight tabs (8 × 34 = 272) fit exactly at 390 px with no gap between them
+  (`.right-tabs { gap: 0 }` on a coarse pointer); on a narrower phone the
+  tabs that do not fit go into the "⋯", the chosen tab first, then the game's
+  two, then the person's order. Built in `app/ui/css/panels.css`, tried in
+  `e2e/right-tabs-phone.spec.mjs` (the drawer's width at 390, 360 and 320).
+  A tab 34 px wide is under the 44 px a finger usually gets: the maintainer
+  chose it knowing so (a "mix of a and b": the height keeps 44).
+
+The two choices marked *to confirm* in the amendment of 2026-11-01 above (a
+hidden tab that is opened shows only while open; the order and the hidden
+set stored per device) are **confirmed**, in the maintainer's answer to the
+list of 2026-11-01: *"Todas pode seguir sua recomendação com exceção: Abas no celular vai ser mix de a com b, a) 34×44 px, as 8 cabem e o resto vai para …, imagino que celular um pouco mais estreito não vai caber tudo; 7. Se tiver logado com a conta do dono, deveria sim ser B; 11. deveria ser vc conferindo, B"* (follow your recommendation on all of them, except: tabs on the phone are a mix of a and b; 7: signed in as the owner it should be b; 11: it should be you checking, b).

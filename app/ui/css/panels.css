@@ -975,6 +975,13 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .right-tabs { height: 44px; min-height: 44px; max-height: 44px; }
   .right-tab { height: 44px; }
 }
+/* A phone's tab is 34 wide by 44 high (the maintainer, 2026-11-01: the eight fit at 390 px; a narrower phone
+   folds the rest into the "⋯", in the person's order). */
+@media (pointer: coarse) and (max-width: 760px) {
+  /* 8 × 34 = 272, and the drawer's close takes 44 of its 320 (min(85vw, 320px)): nothing left for a gap. */
+  .right-tabs { gap: 0; padding-left: 2px; }
+  .right-tab { width: 34px; }
+}
 
 /* The font size's sample (fontSample.ts): the note's own text, never wider than the dialog. */
 .font-sample { display: grid; gap: .3rem; min-width: 0; margin: .2rem 0 .6rem; }

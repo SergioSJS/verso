@@ -20,30 +20,6 @@ fn binned(lab: &Lab, rel: &str) {
     let _report = root.trash(std::path::Path::new(rel)).unwrap();
 }
 
-/// Move `rel` into the bin with the record a deletion through the server
-/// leaves (who, from where), so that a share's bin knows it as its own.
-fn binned_recorded(lab: &Lab, rel: &str) {
-    use verso_core::trash::TrashBook as _;
-    let mut root = verso_fs::Root::open(lab.notes.path().join("Campanha"), Vec::new()).unwrap();
-    let (at, _report) = root.trash(std::path::Path::new(rel)).unwrap();
-    let path = at.to_string_lossy().replace('\\', "/");
-    let db = crate::db::Db::open(&lab.dir.path().join("local")).unwrap();
-    let folder = db.folder_by_dir("Campanha").unwrap().unwrap().id;
-    let mut book = crate::db::FolderBook {
-        db: &db,
-        folder: &folder,
-    };
-    let now = verso_core::trash::now();
-    book.put(&verso_core::trash::record(
-        &path,
-        rel,
-        now,
-        Some("Dono"),
-        false,
-    ))
-    .unwrap();
-}
-
 /// The bin a phone sees is the chosen folder's own entries: what the vault's
 /// owner deleted from the attachments folder or from beside the folder is
 /// not listed, and cannot be given back — into the vault's root or
@@ -57,13 +33,12 @@ fn the_bin_gives_a_phone_only_what_was_the_chosen_folders() {
         lab.serve();
         let cookie = lab.pair("iPad", true, Role::Editor).await.unwrap();
         let mut ws = open_part(&lab, &cookie, "Projetos").await;
-        // The phone is an editor of the chosen folder, and outside a table
-        // only the folder's owner deletes (ADR 0113 section B, amended
-        // 2026-10-31; provisional for a phone, see there): the entry is the
-        // vault owner's deletion, recorded as the server records one.
+        // The phone is an editor of the chosen folder signed in as the
+        // computer's owner, who deletes outside a table (ADR 0113 section B,
+        // amended 2026-11-01): the entry is its own deletion, recorded as the
+        // server records one.
         let kept = call(&mut ws, 2, "delete_note", json!({ "path": "Sub/s.md" })).await;
-        assert_eq!(kept["err"]["kind"], "refused", "{kept}");
-        binned_recorded(&lab, "Projetos/Sub/s.md");
+        assert!(kept.get("ok").is_some(), "{kept}");
         let list = call(&mut ws, 3, "trash_list", json!({})).await;
         let entries = list["ok"]["entries"].as_array().unwrap();
         assert_eq!(entries.len(), 1, "{list}");

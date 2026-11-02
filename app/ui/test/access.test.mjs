@@ -42,9 +42,9 @@ const ACTIONS = { see: "see", edit: "edit", attach: "attach", attachImage: "atta
 /** What the server says of a person, as its capabilities and its reads say it. */
 function told(w, row) {
   const seat = w.link ? "visitor" : w.role === "owner" ? "master" : w.role ? "player" : "none";
-  const folder = { seat, role: w.link ? "" : (w.role ?? ""), cap: w.cap, table: row.table !== "none" };
+  const folder = { seat, role: w.link ? "" : w.owns ? "owner" : (w.role ?? ""), cap: w.cap, table: row.table !== "none" };
   // The level does not depend on the credential: the same person with a credential that writes.
-  const writer = vectors.who.find((x) => x.role === w.role && x.link === w.link && x.cap === "write" && !x.phone && x.admin === w.admin && x.other === w.other) ?? w;
+  const writer = vectors.who.find((x) => x.role === w.role && x.link === w.link && x.cap === "write" && !x.phone && x.admin === w.admin && x.other === w.other && x.owns === w.owns) ?? w;
   const level = allow(row.edit, writer.name) ? "edit" : allow(row.see, writer.name) ? "see" : "none";
   return { folder, level };
 }

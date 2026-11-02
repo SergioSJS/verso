@@ -51,7 +51,9 @@ export function decide(ctx: Ctx, file: FileAccess | null, action: Action): boole
   // Only the folder's owner deletes, outside a table too (ADR 0113 section
   // B, amended 2026-10-31: "apenas o dono da pasta pode apagar"); a folder of
   // this computer alone (no server's model) is the person's own.
-  const owner = ctx.folder === null || master;
+  // The folder's owner holding a share's role (a phone served a part of the
+  // folder) is told `role: "owner"` with a player's seat (B8, 2026-11-01).
+  const owner = ctx.folder === null || master || (ctx.folder.role === "owner" && !table);
   if (!file) {
     // A path no answer carried: the whole folder's own, which the game
     // master (or a folder with no table) writes by the side's capability.

@@ -485,6 +485,11 @@ point 13).
    `crates/verso-core/tests/trash.rs` (the sweep's guardrail, the quota's
    guard), `crates/verso-fs/src/trashbin/tests.rs` (no symlink followed);
    A: the files on disk and the log's lines (`manual-checks.md`).
+   Amendment 2026-11-01 (I5): on a server whose bin cap (`VERSO_TRASH_MAX`) a
+   folder passes by itself, "Mover para a lixeira" adds *Atenção: isto tem …,
+   mais que o limite da lixeira do servidor … sem poder ser restaurado*; it
+   stays in the bin a day at least (E: `trash-cap-warning.spec.mjs`; S: the
+   `due` and server-sweep tests).
 12. Note 14, "O Histórico de Versões" ([ADR 0091](../adr/0091-version-history.md)):
    open a note, type a line, wait for its save, and open *Histórico de
    versões* from the palette, the tab's menu, the tree's menu or the clock
@@ -1881,3 +1886,7 @@ On the app (desktop and a phone, 390 × 844), with a folder open and, for steps 
 4. **Ajustes › Aparência › Abas do painel direito**: every tab with a switch and up/down arrows; the bar follows at once; **Restaurar abas** brings the default order and every tab back. On a phone the rows and buttons are 44 px. Hide every tab but one: the last one's switch refuses. Level: H; E: `right-tabs-hide.spec.mjs`, `tabModel.test.mjs`.
 5. With **Mesa** and **Música** hidden and a track playing, the status bar still names it; a click on it opens **Música**, shown in the bar while it is the chosen tab; choosing another tab hides it again. Level: H; E: `right-tabs-hide.spec.mjs`.
 6. A narrow panel (or a phone): the tabs that do not fit are in **⋯** in your order; **Mesa** and **Música** are in the bar first. Level: H; E: `right-tabs.spec.mjs`, `tabModel.test.mjs`.
+
+- **Owner's phone deletes on a part (ADR 0113 amendment, 2026-11-01).** Serve a vault in part (*Transformar em servidor*, tick only `Projetos`), pair a phone with *Pode editar as notas*: in the share, **Mover para a lixeira** on a note works and the entry shows in *Lixeira* as deleted by the owner; a phone paired without *Pode editar* is not offered it. S: `local::tests_parts` (the allowlist table, `delete_note`/`delete_entry` answer), `local::tests_parts_bin`, `access::vectors` ("editor-owns"); E: `test/access.test.mjs`.
+- **A synced editor is offered no delete (ADR 0113 B8, item 8 of 2026-11-01).** In the desktop app, a folder synced with a server where this account is an editor: right-click a note, the menu has no *Mover para a lixeira*; select two and the bar has no delete; `Delete` on a note says *só a dona da pasta apaga*. The owner's own synced window still offers it. S: `test/access-synced.test.mjs`.
+- **A phone's right-panel tabs (ADR 0072 amendment, 2026-11-01).** On a phone, open the right panel on the Outline tab: eight tabs of 34 × 44 px fit in the drawer at 390 px; on a 320 px or 360 px phone the ones that do not fit are in **⋯**, in your order. E: `right-tabs-phone.spec.mjs`.

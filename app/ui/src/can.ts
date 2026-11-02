@@ -83,6 +83,12 @@ export function folderAccessNow(): FolderAccess | null {
   return known.access ?? null;
 }
 
+/** The server's size cap for a folder's bin, in bytes, as last answered;
+ *  null when there is none (ADR 0080). */
+export function trashCapNow(): number | null {
+  return known.trash_cap ?? null;
+}
+
 /** Which side the window talks to: the desktop app or a server. */
 export function host(): Host {
   return known.host;

@@ -327,3 +327,24 @@ through `verso_fs::trashbin::purge`, which refuses a path outside the bin;
 no pattern or prefix match is involved, and a test keeps a live note of the
 name of a purged entry. The desktop's own bin (`Workspace::sweep_trash`) has
 no size cap: the decision was about the server's trash.
+
+**Amendment (2026-11-01, review finding I5).** The size cap of the build above
+purged the newest entry too, at once, when it alone passed the cap (the sweep
+runs 5 s after a deletion): a folder of music deleted from the browser was
+unrecoverable five seconds later. Put to the maintainer with a recommendation;
+he chose both halves, *"Todas pode seguir sua recomendação"* ("follow your
+recommendation on all of them"; item 1 = c, never purging a young entry **and**
+warning before):
+
+1. **The cap counts an entry younger than a day but never removes it**
+   (`verso_core::trash::due`): it waits; the oldest of the rest still go while
+   the bin is over; the age cap (item 3) and the quota (item 8) are unchanged.
+   Once a day old, the entry is fair game.
+2. **The window warns before a deletion that alone passes the cap**: the
+   server's capabilities carry `trash_cap` (bytes; none without a cap, and the
+   desktop's own bin has none); the confirm of a delete (the tree's menu, the
+   selection, the keys) adds *it stays in the trash for 1 day, then goes for
+   good and cannot be restored* when the files under the paths, as the window
+   knows their sizes, add up past it. A contract change (an optional field of
+   `Capabilities`): deploy the server before the apps.
+

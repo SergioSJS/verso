@@ -388,6 +388,17 @@ streamed to the table — independent of the files**
     and hands to `audio_share_start`; the Tauri channel of item 19 is not
     used (fifty IPC calls a second for nothing).
 
+    *CI and `cmake` (2026-11-01, item 11, b):* put to the maintainer as
+    "the lead adds `cmake` to `ci.yml` and `release.yml` before the next push"
+    (a) or "you check the runners" (b), he answered *"deveria ser vc
+    conferindo, B"* (it should be you checking, b), among his answers to the
+    list ("Todas pode seguir sua recomendação com exceção: ... 11. deveria ser
+    vc conferindo, B"). The lead checked the same day that the GitHub-hosted
+    runners the workflows use ship `cmake` on their image (`ubuntu-24.04`,
+    `macos-latest`, which is macOS 15, and `windows-2025`), so neither
+    `ci.yml` nor `release.yml` gets a step to install it. A change of runner
+    image is the thing to re-check.
+
     *Built with the decoder, recorded for the review (2026-11-01, finding
     I4):* the WASM decoder makes the window's **content security policy**
     carry `'wasm-unsafe-eval'` in `script-src`, in both places that set it —

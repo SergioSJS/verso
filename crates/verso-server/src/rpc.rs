@@ -262,6 +262,7 @@ async fn run(
             token_write: !matches!(who.via, Via::Token { write: false, .. })
                 && who.phone.is_none_or(Role::writes),
             owner: false,
+            owns: false,
             phone: who.phone.is_some(),
             tx: tx.clone(),
         },

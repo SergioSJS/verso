@@ -87,7 +87,7 @@ impl Door {
     /// game master whatever the credential (ADR 0113 item 6).
     pub fn of(server: &Server, who: &Who, client: &str) -> Result<Self, ContractError> {
         let (folder, role) = crate::rpc::role_here(server, client)?;
-        let (scope, owner, writes) = {
+        let (scope, owner, owns, writes) = {
             let clients = verso_service::lock(&server.clients);
             let c = clients.get(client);
             (
@@ -95,10 +95,11 @@ impl Door {
                 // Kept in memory with the window: no database is read per
                 // command.
                 c.is_some_and(|c| c.owner),
+                c.is_some_and(|c| c.owns),
                 c.is_some_and(|c| c.token_write),
             )
         };
-        let mut door = Self::build(server, who, (folder, role, owner), scope);
+        let mut door = Self::build(server, who, (folder, role, owner), owns, scope);
         // The ceiling is the window's own, as the connection holds it now: a
         // paired phone made a reader from the computer reads from its next
         // command, over the WebSocket too, not from its next connection.
@@ -115,6 +116,7 @@ impl Door {
         server: &Server,
         who: &Who,
         (folder, role, owner): (String, Role, bool),
+        owns: bool,
         scope: Option<crate::scope::Scope>,
     ) -> Self {
         let visible = scope
@@ -153,6 +155,7 @@ impl Door {
                 phone: who.phone.is_some(),
                 link,
                 admin: who.account.admin,
+                owns_folder: owns && !link,
             },
             folder,
             scope,
@@ -956,6 +959,7 @@ pub fn asker_of(c: &crate::state::Client) -> Asker {
         phone: c.phone,
         link,
         admin: false,
+        owns_folder: c.owns && !link,
     }
 }
 
@@ -1106,8 +1110,12 @@ impl Door {
                 Seat::Visitor => AccessSeat::Visitor,
                 Seat::Stranger => AccessSeat::None,
             },
+            // The folder's owner holding a share's role is told `owner`: the
+            // window offers the deletion the rule allows (B8, 2026-11-01).
             role: if self.asker.link {
                 String::new()
+            } else if self.asker.owns_folder {
+                "owner".to_owned()
             } else {
                 self.asker
                     .role
