@@ -17,6 +17,8 @@ type Words = {
   sources: string;
   kind: Record<AudioSourceKind, string>;
   noSources: string;
+  needsMac: string;
+  macDenied: string;
   quality: string;
   qualityHint: string;
   kbps: (n: number) => string;
@@ -49,6 +51,8 @@ const pt: Words = {
   sources: "Fontes de som",
   kind: { app: "Aplicativo", page: "Página no Verso", system: "Tudo que este computador toca" },
   noSources: "A captura de som chega numa próxima atualização, um sistema de cada vez. Por enquanto, este computador ainda não tem nada para compartilhar.",
+  needsMac: "Compartilhar áudio no Mac precisa do macOS 14.4 ou mais novo. Atualize o macOS para compartilhar o som de um app.",
+  macDenied: "O macOS não deixou o Verso gravar o som do sistema. Abra Ajustes do Sistema > Privacidade e Segurança > Gravação de Áudio do Sistema (em algumas versões, “Tela e Áudio do Sistema”), ligue o Verso e comece de novo.",
   quality: "Qualidade",
   qualityHint: "Mais alta soa melhor e usa mais da conexão. 96 é um bom começo.",
   kbps: (n) => `${n} kbit/s`,
@@ -63,7 +67,7 @@ const pt: Words = {
   meter: "Nível do som",
   checking: "Verificando o som…",
   arriving: "Som chegando",
-  silence: "Silêncio: nada está sendo captado. Veja se a fonte está tocando.",
+  silence: "Silêncio: nada está sendo captado. Veja se a fonte está tocando e, no Mac, se o Verso pode gravar o som do sistema (Ajustes do Sistema > Privacidade e Segurança).",
   listeners: (n) => (n === 1 ? "1 ouvinte" : `${n} ouvintes`),
   stopSharing: "Parar de compartilhar",
   ended: "Compartilhamento encerrado",
@@ -81,6 +85,8 @@ const en: Words = {
   sources: "Sound sources",
   kind: { app: "Application", page: "Page in Verso", system: "Everything this computer plays" },
   noSources: "Capturing sound comes with a coming update, one system at a time. For now this computer has nothing to share yet.",
+  needsMac: "Sharing audio on a Mac needs macOS 14.4 or newer. Update macOS to share the sound of an app.",
+  macDenied: "macOS did not let Verso record system audio. Open System Settings > Privacy & Security > System Audio Recording (in some versions “Screen & System Audio Recording”), turn Verso on, and start again.",
   quality: "Quality",
   qualityHint: "Higher sounds better and uses more of the connection. 96 is a good start.",
   kbps: (n) => `${n} kbit/s`,
@@ -95,7 +101,7 @@ const en: Words = {
   meter: "Sound level",
   checking: "Checking the sound…",
   arriving: "Sound arriving",
-  silence: "Silence: nothing is being captured. Check that the source is playing.",
+  silence: "Silence: nothing is being captured. Check that the source is playing and, on a Mac, that Verso may record system audio (System Settings > Privacy & Security).",
   listeners: (n) => (n === 1 ? "1 listening" : `${n} listening`),
   stopSharing: "Stop sharing",
   ended: "Sharing ended",
@@ -106,3 +112,14 @@ const en: Words = {
 };
 
 export const ss: Words = LANG.toLowerCase().startsWith("pt") ? pt : en;
+
+/** The host's own refusals about capture, which the window says in its language (`audio_share/source.rs`). */
+export const HOST_NEEDS_MAC = "audio capture needs macOS 14.4 or later";
+export const HOST_DENIED = "Verso is not allowed to record system audio";
+
+/** A host refusal in the person's words, or null when it is not one of these. */
+export function hostWhy(message: string): string | null {
+  if (message === HOST_NEEDS_MAC) return ss.needsMac;
+  if (message === HOST_DENIED) return ss.macDenied;
+  return null;
+}

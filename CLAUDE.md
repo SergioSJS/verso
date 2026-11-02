@@ -83,7 +83,7 @@ Two groups ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), [ADR 0067](docs/adr/0
 | Guardrail | Enforces | Command / Script |
 |---|---|---|
 | Formatting | No formatting diffs hiding logic | `cargo fmt --all --check` |
-| Memory safety | `unsafe_code = "forbid"` workspace-wide (single exception: native clipping in `app/src-tauri/src/web_clip/{macos,windows}.rs` with `SAFETY:` comments) | `node scripts/check-unsafe.mjs` |
+| Memory safety | `unsafe_code = "forbid"` workspace-wide (exceptions: native clipping in `app/src-tauri/src/web_clip/{macos,windows}.rs`, and OS audio capture in `app/src-tauri/src/audio_share/{macos,windows,linux}.rs` (ADR 0116, Q9), all with `SAFETY:` comments) | `node scripts/check-unsafe.mjs` |
 | No panics in prod | Clippy `-D warnings`; `unwrap_used` and `expect_used` denied outside tests | `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings` |
 | Folder confinement | `std::fs` denied outside `verso-fs` (declared exceptions: sidecar, data, update, log, resolv_conf) | Enforced in `scripts/check.sh` |
 | Source file size limit | Every source file (`.rs`, `.ts`, `.tsx`, `.js`, `.mjs`, `.css`) under **1500 lines** ([ADR 0067](docs/adr/0067-source-files-stay-small.md)) | `node scripts/check-sizes.mjs` |

@@ -1834,6 +1834,16 @@ As the game master in the desktop app of a table (a debug build lists a test ton
 4. A source that is silent (a muted app): within 3 seconds the card says *Silêncio: nada está sendo captado…*. A capture that cannot start leaves no share at the table and says why in the status bar. Level: A; E: `share-audio.spec.mjs`.
 5. On a phone (390 × 844) every control above is 44 px and the picker fits; the keyboard moves through the picker with the arrows and Tab stays inside it. Level: A; E: `share-audio.spec.mjs` (`@layout`).
 
+## Share audio on the Mac (ADR 0116 item 17, task S7, note 36)
+
+As the game master in the installed desktop app on a Mac (macOS 14.4 or later) at a UniVerso table, with a browser as the listener:
+
+1. Play something in Spotify or Música. **Compartilhar áudio…** lists **Tudo o que este computador toca** first, then the apps that have made sound, by name (never a window title; Verso itself is not listed). Level: A (the real Mac); the listing shape is `apps.rs` unit tests.
+2. The first share: macOS asks for **Gravação de Áudio do Sistema** naming Verso. Allow, and the listener hears the app; the tab shows *Som chegando*. Level: A.
+3. Refuse (or reset with `tccutil reset AudioCapture com.versomd.app`): the status bar says *O macOS não deixou o Verso gravar o som do sistema…* with the System Settings path, and the table keeps no share. Level: A; the words are `shareHost.test.mjs`.
+4. On a macOS below 14.4 the picker says *Compartilhar áudio no Mac precisa do macOS 14.4 ou mais novo…* and Start is off. Level: A.
+5. **Parar de compartilhar**, closing the window and quitting the app each end the share and leave no capture running. Level: A; the lifecycle is `macos_source` tests.
+
 ## Music at the table (ADR 0116 phase 1, note 36, 2026-10-31)
 
 On a UniVerso folder made a table, with the game master's window (the desktop app or a browser) and a player's (a second browser, or a phone), as in note 36. Copy `assets/sons/taverna.mp3` and `assets/sons/estrada.mp3` into a folder `Música` of the table, or play them from note 36:

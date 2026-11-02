@@ -88,7 +88,7 @@ function heading(box: HTMLElement, text: string): HTMLElement {
 
 /** The source picker: what to capture and at which quality, or null. */
 export async function chooseSource(): Promise<{ source: AudioSource; kbps: number } | null> {
-  const list = await sources();
+  const { list, why } = await sources();
   return dialog<{ source: AudioSource; kbps: number } | null>(null, (box, finish) => {
     heading(box, ss.pickTitle);
     box.append(h("p", "share-pick-help", ss.pickHelp));
@@ -105,7 +105,7 @@ export async function chooseSource(): Promise<{ source: AudioSource; kbps: numbe
     }
     let focus: HTMLElement | null = null;
     if (list.length === 0) {
-      const none = h("p", "share-pick-none", ss.noSources);
+      const none = h("p", "share-pick-none", why ?? ss.noSources);
       none.setAttribute("role", "status");
       box.append(none);
       start.disabled = true;

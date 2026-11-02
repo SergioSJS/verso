@@ -143,9 +143,22 @@ xattr = "1.6"
 # because `NSView.clipsToBounds` is public only from macOS 14 and the app
 # supports macOS 11 and up. It replaces nothing of ours.
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSString", "NSGeometry"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification", "objc2-quartz-core"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSString", "NSGeometry", "NSArray", "NSDictionary", "NSValue", "NSUUID", "NSProcessInfo"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification", "objc2-quartz-core", "NSRunningApplication", "NSWorkspace", "libc"] }
 objc2-quartz-core = { version = "0.3", default-features = false, features = ["std", "CALayer"] }
+# Share audio on the Mac (src/audio_share/macos.rs; ADR 0116 item 17,
+# Q9 decided (a) 2026-10-31): Core Audio's process taps, which no safe Rust
+# crate serves (the evaluation is in ADR 0116, "As built (S7)"). The
+# bindings are objc2's (objc2-core-audio and objc2-core-audio-types 0.3.2,
+# Zlib OR Apache-2.0 OR MIT; objc2-core-foundation for the dictionary the
+# aggregate device takes, already in the tree; block2 0.6 for the IOProc block, MIT, and libc
+# for the parent of a process, MIT OR Apache-2.0, both already in the
+# tree). They replace hand-written `extern "C"` declarations of ours.
+objc2-core-audio = "0.3"
+objc2-core-audio-types = "0.3"
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFDictionary"] }
+block2 = "0.6"
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window

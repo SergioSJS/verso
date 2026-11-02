@@ -1071,3 +1071,80 @@ of the chosen source (`audio_share/mod.rs`, `Metered`).
 - **Not built** (still S7 to S12): the capture back-ends per system, so a
   release build lists no source and the picker says so; the page source (a
   child web view); the real two-device test (S10).
+
+### As built (S7, 2026-11-01): audio capture on macOS
+
+The first capture back-end: `audio_sources_list` and `audio_share_start` on
+macOS, over Core Audio process taps (item 17). No contract change.
+
+- **Sources** (`apps.rs`, `macos_source.rs`): *Everything this Mac plays*
+  (`system`, kind system) first, then each running regular application that
+  has an audio process object (`app:<bundle id>`, kind app, listed by
+  `NSRunningApplication.localizedName`, never a window title; Verso itself
+  is left out). A browser's or Electron app's sound comes from helper
+  processes, matched to the application by bundle identifier
+  (`com.google.Chrome.helper…` belongs to `com.google.Chrome`). An
+  application is resolved to its audio objects when the share starts; one
+  that has made no sound since it began is not listed (reopen the picker once
+  it plays).
+- **Capture** (`macos.rs`): `CATapDescription` (stereo mixdown of the
+  application's objects, or the global tap but excluding Verso's objects),
+  `AudioHardwareCreateProcessTap`, a private aggregate device holding the
+  tap, an IOProc block. The block only copies the buffers into a bounded
+  channel (100 blocks); a thread of ours converts them to 48 kHz stereo
+  `f32` (`convert.rs`: mono doubled, more than two channels cut to two,
+  linear resampling kept across blocks) and gives them to the existing sink
+  (meter, Opus encoder, frames). Stop, the window closing and the app exiting
+  drop the tap in the reverse order of its making. The tap lives on a thread
+  of its own because its objects are not `Send`.
+- **Permission and version**: `NSAudioCaptureUsageDescription` in
+  `app/src-tauri/Info.plist` (both languages in the one string). The tap's
+  refusal (`'nope'`, `kAudioHardwareIllegalOperationError`) is told in the
+  window with the System Settings path; the system has no API to ask the
+  status first, so a grant that is silently withheld shows as the meter's
+  *Silence* (its text now names the permission). Floor: **macOS 14.4**
+  (process taps exist from 14.2; 14.4 is the first release without the
+  aggregate-tap-list bug the open-source users report). Below it the list
+  call refuses and the picker says it needs a newer macOS; macOS 13's
+  ScreenCaptureKit audio (Screen Recording permission) is not built.
+- **Q9, what was evaluated** (the maintainer's rule: a second `unsafe`
+  exception only when no safe wrapper serves, and then only in
+  `audio_share/{macos,windows,linux}.rs`, declared in `CLAUDE.md` §3 and
+  `scripts/check-unsafe.mjs` in the same change):
+  - `objc2-core-audio` / `objc2-core-audio-types` 0.3.2 (the bindings Verso
+    uses, Zlib OR Apache-2.0 OR MIT): complete, but every call is an
+    `unsafe fn` (raw pointers, out parameters, a block called from the
+    system's thread). Not a safe wrapper; it is the base.
+  - `coreaudio-rs` 0.14 / `coreaudio` 0.6: safe wrapper of AudioUnit/HAL
+    streams; no process taps, no `CATapDescription`. Does not serve.
+  - `screencapturekit` 11 (safe): audio of one application or the display,
+    but needs the Screen Recording permission (more alarming than "System
+    Audio Recording"), a Swift bridge built at compile time, and is not what
+    item 17 decided. Not used.
+  - `flexaudio-os-macos` 0.8.1 (MIT): wraps exactly this chain, but is a
+    young single-author crate pulling `flexaudio-core`, exact-pinned
+    dependencies (`libc =0.2.186`, objc2 `=0.6.4`) and an active self-probe
+    that plays a diagnostic sound on the default output; its own `unsafe` is
+    the same as ours, only unread by us. Not adopted; read as a reference for
+    the tap chain.
+  So the exception is used: `macos.rs` only (about 300 lines), one operation
+  per `unsafe` block, each with its `SAFETY:` comment (`clippy`
+  `undocumented_unsafe_blocks` and `multiple_unsafe_ops_per_block` are
+  `forbid` in `verso-app`). `windows.rs` and `linux.rs` are declared but do
+  not exist yet. New direct dependencies, all already in the lockfile or
+  from the same objc2 family, under licences `cargo deny` passes:
+  `objc2-core-audio`, `objc2-core-audio-types`, `objc2-core-foundation`,
+  `block2`, `libc`; they replace hand-written `extern "C"` declarations.
+- **Open (for the maintainer)**: *Everything this Mac plays* leaves out
+  Verso's own process and the processes that descend from it by parent pid.
+  The dice and chimes are played by the WebKit helper of the web view, an
+  XPC service the system starts, whose parent is `launchd`; public API does
+  not tie it to Verso (the way is a private "responsible pid" call, not
+  used). Those sounds may therefore be heard in "Everything". The real check
+  is in `docs/reference/manual-checks.md` (S7, item 3). Options if it leaks:
+  accept it and say so in the picker, share applications only on a Mac with
+  the system option off, or allow the private call.
+- **Tests**: `convert.rs` and `apps.rs` (pure, every system), the listing and
+  lifecycle in `macos_source.rs`, the check-unsafe test, `shareHost.test.mjs`
+  (the words). A real capture test is `#[ignore]`d for the maintainer's Mac
+  (`cargo test -p verso-app --lib mac_real_capture -- --ignored --nocapture`).
