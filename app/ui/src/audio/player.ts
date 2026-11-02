@@ -27,9 +27,9 @@ import { h, ui } from "../dom";
 import { canPlay } from "../table/sound/formats";
 import { audioContext, unlockAudio } from "../dice3d/audio";
 import { mediaNode, prepareMedia, retryPlain, routeMedia } from "../dice3d/ownOutput";
-import { control, onSound, setDuck, sound, soundAlone, tableAudible } from "../table/sound/run";
+import { control, onSound, reportLength, setDuck, sound, soundAlone, tableAudible } from "../table/sound/run";
 import { playForTable, soundButtons, type SoundHost } from "../table/sound/links";
-import { clockText, expectedMs } from "../table/sound/sync";
+import { clockText, expectedMs, lengthOf } from "../table/sound/sync";
 import { aw } from "./strings";
 import { type Heard, type Link, type Own, UNLINKED, duckFactor, linkStep, startAtMs, toggleWish, handovers, orphanStops, ownGain, ownPrefs, tableStarted, timeText } from "./state";
 
@@ -225,8 +225,8 @@ class AudioEmbed {
     if (a.dataset["bound"]) return;
     a.dataset["bound"] = "1";
     const me = () => owners.get(a);
-    a.addEventListener("loadedmetadata", () => me()?.drawTime());
-    a.addEventListener("durationchange", () => me()?.drawTime());
+    a.addEventListener("loadedmetadata", () => me()?.lengthRead());
+    a.addEventListener("durationchange", () => me()?.lengthRead());
     a.addEventListener("timeupdate", () => me()?.drawTime());
     a.addEventListener("play", () => me()?.started());
     a.addEventListener("playing", () => me()?.drawState());
@@ -237,6 +237,12 @@ class AudioEmbed {
       if (retryPlain(a)) return;
       if (a.getAttribute("src")) me()?.say(aw.failed);
     });
+  }
+
+  /** The element read the file's length: drawn, and told to the table when this embed is its player. */
+  lengthRead(): void {
+    if (this.bound()) reportLength(this.audio.duration * 1000);
+    this.drawTime();
   }
 
   /** Inside the person's gesture. */
@@ -354,9 +360,10 @@ class AudioEmbed {
   drawTime(seekMs?: number): void {
     const d = this.audio.duration;
     const m = this.bound() ? sound().music() : null;
-    const length = m?.durationMs ?? (Number.isFinite(d) && d > 0 ? d * 1000 : null);
+    const length = lengthOf(m?.durationMs ?? null, d);
     const mine = (Number.isFinite(this.audio.currentTime) ? this.audio.currentTime : 0) * 1000;
-    const at = seekMs ?? (m ? expectedMs(m, sound().serverNow()) : mine);
+    // The same position as the Music tab: wrapped at the length when looping, stopped at its end otherwise.
+    const at = seekMs ?? (m ? expectedMs({ ...m, durationMs: length }, sound().serverNow()) : mine);
     this.time.textContent = timeText(at, length);
     this.bar.disabled = length === null || !this.playable;
     if (length !== null) this.bar.max = String(Math.max(1, Math.floor(length / 1000)));

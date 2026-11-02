@@ -22,7 +22,7 @@ import type { Player } from "./player";
 import { type Scene, nextIn, previousIn, trackName } from "./scene";
 import { type Music, type SoundSource, type Wish, localSound } from "./source";
 import { st } from "./strings";
-import { ended, gain } from "./sync";
+import { ended, gain, settleLength } from "./sync";
 
 /** Whether the table's music exists in this window: its switch and the Table's. */
 export function soundOn(): boolean {
@@ -226,14 +226,20 @@ function apply(): void {
         if (now) active.cannotPlay(now.revision);
         tell();
       },
-      length: (ms) => {
-        const now = active.music();
-        if (now && active.controls() && now.durationMs === null) void active.change("duration", ms);
-      },
+      length: reportLength,
     });
     player.set({ ...want, music: active.music(), serverNow: () => active.serverNow() });
     apply();
   });
+}
+
+/** An element read the length of the table's track (ms): told to the table when
+ *  it has none or another (an early estimate); only by whoever controls the music. */
+export function reportLength(ms: number): void {
+  const now = active.music();
+  if (!now || !active.controls()) return;
+  const say = settleLength(now.durationMs, ms);
+  if (say !== null) void active.change("duration", say);
 }
 
 /** "Hear the table": inside the person's gesture. */

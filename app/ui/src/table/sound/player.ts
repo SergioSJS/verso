@@ -61,10 +61,15 @@ export class Player {
       if (this.src && retryPlain(this.el)) return;
       if (this.src) this.ev.failed();
     });
+    // The length is read again when the engine corrects it: an MP3 without a
+    // header is first sized from its bitrate (1:43 for a 50 s file).
     this.el.addEventListener("loadedmetadata", () => {
-      const d = this.el.duration;
-      if (Number.isFinite(d) && d > 0) this.ev.length(d * 1000);
+      this.ev.length(this.el.duration * 1000);
       this.correct(true);
+    });
+    this.el.addEventListener("durationchange", () => {
+      this.ev.length(this.el.duration * 1000);
+      this.correct(false);
     });
     this.el.addEventListener("playing", () => this.ev.started());
     document.body.append(this.el);

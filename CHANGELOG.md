@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+### Fixed
+
+- **Music loop and track length.** A track's length is read again when the engine corrects it (an MP3 without a header was first sized from its bitrate, so a 50 s file showed 1:43), and the audio embed bound to the table now wraps at the same length as the Music tab instead of counting past the end.
+
 ### Added
 
 - **Share audio: the sound of pages open in Verso, heard by the table** (ADR 0116 section B). In the desktop app, the game master's Music tab has **Share audio…**: it shares the sound of the pages open in Verso (YouTube, Spotify Web, an ambience loop), all together, with the sites playing now named in the list (*Pages open in Verso: open.spotify.com*), a level meter, the number of listeners, the rate and a stop. Other programs, the whole system and Verso's own sounds (dice, chimes, alerts, the table's music, audio players in notes) are never shared; they keep playing on the sharer's computer. Listeners in a browser or on a phone hear it with their own volume, mute and *Follow the table*, about 400 to 600 ms behind the sharer; they cannot share. Per system: **macOS 14.4 or later** asks for System Audio Recording at the first share, and a video or a page shown inside a note is shared too (the notice says so); **Windows 11** only (Windows 10 is refused, with the reason), and a page shown inside a note is not shared; **Linux** needs `pulseaudio-utils` (`pactl`, `parec`, `pacat`; the .deb and .rpm recommend it, and the AppImage needs it installed by hand), and a page or video shown inside a note is not shared. Pages opened as a page now keep their logins in a profile of their own: **sign in once more** in the pages you use. Lesson 36 in both demo vaults.
