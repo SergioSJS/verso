@@ -1483,6 +1483,9 @@ export class NoteLeaf extends Leaf {
     this.collab?.release(this.roomHandlers);
     this.collab = null;
     this.editor.destroy();
+    // The pages embedded in the note close now, not at the next move of
+    // something on screen: a page left open plays on unseen.
+    window.dispatchEvent(new Event("verso:leaf-gone"));
   }
 }
 methods(NoteLeaf, cover);

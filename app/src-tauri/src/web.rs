@@ -18,7 +18,8 @@ fn next_web_label() -> String {
 /// A page that could load `verso://` or `tauri://` would become a local
 /// document in the eyes of Tauri's access control.
 fn web_only(url: &tauri::Url) -> bool {
-    matches!(url.scheme(), "http" | "https")
+    // `about:blank` too: what a closing page is emptied to (`SILENCE`).
+    matches!(url.scheme(), "http" | "https") || url.as_str() == "about:blank"
 }
 
 /// Whether `url` is one of the app's own pages: `tauri://localhost` on
@@ -128,6 +129,8 @@ const UNLOAD_MS: u64 = 400;
 /// Destroy a page's view for good: silenced first, hidden and out of its
 /// container at once, closed when the empty page has loaded.
 pub(crate) fn destroy_web_view<R: tauri::Runtime>(wv: tauri::Webview<R>) {
+    crate::log::write("INFO", "host", &format!("web page closed: {}", wv.label()));
+    let _ = wv.with_webview(|pw| crate::audio_share::suspend_page_media(&pw));
     let _ = wv.eval(SILENCE);
     let _ = wv.hide();
     web_clip::release(&wv);
@@ -321,6 +324,7 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
 ) -> Result<String, ContractError> {
     let (slot, visible) = rects(place)?;
     let url = http_url(&url)?;
+    let host = url.host_str().unwrap_or("").to_owned();
     let label = next_web_label();
     // The window that asks hosts the page: the main one, or a note's own.
     let chrome = chrome_offset(&window);
@@ -338,6 +342,11 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
         )
         .map_err(|e| failed(e.to_string()))?;
     lock(&state.web_views).insert(label.clone(), window.label().to_owned());
+    crate::log::write(
+        "INFO",
+        "host",
+        &format!("web page opened: {label} ({host}) in {}", window.label()),
+    );
     web_clip::place(
         &wv,
         slot,
@@ -426,7 +435,15 @@ pub(crate) fn web_close<R: tauri::Runtime>(
     state: State<'_, App>,
     label: String,
 ) -> Result<(), ContractError> {
-    let wv = own_web_view(&window, &state, &label)?;
+    // A window closes only its own pages; a refusal is written down, as a
+    // page left open plays on with nothing to stop it.
+    let wv = own_web_view(&window, &state, &label).inspect_err(|e| {
+        crate::log::write(
+            "WARN",
+            "host",
+            &format!("web page {label} not closed from {}: {e:?}", window.label()),
+        );
+    })?;
     lock(&state.web_views).remove(&label);
     destroy_web_view(wv);
     Ok(())

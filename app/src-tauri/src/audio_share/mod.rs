@@ -428,6 +428,15 @@ pub fn audio_share_own_end<R: tauri::Runtime>(
     Ok(())
 }
 
+/// Silence a page's view before it closes (macOS: WebKit suspends all its
+/// media; elsewhere the page's own script does it, `web::SILENCE`).
+pub(crate) fn suspend_page_media(pw: &tauri::webview::PlatformWebview) {
+    #[cfg(target_os = "macos")]
+    macos::suspend_media(pw);
+    #[cfg(not(target_os = "macos"))]
+    let _ = pw;
+}
+
 /// The window's own output, if it had one, ends (the window went, or the share did).
 pub(crate) fn own_output_gone(label: &str) {
     #[cfg(target_os = "macos")]

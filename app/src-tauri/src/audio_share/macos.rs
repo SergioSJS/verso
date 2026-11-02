@@ -248,6 +248,36 @@ pub fn ask_playing(pw: &tauri::webview::PlatformWebview, tx: std::sync::mpsc::Se
     unsafe { view.requestMediaPlaybackStateWithCompletionHandler(&reply) };
 }
 
+/// Silence a page's view for good, before it closes: WebKit pauses every
+/// media element and AudioContext of the page and refuses to start any
+/// again, so a view that outlives its tab never plays on unseen (the
+/// maintainer's test, 2026-11-02: YouTube kept playing after its tab
+/// closed). Nothing below macOS 12, which has neither call.
+pub fn suspend_media(pw: &tauri::webview::PlatformWebview) {
+    let twelve = NSOperatingSystemVersion {
+        majorVersion: 12,
+        minorVersion: 0,
+        patchVersion: 0,
+    };
+    if !NSProcessInfo::processInfo().isOperatingSystemAtLeastVersion(twelve) {
+        return;
+    }
+    let page = pw.inner().cast::<WKWebView>();
+    // SAFETY: as in `ask_playing`: wry's `WKWebView` for this web view,
+    // alive while it exists, touched only on the main thread
+    // (`with_webview`); `retain` holds our own reference for this call.
+    let Some(view) = (unsafe { Retained::retain(page) }) else {
+        return;
+    };
+    // SAFETY: a public method of macOS 12 and up (checked above), with no
+    // completion block.
+    unsafe { view.setAllMediaPlaybackSuspended_completionHandler(true, None) };
+    // SAFETY: the same: public from macOS 12, no completion block.
+    unsafe { view.closeAllMediaPresentationsWithCompletionHandler(None) };
+    // SAFETY: a public method with no argument, on the main thread.
+    unsafe { view.stopLoading() };
+}
+
 /// Whom the tap listens to.
 pub enum Who {
     /// Only these audio objects, mixed down to stereo.

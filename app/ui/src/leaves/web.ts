@@ -101,6 +101,8 @@ export function watchEmbedLayout(): void {
     syncWebViews();
     syncEmbedViews();
   }).observe(document.documentElement, { attributes: true });
+  // A tab that closed may have held embedded pages: they close now.
+  window.addEventListener("verso:leaf-gone", syncEmbedViews);
   void document.fonts?.ready.then(syncEmbedViews);
   document.fonts?.addEventListener?.("loadingdone", syncEmbedViews);
 }
