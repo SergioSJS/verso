@@ -94,3 +94,55 @@ describe("a player drawn again keeps the sound going", () => {
     assert.equal(m.orphanStops(m.GRACE_SWEEPS), true);
   });
 });
+
+await esbuild.build({
+  stdin: { contents: `export * from "./src/audio/state"; export * from "./src/table/sound/source"; export * from "./src/table/sound/sync";`, resolveDir: ".", loader: "ts" },
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  outfile: "test/.bundles/audioEmbedLink.test-bundle.mjs",
+  logLevel: "error",
+});
+const k = await import("./.bundles/audioEmbedLink.test-bundle.mjs");
+
+describe("an embed playing for the table is the table's player", () => {
+  test("the table starts where the embed was, not at zero", async () => {
+    assert.equal(k.startAtMs(12.3456), 12_346);
+    assert.equal(k.startAtMs(0), 0);
+    assert.equal(k.startAtMs(NaN), 0);
+    let now = 1_000_000;
+    const s = k.localSound(() => now);
+    await s.play("a.mp3", { positionMs: k.startAtMs(42.5) });
+    now += 1000;
+    assert.equal(k.expectedMs(s.music(), s.serverNow()), 43_500);
+  });
+  test("armed at the music's revision, bound when the table plays this file past it, unbound when it moves on", () => {
+    const heard = (path, state, revision) => ({ path, state, revision });
+    let l = k.linkStep({ armed: 3, bound: false }, "a.mp3", heard("a.mp3", "playing", 3));
+    assert.equal(l.bound, false, "the old state is not the embed's play");
+    l = k.linkStep({ armed: 3, bound: false }, "a.mp3", heard("b.mp3", "playing", 4));
+    assert.equal(l.bound, false, "another file");
+    l = k.linkStep({ armed: 3, bound: false }, "a.mp3", heard("a.mp3", "playing", 4));
+    assert.equal(l.bound, true);
+    assert.equal(k.linkStep(l, "a.mp3", heard("a.mp3", "paused", 5)).bound, true, "pause keeps the link");
+    assert.equal(k.linkStep(l, "a.mp3", heard("b.mp3", "playing", 6)).bound, false);
+    assert.equal(k.linkStep(l, "a.mp3", heard("a.mp3", "stopped", 6)).bound, false);
+  });
+  test("pause, resume and seek from the embed change the table's state; the table's state moves the embed", async () => {
+    let now = 5_000;
+    const s = k.localSound(() => now);
+    await s.play("a.mp3", { positionMs: 10_000 });
+    let told = 0;
+    s.onChange(() => told++);
+    now += 2000;
+    await s.change(k.toggleWish(s.music().state));
+    assert.equal(s.music().state, "paused");
+    assert.equal(k.expectedMs(s.music(), s.serverNow()), 12_000, "the embed draws the table's position");
+    await s.change(k.toggleWish(s.music().state));
+    assert.equal(s.music().state, "playing");
+    await s.change("seek", 30_000);
+    now += 500;
+    assert.equal(k.expectedMs(s.music(), s.serverNow()), 30_500);
+    assert.equal(told, 3, "each control is an update the table tells");
+  });
+});

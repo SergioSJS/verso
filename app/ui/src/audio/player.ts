@@ -23,15 +23,15 @@
 // finds none stops after a moment.
 
 import { icon } from "../icons";
-import { h } from "../dom";
+import { h, ui } from "../dom";
 import { canPlay } from "../table/sound/formats";
 import { audioContext, unlockAudio } from "../dice3d/audio";
 import { mediaNode, prepareMedia, retryPlain, routeMedia } from "../dice3d/ownOutput";
-import { onSound, setDuck, sound, soundAlone, tableAudible } from "../table/sound/run";
+import { control, onSound, setDuck, sound, soundAlone, tableAudible } from "../table/sound/run";
 import { playForTable, soundButtons, type SoundHost } from "../table/sound/links";
-import { clockText } from "../table/sound/sync";
+import { clockText, expectedMs } from "../table/sound/sync";
 import { aw } from "./strings";
-import { type Heard, type Own, duckFactor, handovers, orphanStops, ownGain, ownPrefs, tableStarted, timeText } from "./state";
+import { type Heard, type Link, type Own, UNLINKED, duckFactor, linkStep, startAtMs, toggleWish, handovers, orphanStops, ownGain, ownPrefs, tableStarted, timeText } from "./state";
 
 export type AudioEmbedOptions = {
   /** The file, relative to the open folder. */
@@ -91,6 +91,8 @@ class AudioEmbed {
   private readonly tableBtn: HTMLButtonElement;
   private readonly note: HTMLElement;
   private dragging = false;
+  /** Linked to the table's music: once bound, this embed is its player of the track. */
+  link: Link = UNLINKED;
   private readonly playable: boolean;
 
   constructor(readonly o: AudioEmbedOptions) {
@@ -148,12 +150,18 @@ class AudioEmbed {
     this.toggle.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      if (this.bound()) return this.driveTable(toggleWish(sound().music()?.state ?? "paused"));
       if (this.audio.paused) this.start();
       else this.audio.pause();
     });
     this.bar.addEventListener("pointerdown", () => (this.dragging = true));
     this.bar.addEventListener("input", () => {
       const to = Number(this.bar.value);
+      if (this.bound()) {
+        this.drawTime(to * 1000);
+        this.driveTable("seek", to * 1000);
+        return;
+      }
       try {
         this.audio.currentTime = to;
       } catch {
@@ -172,8 +180,12 @@ class AudioEmbed {
     this.tableBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      const at = startAtMs(this.audio.currentTime);
       this.audio.pause();
-      playForTable(o.path, o.host, o.heading());
+      this.link = { armed: sound().music()?.revision ?? -1, bound: false };
+      void playForTable(o.path, o.host, o.heading(), at).then((err) => {
+        if (err) this.link = UNLINKED;
+      });
     });
     // The board's and the editor's own pointer and plain keys (Space, the
     // arrows, Delete) stay out of the player; a shortcut (⌘P…) goes on.
@@ -234,6 +246,33 @@ class AudioEmbed {
     this.route();
     this.applyGain();
     void this.audio.play().catch(() => this.drawState());
+  }
+
+  /** Whether the table's music is this embed's track and the embed drives it. */
+  bound(): boolean {
+    return this.link.bound && sound().controls() && !!sound().music();
+  }
+
+  private driveTable(wish: "pause" | "resume" | "seek", value: number | null = null): void {
+    void control(wish, value).then((err) => {
+      if (err) ui.status.textContent = err;
+    });
+  }
+
+  /** The table's state drawn on the embed (a bound embed's play, pause, bar and time). */
+  drawBound(): void {
+    const m = sound().music();
+    const playing = m?.state === "playing";
+    const label = playing ? aw.pause(trackOf(this.o.path)) : aw.play(trackOf(this.o.path));
+    const ic = playing ? "pause" : "play";
+    if (this.toggle.dataset["icon"] !== ic) {
+      this.toggle.replaceChildren(icon(ic, ""));
+      this.toggle.dataset["icon"] = ic;
+    }
+    this.toggle.setAttribute("aria-label", label);
+    this.toggle.title = label;
+    this.root.classList.toggle("playing", playing);
+    this.drawTime();
   }
 
   private started(): void {
@@ -297,6 +336,7 @@ class AudioEmbed {
   }
 
   drawState(): void {
+    if (this.bound()) return this.drawBound();
     const playing = !this.audio.paused;
     const track = trackOf(this.o.path);
     const label = playing ? aw.pause(track) : aw.play(track);
@@ -313,8 +353,10 @@ class AudioEmbed {
   /** `seekMs`: where the bar was just put, before the element has caught up. */
   drawTime(seekMs?: number): void {
     const d = this.audio.duration;
-    const length = Number.isFinite(d) && d > 0 ? d * 1000 : null;
-    const at = seekMs ?? (Number.isFinite(this.audio.currentTime) ? this.audio.currentTime : 0) * 1000;
+    const m = this.bound() ? sound().music() : null;
+    const length = m?.durationMs ?? (Number.isFinite(d) && d > 0 ? d * 1000 : null);
+    const mine = (Number.isFinite(this.audio.currentTime) ? this.audio.currentTime : 0) * 1000;
+    const at = seekMs ?? (m ? expectedMs(m, sound().serverNow()) : mine);
     this.time.textContent = timeText(at, length);
     this.bar.disabled = length === null || !this.playable;
     if (length !== null) this.bar.max = String(Math.max(1, Math.floor(length / 1000)));
@@ -343,7 +385,7 @@ class AudioEmbed {
   /** "Play for the table" for whoever controls the table's music; alone in
    *  a folder of this computer, "Play in the Music tab". */
   drawTable(): void {
-    const shown = this.playable && soundButtons();
+    const shown = this.playable && soundButtons() && !this.bound();
     this.tableBtn.hidden = !shown;
     if (!shown) return;
     const alone = soundAlone();
@@ -386,17 +428,37 @@ function prune(): void {
 }
 
 let heard: Heard | null = null;
+/** While an embed is bound: its bar and time follow the table's clock. */
+let tick: ReturnType<typeof setInterval> | null = null;
+function bindTick(): void {
+  const any = [...live].some((p) => p.bound());
+  if (any && !tick) tick = setInterval(() => live.forEach((p) => p.bound() && p.drawTime()), 500);
+  else if (!any && tick) {
+    clearInterval(tick);
+    tick = null;
+  }
+}
 onSound(() => {
   const m = sound().music();
   const now: Heard | null = m ? { path: m.path, state: m.state, revision: m.revision } : null;
   if (tableStarted(heard, now)) {
     for (const p of live) {
-      if (p.audio.paused) continue;
+      if (p.audio.paused || p.link.armed !== null || p.link.bound) continue;
       p.audio.pause();
       p.say(aw.pausedForTable);
     }
   }
   heard = now;
+  for (const p of live) {
+    const was = p.bound();
+    p.link = linkStep(p.link, p.o.path, now);
+    if (p.bound() || was) {
+      p.audio.pause();
+      p.say(null);
+      p.drawState();
+    }
+  }
+  bindTick();
   prune();
   const audible = tableAudible();
   for (const p of live) {

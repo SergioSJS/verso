@@ -247,11 +247,11 @@ export type Unheard = (names: string[]) => Promise<"release" | "without" | "canc
 
 /** Play `path` for the table (or for this window alone), from `from`'s scene.
  *  Call it inside the gesture: the audio is unlocked before any await. */
-export async function playTrack(path: string, from: Scene | null, unheard: Unheard): Promise<string | null> {
+export async function playTrack(path: string, from: Scene | null, unheard: Unheard, positionMs = 0): Promise<string | null> {
   unlockAudio();
   if (!active.controls()) return st.onlyMaster;
   scene = from;
-  const opts = { looping: false, durationMs: null, ask: true };
+  const opts = { looping: false, durationMs: null, ask: true, positionMs };
   const first = await active.play(path, opts);
   if (first.error) return first.error;
   if (first.unheard && first.unheard.length > 0) {

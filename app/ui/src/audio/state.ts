@@ -97,3 +97,29 @@ export const GRACE_SWEEPS = 3;
 export function orphanStops(missed: number): boolean {
   return missed >= GRACE_SWEEPS;
 }
+
+/** An embed's link to the table's music (ADR 0116, amendment of 2026-11-01):
+ *  "Play for the table" arms it with the revision the music had then; once
+ *  the table plays this embed's file past that revision the embed is bound
+ *  and IS the table's player of the track (its controls drive the table, the
+ *  table's state draws it), until the music is another file or stopped. */
+export type Link = { armed: number | null; bound: boolean };
+
+export const UNLINKED: Link = { armed: null, bound: false };
+
+export function linkStep(link: Link, path: string, now: Heard | null): Link {
+  const mine = !!now && now.path === path;
+  if (link.bound) return mine && now.state !== "stopped" ? link : UNLINKED;
+  if (link.armed !== null && mine && now.state === "playing" && now.revision > link.armed) return { armed: null, bound: true };
+  return link;
+}
+
+/** Where "Play for the table" starts the track: the embed's own position, in whole ms. */
+export function startAtMs(currentTimeSeconds: number): number {
+  return Number.isFinite(currentTimeSeconds) && currentTimeSeconds > 0 ? Math.round(currentTimeSeconds * 1000) : 0;
+}
+
+/** What a bound embed's toggle asks of the table. */
+export function toggleWish(state: string): "pause" | "resume" {
+  return state === "playing" ? "pause" : "resume";
+}
