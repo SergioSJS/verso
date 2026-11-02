@@ -52,6 +52,10 @@ let folderId: string | null = params.get("folder");
 let role: string | null = null;
 let openedOnce = false;
 let retry = 0;
+/** Connections in a row that the other end closed within [`LIVED`] of opening: the wait grows with them, so a server that accepts and closes at once is not asked once a second. */
+let quick = 0;
+let openedAt = 0;
+const LIVED = 10_000;
 let chooser: (() => Promise<string | null>) | null = null;
 /** The reconnection waiting its turn; a socket being made. */
 let reconnect = 0;
@@ -267,6 +271,7 @@ function connect(): void {
     connecting = false;
     open = true;
     const back = retry > 0 || routedOffline;
+    openedAt = Date.now();
     retry = 0;
     gaveUp = false;
     for (const v of verdicts.splice(0)) v("up");
@@ -354,13 +359,14 @@ function connect(): void {
       pending.delete(id);
       p.reject({ kind: "unavailable", message: fullSaid ?? w().offline, transport: true } satisfies ContractError & { transport: boolean });
     }
+    quick = Date.now() - openedAt < LIVED ? quick + 1 : 0;
     retry++;
     // Dropped: said to the window as the desktop's host says it (ADR 0084
     // items 7 and 10), once per drop.
     if (retry === 1) void emit("server-gone", { url: location.origin, what: "connection", address: null, reason: null });
     // A folder kept on this device goes on from its copy (ADR 0092).
     wentDown();
-    reconnect = window.setTimeout(connect, fullSaid ? FULL_RETRY : Math.min(30_000, 1000 * 2 ** Math.min(retry, 5)));
+    reconnect = window.setTimeout(connect, fullSaid ? FULL_RETRY : Math.min(30_000, 1000 * 2 ** Math.min(retry + quick, 5)));
   });
 }
 

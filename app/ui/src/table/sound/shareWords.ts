@@ -46,6 +46,7 @@ type Words = {
   listeners: (n: number) => string;
   stopSharing: string;
   ended: string;
+  deaf: string;
   started: (name: string) => string;
   by: (by: string, name: string) => string;
   statusSharing: (name: string) => string;
@@ -89,6 +90,7 @@ const pt: Words = {
   listeners: (n) => (n === 1 ? "1 ouvinte" : `${n} ouvintes`),
   stopSharing: "Parar de compartilhar",
   ended: "Compartilhamento encerrado",
+  deaf: "Este navegador não consegue tocar o compartilhamento de áudio da mesa (sem AudioWorklet nem ScriptProcessor; sobre HTTP simples, só o segundo funciona). Abra o servidor por HTTPS ou use o app.",
   started: (name) => `Compartilhando ${name}`,
   by: (by, name) => `${by} está compartilhando ${name}`,
   statusSharing: (name) => `Compartilhando: ${name}`,
@@ -132,6 +134,7 @@ const en: Words = {
   listeners: (n) => (n === 1 ? "1 listening" : `${n} listening`),
   stopSharing: "Stop sharing",
   ended: "Sharing ended",
+  deaf: "This browser cannot play the table's shared audio (no AudioWorklet and no ScriptProcessor; over plain HTTP only the second works). Open the server over HTTPS or use the app.",
   started: (name) => `Sharing ${name}`,
   by: (by, name) => `${by} is sharing ${name}`,
   statusSharing: (name) => `Sharing: ${name}`,

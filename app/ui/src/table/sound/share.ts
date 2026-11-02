@@ -17,7 +17,7 @@ import { Channel } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { commands, type AudioShare } from "../../bindings";
 import { audioContext, logLine, whenContext } from "../../dice3d/audio";
-import { onSound, ownSound, sayShare, setShareWaiting, soundChanged, soundOn } from "./run";
+import { onSound, ownSound, sayShare, setShareDeaf, setShareWaiting, soundChanged, soundOn } from "./run";
 import { type Gate, type Hearer, TableShare } from "./shareLife";
 import { ss } from "./shareWords";
 import { gain } from "./sync";
@@ -97,6 +97,7 @@ export function joinShare(table: string, share: AudioShare | null): void {
       soundChanged();
     },
     log: (line) => logLine("WARN", `share: ${line}`),
+    deaf: setShareDeaf,
   });
   active = s;
   void s.start();

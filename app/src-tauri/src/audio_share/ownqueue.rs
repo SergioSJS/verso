@@ -28,6 +28,18 @@ pub const BLOCK_MOST_BYTES: usize = 4 * (1 + 2 * 19_200);
 /// go, so a stalled device never makes the sounds late.
 pub const QUEUE_MS: u32 = 250;
 
+/// What must wait before the output starts to play, and again after it ran
+/// dry: the blocks come over an IPC in ~21 ms steps that are never even, so
+/// an output that pulls the moment the first block lands underruns at every
+/// late block, and each underrun is a click ("an old radio with
+/// interference"). A little latency buys a steady stream.
+pub const PREBUFFER_MS: u32 = 100;
+
+/// Room for the queue's bound at the highest rate a block may name plus one
+/// block, so a push on the IPC thread never reallocates under the lock the
+/// audio thread tries.
+const CAPACITY: usize = 192 * QUEUE_MS as usize + 19_200;
+
 /// A block read from the wire: its rate and its interleaved stereo samples.
 ///
 /// # Errors
@@ -75,20 +87,39 @@ pub struct OwnQueue {
     pos: f64,
     /// Frames dropped for being past the bound, since the start.
     pub dropped: u64,
+    /// Playing (the prebuffer was reached and the queue has not run dry since).
+    primed: bool,
+    /// Device frames pulled while priming with sound waiting: a sound shorter
+    /// than the prebuffer starts once it has waited as long.
+    waited: usize,
+    /// The prebuffer, in milliseconds.
+    prebuffer_ms: u32,
 }
 
 impl Default for OwnQueue {
     fn default() -> Self {
         Self {
-            frames: VecDeque::new(),
+            frames: VecDeque::with_capacity(CAPACITY),
             rate: 48_000,
             pos: 0.0,
             dropped: 0,
+            primed: false,
+            waited: 0,
+            prebuffer_ms: PREBUFFER_MS,
         }
     }
 }
 
 impl OwnQueue {
+    /// A queue with another prebuffer (the tests play at once with 0).
+    #[cfg(test)]
+    fn with_prebuffer(ms: u32) -> Self {
+        Self {
+            prebuffer_ms: ms,
+            ..Self::default()
+        }
+    }
+
     /// Frames waiting.
     #[cfg(test)]
     fn len(&self) -> usize {
@@ -106,6 +137,8 @@ impl OwnQueue {
             // A new rate: what waits was another one's; start from the new.
             self.frames.clear();
             self.pos = 0.0;
+            self.primed = false;
+            self.waited = 0;
             self.rate = rate;
         }
         self.frames
@@ -118,12 +151,34 @@ impl OwnQueue {
     }
 
     /// Fill `out` (interleaved stereo) for a device at `device_rate`; what
-    /// the queue cannot give is silence.
+    /// the queue cannot give is silence. Nothing plays until the prebuffer is
+    /// there, and a queue that runs dry waits for it again; the resampler's
+    /// position carries over from one call to the next, so the blocks join
+    /// without a step.
     pub fn pull(&mut self, out: &mut [f32], device_rate: u32) {
+        if !self.primed {
+            let need = (u64::from(self.rate) * u64::from(self.prebuffer_ms) / 1000) as usize;
+            let waited_enough = self.waited >= need;
+            if self.frames.len() >= need.max(2) || (self.frames.len() >= 2 && waited_enough) {
+                self.primed = true;
+                self.waited = 0;
+            } else {
+                if self.frames.len() >= 2 {
+                    self.waited += out.len() / 2;
+                }
+                out.fill(0.0);
+                return;
+            }
+        }
         let step = f64::from(self.rate) / f64::from(device_rate.max(1));
         for o in out.as_chunks_mut::<2>().0 {
             if self.frames.len() < 2 {
+                // Ran dry: what is left is a stale frame, and the next
+                // sound waits for its prebuffer.
                 o.fill(0.0);
+                self.frames.clear();
+                self.pos = 0.0;
+                self.primed = false;
                 continue;
             }
             let (a, b) = (self.frames[0], self.frames[1]);
@@ -142,6 +197,8 @@ impl OwnQueue {
     pub fn clear(&mut self) {
         self.frames.clear();
         self.pos = 0.0;
+        self.primed = false;
+        self.waited = 0;
     }
 }
 
@@ -183,7 +240,7 @@ mod tests {
 
     #[test]
     fn the_queue_is_bounded_and_drops_the_oldest() {
-        let mut q = OwnQueue::default();
+        let mut q = OwnQueue::with_prebuffer(0);
         // 48 kHz: 250 ms is 12000 frames. Push 15000 numbered by left channel.
         let samples: Vec<f32> = (0..15_000)
             .flat_map(|i| [i as f32 / 15_000.0, 0.0])
@@ -207,13 +264,13 @@ mod tests {
 
     #[test]
     fn the_same_rate_passes_through_and_another_is_interpolated() {
-        let mut q = OwnQueue::default();
+        let mut q = OwnQueue::with_prebuffer(0);
         q.push(48_000, &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0]);
         let mut out = [0.0_f32; 4];
         q.pull(&mut out, 48_000);
         assert_eq!(out, [0.0, 0.0, 1.0, 1.0]);
 
-        let mut q = OwnQueue::default();
+        let mut q = OwnQueue::with_prebuffer(0);
         q.push(24_000, &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0]);
         let mut out = [0.0_f32; 6];
         // A device at twice the rate: half steps between the frames.
@@ -227,5 +284,85 @@ mod tests {
         q.push(48_000, &[1.0; 100]);
         q.push(44_100, &[0.5, 0.5]);
         assert_eq!(q.len(), 1);
+    }
+
+    /// A 440 Hz sine at `rate`, `n` frames from frame `from`, as interleaved stereo.
+    fn sine(rate: u32, from: usize, n: usize) -> Vec<f32> {
+        (from..from + n)
+            .flat_map(|i| {
+                let v = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / rate as f32).sin() * 0.5;
+                [v, v]
+            })
+            .collect()
+    }
+
+    #[test]
+    fn nothing_plays_before_the_prebuffer_then_it_plays_without_a_gap() {
+        let mut q = OwnQueue::default();
+        // 21 ms blocks (1024 frames): the first ones are not played yet.
+        q.push(48_000, &sine(48_000, 0, 1024));
+        let mut out = [1.0_f32; 480];
+        q.pull(&mut out, 48_000);
+        assert!(out.iter().all(|s| *s == 0.0), "played before the prebuffer");
+        for k in 1..5 {
+            q.push(48_000, &sine(48_000, k * 1024, 1024));
+        }
+        // 5 blocks = 107 ms, past the 100 ms prebuffer.
+        q.pull(&mut out, 48_000);
+        assert!(out.iter().any(|s| *s != 0.0));
+    }
+
+    #[test]
+    fn a_short_sound_still_plays_after_waiting_the_prebuffer() {
+        let mut q = OwnQueue::default();
+        q.push(48_000, &sine(48_000, 0, 600));
+        let mut out = [0.0_f32; 960];
+        let mut heard = false;
+        for _ in 0..20 {
+            q.pull(&mut out, 48_000);
+            heard |= out.iter().any(|s| *s != 0.0);
+        }
+        assert!(heard);
+    }
+
+    #[test]
+    fn after_running_dry_it_waits_for_the_prebuffer_again() {
+        let mut q = OwnQueue::default();
+        for k in 0..6 {
+            q.push(48_000, &sine(48_000, k * 1024, 1024));
+        }
+        let mut out = vec![0.0_f32; 2 * 8192];
+        q.pull(&mut out, 48_000);
+        assert!(q.primed || out.iter().rev().take(10).all(|s| *s == 0.0));
+        // Dry now. One block is not enough to resume.
+        q.push(48_000, &sine(48_000, 7000, 1024));
+        let mut next = [1.0_f32; 480];
+        q.pull(&mut next, 48_000);
+        assert!(next.iter().all(|s| *s == 0.0));
+    }
+
+    #[test]
+    fn a_resampled_sine_pulled_in_uneven_pieces_has_no_step() {
+        // 44.1 kHz window, 48 kHz device; blocks pushed and pulled at odd sizes.
+        let mut q = OwnQueue::with_prebuffer(0);
+        let mut all = Vec::new();
+        let mut at = 0;
+        for k in 0..40 {
+            q.push(44_100, &sine(44_100, at, 1024));
+            at += 1024;
+            let n = [900, 1114, 1300, 1142][k % 4];
+            let mut out = vec![0.0_f32; 2 * n];
+            q.pull(&mut out, 48_000);
+            all.extend_from_slice(&out);
+        }
+        // The largest step between neighbouring output frames of a 440 Hz sine
+        // at 0.5 and 48 kHz is 2*pi*440/48000*0.5 = 0.029; a join or a hole is far more.
+        let left: Vec<f32> = all.as_chunks::<2>().0.iter().map(|f| f[0]).collect();
+        let first = left.iter().position(|s| *s != 0.0).unwrap_or(0);
+        let mut worst = 0.0_f32;
+        for w in left[first..].windows(2) {
+            worst = worst.max((w[1] - w[0]).abs());
+        }
+        assert!(worst < 0.04, "a step of {worst} in the output");
     }
 }

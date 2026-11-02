@@ -26,6 +26,7 @@ import { iconButton, labeled, range, relabel, said } from "./controls";
 import { mine as sharing } from "./mine";
 import { liveShare } from "./share";
 import { ShareCard, shareButton } from "./shareCard";
+import { ss } from "./shareWords";
 import { asScene, filterLists, folderLists, listLabel, noteLists, type List } from "./library";
 import { askUnheardWith, control, currentScene, cycleLoop, hearTable, loopMode, nameOf, neighbour, onSound, ownSound, playTrack, playerState, setOwn, sound, soundOn, step, takePendingSay } from "./run";
 import { isAudio, trackName } from "./scene";
@@ -197,7 +198,7 @@ class MusicView {
     const m = src.music();
     const master = src.controls();
     const playing = !!m && m.state !== "stopped";
-    const { blocked, failed, cannotHere, shareWaiting } = playerState();
+    const { blocked, failed, cannotHere, shareWaiting, shareDeaf } = playerState();
     // A live share is something playing too (item 16): the card says whose, the person's own controls stay.
     const live = liveShare();
     const hearsShare = !!live && !sharing();
@@ -240,6 +241,7 @@ class MusicView {
     const lines: Node[] = [];
     // A live share waiting for a gesture asks for the same one (ADR 0116 item 25).
     if ((playing && blocked && m?.path) || shareWaiting) lines.push(this.hear);
+    if (shareDeaf) lines.push(h("p", "music-note", ss.deaf));
     if (playing && cannotHere) lines.push(h("p", "music-note", st.cannotHere));
     else if (playing && failed) lines.push(h("p", "music-note", st.missing));
     if (playing && master && m && m.unheard.length > 0) lines.push(h("p", "music-note", st.notHearing(m.unheard.join(", "))));
