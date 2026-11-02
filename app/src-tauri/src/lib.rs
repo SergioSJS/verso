@@ -1321,6 +1321,9 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
         } => {
             #[cfg(target_os = "linux")]
             recover::forget(label);
+            // A window that is gone takes the pages it showed with it: a
+            // page never plays with no window to show it.
+            web::close_web_views_of(app, label);
             {
                 let state = app.state::<App>();
                 let showed = state.service.folder_of(label).is_some()

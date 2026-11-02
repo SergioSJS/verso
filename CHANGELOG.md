@@ -166,6 +166,7 @@ test release.
 
 ### Fixed
 
+- **A page's sound stops when its tab, note, card or window closes.** Closing a tab that showed a page (a YouTube page that autoplays) left the page's web view playing with nothing visible, even after the windows were closed; the page is now emptied (media paused, replaced by a blank page) before its view is closed, and a window that closes takes the pages it showed with it.
 - **An audio embed played for the table now is the table's player of the track** (ADR 0116 amendment of 2026-11-01). "Play for the table" starts the table's music where the embed was, not at zero; from then on the embed's play, pause and bar drive the table's music and the table's state draws the embed, in notes and on boards, until the table plays another file or stops.
 - **A player who entered the table through a share now hears its music change live** (ADR 0116, ADR 0110 share windows): the server dropped the table's music and live-share events (`table-playback`, `table-share-*`) for windows on a share, so play, stop, track changes and seeks reached them only after a reload.
 - **A live share is heard in a web window over plain HTTP** (first real test of Share audio). The page has no `AudioWorklet` there (secure contexts only), so the listener failed with "Cannot read properties of undefined (reading 'addModule')" and logged it many times a second. It now plays through a `ScriptProcessorNode` fed by the same jitter buffer and decoder; with neither, the Music tab says the browser cannot play the share, and the failure is logged once per share.

@@ -114,6 +114,35 @@ pub(crate) fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugi
         .build()
 }
 
+/// What a page is told before its view goes: every sound element stopped
+/// and emptied, then the page replaced by an empty one, which ends whatever
+/// the page still played (a video that autoplays, a stream). A view that
+/// the engine keeps alive a while after `close` (the maintainer, 2026-11-02:
+/// a YouTube page's sound went on after its tab closed, until the web
+/// engine's GPU process was killed) then has nothing left to play.
+const SILENCE: &str = "try{document.querySelectorAll('video,audio').forEach(function(m){m.pause();m.muted=true;m.removeAttribute('src');m.load();});}catch(e){}location.replace('about:blank');";
+
+/// How long the emptied page gets to unload before its view is closed.
+const UNLOAD_MS: u64 = 400;
+
+/// Destroy a page's view for good: silenced first, hidden and out of its
+/// container at once, closed when the empty page has loaded.
+pub(crate) fn destroy_web_view<R: tauri::Runtime>(wv: tauri::Webview<R>) {
+    let _ = wv.eval(SILENCE);
+    let _ = wv.hide();
+    web_clip::release(&wv);
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(UNLOAD_MS));
+        if let Err(e) = wv.close() {
+            crate::log::write(
+                "WARN",
+                "host",
+                &format!("closing the web view {}: {e}", wv.label()),
+            );
+        }
+    });
+}
+
 /// Close every web page's view a window opened, and forget them.
 pub(crate) fn close_web_views_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, window: &str) {
     let Some(state) = app.try_state::<App>() else {
@@ -133,14 +162,7 @@ pub(crate) fn close_web_views_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, w
     };
     for label in mine {
         if let Some(wv) = app.get_webview(&label) {
-            web_clip::release(&wv);
-            if let Err(e) = wv.close() {
-                crate::log::write(
-                    "WARN",
-                    "host",
-                    &format!("closing the web view {label} of a reloaded window: {e}"),
-                );
-            }
+            destroy_web_view(wv);
         }
     }
 }
@@ -406,9 +428,8 @@ pub(crate) fn web_close<R: tauri::Runtime>(
 ) -> Result<(), ContractError> {
     let wv = own_web_view(&window, &state, &label)?;
     lock(&state.web_views).remove(&label);
-    // Out of its container first: the container is ours to remove.
-    web_clip::release(&wv);
-    wv.close().map_err(|e| failed(e.to_string()))
+    destroy_web_view(wv);
+    Ok(())
 }
 
 /// Whether the page at `url` may be shown in a real `<iframe>` of the
@@ -485,4 +506,38 @@ pub(crate) fn web_url<R: tauri::Runtime>(
         .url()
         .map(|u| u.to_string())
         .map_err(|e| failed(e.to_string()))
+}
+
+#[cfg(test)]
+mod tests {
+
+    /// A page's sound ends with its view (the maintainer, 2026-11-02: a YouTube
+    /// page went on playing after its tab closed): closing a view silences the
+    /// page first, and a window that is destroyed closes the views it opened.
+    #[test]
+    fn a_page_is_silenced_when_its_view_closes_and_a_destroyed_window_closes_its_views() {
+        let web = include_str!("web.rs");
+        assert!(web.contains("location.replace('about:blank')"));
+        assert!(web.contains("m.pause()"));
+        let close = web.split("fn web_close").nth(1).unwrap_or_default();
+        assert!(
+            close
+                .split("#[tauri::command]")
+                .next()
+                .unwrap_or_default()
+                .contains("destroy_web_view(wv)")
+        );
+        let lib = include_str!("lib.rs");
+        let destroyed = lib
+            .split("tauri::WindowEvent::Destroyed")
+            .nth(1)
+            .unwrap_or_default();
+        assert!(
+            destroyed
+                .chars()
+                .take(700)
+                .collect::<String>()
+                .contains("close_web_views_of(app, label)")
+        );
+    }
 }
