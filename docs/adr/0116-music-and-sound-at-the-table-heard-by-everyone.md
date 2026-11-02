@@ -1249,7 +1249,7 @@ chose.
   comes from the pages environment's tree and the window's does not, on a
   Windows 11 with the installed app.
 
-**Note of 2026-11-03 (S9): Linux, as built.** No decision status changes. The
+**Note of 2026-11-02 (S9): Linux, as built.** No decision status changes. The
 maintainer's rule (only music or sound playing in pages open inside Verso;
 never dice, chimes, the table's music, audio embeds, nor anything outside
 Verso; fail closed) and A2 apply as on the Mac.
