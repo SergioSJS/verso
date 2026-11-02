@@ -119,6 +119,11 @@ export function startAtMs(currentTimeSeconds: number): number {
   return Number.isFinite(currentTimeSeconds) && currentTimeSeconds > 0 ? Math.round(currentTimeSeconds * 1000) : 0;
 }
 
+/** Whether an embed shows loop as on: a bound embed shows the table's loop, a free one its element's. */
+export function loopShown(bound: boolean, tableLooping: boolean, elementLoop: boolean): boolean {
+  return bound ? tableLooping : elementLoop;
+}
+
 /** What a bound embed's toggle asks of the table. */
 export function toggleWish(state: string): "pause" | "resume" {
   return state === "playing" ? "pause" : "resume";

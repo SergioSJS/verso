@@ -17,6 +17,8 @@ type Words = {
   volumeText: (n: number) => string;
   mute: string;
   unmute: string;
+  loopOn: string;
+  loopOff: string;
   open: (file: string) => string;
   forTable: string;
   forTableDesc: string;
@@ -38,6 +40,8 @@ const pt: Words = {
   volumeText: (n) => `Volume ${n}%`,
   mute: "Silenciar",
   unmute: "Tirar do silêncio",
+  loopOn: "Repetir: ligado",
+  loopOff: "Repetir: desligado",
   open: (file) => `Abrir ${file}`,
   forTable: "Tocar para a mesa",
   forTableDesc: "Toca este arquivo para todos na mesa, pela aba Música.",
@@ -59,6 +63,8 @@ const en: Words = {
   volumeText: (n) => `Volume ${n}%`,
   mute: "Mute",
   unmute: "Unmute",
+  loopOn: "Loop: on",
+  loopOff: "Loop: off",
   open: (file) => `Open ${file}`,
   forTable: "Play for the table",
   forTableDesc: "Plays this file for everyone at the table, through the Music tab.",
