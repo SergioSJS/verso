@@ -1296,6 +1296,28 @@ on a real machine. Verified since:
   package built by nfpm, not a VM, not amd64. Before that day the compose
   file did not pass `docker compose config` (an unquoted colon in a
   tagline); it does now, and the script checks it.
+- 2026-11-02: the table's live share relay (ADR 0116 items 19 and 20) on
+  VM 107 (1 core, 1 GB) running `universo:rpg-7b346cd` in Docker. A Node
+  driver outside the repository: one sharer sends 3000 frames (20 ms, a
+  12-byte header and 240 bytes, 50 a second) over 60 s; N listeners of the
+  same account join the table before the first frame. Each run, the
+  server's process CPU, RSS and the container's network bytes, read from
+  `/proc` at the start and at the end of the run:
+
+  | N | payload kbit/s per listener | wire kbit/s, all listeners | server CPU | RSS | frames lost / late over 200 ms |
+  |---|---|---|---|---|---|
+  | 1 | 100.8 | 271.5 | 2.5 % | 34.1 MiB | 0 / 0 |
+  | 5 | 100.8 | 787 | 4.7 % | 34.5 MiB | 0 / 0 |
+  | 10 | 100.8 | 1433 | 7.5 % | 35.5 MiB | 0 / 0 |
+  | 20 | 100.8 | 2720 | 14.2 % | 38.3 MiB | 0 / 0 |
+
+  One-way latency on the LAN (sender and listener on the same Mac clock)
+  p50 3–4 ms, p95 3–5 ms, max 9–28 ms. About 129 kbit/s on the wire per
+  listener (the payload plus TCP, IP and Ethernet overhead) and about 0.6
+  points of the core per listener. The wire figure at zero listeners,
+  about 142 kbit/s, is not explained. The frames are not Opus: the server
+  decodes nothing, so their bytes do not change its cost. The ring (24 KB)
+  and the tunnel of online mode were not measured.
 
 Not verified yet:
 

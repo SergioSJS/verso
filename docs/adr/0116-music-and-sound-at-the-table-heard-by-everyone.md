@@ -449,6 +449,14 @@ streamed to the table — independent of the files**
     LAN or WebRTC would give, and said so; unheard under background music,
     heard on an effect timed to a roll. Quality: Opus at 96 kbit/s against
     the file mode's original bytes.
+    *As measured 2026-11-02* (VM 107, 1 core, 1 GB, one sharer, 60 s,
+    listeners joined first): 100.8 kbit/s of payload and 50 frames a second
+    per listener, as written; on the wire about 129 kbit/s per listener, so
+    five listeners are 0.79 Mbit/s and ten 1.43 Mbit/s, above the 0.5 and 1
+    written here; server CPU 2.5 % at one listener and 14.2 % at twenty, so
+    "negligible" holds only for a few; RSS 34–38 MiB; no frame lost and none
+    late past 200 ms. Table in
+    [server-install.md](../reference/server-install.md) section 15.
 21. **Who hears a live share; what the sharer is told; terms.** Everyone at
     the table (master, players, visitors): a live share is the master's
     performance to the table, not a file with an audience, so the file rules
