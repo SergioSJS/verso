@@ -35,7 +35,7 @@ use verso_service::refused;
 
 #[cfg(any(target_os = "macos", test))]
 mod apps;
-#[cfg(any(target_os = "macos", test))]
+#[cfg(any(target_os = "macos", windows, test))]
 mod convert;
 mod encode;
 #[cfg(target_os = "macos")]
@@ -45,6 +45,12 @@ mod macos_source;
 mod session;
 mod source;
 mod tone;
+#[cfg(any(windows, test))]
+mod winapps;
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+mod windows_source;
 
 pub(crate) use session::Shares;
 

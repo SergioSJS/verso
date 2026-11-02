@@ -175,6 +175,17 @@ webview2-com = "0.38"
 # the tree; it replaces our own CreateJobObject/AssignProcessToJobObject
 # calls, which would need `unsafe` outside src/web_clip.
 win32job = "2"
+# Share audio on Windows (src/audio_share/windows*.rs; ADR 0116 item 17,
+# "As built (S8)"). `wasapi` 0.26 (MIT) is a safe API over WASAPI, with the
+# process loopback of Windows 11 (`AudioClient::new_application_loopback_client`,
+# ActivateAudioInterfaceAsync), the session list and the event-driven capture;
+# it replaces our own COM/WASAPI calls, which would need `unsafe`. It builds on
+# `windows` 0.62 (MIT OR Apache-2.0, already in the lockfile through other
+# crates), so the few Win32 calls we make ourselves (the process table, the
+# OS build, a program's file description: src/audio_share/windows.rs, the
+# declared `unsafe` file) use that same version, renamed beside the 0.61 above.
+wasapi = "0.26"
+windows_audio = { package = "windows", version = "0.62", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading", "Wdk_System_SystemServices", "Win32_System_SystemInformation"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # The same on Linux (src/web_clip/linux.rs), with GTK's safe API: the GTK

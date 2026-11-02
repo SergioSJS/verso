@@ -5,7 +5,7 @@
 //! Where the sound comes from (ADR 0116 item 17). A [`Source`] gives
 //! interleaved 48 kHz stereo `f32` blocks to a sink, from a thread of its
 //! own, until its [`Running`] handle is dropped. The capture back-ends of
-//! each system (`macos.rs` and `macos_source.rs` today; `windows.rs`, `linux.rs` later) plug in
+//! each system (`macos*.rs` and `windows*.rs` today; `linux.rs` later) plug in
 //! by being listed in [`list`] and opened in [`open`]; nothing else in the
 //! module knows what a source is.
 //!
@@ -79,6 +79,8 @@ pub fn list() -> Vec<AudioSource> {
     }
     #[cfg(target_os = "macos")]
     out.extend(super::macos_source::list());
+    #[cfg(windows)]
+    out.extend(super::windows_source::list());
     out
 }
 
@@ -90,7 +92,11 @@ pub fn unavailable() -> Option<&'static str> {
     {
         super::macos_source::unavailable()
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    {
+        super::windows_source::unavailable()
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
     {
         None
     }
@@ -106,7 +112,11 @@ pub fn open(id: &str) -> Option<Box<dyn Source>> {
     {
         super::macos_source::open(id)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    {
+        super::windows_source::open(id)
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
     {
         None
     }
