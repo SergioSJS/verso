@@ -36,6 +36,12 @@ use verso_service::refused;
 #[cfg(any(target_os = "macos", windows, test))]
 mod convert;
 mod encode;
+#[cfg(target_os = "linux")]
+mod linux_play;
+#[cfg(target_os = "linux")]
+mod linux_source;
+#[cfg(target_os = "linux")]
+mod linuxpages;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
@@ -44,7 +50,7 @@ mod macos_play;
 mod macos_source;
 #[cfg(any(target_os = "macos", test))]
 mod macpages;
-#[cfg(any(target_os = "macos", test))]
+#[cfg(any(target_os = "macos", target_os = "linux", test))]
 mod ownqueue;
 mod session;
 mod source;
@@ -53,7 +59,7 @@ mod tone;
 mod windows;
 #[cfg(windows)]
 mod windows_source;
-#[cfg(any(windows, target_os = "macos", test))]
+#[cfg(any(windows, target_os = "macos", target_os = "linux", test))]
 mod winpages;
 
 pub(crate) use session::Shares;
@@ -115,7 +121,25 @@ async fn platform_sources<R: tauri::Runtime>(
     }
 }
 
-#[cfg(not(any(windows, target_os = "macos")))]
+/// Linux shares only the pages open in Verso too (ADR 0116 amendment of
+/// 2026-11-01; "As built (S9)"), once a web process of the pages exists.
+#[cfg(target_os = "linux")]
+async fn platform_sources<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    _label: &str,
+) -> (Vec<AudioSource>, Option<&'static str>) {
+    let mut list = source::list();
+    match tauri::async_runtime::spawn_blocking(linux_source::list).await {
+        Ok(Ok(pages)) => {
+            list.extend(pages);
+            (list, None)
+        }
+        Ok(Err(why)) => (list, Some(why)),
+        Err(_) => (list, None),
+    }
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 async fn platform_sources<R: tauri::Runtime>(
     _app: &tauri::AppHandle<R>,
     _label: &str,
@@ -145,7 +169,16 @@ async fn open_source<R: tauri::Runtime>(
     source::open(id).or_else(|| macos_source::open(id))
 }
 
-#[cfg(not(any(windows, target_os = "macos")))]
+#[cfg(target_os = "linux")]
+async fn open_source<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    _label: &str,
+    id: &str,
+) -> Option<Box<dyn source::Source>> {
+    source::open(id).or_else(|| linux_source::open(id))
+}
+
+#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 async fn open_source<R: tauri::Runtime>(
     _app: &tauri::AppHandle<R>,
     _label: &str,
@@ -232,6 +265,8 @@ pub async fn audio_share_start<R: tauri::Runtime>(
             winpages::NEEDS_WINDOWS_11 | winpages::NO_PAGES => refused(why),
             #[cfg(target_os = "macos")]
             winpages::NO_PAGES => refused(why),
+            #[cfg(target_os = "linux")]
+            linuxpages::NEEDS_PULSE_TOOLS | winpages::NO_PAGES => refused(why),
             _ => failed(why),
         })?;
     shares.on_window_gone(window.label(), farewell(connection));
@@ -286,7 +321,7 @@ pub(crate) fn farewell(connection: std::sync::Arc<remote::Remote>) -> session::F
     })
 }
 
-/// The window is about to share on a Mac: its own sounds go to the host's
+/// The window is about to share on a Mac or a Linux machine: its own sounds go to the host's
 /// output from now on (ADR 0116, the 2026-11-02 note on A2), so the tap that
 /// carries the pages never hears them. `true` when the window should send
 /// its final output to `audio_share_own_pcm`; `false` anywhere else (nothing
@@ -306,7 +341,15 @@ pub async fn audio_share_own_begin<R: tauri::Runtime>(
             .map_err(|e| failed(e.to_string()))?
             .map_err(failed)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    {
+        let label = window.label().to_owned();
+        tauri::async_runtime::spawn_blocking(move || linux_play::begin(&label))
+            .await
+            .map_err(|e| failed(e.to_string()))?
+            .map_err(failed)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     Ok(false)
 }
 
@@ -346,7 +389,11 @@ pub fn audio_share_own_pcm<R: tauri::Runtime>(
     {
         macos_play::push(window.label(), &block.0).map_err(refused)
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    {
+        linux_play::push(window.label(), &block.0).map_err(refused)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
         let _ = (window, block);
         Ok(())
@@ -367,7 +414,9 @@ pub fn audio_share_own_end<R: tauri::Runtime>(
 pub(crate) fn own_output_gone(label: &str) {
     #[cfg(target_os = "macos")]
     macos_play::end(label);
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    linux_play::end(label);
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     let _ = label;
 }
 

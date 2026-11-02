@@ -21,6 +21,12 @@ test("the host's capture refusals become sentences that say what to do", () => {
   assert.match(denied, /Privacy|Privacidade/);
 });
 
+test("Linux: the host's refusal about the sound tools is told in the person's words and the exact words hold", () => {
+  assert.equal(m.HOST_NEEDS_PULSE, "audio capture needs the PulseAudio tools (pactl, parec)");
+  assert.match(m.hostWhy(m.HOST_NEEDS_PULSE), /pulseaudio-utils/);
+  assert.equal(typeof m.onLinux(), "boolean");
+});
+
 test("Windows: the host's refusals and the one source are told in the person's words (ADR 0116 amendment of 2026-11-01)", () => {
   assert.match(m.hostWhy(m.HOST_NEEDS_WINDOWS), /Windows 11/);
   assert.match(m.hostWhy(m.HOST_NO_PAGES), /Verso/);

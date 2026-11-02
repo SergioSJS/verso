@@ -19,10 +19,12 @@ type Words = {
   noSources: string;
   needsMac: string;
   needsWindows: string;
+  needsPulse: string;
   noPages: string;
   pagesName: string;
   pagesHint: string;
   pagesHintMac: string;
+  pagesHintLinux: string;
   macDenied: string;
   quality: string;
   qualityHint: string;
@@ -31,6 +33,7 @@ type Words = {
   starting: string;
   notice: string;
   noticeMac: string;
+  noticeLinux: string;
   noticeOk: string;
   replaceAsk: (by: string | null, name: string | null) => string;
   replace: string;
@@ -58,8 +61,10 @@ const pt: Words = {
   kind: { app: "Aplicativo", page: "Página no Verso", system: "Tudo que este computador toca" },
   noSources: "A captura de som chega numa próxima atualização, um sistema de cada vez. Por enquanto, este computador ainda não tem nada para compartilhar.",
   needsMac: "Compartilhar áudio no Mac precisa do macOS 14.4 ou mais novo. Atualize o macOS para compartilhar o som das páginas.",
+  pagesHintLinux: "Só o som das páginas abertas como página no Verso (YouTube, Spotify Web, uma trilha de ambiente) vai para a mesa, todas juntas. Os sons do próprio Verso (dados, avisos, a música da mesa, os players de áudio das notas) e de outros programas nunca vão. Um vídeo ou uma página mostrada dentro de uma nota não conta: abra-a como página.",
   macDenied: "O macOS não deixou o Verso gravar o som do sistema. Abra Ajustes do Sistema > Privacidade e Segurança > Gravação de Áudio do Sistema (em algumas versões, “Tela e Áudio do Sistema”), ligue o Verso e comece de novo.",
   needsWindows: "Compartilhar áudio no Windows precisa do Windows 11 ou mais novo (o Windows 10 não consegue separar o som das páginas do resto do computador).",
+  needsPulse: "Compartilhar áudio no Linux precisa das ferramentas de som do PulseAudio (pactl e parec; no Debian e no Ubuntu, o pacote pulseaudio-utils, que o PipeWire também usa). Instale-as e escolha compartilhar de novo.",
   noPages: "Abra uma página no Verso (como página, não dentro de uma nota) e deixe-a tocar; depois escolha compartilhar de novo.",
   pagesName: "Páginas abertas no Verso",
   pagesHint: "Só o som das páginas abertas como página no Verso (YouTube, Spotify Web, uma trilha de ambiente) vai para a mesa, todas juntas. Os sons do próprio Verso (dados, avisos, a música da mesa) e de outros programas nunca vão. Uma página mostrada dentro de uma nota não conta: abra-a como página.",
@@ -71,6 +76,7 @@ const pt: Words = {
   starting: "Começando…",
   notice: "O som do que você compartilha vai para todos desta mesa. O que você pode tocar para os outros é responsabilidade sua; o Verso não grava nada.",
   noticeMac: "Atenção no Mac: enquanto você compartilha, o som do próprio Verso (dados, avisos, música da mesa, players de áudio das notas) sai por um caminho próprio, com um atraso de alguns centésimos de segundo. Vídeos e páginas mostrados dentro de uma nota não dá para separar, então o som deles também vai para a mesa.",
+  noticeLinux: "Atenção no Linux: enquanto você compartilha, o som do próprio Verso (dados, avisos, música da mesa, players de áudio das notas) sai por um caminho próprio, com um atraso de alguns centésimos de segundo. Vídeos e páginas mostrados dentro de uma nota não vão para a mesa; para compartilhar o som de uma página, abra-a como página.",
   noticeOk: "Entendi, compartilhar",
   replaceAsk: (by, name) => (by && name ? `${by} já está compartilhando ${name}. Encerrar e compartilhar este no lugar?` : "A mesa já tem um áudio compartilhado. Encerrar e compartilhar este no lugar?"),
   replace: "Substituir",
@@ -98,8 +104,10 @@ const en: Words = {
   kind: { app: "Application", page: "Page in Verso", system: "Everything this computer plays" },
   noSources: "Capturing sound comes with a coming update, one system at a time. For now this computer has nothing to share yet.",
   needsMac: "Sharing audio on a Mac needs macOS 14.4 or newer. Update macOS to share the sound of the pages.",
+  pagesHintLinux: "Only the sound of pages opened as a page in Verso (YouTube, Spotify Web, an ambience loop) goes to the table, all together. Verso's own sounds (dice, alerts, the table's music, the audio players in notes) and other programs never do. A video or a page shown inside a note does not count: open it as a page.",
   macDenied: "macOS did not let Verso record system audio. Open System Settings > Privacy & Security > System Audio Recording (in some versions “Screen & System Audio Recording”), turn Verso on, and start again.",
   needsWindows: "Sharing audio on Windows needs Windows 11 or newer (Windows 10 cannot separate the sound of the pages from the rest of the computer).",
+  needsPulse: "Sharing audio on Linux needs the PulseAudio sound tools (pactl and parec; on Debian and Ubuntu the package pulseaudio-utils, which PipeWire uses too). Install them and choose to share again.",
   noPages: "Open a page in Verso (as a page, not inside a note) and let it play; then choose to share again.",
   pagesName: "Pages open in Verso",
   pagesHint: "Only the sound of pages opened as a page in Verso (YouTube, Spotify Web, an ambience loop) goes to the table, all together. Verso's own sounds (dice, alerts, the table's music) and other programs never do. A page shown inside a note does not count: open it as a page.",
@@ -111,6 +119,7 @@ const en: Words = {
   starting: "Starting…",
   notice: "The sound of what you share goes to everyone at this table. What you may play to others is your responsibility; Verso records nothing.",
   noticeMac: "Note for the Mac: while you share, Verso's own sounds (dice, alerts, the table's music, the audio players in notes) leave by a path of their own, a few hundredths of a second later. Videos and pages shown inside a note cannot be told apart, so their sound goes to the table too.",
+  noticeLinux: "Note for Linux: while you share, Verso's own sounds (dice, alerts, the table's music, the audio players in notes) leave by a path of their own, a few hundredths of a second later. Videos and pages shown inside a note do not go to the table; to share the sound of a page, open it as a page.",
   noticeOk: "Understood, share",
   replaceAsk: (by, name) => (by && name ? `${by} is already sharing ${name}. End it and share this instead?` : "The table already has a shared audio. End it and share this instead?"),
   replace: "Replace",
@@ -138,12 +147,22 @@ export function onMac(): boolean {
   }
 }
 
+/** Whether this window is a Linux machine's (not Android): the notice and the pages' hint say what is true there. */
+export function onLinux(): boolean {
+  try {
+    return /Linux|X11/i.test(navigator.platform || "") && !/Android/i.test(navigator.userAgent || "");
+  } catch {
+    return false;
+  }
+}
+
 export const ss: Words = LANG.toLowerCase().startsWith("pt") ? pt : en;
 
 /** The host's own refusals about capture, which the window says in its language (`audio_share/source.rs`). */
 export const HOST_NEEDS_MAC = "audio capture needs macOS 14.4 or later";
 export const HOST_DENIED = "Verso is not allowed to record system audio";
 export const HOST_NEEDS_WINDOWS = "audio capture needs Windows 11 or later";
+export const HOST_NEEDS_PULSE = "audio capture needs the PulseAudio tools (pactl, parec)";
 export const HOST_NO_PAGES = "no page is open in Verso to share";
 /** The id of Windows's one source, the pages open in Verso (`winpages.rs`). */
 export const PAGES_ID = "pages";
@@ -158,6 +177,7 @@ export function hostWhy(message: string): string | null {
   if (message === HOST_NEEDS_MAC) return ss.needsMac;
   if (message === HOST_DENIED) return ss.macDenied;
   if (message === HOST_NEEDS_WINDOWS) return ss.needsWindows;
+  if (message === HOST_NEEDS_PULSE) return ss.needsPulse;
   if (message === HOST_NO_PAGES) return ss.noPages;
   return null;
 }

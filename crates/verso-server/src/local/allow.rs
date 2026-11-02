@@ -250,6 +250,11 @@ pub const REFUSED: &[&str] = &[
     "audio_sources_list",
     "audio_share_start",
     "audio_share_stop",
+    // The window's own sounds while it shares (the host plays them): the
+    // same desktop host, never a phone.
+    "audio_share_own_begin",
+    "audio_share_own_pcm",
+    "audio_share_own_end",
     // A desktop window's channel for the frames it hears; a phone hears
     // through its own page (the web bridge answers it there).
     "audio_share_hear",
