@@ -379,5 +379,6 @@ pub fn audio_share_stop<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<(), ContractError> {
     app.state::<App>().shares.stop_of(window.label());
+    own_output_gone(window.label());
     Ok(())
 }

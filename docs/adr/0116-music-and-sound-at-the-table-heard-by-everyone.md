@@ -1172,6 +1172,41 @@ items 16 and 17:
 - The macOS and Linux sources follow in their own tasks (S7b, S9); the
   macOS code of S7 is unchanged by this change.
 
+**Note of 2026-11-02 (S7b): the Mac, measured, and decision A2.** No decision
+status changes here; this records what was measured and what the maintainer
+chose.
+
+- *Measured:* two `WKWebView`s with different `WKWebsiteDataStore`s get two
+  WebContent processes but **one** `com.apple.WebKit.GPU` process per app, and
+  the Core Audio process object whose output runs is that GPU process (the
+  WebContent processes have none). So the pages' sound and the window's own
+  (dice, chimes, table music, audio embeds) come out of the same audio
+  object, and a tap cannot tell them apart. The GPU process's parent is
+  launchd, so the parent chain finds nothing; the system's
+  `responsibility_get_pid_responsible_for_pid` returns the app's pid for it
+  when the app is launched normally (checked: Verso Beta.app, pid 90272,
+  responsible for GPU 90287).
+- *Rule (maintainer, strict):* what plays outside Verso (a browser, another
+  app) is never shared. The tap names an audio object only when the GPU
+  process's responsible pid **is** Verso's own pid; there is no fallback to
+  Verso's own responsible process. A build started from a terminal has the
+  terminal as responsible process, so it finds no pages and refuses with the
+  no-pages message (the log says why).
+- *Decision A2 (maintainer):* while a share runs on the Mac, the window's own
+  sounds keep their Web Audio graph but their final output no longer goes to
+  `ctx.destination`; it goes through an AudioWorklet that posts 48 kHz-class
+  stereo PCM to the host (`audio_share_own_pcm`, a raw body), which plays it
+  with Core Audio from the Verso process itself, which the tap leaves out.
+  Accepted cost: about 20 to 50 ms more latency on the window's own sounds
+  while sharing. Outside a share, and on Windows and Linux, nothing changes.
+  Video and iframes inside notes cannot be routed and are shared too on the
+  Mac; the first-share notice says so. The table's music and the audio
+  embeds play from `verso://` files, another origin, so they cannot enter
+  Web Audio without CORS and are in the same case (said in the notice); the
+  route through `createMediaElementSource` with `crossorigin` was not tried
+  because it could not be tried in the real WebKit here. The sources of S7
+  (*Everything*, applications) are removed on the Mac.
+
 ### As built (S8, 2026-11-01): audio capture on Windows
 
 - **Pages environment** (`web.rs`, `pages_profile`): see the amendment of

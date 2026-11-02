@@ -15,6 +15,7 @@
 // track is: a nudge of the rate, or a seek.
 
 import { audioContext, unlockAudio } from "../../dice3d/audio";
+import { ownOutput } from "../../dice3d/ownOutput";
 import type { Music } from "./source";
 import { expectedMs, fix } from "./sync";
 
@@ -115,7 +116,7 @@ export class Player {
     try {
       const source = ctx.createMediaElementSource(this.el);
       this.node = ctx.createGain();
-      source.connect(this.node).connect(ctx.destination);
+      source.connect(this.node).connect(ownOutput(ctx));
       this.routed = true;
     } catch {
       // The element plays by its own volume.

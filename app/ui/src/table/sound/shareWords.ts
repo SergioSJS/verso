@@ -22,6 +22,7 @@ type Words = {
   noPages: string;
   pagesName: string;
   pagesHint: string;
+  pagesHintMac: string;
   macDenied: string;
   quality: string;
   qualityHint: string;
@@ -29,6 +30,7 @@ type Words = {
   start: string;
   starting: string;
   notice: string;
+  noticeMac: string;
   noticeOk: string;
   replaceAsk: (by: string | null, name: string | null) => string;
   replace: string;
@@ -55,18 +57,20 @@ const pt: Words = {
   sources: "Fontes de som",
   kind: { app: "Aplicativo", page: "Página no Verso", system: "Tudo que este computador toca" },
   noSources: "A captura de som chega numa próxima atualização, um sistema de cada vez. Por enquanto, este computador ainda não tem nada para compartilhar.",
-  needsMac: "Compartilhar áudio no Mac precisa do macOS 14.4 ou mais novo. Atualize o macOS para compartilhar o som de um app.",
+  needsMac: "Compartilhar áudio no Mac precisa do macOS 14.4 ou mais novo. Atualize o macOS para compartilhar o som das páginas.",
   macDenied: "O macOS não deixou o Verso gravar o som do sistema. Abra Ajustes do Sistema > Privacidade e Segurança > Gravação de Áudio do Sistema (em algumas versões, “Tela e Áudio do Sistema”), ligue o Verso e comece de novo.",
   needsWindows: "Compartilhar áudio no Windows precisa do Windows 11 ou mais novo (o Windows 10 não consegue separar o som das páginas do resto do computador).",
   noPages: "Abra uma página no Verso (como página, não dentro de uma nota) e deixe-a tocar; depois escolha compartilhar de novo.",
   pagesName: "Páginas abertas no Verso",
   pagesHint: "Só o som das páginas abertas como página no Verso (YouTube, Spotify Web, uma trilha de ambiente) vai para a mesa, todas juntas. Os sons do próprio Verso (dados, avisos, a música da mesa) e de outros programas nunca vão. Uma página mostrada dentro de uma nota não conta: abra-a como página.",
+  pagesHintMac: "Só o som das páginas abertas no Verso (YouTube, Spotify Web, uma trilha de ambiente) vai para a mesa, todas juntas. Os sons do próprio Verso (dados, avisos) e de outros programas nunca vão. No Mac, a música da mesa, os players de áudio das notas, um vídeo ou uma página mostrada dentro de uma nota não dá para separar: o som deles vai junto.",
   quality: "Qualidade",
   qualityHint: "Mais alta soa melhor e usa mais da conexão. 96 é um bom começo.",
   kbps: (n) => `${n} kbit/s`,
   start: "Começar a compartilhar",
   starting: "Começando…",
   notice: "O som do que você compartilha vai para todos desta mesa. O que você pode tocar para os outros é responsabilidade sua; o Verso não grava nada.",
+  noticeMac: "Atenção no Mac: enquanto você compartilha, o som do próprio Verso (dados, avisos) sai por um caminho próprio, com um atraso de alguns centésimos de segundo. A música da mesa, os players de áudio das notas e os vídeos ou páginas mostrados dentro de uma nota não dá para separar, então o som deles também vai para a mesa.",
   noticeOk: "Entendi, compartilhar",
   replaceAsk: (by, name) => (by && name ? `${by} já está compartilhando ${name}. Encerrar e compartilhar este no lugar?` : "A mesa já tem um áudio compartilhado. Encerrar e compartilhar este no lugar?"),
   replace: "Substituir",
@@ -93,18 +97,20 @@ const en: Words = {
   sources: "Sound sources",
   kind: { app: "Application", page: "Page in Verso", system: "Everything this computer plays" },
   noSources: "Capturing sound comes with a coming update, one system at a time. For now this computer has nothing to share yet.",
-  needsMac: "Sharing audio on a Mac needs macOS 14.4 or newer. Update macOS to share the sound of an app.",
+  needsMac: "Sharing audio on a Mac needs macOS 14.4 or newer. Update macOS to share the sound of the pages.",
   macDenied: "macOS did not let Verso record system audio. Open System Settings > Privacy & Security > System Audio Recording (in some versions “Screen & System Audio Recording”), turn Verso on, and start again.",
   needsWindows: "Sharing audio on Windows needs Windows 11 or newer (Windows 10 cannot separate the sound of the pages from the rest of the computer).",
   noPages: "Open a page in Verso (as a page, not inside a note) and let it play; then choose to share again.",
   pagesName: "Pages open in Verso",
   pagesHint: "Only the sound of pages opened as a page in Verso (YouTube, Spotify Web, an ambience loop) goes to the table, all together. Verso's own sounds (dice, alerts, the table's music) and other programs never do. A page shown inside a note does not count: open it as a page.",
+  pagesHintMac: "Only the sound of pages open in Verso (YouTube, Spotify Web, an ambience loop) goes to the table, all together. Verso's own sounds (dice, alerts) and other programs never do. On a Mac, the table's music, the audio players in notes, a video or a page shown inside a note cannot be told apart: their sound goes too.",
   quality: "Quality",
   qualityHint: "Higher sounds better and uses more of the connection. 96 is a good start.",
   kbps: (n) => `${n} kbit/s`,
   start: "Start sharing",
   starting: "Starting…",
   notice: "The sound of what you share goes to everyone at this table. What you may play to others is your responsibility; Verso records nothing.",
+  noticeMac: "Note for the Mac: while you share, Verso's own sounds (dice, alerts) leave by a path of their own, a few hundredths of a second later. The table's music, the audio players in notes, and videos or pages shown inside a note cannot be told apart, so their sound goes to the table too.",
   noticeOk: "Understood, share",
   replaceAsk: (by, name) => (by && name ? `${by} is already sharing ${name}. End it and share this instead?` : "The table already has a shared audio. End it and share this instead?"),
   replace: "Replace",
@@ -122,6 +128,15 @@ const en: Words = {
   statusSharing: (name) => `Sharing: ${name}`,
   statusStop: "Stop sharing audio",
 };
+
+/** Whether this window is a Mac's: the first-share notice and the pages' hint say what is true there. */
+export function onMac(): boolean {
+  try {
+    return /Mac/i.test(navigator.platform || navigator.userAgent || "") && !/iP(hone|ad|od)/i.test(navigator.userAgent || "");
+  } catch {
+    return false;
+  }
+}
 
 export const ss: Words = LANG.toLowerCase().startsWith("pt") ? pt : en;
 
