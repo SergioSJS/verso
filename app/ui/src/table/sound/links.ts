@@ -42,7 +42,7 @@ export function soundButton(path: string, host: SoundHost, heading: () => string
   b.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    playForTable(path, host, heading());
+    void playForTable(path, host, heading());
   });
   return b;
 }
@@ -50,13 +50,14 @@ export function soundButton(path: string, host: SoundHost, heading: () => string
 /** Play `path` for the table (or in this window's Music tab, alone), from the
  *  scene of the note of `host` under `heading`: the play button's, and the
  *  audio embed's "Play for the table" (src/audio/player.ts). In the gesture. */
-export function playForTable(path: string, host: SoundHost, heading: string | null): void {
+export function playForTable(path: string, host: SoundHost, heading: string | null, positionMs = 0): Promise<string | null> {
   const resolve = (target: string) => resolveFileByName(target, host.path());
   const found = sceneUnder(scenesOf(host.text(), resolve), path, heading);
   // The list is known by its note and heading ("Trilha › Taverna").
   const scene = found ? asScene({ kind: "note", source: host.path(), scene: found.name, tracks: found.tracks }, "") : null;
-  void playTrack(path, scene, askUnheard).then((err) => {
+  return playTrack(path, scene, askUnheard, positionMs).then((err) => {
     if (err) ui.status.textContent = err;
+    return err;
   });
 }
 
