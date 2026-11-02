@@ -50,6 +50,8 @@ export type ShareDeps = {
   changed(): void;
   /** One line in the app's log, for a refusal. */
   log?(line: string): void;
+  /** The share cannot be heard in this page at all (no audio path), or can again (`false`). */
+  deaf?(on: boolean): void;
 };
 
 /** Frames held while the player loads: three seconds. */
@@ -57,6 +59,8 @@ export const HELD_MOST = 150;
 
 export class TableShare {
   private share: AudioShare | null;
+  /** The share whose opening failed: not tried again (nor logged again) until another share. */
+  private failedFor: number | null = null;
   /** Whether the server was asked to send this window the share (and not told otherwise). */
   private listening = false;
   /** The share whose listening the server refused: not asked again until it starts again or says behind. */
@@ -154,6 +158,10 @@ export class TableShare {
     if (this.share && wants && !this.listening && this.refused !== this.share.id) void this.ask(true);
     if (!wants && this.listening) void this.ask(false);
     const play = !!this.share && wants && this.listening;
+    if (this.failedFor !== null && this.share?.id !== this.failedFor) {
+      this.failedFor = null;
+      this.deps.deaf?.(false);
+    }
     if (!play) {
       this.drop();
       this.setWaiting(false);
@@ -164,6 +172,7 @@ export class TableShare {
       return;
     }
     if (this.opening) return;
+    if (this.failedFor === this.share?.id) return;
     if (!this.deps.gate.ready()) {
       this.setWaiting(true);
       if (!this.gateAsked) {
@@ -192,6 +201,8 @@ export class TableShare {
       .catch((e: unknown) => {
         this.opening = null;
         this.held = [];
+        this.failedFor = id;
+        if (e instanceof Error && e.name === "NoAudioPath") this.deps.deaf?.(true);
         this.deps.log?.(`the share could not be heard here: ${e instanceof Error ? e.message : String(e)}`);
       });
   }

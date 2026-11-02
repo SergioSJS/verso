@@ -24,6 +24,8 @@ export const hostRoute: OwnRoute = {
  * share starts with the window's sounds in it.
  */
 export async function beginOwn(route: OwnRoute = hostRoute): Promise<boolean> {
+  // A page without AudioWorklet (plain HTTP, a web window) never reroutes: the route is the desktop's.
+  if (route === hostRoute && typeof AudioWorkletNode === "undefined") return false;
   const r = await commands.audioShareOwnBegin();
   if (r.status === "error") throw r.error;
   if (!r.data) return false;

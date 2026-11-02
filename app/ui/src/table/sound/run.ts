@@ -128,8 +128,15 @@ export function setShareWaiting(on: boolean): void {
   shareWaiting = on;
   tell();
 }
-export function playerState(): { blocked: boolean; failed: boolean; cannotHere: boolean; shareWaiting: boolean } {
-  return { blocked, failed, cannotHere, shareWaiting };
+/** A live share cannot be heard in this page at all (no audio path: shareLife.ts), said in the tab. */
+let shareDeaf = false;
+export function setShareDeaf(on: boolean): void {
+  if (shareDeaf === on) return;
+  shareDeaf = on;
+  tell();
+}
+export function playerState(): { blocked: boolean; failed: boolean; cannotHere: boolean; shareWaiting: boolean; shareDeaf: boolean } {
+  return { blocked, failed, cannotHere, shareWaiting, shareDeaf };
 }
 
 /** The file's address for this window: `/f/` on a server, `verso://` on the desktop. */
