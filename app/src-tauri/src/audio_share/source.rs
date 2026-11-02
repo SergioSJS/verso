@@ -5,7 +5,7 @@
 //! Where the sound comes from (ADR 0116 item 17). A [`Source`] gives
 //! interleaved 48 kHz stereo `f32` blocks to a sink, from a thread of its
 //! own, until its [`Running`] handle is dropped. The capture back-ends of
-//! each system (`macos.rs` and `macos_source.rs` today) plug in by being listed in
+//! each system (`macos_source.rs`, `windows_source.rs`) plug in by being listed in
 //! [`list`] and opened in [`open`]; nothing else in the module knows what a
 //! source is. Windows's pages source needs the window (which pages are its
 //! own), so `mod.rs` asks `windows_source.rs` for it.
@@ -78,23 +78,7 @@ pub fn list() -> Vec<AudioSource> {
     if test_tone_listed() {
         out.push(super::tone::TestTone.describe());
     }
-    #[cfg(target_os = "macos")]
-    out.extend(super::macos_source::list());
     out
-}
-
-/// Why this system can list nothing, when it is something the person can
-/// fix (the macOS version); `None` otherwise.
-#[must_use]
-pub fn unavailable() -> Option<&'static str> {
-    #[cfg(target_os = "macos")]
-    {
-        super::macos_source::unavailable()
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        None
-    }
 }
 
 /// The source `id` names, or `None`.
@@ -103,14 +87,7 @@ pub fn open(id: &str) -> Option<Box<dyn Source>> {
     if test_tone_listed() && id == super::tone::ID {
         return Some(Box::new(super::tone::TestTone));
     }
-    #[cfg(target_os = "macos")]
-    {
-        super::macos_source::open(id)
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        None
-    }
+    None
 }
 
 #[cfg(test)]

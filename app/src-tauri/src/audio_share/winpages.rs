@@ -14,29 +14,38 @@
 //! and never Verso's own (the dice, the chimes, the table's music), which
 //! play in the window's environment.
 
+#[cfg(any(windows, test))]
 use verso_contract::{SOURCE_NAME_MOST, name_ok};
 
 /// The id of the one source.
 pub const PAGES_ID: &str = "pages";
 
+#[cfg(any(windows, test))]
 /// The first Windows build with process loopback (Windows 11 and Server
 /// 2022; the API is documented from build 20348).
 pub const PER_APP_BUILD: u32 = 20_348;
 
+#[cfg(any(windows, test))]
 /// What the list refuses with on a Windows without process loopback: the
 /// window knows these exact words and says them in its own language
 /// (`HOST_NEEDS_WINDOWS` in `shareWords.ts`).
 pub const NEEDS_WINDOWS_11: &str = "audio capture needs Windows 11 or later";
 
-/// What the list and a start refuse with when no page is open in Verso.
+/// What the list and a start refuse with when no page is open in Verso (on
+/// the Mac: when no page has made sound yet).
 pub const NO_PAGES: &str = "no page is open in Verso to share";
 
+/// The source's name when no site is named (the Mac names none).
+pub const PAGES_NAME: &str = "Pages open in Verso";
+
+#[cfg(any(windows, test))]
 /// Whether this build of Windows can capture one process tree.
 #[must_use]
 pub const fn per_app(build: u32) -> bool {
     build >= PER_APP_BUILD
 }
 
+#[cfg(any(windows, test))]
 /// A page open in Verso, as WebView2 tells it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Page {
@@ -48,6 +57,7 @@ pub struct Page {
     pub host: String,
 }
 
+#[cfg(any(windows, test))]
 /// The host name of a page's address, without `www.`; empty if none.
 #[must_use]
 pub fn host_of(url: &str) -> String {
@@ -65,6 +75,7 @@ pub fn host_of(url: &str) -> String {
     host.strip_prefix("www.").unwrap_or(host).to_lowercase()
 }
 
+#[cfg(any(windows, test))]
 /// What the picker calls the source: *Pages open in Verso*, and the sites
 /// that play now when some do (`Pages open in Verso: open.spotify.com`).
 /// Always a name the contract accepts.
@@ -76,7 +87,7 @@ pub fn source_name(pages: &[Page]) -> String {
             hosts.push(&p.host);
         }
     }
-    let base = "Pages open in Verso";
+    let base = PAGES_NAME;
     let name = if hosts.is_empty() {
         base.to_owned()
     } else {
