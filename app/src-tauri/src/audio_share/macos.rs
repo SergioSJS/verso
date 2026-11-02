@@ -22,7 +22,9 @@
 //! evaluation is in ADR 0116, "As built (S7)"). So this file is kept to what
 //! must touch those calls:
 //! - the list of the processes the audio system knows;
-//! - the parent of a process;
+//! - the process the system holds responsible for another;
+//! - the default output device, played by a block of ours (the window's
+//!   own sounds while a share runs, `macos_play.rs`);
 //! - the tap chain, built and torn down in one place;
 //! - the IOProc block, which only copies the system's buffers and hands
 //!   them over a bounded channel: no encoder, no lock, no I/O runs on the
@@ -51,10 +53,10 @@ use objc2_core_audio::{
     AudioObjectID, AudioObjectPropertyAddress, CATapDescription, kAudioAggregateDeviceIsPrivateKey,
     kAudioAggregateDeviceIsStackedKey, kAudioAggregateDeviceNameKey,
     kAudioAggregateDeviceTapAutoStartKey, kAudioAggregateDeviceTapListKey,
-    kAudioAggregateDeviceUIDKey, kAudioHardwarePropertyProcessObjectList,
-    kAudioObjectPropertyElementMain, kAudioObjectPropertyScopeGlobal,
-    kAudioProcessPropertyBundleID, kAudioProcessPropertyPID, kAudioSubTapDriftCompensationKey,
-    kAudioSubTapUIDKey, kAudioTapPropertyFormat,
+    kAudioAggregateDeviceUIDKey, kAudioDevicePropertyNominalSampleRate,
+    kAudioHardwarePropertyDefaultOutputDevice, kAudioHardwarePropertyProcessObjectList,
+    kAudioObjectPropertyElementMain, kAudioObjectPropertyScopeGlobal, kAudioProcessPropertyPID,
+    kAudioSubTapDriftCompensationKey, kAudioSubTapUIDKey, kAudioTapPropertyFormat,
 };
 use objc2_core_audio_types::{AudioBufferList, AudioStreamBasicDescription, AudioTimeStamp};
 use objc2_foundation::{
@@ -64,8 +66,8 @@ use objc2_foundation::{
 
 use objc2_core_foundation::CFDictionary;
 
-use super::apps::AudioProc;
 use super::convert::join_buffers;
+use super::macpages::AudioProc;
 
 /// Core Audio's "no error".
 const NO_ERR: i32 = 0;
@@ -190,57 +192,42 @@ pub fn audio_processes() -> Result<Vec<AudioProc>, String> {
             // It went away between the two calls.
             continue;
         }
-        out.push(AudioProc {
-            object,
-            pid,
-            bundle_id: bundle_of(object).unwrap_or_default(),
-        });
+        out.push(AudioProc { object, pid });
     }
     Ok(out)
 }
 
-/// A process object's bundle identifier, if it has one.
-fn bundle_of(object: AudioObjectID) -> Option<String> {
-    let mut raw: *mut NSString = std::ptr::null_mut();
-    read_property(object, kAudioProcessPropertyBundleID, &mut raw).ok()?;
-    let raw = NonNull::new(raw)?;
-    // SAFETY: the property is a `CFStringRef` the caller owns (the "Copy"
-    // rule: +1), and a `CFString` is an `NSString` (toll-free bridged), so
-    // taking ownership of the pointer as a `Retained<NSString>` releases
-    // it exactly once.
-    let text = unsafe { Retained::from_raw(raw.as_ptr()) }?;
-    Some(text.to_string())
-}
-
-/// The parent of process `pid`, if the system says.
+/// The process the system holds responsible for `pid` (the application a
+/// helper such as the WebKit GPU process works for), if the system says.
+/// `responsibility_get_pid_responsible_for_pid` is in libSystem but not in
+/// its public headers, so it is looked up by name once; where it is not
+/// there, nothing is known.
 #[must_use]
-pub fn parent_of(pid: i32) -> Option<i32> {
-    // SAFETY: `proc_bsdinfo` is a plain C struct of integers and byte
-    // arrays: all-zero is a valid value.
-    let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
-    let size = i32::try_from(std::mem::size_of::<libc::proc_bsdinfo>()).ok()?;
-    // SAFETY: `info` is a live local of exactly `size` bytes; the call
-    // fills it and returns the bytes it wrote.
-    let wrote = unsafe {
-        libc::proc_pidinfo(
-            pid,
-            libc::PROC_PIDTBSDINFO,
-            0,
-            std::ptr::from_mut(&mut info).cast::<c_void>(),
-            size,
-        )
-    };
-    (wrote == size)
-        .then(|| i32::try_from(info.pbi_ppid).ok())
-        .flatten()
+pub fn responsible_of(pid: i32) -> Option<i32> {
+    type Fun = unsafe extern "C" fn(libc::pid_t) -> libc::pid_t;
+    static FUN: std::sync::OnceLock<Option<Fun>> = std::sync::OnceLock::new();
+    let fun = (*FUN.get_or_init(|| {
+        // SAFETY: `dlsym` with the default-search handle and a NUL-terminated
+        // name; it returns null or the address of that function.
+        let raw = unsafe {
+            libc::dlsym(
+                libc::RTLD_DEFAULT,
+                c"responsibility_get_pid_responsible_for_pid".as_ptr(),
+            )
+        };
+        // SAFETY: the symbol's signature is `pid_t f(pid_t)` (it is what
+        // launchd and Activity Monitor call); a null pointer is excluded.
+        (!raw.is_null()).then(|| unsafe { std::mem::transmute::<*mut c_void, Fun>(raw) })
+    }))?;
+    // SAFETY: a plain call with an integer; no pointer crosses.
+    let r = unsafe { fun(pid) };
+    (r > 0).then_some(r)
 }
 
 /// Whom the tap listens to.
 pub enum Who {
     /// Only these audio objects, mixed down to stereo.
     Only(Vec<AudioObjectID>),
-    /// Everything but these audio objects (none: everything).
-    AllBut(Vec<AudioObjectID>),
 }
 
 /// The IOProc block's shape: Core Audio's five arguments.
@@ -392,16 +379,6 @@ pub fn start(who: &Who, name: &str, tx: SyncSender<Block>) -> Result<Chain, Fail
                 CATapDescription::initStereoMixdownOfProcesses(CATapDescription::alloc(), &list)
             }
         }
-        Who::AllBut(ids) => {
-            let list = numbers(ids);
-            // SAFETY: as above.
-            unsafe {
-                CATapDescription::initStereoGlobalTapButExcludeProcesses(
-                    CATapDescription::alloc(),
-                    &list,
-                )
-            }
-        }
     };
     let title = NSString::from_str(name);
     // SAFETY: plain setters on an object we own, with an `NSString`.
@@ -523,4 +500,172 @@ fn read_input(input: NonNull<AudioBufferList>) -> Option<Block> {
     }
     let (channels, samples) = join_buffers(&slices);
     (!samples.is_empty()).then_some(Block { channels, samples })
+}
+
+/// The default output device and its sample rate, in Hz.
+fn default_output() -> Result<(AudioObjectID, u32), Failure> {
+    let mut device: AudioObjectID = 0;
+    read_property(1, kAudioHardwarePropertyDefaultOutputDevice, &mut device)
+        .map_err(|s| failure("finding the default output device", s))?;
+    if device == 0 {
+        return Err(Failure::Other("this Mac has no output device".into()));
+    }
+    let mut rate = 0.0_f64;
+    read_property(device, kAudioDevicePropertyNominalSampleRate, &mut rate)
+        .map_err(|s| failure("reading the output device's rate", s))?;
+    if !rate.is_finite() || !(8_000.0..=384_000.0).contains(&rate) {
+        return Err(Failure::Other(
+            "the output device reported a rate that makes no sense".into(),
+        ));
+    }
+    Ok((device, rate as u32))
+}
+
+/// The default output device's sample rate, in Hz.
+///
+/// # Errors
+/// Why there is none, in words for the log.
+pub fn output_rate() -> Result<u32, String> {
+    match default_output() {
+        Ok((_, rate)) => Ok(rate),
+        Err(Failure::Denied) => Err("the output device refused".into()),
+        Err(Failure::Other(why)) => Err(why),
+    }
+}
+
+/// The default output device at work, played by a block of ours. Dropping it
+/// stops the device and destroys the IOProc.
+pub struct Output {
+    device: AudioObjectID,
+    io_proc: AudioDeviceIOProcID,
+    stopped: Arc<AtomicBool>,
+    _block: RcBlock<IoFn>,
+}
+
+impl Drop for Output {
+    fn drop(&mut self) {
+        self.stopped.store(true, Ordering::Release);
+        if self.io_proc.is_some() {
+            // SAFETY: the device and IOProc made in `start_output`, stopped
+            // and destroyed once here.
+            let _ = unsafe { AudioDeviceStop(self.device, self.io_proc) };
+            // SAFETY: as above; the block is still alive (a field).
+            let _ = unsafe { AudioDeviceDestroyIOProcID(self.device, self.io_proc) };
+        }
+    }
+}
+
+/// Play on the default output device: each time the device wants audio,
+/// `fill` gets interleaved stereo `f32` frames to fill, at the rate of
+/// [`output_rate`]; any other channels the device has get silence. `fill`
+/// runs on the system's audio thread, so it must not wait.
+///
+/// # Errors
+/// Why the device did not start, in words for the log.
+pub fn start_output(fill: impl FnMut(&mut [f32]) + Send + 'static) -> Result<Output, Failure> {
+    let (device, _) = default_output()?;
+    let stopped = Arc::new(AtomicBool::new(false));
+    let gate = Arc::clone(&stopped);
+    let state = std::sync::Mutex::new((fill, Vec::<f32>::new()));
+    let block = RcBlock::new(
+        move |_now: NonNull<AudioTimeStamp>,
+              _input: NonNull<AudioBufferList>,
+              _input_time: NonNull<AudioTimeStamp>,
+              output: NonNull<AudioBufferList>,
+              _output_time: NonNull<AudioTimeStamp>| {
+            // A call that cannot have the lock, or after the stop, plays silence.
+            match state.try_lock() {
+                Ok(mut guard) if !gate.load(Ordering::Acquire) => {
+                    let (fill, scratch) = &mut *guard;
+                    write_frames(output, scratch, fill);
+                }
+                _ => write_frames(output, &mut Vec::new(), &mut |s: &mut [f32]| s.fill(0.0)),
+            }
+        },
+    );
+    let mut io_proc: AudioDeviceIOProcID = None;
+    // SAFETY: `io_proc` is a live local, `device` the default output, and
+    // the block pointer is valid for the call (the system copies the block);
+    // `block` is kept in the returned value until the IOProc is destroyed.
+    let status = unsafe {
+        AudioDeviceCreateIOProcIDWithBlock(
+            NonNull::from(&mut io_proc),
+            device,
+            None,
+            RcBlock::as_ptr(&block),
+        )
+    };
+    if status != NO_ERR || io_proc.is_none() {
+        return Err(failure("registering the output callback", status));
+    }
+    // SAFETY: the device and IOProc just made.
+    let status = unsafe { AudioDeviceStart(device, io_proc) };
+    if status != NO_ERR {
+        stopped.store(true, Ordering::Release);
+        // SAFETY: the IOProc just made on this device, destroyed once.
+        let _ = unsafe { AudioDeviceDestroyIOProcID(device, io_proc) };
+        return Err(failure("starting the output", status));
+    }
+    Ok(Output {
+        device,
+        io_proc,
+        stopped,
+        _block: block,
+    })
+}
+
+/// Fill `output`'s buffers from `fill`'s interleaved stereo frames. A buffer
+/// of one channel is a plane (the left, the right, silence for the rest); a
+/// buffer of more is interleaved (the first two channels, silence for the
+/// rest).
+fn write_frames(
+    output: NonNull<AudioBufferList>,
+    scratch: &mut Vec<f32>,
+    fill: &mut dyn FnMut(&mut [f32]),
+) {
+    let list = output.as_ptr();
+    // SAFETY: the system passes a valid buffer list for the duration of the
+    // callback.
+    let count = unsafe { (*list).mNumberBuffers } as usize;
+    if count == 0 {
+        return;
+    }
+    // SAFETY: only the address of the `mBuffers` field is taken.
+    let first = unsafe { &raw mut (*list).mBuffers };
+    // SAFETY: `mBuffers` is the first of `mNumberBuffers` buffers laid out
+    // one after another (the C flexible array member); the list is ours to
+    // write for the callback.
+    let buffers = unsafe {
+        std::slice::from_raw_parts_mut(first.cast::<objc2_core_audio_types::AudioBuffer>(), count)
+    };
+    let frames = buffers
+        .iter()
+        .map(|b| b.mDataByteSize as usize / (4 * (b.mNumberChannels as usize).max(1)))
+        .min()
+        .unwrap_or(0);
+    scratch.clear();
+    scratch.resize(frames * 2, 0.0);
+    fill(scratch);
+    for (index, b) in buffers.iter().enumerate() {
+        let channels = (b.mNumberChannels as usize).max(1);
+        let data = b.mData.cast::<f32>();
+        let len = b.mDataByteSize as usize / 4;
+        if data.is_null() || !data.is_aligned() {
+            continue;
+        }
+        // SAFETY: the buffer holds `mDataByteSize` writable bytes, aligned
+        // for `f32` (checked), for the duration of the callback.
+        let out = unsafe { std::slice::from_raw_parts_mut(data, len) };
+        out.fill(0.0);
+        for f in 0..frames {
+            if channels == 1 {
+                if index < 2 {
+                    out[f] = scratch[f * 2 + index];
+                }
+            } else if index == 0 {
+                out[f * channels] = scratch[f * 2];
+                out[f * channels + 1] = scratch[f * 2 + 1];
+            }
+        }
+    }
 }

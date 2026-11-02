@@ -1442,3 +1442,42 @@ fn a_folder_of_this_computer_keeps_and_restores_its_versions() {
     call(&webview, "set_history_days", json!({ "days": 30 })).unwrap();
     assert!(call(&webview, "set_history_days", json!({ "days": 40_000 })).is_err());
 }
+
+/// A sound the window takes into Web Audio (`crossorigin` on the element, so
+/// the table's music and the audio players in notes can be routed to the host
+/// while a Mac shares, ADR 0116) is read by the window's origin on every
+/// system, whichever way the file comes, and by no other.
+#[test]
+fn an_audio_file_is_readable_from_the_windows_origin_on_every_path() {
+    let vault = tempfile::tempdir().unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let _song = note(vault.path(), "taverna.mp3", "ID3-not-really-audio");
+    let mut ws = Workspace::open(vault.path(), Some(config.path())).unwrap();
+    ws.index().unwrap();
+    for origin in [
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+    ] {
+        let local = serve(Some(&mut ws), "main", "taverna.mp3", Some(origin));
+        assert_eq!(local.status, 200);
+        assert_eq!(header(&local, "Access-Control-Allow-Origin"), Some(origin));
+        assert_eq!(header(&local, "Vary"), Some("Origin"));
+        // A server's file, which answers without CORS, gets it from the host.
+        let mut remote = verso_service::files::Served {
+            status: 206,
+            headers: vec![("Content-Range", "bytes 0-3/10".to_owned())],
+            body: Vec::new(),
+        };
+        crate::protocol::allow_app_origin(&mut remote.headers, Some(origin));
+        assert_eq!(header(&remote, "Access-Control-Allow-Origin"), Some(origin));
+    }
+    let mut other = verso_service::files::Served {
+        status: 200,
+        headers: Vec::new(),
+        body: Vec::new(),
+    };
+    crate::protocol::allow_app_origin(&mut other.headers, Some("https://evil.example"));
+    crate::protocol::allow_app_origin(&mut other.headers, None);
+    assert!(other.headers.is_empty());
+}

@@ -25,6 +25,8 @@
 import { icon } from "../icons";
 import { h } from "../dom";
 import { canPlay } from "../table/sound/formats";
+import { audioContext, unlockAudio } from "../dice3d/audio";
+import { mediaNode, prepareMedia, retryPlain, routeMedia } from "../dice3d/ownOutput";
 import { onSound, setDuck, sound, soundAlone, tableAudible } from "../table/sound/run";
 import { playForTable, soundButtons, type SoundHost } from "../table/sound/links";
 import { clockText } from "../table/sound/sync";
@@ -200,6 +202,7 @@ class AudioEmbed {
     const a = h("audio", "audio-embed-audio");
     a.preload = "metadata";
     a.hidden = true;
+    prepareMedia(a, this.o.src);
     a.src = this.o.src;
     this.bind(a);
     return a;
@@ -218,6 +221,8 @@ class AudioEmbed {
     a.addEventListener("pause", () => me()?.stopped());
     a.addEventListener("ended", () => me()?.stopped());
     a.addEventListener("error", () => {
+      // Asked for with `crossorigin` and refused: once more, plainly.
+      if (retryPlain(a)) return;
       if (a.getAttribute("src")) me()?.say(aw.failed);
     });
   }
@@ -225,6 +230,8 @@ class AudioEmbed {
   /** Inside the person's gesture. */
   private start(): void {
     this.fresh = false;
+    unlockAudio();
+    this.route();
     this.applyGain();
     void this.audio.play().catch(() => this.drawState());
   }
@@ -255,8 +262,32 @@ class AudioEmbed {
     this.note.hidden = !line;
   }
 
+  /** Into the window's own output, once the audio context runs (a Mac's share does not carry it then). */
+  private route(): void {
+    const ctx = audioContext();
+    if (!ctx || mediaNode(this.audio)) return;
+    const go = (): void => {
+      if (routeMedia(this.audio, ctx)) this.applyGain();
+    };
+    if (ctx.state === "running") return go();
+    const on = (): void => {
+      if (ctx.state !== "running") return;
+      ctx.removeEventListener("statechange", on);
+      go();
+    };
+    ctx.addEventListener("statechange", on);
+  }
+
   applyGain(): void {
     const g = ownGain(own);
+    const node = mediaNode(this.audio);
+    if (node) {
+      // Through Web Audio the element's own volume is left alone and the gain does it.
+      node.gain.value = own.muted || g === 0 ? 0 : g;
+      this.audio.volume = 1;
+      this.audio.muted = false;
+      return;
+    }
     try {
       this.audio.volume = g;
     } catch {

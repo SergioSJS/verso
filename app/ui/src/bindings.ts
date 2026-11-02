@@ -751,6 +751,22 @@ export const commands = {
 	/**  Stop capturing. */
 	audioShareStop: () => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_stop")),
 	/**
+	 *  The window is about to share on a Mac: its own sounds go to the host's
+	 *  output from now on (ADR 0116, the 2026-11-02 note on A2), so the tap that
+	 *  carries the pages never hears them. `true` when the window should send
+	 *  its final output to `audio_share_own_pcm`; `false` anywhere else (nothing
+	 *  changes there). The window asks this before it starts the capture.
+	 */
+	audioShareOwnBegin: () => typedError<boolean, ContractError>(__TAURI_INVOKE("audio_share_own_begin")),
+	/**
+	 *  One block of the window's own sound (`ownqueue.rs`: the sample rate as an
+	 *  `f32`, then interleaved stereo `f32`, little-endian), raw over the IPC.
+	 *  Dropped when the window is not routing its sound here.
+	 */
+	audioShareOwnPcm: (block: ArrayBuffer) => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_own_pcm", { block })),
+	/**  The share is over: the window's sounds go back to the web view's output. */
+	audioShareOwnEnd: () => typedError<null, ContractError>(__TAURI_INVOKE("audio_share_own_end")),
+	/**
 	 *  Receive the table's live share (`listen`), or no longer: a window that
 	 *  asks gets the last two seconds, then the live frames, as binary messages
 	 *  on its connection; one that fell ten seconds behind is told

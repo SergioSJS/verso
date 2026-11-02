@@ -11,6 +11,7 @@
 // (`{ queued, starved, level }`) — the clock the window pulls the jitter
 // buffer by (`listener.ts`).
 
+import { OWN_PROCESSOR } from "../../dice3d/ownOutput";
 import { PROCESSOR, PcmQueue, STREAM_RATE } from "./pcm";
 
 // The AudioWorkletGlobalScope's own names (not in the DOM's types).
@@ -58,4 +59,48 @@ class ShareProcessor extends AudioWorkletProcessor {
   }
 }
 
+/** Frames per block sent to the host: 1024 is 21 ms at 48 kHz, inside the latency a share costs the window's own sounds. */
+const OWN_FRAMES = 1024;
+
+/**
+ * The window's own final mix, on its way to the host while a Mac shares (`dice3d/ownOutput.ts`): interleaved stereo
+ * blocks, each with the context's sample rate as its first `f32`. A block of exact silence is not sent (the host plays
+ * silence when it has nothing).
+ */
+class OwnOutProcessor extends AudioWorkletProcessor {
+  private block = new Float32Array(1 + OWN_FRAMES * 2);
+  private frames = 0;
+  private loud = false;
+
+  constructor() {
+    super();
+    this.block[0] = sampleRate;
+  }
+
+  process(inputs: Float32Array[][]): boolean {
+    const input = inputs[0];
+    const l = input?.[0];
+    if (!l) return true;
+    const r = input[1] ?? l;
+    for (let i = 0; i < l.length; i++) {
+      const a = l[i]!;
+      const b = r[i]!;
+      if (a !== 0 || b !== 0) this.loud = true;
+      this.block[1 + this.frames * 2] = a;
+      this.block[2 + this.frames * 2] = b;
+      if (++this.frames === OWN_FRAMES) {
+        if (this.loud) {
+          this.port.postMessage(this.block.buffer, [this.block.buffer]);
+          this.block = new Float32Array(1 + OWN_FRAMES * 2);
+          this.block[0] = sampleRate;
+        }
+        this.frames = 0;
+        this.loud = false;
+      }
+    }
+    return true;
+  }
+}
+
 registerProcessor(PROCESSOR, ShareProcessor);
+registerProcessor(OWN_PROCESSOR, OwnOutProcessor);

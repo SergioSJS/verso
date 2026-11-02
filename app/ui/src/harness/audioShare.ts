@@ -70,6 +70,10 @@ export class AudioShareHarness {
       this.meter = setInterval(() => void emit("audio-share-level", this.level), 100);
       return { source, bitrate_kbps: Number(a["bitrateKbps"]), sample_rate: 48000, channels: 2, frame_ms: 20 };
     };
+    // The Mac routes the window's own sounds to the host; the harness is no Mac.
+    h["audio_share_own_begin"] = () => false;
+    h["audio_share_own_end"] = () => null;
+    h["audio_share_own_pcm"] = () => null;
     h["audio_share_stop"] = () => {
       this.stopMeter();
       return null;

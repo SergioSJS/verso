@@ -15,6 +15,7 @@ import { hostWhy, sourceName, ss } from "./shareWords";
 import { can } from "../../can";
 import { errorSentence } from "../../errors";
 import { startCapture, type Capture } from "./capture";
+import { beginOwn, endOwn } from "./shareOwn";
 import { soundChanged, soundOn } from "./run";
 import { expectOwnShare, liveShare, markOwnShare } from "./share";
 import { beginShare, LevelWatch, type LevelState } from "./shareMine";
@@ -26,6 +27,8 @@ let table: string | null = null;
 let may = false;
 let own: Mine | null = null;
 let capture: Capture | null = null;
+/** The window's own sounds go to the host while this share runs (a Mac): they come back when it ends. */
+let ownRerouted = false;
 let watch = new LevelWatch();
 let peak = 0;
 let lastState: LevelState = "checking";
@@ -92,7 +95,14 @@ const deps = {
   startShare: (wish: Parameters<typeof commands.tableShareStart>[0], root: string | null) => commands.tableShareStart(wish, root),
   stopShare: (root: string | null) => commands.tableShareStop(root),
   capture: async (id: string, kbps: number, share: number) => {
-    capture = await startCapture(id, kbps, share);
+    // First, so the capture never hears the window's own sounds (a Mac; anywhere else this does nothing).
+    ownRerouted = await beginOwn();
+    try {
+      capture = await startCapture(id, kbps, share);
+    } catch (e) {
+      await giveBackOwn();
+      throw e;
+    }
     markOwnShare(share);
   },
   explain: (e: ContractError) => hostWhy(e.message) ?? errorSentence(e),
@@ -141,6 +151,12 @@ export async function stopOwn(): Promise<string | null> {
   return r && r.status === "error" ? errorSentence(r.error) : null;
 }
 
+async function giveBackOwn(): Promise<void> {
+  if (!ownRerouted) return;
+  ownRerouted = false;
+  await endOwn();
+}
+
 /** The share is over (stopped here, ended by the server, or lost): the capture goes with it. */
 function finish(stopCapture: boolean): void {
   const c = capture;
@@ -148,6 +164,7 @@ function finish(stopCapture: boolean): void {
   own = null;
   markOwnShare(null);
   if (stopCapture || c) void (c ? c.stop() : commands.audioShareStop()).catch(() => null);
+  void giveBackOwn();
   tell();
 }
 

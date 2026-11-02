@@ -33,15 +33,19 @@ use verso_contract::{
 };
 use verso_service::refused;
 
-#[cfg(any(target_os = "macos", test))]
-mod apps;
 #[cfg(any(target_os = "macos", windows, test))]
 mod convert;
 mod encode;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
+mod macos_play;
+#[cfg(target_os = "macos")]
 mod macos_source;
+#[cfg(any(target_os = "macos", test))]
+mod macpages;
+#[cfg(any(target_os = "macos", test))]
+mod ownqueue;
 mod session;
 mod source;
 mod tone;
@@ -49,7 +53,7 @@ mod tone;
 mod windows;
 #[cfg(windows)]
 mod windows_source;
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "macos", test))]
 mod winpages;
 
 pub(crate) use session::Shares;
@@ -94,12 +98,29 @@ async fn platform_sources<R: tauri::Runtime>(
     }
 }
 
-#[cfg(not(windows))]
+/// The Mac shares only the pages open in Verso too (ADR 0116 amendment of
+/// 2026-11-01), once a page has made sound.
+#[cfg(target_os = "macos")]
 async fn platform_sources<R: tauri::Runtime>(
     _app: &tauri::AppHandle<R>,
     _label: &str,
 ) -> (Vec<AudioSource>, Option<&'static str>) {
-    (source::list(), source::unavailable())
+    let mut list = source::list();
+    match macos_source::list() {
+        Ok(pages) => {
+            list.extend(pages);
+            (list, None)
+        }
+        Err(why) => (list, Some(why)),
+    }
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+async fn platform_sources<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    _label: &str,
+) -> (Vec<AudioSource>, Option<&'static str>) {
+    (source::list(), None)
 }
 
 /// The source `id` names for this window.
@@ -115,7 +136,16 @@ async fn open_source<R: tauri::Runtime>(
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+async fn open_source<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    _label: &str,
+    id: &str,
+) -> Option<Box<dyn source::Source>> {
+    source::open(id).or_else(|| macos_source::open(id))
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
 async fn open_source<R: tauri::Runtime>(
     _app: &tauri::AppHandle<R>,
     _label: &str,
@@ -200,6 +230,8 @@ pub async fn audio_share_start<R: tauri::Runtime>(
             source::PERMISSION_DENIED | source::NEEDS_NEWER_MAC => refused(why),
             #[cfg(windows)]
             winpages::NEEDS_WINDOWS_11 | winpages::NO_PAGES => refused(why),
+            #[cfg(target_os = "macos")]
+            winpages::NO_PAGES => refused(why),
             _ => failed(why),
         })?;
     shares.on_window_gone(window.label(), farewell(connection));
@@ -254,6 +286,91 @@ pub(crate) fn farewell(connection: std::sync::Arc<remote::Remote>) -> session::F
     })
 }
 
+/// The window is about to share on a Mac: its own sounds go to the host's
+/// output from now on (ADR 0116, the 2026-11-02 note on A2), so the tap that
+/// carries the pages never hears them. `true` when the window should send
+/// its final output to `audio_share_own_pcm`; `false` anywhere else (nothing
+/// changes there). The window asks this before it starts the capture.
+#[tauri::command]
+#[specta::specta]
+pub async fn audio_share_own_begin<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<bool, ContractError> {
+    allowed(&app, window.label())?;
+    #[cfg(target_os = "macos")]
+    {
+        let label = window.label().to_owned();
+        tauri::async_runtime::spawn_blocking(move || macos_play::begin(&label))
+            .await
+            .map_err(|e| failed(e.to_string()))?
+            .map_err(failed)
+    }
+    #[cfg(not(target_os = "macos"))]
+    Ok(false)
+}
+
+/// The raw bytes of a call, as the window sent them (an `ArrayBuffer`, never
+/// a JSON array of numbers).
+pub struct RawBody(pub Vec<u8>);
+
+impl<'de, R: tauri::Runtime> tauri::ipc::CommandArg<'de, R> for RawBody {
+    fn from_command(
+        command: tauri::ipc::CommandItem<'de, R>,
+    ) -> Result<Self, tauri::ipc::InvokeError> {
+        match command.message.payload() {
+            tauri::ipc::InvokeBody::Raw(bytes) => Ok(Self(bytes.clone())),
+            tauri::ipc::InvokeBody::Json(_) => Err(tauri::ipc::InvokeError::from(
+                "a block of sound is raw bytes",
+            )),
+        }
+    }
+}
+
+impl specta::Type for RawBody {
+    fn definition(_: &mut specta::Types) -> specta::datatype::DataType {
+        specta::datatype::DataType::Reference(specta_typescript::define("ArrayBuffer"))
+    }
+}
+
+/// One block of the window's own sound (`ownqueue.rs`: the sample rate as an
+/// `f32`, then interleaved stereo `f32`, little-endian), raw over the IPC.
+/// Dropped when the window is not routing its sound here.
+#[tauri::command]
+#[specta::specta]
+pub fn audio_share_own_pcm<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    block: RawBody,
+) -> Result<(), ContractError> {
+    #[cfg(target_os = "macos")]
+    {
+        macos_play::push(window.label(), &block.0).map_err(refused)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (window, block);
+        Ok(())
+    }
+}
+
+/// The share is over: the window's sounds go back to the web view's output.
+#[tauri::command]
+#[specta::specta]
+pub fn audio_share_own_end<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+) -> Result<(), ContractError> {
+    own_output_gone(window.label());
+    Ok(())
+}
+
+/// The window's own output, if it had one, ends (the window went, or the share did).
+pub(crate) fn own_output_gone(label: &str) {
+    #[cfg(target_os = "macos")]
+    macos_play::end(label);
+    #[cfg(not(target_os = "macos"))]
+    let _ = label;
+}
+
 /// Stop capturing.
 #[tauri::command]
 #[specta::specta]
@@ -262,5 +379,6 @@ pub fn audio_share_stop<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<(), ContractError> {
     app.state::<App>().shares.stop_of(window.label());
+    own_output_gone(window.label());
     Ok(())
 }

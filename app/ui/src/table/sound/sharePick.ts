@@ -16,12 +16,14 @@ import { icon } from "../../icons";
 import { said } from "./controls";
 import { liveShare } from "./share";
 import { mine, sources, startOwn } from "./mine";
-import { PAGES_ID, ss } from "./shareWords";
+import { PAGES_ID, onMac, ss } from "./shareWords";
 import { st } from "./strings";
 
 const BITRATES = [64, 96, 128] as const;
 const DEFAULT_KBPS = 96;
 const SEEN = "verso.share-audio-notice-seen";
+/** The Mac has more to say (its own sounds leave by another path, videos in notes go too): its notice is seen on its own. */
+const SEEN_MAC = "verso.share-audio-notice-seen-mac";
 
 const KIND_ICON: Record<AudioSource["kind"], string> = { app: "music", page: "globe", system: "volume" };
 
@@ -123,7 +125,7 @@ export async function chooseSource(): Promise<{ source: AudioSource; kbps: numbe
         row.append(radio, icon(KIND_ICON[src.kind], ""), h("span", "share-pick-name", src.name), h("span", "share-pick-kind", ss.kind[src.kind]));
         set.append(row);
         if (src.id === PAGES_ID) {
-          const hint = h("p", "share-pick-hint share-pick-pages", ss.pagesHint);
+          const hint = h("p", "share-pick-hint share-pick-pages", onMac() ? ss.pagesHintMac : ss.pagesHint);
           hint.id = "share-pick-pages-hint";
           radio.setAttribute("aria-describedby", hint.id);
           set.append(hint);
@@ -149,8 +151,9 @@ export async function chooseSource(): Promise<{ source: AudioSource; kbps: numbe
 
 /** The first-share notice (item 21): once per person, then it is not asked again. */
 async function noticeAccepted(): Promise<boolean> {
+  const seen = onMac() ? SEEN_MAC : SEEN;
   try {
-    if (localStorage.getItem(SEEN)) return true;
+    if (localStorage.getItem(seen)) return true;
   } catch {
     // Storage may be blocked: the notice shows each time, which is only more careful.
   }
@@ -158,6 +161,7 @@ async function noticeAccepted(): Promise<boolean> {
     heading(box, ss.pickTitle);
     const text = h("p", "share-pick-notice", ss.notice);
     box.append(text);
+    if (onMac()) box.append(h("p", "share-pick-notice", ss.noticeMac));
     const actions = h("div", "confirm-actions");
     const cancel = button(st.cancel, "ghost", () => finish(false));
     actions.append(cancel, button(ss.noticeOk, "save share-pick-ok", () => finish(true)));
@@ -166,7 +170,7 @@ async function noticeAccepted(): Promise<boolean> {
   });
   if (ok) {
     try {
-      localStorage.setItem(SEEN, "1");
+      localStorage.setItem(seen, "1");
     } catch {
       // Nothing to keep it in: asked again next time.
     }

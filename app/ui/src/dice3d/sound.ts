@@ -13,6 +13,7 @@
 // Settings › Dice and RPG › "Dice sound". Web Audio (audio.ts). Loaded only when the switch is on.
 
 import { audioContext, clockWatch, keepWarm, logLine, warnOnce, whenContext } from "./audio";
+import { ownOutput } from "./ownOutput";
 
 /** The die materials that have their own recordings; the rest are plastic. */
 export type SoundMaterial = "plastic" | "wood" | "metal";
@@ -199,7 +200,7 @@ export async function loadSounds(materials: Iterable<SoundMaterial>, waitMs = 40
         src.buffer = buffer;
         const gain = ctx.createGain();
         gain.gain.value = volume;
-        src.connect(gain).connect(ctx.destination);
+        src.connect(gain).connect(ownOutput(ctx));
         const when = Math.max(at ?? 0, ctx.currentTime);
         maxAheadMs = Math.max(maxAheadMs, (when - ctx.currentTime) * 1000);
         src.start(when);

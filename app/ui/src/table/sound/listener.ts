@@ -10,24 +10,12 @@
 // gain is the person's own volume, mute and *Follow the table*; the share
 // carries the game master's gain already (item 22).
 
-import { asset } from "../../version";
+import { ownOutput } from "../../dice3d/ownOutput";
 import { opusDecoder } from "./opusDecoder";
-import { PROCESSOR, WORKLET_FILE } from "./pcm";
+import { PROCESSOR } from "./pcm";
 import { ShareStream, type StreamStats } from "./shareStream";
 import type { JitterStats } from "./jitter";
-
-/** The worklet's module, added once per context. */
-const added = new WeakMap<AudioContext, Promise<void>>();
-function addWorklet(ctx: AudioContext): Promise<void> {
-  let p = added.get(ctx);
-  if (!p) {
-    p = ctx.audioWorklet.addModule(new URL(asset(WORKLET_FILE), document.baseURI).href);
-    // A refusal is tried again at the next share.
-    p.catch(() => added.delete(ctx));
-    added.set(ctx, p);
-  }
-  return p;
-}
+import { addWorklet } from "./workletModule";
 
 export type ListenerStats = { stream: StreamStats; jitter: JitterStats; delayMs: number; depth: number; starved: number; queued: number; level: number };
 
@@ -60,7 +48,7 @@ export class ShareListener {
     const node = new AudioWorkletNode(ctx, PROCESSOR, { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
     const g = ctx.createGain();
     g.gain.value = clamp(gain);
-    node.connect(g).connect(ctx.destination);
+    node.connect(g).connect(ownOutput(ctx));
     return new ShareListener(new ShareStream(decoder, share), node, g);
   }
 

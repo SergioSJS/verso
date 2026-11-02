@@ -10,6 +10,7 @@
 // it is never held and played late.
 
 import { audioContext, armAudio, unlockAudio } from "../dice3d/audio";
+import { ownOutput } from "../dice3d/ownOutput";
 import { settings } from "../settings";
 import { isNews, type TableEntry } from "./model";
 
@@ -75,7 +76,7 @@ export function playChime(chime: Chime, volume: number): boolean {
       g.gain.setValueAtTime(0.0001, t0 + n.at);
       g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak * n.level), t0 + n.at + 0.01);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + n.at + n.len);
-      o.connect(g).connect(c.destination);
+      o.connect(g).connect(ownOutput(c));
       o.start(t0 + n.at);
       o.stop(t0 + n.at + n.len + 0.02);
     }

@@ -13,6 +13,7 @@
 // made outside a gesture, and a later resume() after an await does not count).
 
 import { commands } from "../bindings";
+import { ownOutput } from "./ownOutput";
 
 let ctx: AudioContext | null = null;
 const warned = new Set<string>();
@@ -137,7 +138,7 @@ export function keepWarm(): void {
       src.loop = true;
       const gain = c.createGain();
       gain.gain.value = 1;
-      src.connect(gain).connect(c.destination);
+      src.connect(gain).connect(ownOutput(c));
       src.start();
       warm = { src, gain };
     }

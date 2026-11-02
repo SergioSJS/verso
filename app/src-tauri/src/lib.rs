@@ -908,6 +908,9 @@ macro_rules! commands_for {
                 audio_share::audio_sources_list::<$runtime>,
                 audio_share::audio_share_start::<$runtime>,
                 audio_share::audio_share_stop::<$runtime>,
+                audio_share::audio_share_own_begin::<$runtime>,
+                audio_share::audio_share_own_pcm::<$runtime>,
+                audio_share::audio_share_own_end::<$runtime>,
                 table::table_share_listen,
                 audio_share::hear::audio_share_hear::<$runtime>,
                 campaign::campaign_status,
@@ -1341,6 +1344,7 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             app.state::<App>().shares.end_of(label);
             // No live share's frames for a window that is gone (ADR 0116).
             audio_share::hear::forget(label);
+            audio_share::own_output_gone(label);
             files::drop_picks(label);
             remote::release(app, label);
             loose::window_gone(app, label);
