@@ -24,6 +24,14 @@ function rowNow(): HTMLElement | null {
   return ui.notes.querySelector<HTMLElement>('li[data-path] > button.row[aria-current="true"]');
 }
 
+/** Beside no row: it names none (a row the person lost sight of is not left in its label). */
+function forget(): void {
+  target = null;
+  more.hidden = true;
+  more.setAttribute("aria-label", st.rowMore(""));
+  more.title = st.rowMore("");
+}
+
 function place(): void {
   raf = 0;
   const row = rowNow();
@@ -31,12 +39,7 @@ function place(): void {
   if (document.activeElement === more && target?.isConnected) return;
   target = row && row.offsetParent !== null ? row : null;
   more.hidden = target === null;
-  if (!target) {
-    // Beside no row: it names none (a row the person lost sight of is not left in its label).
-    more.setAttribute("aria-label", st.rowMore(""));
-    more.title = st.rowMore("");
-    return;
-  }
+  if (!target) return forget();
   const name = target.querySelector(".row-name, .folder-label")?.textContent ?? "";
   more.setAttribute("aria-label", st.rowMore(name));
   more.title = st.rowMore(name);
@@ -62,6 +65,12 @@ export function installRowMore(): void {
   ui.notes.addEventListener("focusin", soon);
   ui.notes.addEventListener("focusout", soon);
   // The note in front changes (`markCurrent`), or the tree is drawn again.
-  new MutationObserver(soon).observe(ui.notes, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-current", "open"] });
+  // A row that leaves the tree (access withdrawn, a delete) takes its name from
+  // the button in the same turn, not at the next frame: a page that does not
+  // paint (a background tab) would otherwise keep the label.
+  new MutationObserver(() => {
+    if (target && !target.isConnected) forget();
+    soon();
+  }).observe(ui.notes, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-current", "open"] });
   window.addEventListener("resize", soon);
 }
