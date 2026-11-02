@@ -44,6 +44,16 @@ export type TableEditorOptions = {
   widths?: (ordinal: number, cols: number) => WidthStore;
 };
 
+/** The class of the cell whose field holds the focus (see `arm`). */
+const HELD = "cell-held";
+
+/** The field of `dom` that holds the focus: the page's active element, which
+ *  stays so while the window is in the background (`:focus` does not). */
+function heldInput(dom: HTMLElement): HTMLInputElement | null {
+  const a = dom.ownerDocument.activeElement;
+  return a instanceof HTMLInputElement && dom.contains(a) && a.matches("input[data-r]") ? a : null;
+}
+
 /** Where the focus goes after a change, by table position: the widget
  *  drawn there takes it once it is in the page. */
 const pending = new WeakMap<EditorView, { at: number; r: number; c: number; caret: "start" | "end" | "all" }>();
@@ -152,7 +162,7 @@ export class TableEditor extends WidgetType {
   /** Redrawn in place: a cell with the focus keeps it, and its text. */
   override updateDOM(dom: HTMLElement, view: EditorView): boolean {
     const g = this.grid();
-    const focused = dom.querySelector<HTMLInputElement>("input:focus");
+    const focused = heldInput(dom);
     const same = dom.querySelectorAll("thead input").length === g.head.length && dom.querySelectorAll("tbody tr").length === g.body.length;
     if (same) {
       for (const input of dom.querySelectorAll<HTMLInputElement>("input[data-r]")) {
@@ -203,7 +213,7 @@ export class TableEditor extends WidgetType {
         const r = Number(view.dataset["r"]);
         const c = Number(view.dataset["c"]);
         const src = rows[r + 1]?.querySelectorAll("th, td")[c];
-        if (src && !view.parentElement?.matches(":focus-within")) view.innerHTML = src.innerHTML;
+        if (src && !view.parentElement?.matches(`:focus-within, .${HELD}`)) view.innerHTML = src.innerHTML;
       }
     });
   }
@@ -311,8 +321,23 @@ export class TableEditor extends WidgetType {
       if (look) look.textContent = input.value || "\u00a0";
       if (!composing) commit();
     });
-    input.addEventListener("focus", () => dom.classList.add("has-focus"));
-    input.addEventListener("blur", () => dom.classList.remove("has-focus"));
+    // The cell that holds the focus is marked by script, not left to the
+    // :focus / :focus-within pseudo-classes: with the window sent to the
+    // background WebKit drops them (and fires `blur` on the field) while the
+    // field is still the page's active element, and a cell that depends on
+    // them goes blank. A `blur` with the document not focused is the window
+    // leaving, not the user moving on: the cell keeps its mark, and its text,
+    // until a blur that happens with the window in front.
+    const cell = () => input.closest<HTMLElement>("th, td");
+    input.addEventListener("focus", () => {
+      dom.classList.add("has-focus");
+      cell()?.classList.add(HELD);
+    });
+    input.addEventListener("blur", () => {
+      if (!input.ownerDocument.hasFocus() && input.ownerDocument.activeElement === input) return;
+      dom.classList.remove("has-focus");
+      cell()?.classList.remove(HELD);
+    });
     input.addEventListener("keydown", (e) => {
       if (composing || e.isComposing) return;
       const now = current(view, dom);
