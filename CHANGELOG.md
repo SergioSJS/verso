@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.8.4-beta.1 — 2026-11-03
+
 ### Added
 
 - **Loop in the audio embed's player.** The player has a loop button: on its own it repeats the file for this person; bound to the table's music it is the Music tab's loop (the table repeats, for everyone).

@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.8.4-beta.1 — 2026-11-03
+
 ### Acrescentado
 
 - **Repetição no player do embed de áudio.** O player tem um botão de repetir: sozinho, repete o arquivo para esta pessoa; ligado à música da mesa, é a repetição da aba Música (a mesa repete, para todos).
