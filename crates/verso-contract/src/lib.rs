@@ -19,6 +19,7 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
+pub mod compat;
 mod read_links;
 pub use read_links::{ReadLinkInfo, ReadLinkMade, ReadLinks};
 mod local;

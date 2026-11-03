@@ -344,8 +344,9 @@ pub struct Server {
     /// The bytes of the WebSocket's large messages and answers under way
     /// (`crate::inflight`).
     pub inflight: crate::inflight::Inflight,
-    /// The contract's version: a hash of the generated bindings (the
-    /// maintainer's answer D of 2026-10-09), sent in the handshake.
+    /// The contract's hash: of the generated bindings (the maintainer's
+    /// answer D of 2026-10-09), sent in the handshake beside the
+    /// contract's version (ADR 0073 item 2, revised 2026-11-02).
     pub contract: String,
     next: AtomicU64,
     /// Device sign-ins waiting for the person's approval in the browser

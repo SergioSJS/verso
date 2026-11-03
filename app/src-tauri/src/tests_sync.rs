@@ -1276,7 +1276,7 @@ fn a_server_that_does_not_follow_this_apps_sync_is_said_in_words() {
                 let hello = json!({ "hello": {
                     "version": "9.0.0",
                     "commit": "abc1234",
-                    "contract": super::remote::contract_version(),
+                    "contract": crate::compat::contract_version(),
                     "sync": 3,
                     "syncRefused": "this app speaks sync 1, the server sync 3 and 2: update the one that is behind",
                 }});

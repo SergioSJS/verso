@@ -46,6 +46,7 @@ mod boards;
 mod campaign;
 mod cli;
 mod cloud;
+mod compat;
 mod device;
 mod discover;
 mod dns;

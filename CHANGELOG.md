@@ -14,6 +14,8 @@ test release.
 
 ### Fixed
 
+- **A desktop app and a server of another release keep working together** ([ADR 0073](docs/adr/0073-self-hosted-server-first.md) item 2 and [ADR 0079](docs/adr/0079-sync-a-local-folder-with-a-server.md) item 5, amended 2026-11-02; the maintainer: *"Versão + janela N/N-1"*). Until now the app compared a hash of the whole contract with the server's, so a server one build behind — even one that only differed in a comment — stopped every sync and refused its folders until both were updated to the same build. Now a synced folder follows only the sync's version (this one and the one before), and a window on a server's folder takes a server whose contract version is the app's or one apart; the hash only goes to the log. A command the older server does not know yet says *the server runs Verso X, which does not do this yet: update the server*. A server of 0.8.4 or earlier keeps working with this app; an app of 0.8.4 still asks for the same build until it updates.
+
 - **A YAML file nested hundreds of levels deep no longer can take the window down on Windows.** The data diagram measures how deep a YAML nests before reading it, and past 256 levels says "The YAML nests too deeply to draw" ([ADR 0106](docs/adr/0106-structured-data-as-a-diagram.md)). The YAML library recurses on each level; when its stack ran out while the engine compiled one of its regular expressions, V8 (the engine of Windows' WebView2) aborted the whole page instead of reporting the error.
 
 ## 0.8.4-beta.1 — 2026-11-03

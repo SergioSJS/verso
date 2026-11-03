@@ -23,7 +23,6 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use verso_contract::{
     ServerAccount, ServerBack, ServerFolder, ServerFolders, ServerGone, ServerSignIn, ShareGiven,
-    SyncVersions,
 };
 use verso_core::servers::{self, ServerLogin};
 use verso_service::files::Served;
@@ -33,18 +32,7 @@ pub(crate) use crate::remote_abilities::with_app_abilities;
 use super::*;
 use crate::dns::SendRetrying;
 
-/// The generated bindings this app was built with: their hash is the
-/// contract's version, which the server's must equal (answer D).
-const BINDINGS: &str = include_str!("../../ui/src/bindings.ts");
-
-pub(crate) fn contract_version() -> String {
-    use sha2::{Digest, Sha256};
-    Sha256::digest(BINDINGS.as_bytes())
-        .iter()
-        .take(8)
-        .map(|b| format!("{b:02x}"))
-        .collect()
-}
+pub(crate) use crate::compat::{sync_refused, versions};
 
 /// The commands a window on a server's folder sends to the server; every
 /// other one is this app's (its windows, its menus, its updates).
@@ -210,6 +198,9 @@ pub(crate) struct Remote {
     /// hello said a sync that takes them (ADR 0079 item 12, sync 2); with
     /// one of sync 1, as base64 inside the JSON.
     binary: bool,
+    /// The server's release, as its hello says it: what a command it does
+    /// not know yet is told with.
+    version: String,
 }
 
 impl Remote {
@@ -373,6 +364,7 @@ impl Remote {
                 )?;
                 Ok((answer, Some(piece)))
             }
+            (_, Err(e)) => Err(crate::compat::older_server(e, &self.version)),
             (_, answer) => answer,
         }
     }
@@ -849,79 +841,18 @@ pub(crate) enum Heard {
     Closed,
 }
 
-/// A connection to a server with the device's token, its contract checked:
+/// A connection to a server with the device's token, its contract version
+/// checked (ADR 0073 item 2, revised 2026-11-02):
 /// the connection, and what it hears besides answers.
 pub(crate) async fn dial(
     login: &ServerLogin,
     folder: String,
 ) -> Result<(Arc<Remote>, mpsc::UnboundedReceiver<Heard>), ContractError> {
     let (remote, heard, hello) = dial_hello(login, folder).await?;
-    if let Some(v) = mismatch(&hello) {
-        return Err(mismatch_refused(&v));
+    if let Some(refused) = crate::compat::contract_refused(&hello) {
+        return Err(refused);
     }
     Ok((remote, heard))
-}
-
-/// What each side runs, when the server's contract is not this app's.
-pub(crate) fn mismatch(hello: &Value) -> Option<SyncVersions> {
-    if hello["contract"].as_str() == Some(contract_version().as_str()) {
-        return None;
-    }
-    Some(versions(hello))
-}
-
-/// What each side runs, as the server's hello says it and this app knows.
-pub(crate) fn versions(hello: &Value) -> SyncVersions {
-    let said = |field: &str| hello[field].as_str().unwrap_or("?").to_owned();
-    SyncVersions {
-        server_version: said("version"),
-        server_build: said("commit"),
-        server_contract: said("contract"),
-        app_version: env!("CARGO_PKG_VERSION").to_owned(),
-        app_build: env!("VERSO_COMMIT").to_owned(),
-        app_contract: contract_version(),
-    }
-}
-
-/// Why this app's sync and the server's do not follow each other, in
-/// English for the log (ADR 0079 item 5): the server said this app's is
-/// older than it takes, or the server's is older than the version before
-/// this app's. A server that says no version speaks the one before the
-/// first.
-pub(crate) fn sync_refused(hello: &Value) -> Option<String> {
-    use verso_core::sync::{PROTOCOL, follows};
-    let theirs = hello["sync"]
-        .as_u64()
-        .map_or(0, |v| u32::try_from(v).unwrap_or(u32::MAX));
-    (hello.get("syncRefused").is_some() || !follows(PROTOCOL, theirs)).then(|| {
-        format!(
-            "the server speaks sync {theirs}, this app sync {PROTOCOL}: update the one that is behind"
-        )
-    })
-}
-
-/// The refusal of a server whose contract is not this app's, in English
-/// for the log: with one version on both sides — two builds of it — the
-/// build and the contract of each (the live campaign, 2026-10-11, read "the
-/// server runs Verso 0.7.0-beta.1, another version than this app's
-/// 0.7.0-beta.1").
-pub(crate) fn mismatch_refused(v: &SyncVersions) -> ContractError {
-    refused(if v.server_version == v.app_version {
-        format!(
-            "the server runs Verso {} (build {}, contract {}), this app {} (build {}, contract {}): their contracts differ — update the one that is behind",
-            v.server_version,
-            v.server_build,
-            v.server_contract,
-            v.app_version,
-            v.app_build,
-            v.app_contract
-        )
-    } else {
-        format!(
-            "the server runs Verso {}, this app {}: update the one that is behind",
-            v.server_version, v.app_version
-        )
-    })
 }
 
 /// A field of a message, taken out of it rather than copied: an answer may
@@ -1176,6 +1107,7 @@ pub(crate) async fn dial_hello(
         .await
         .map_err(|_| failed("the server did not answer"))?
         .map_err(|_| failed("the server closed the connection"))?;
+    crate::compat::note(&login.url, &hello);
     // Pieces as binary messages when both sides speak a sync that takes
     // them; a server that says no sync speaks the one before the first.
     let theirs = hello["sync"]
@@ -1192,6 +1124,7 @@ pub(crate) async fn dial_hello(
         tx,
         dead,
         binary,
+        version: hello["version"].as_str().unwrap_or("?").to_owned(),
     });
     Ok((remote, heard_rx, hello))
 }

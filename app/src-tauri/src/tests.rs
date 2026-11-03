@@ -1308,42 +1308,50 @@ fn every_command_of_the_bindings_is_allowed() {
     assert!(missing.is_empty(), "{missing:#?}");
 }
 
-/// A server whose contract is not this app's (the live campaign,
-/// 2026-10-11, read "the server runs Verso 0.7.0-beta.1, another version
-/// than this app's 0.7.0-beta.1"): with one version on both sides, the
-/// refusal names the build and the contract of each, and the window gets
-/// them to say in its language; still the `version` problem.
+/// A server of another release (ADR 0073 item 2, revised 2026-11-02; the
+/// Mac's beta stopped syncing with VM 107 on 2026-11-02 over a hash): the
+/// contract's hash never refuses; its version does, only when the two are
+/// more than one apart, and the refusal names the version, build and
+/// contract version of each side. A release before 0.8.5 says no version
+/// and speaks 0, the one before the first.
 #[test]
-fn a_contract_of_another_build_names_both_builds() {
-    let ours = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "d416898", "contract": remote::contract_version() });
-    assert_eq!(remote::mismatch(&ours), None);
-    let other = json!({ "version": env!("CARGO_PKG_VERSION"), "commit": "d416898", "contract": "0123456789abcdef" });
-    let v = remote::mismatch(&other).unwrap();
+fn only_a_contract_two_versions_apart_is_refused() {
+    use verso_contract::compat::VERSION;
+    let other_hash =
+        json!({ "version": "0.8.4-beta.1", "commit": "160f328", "contract": "890c5268614da763" });
+    assert!(crate::compat::contract_refused(&other_hash).is_none());
+    let same =
+        json!({ "version": "9.0.0", "contract": "0123456789abcdef", "contractVersion": VERSION });
+    assert!(crate::compat::contract_refused(&same).is_none());
+    let next = json!({ "version": "9.0.0", "contractVersion": VERSION + 1 });
+    assert!(crate::compat::contract_refused(&next).is_none());
+    let far = json!({ "version": "9.0.0", "commit": "abc1234", "contractVersion": VERSION + 2 });
     assert_eq!(
-        (v.server_build.as_str(), v.server_contract.as_str()),
-        ("d416898", "0123456789abcdef")
-    );
-    assert_eq!(v.app_build, env!("VERSO_COMMIT"));
-    let said = remote::mismatch_refused(&v).message;
-    assert_eq!(
-        said,
+        crate::compat::contract_refused(&far).unwrap().message,
         format!(
-            "the server runs Verso {0} (build d416898, contract 0123456789abcdef), this app {0} (build {1}, contract {2}): their contracts differ — update the one that is behind",
+            "the server runs Verso 9.0.0 (build abc1234, contract {}), this app {} (build {}, contract {VERSION}): update the one that is behind",
+            VERSION + 2,
             env!("CARGO_PKG_VERSION"),
             env!("VERSO_COMMIT"),
-            remote::contract_version()
         )
     );
-    // Another version: the two versions say it.
-    let older =
-        remote::mismatch(&json!({ "version": "0.6.0", "contract": "0123456789abcdef" })).unwrap();
+}
+
+/// A command a server of an older release does not know yet is said as
+/// that, not as "no such command"; any other error is left as it came.
+#[test]
+fn a_command_the_older_server_lacks_says_update_the_server() {
+    let said = crate::compat::older_server(
+        json!({ "kind": "refused", "message": "no such command: table_wipe" }),
+        "0.8.4-beta.1",
+    );
+    assert_eq!(said["kind"], "refused");
     assert_eq!(
-        remote::mismatch_refused(&older).message,
-        format!(
-            "the server runs Verso 0.6.0, this app {}: update the one that is behind",
-            env!("CARGO_PKG_VERSION")
-        )
+        said["message"],
+        "the server runs Verso 0.8.4-beta.1, which does not do this yet: update the server"
     );
+    let other = json!({ "kind": "not_found", "message": "no such file" });
+    assert_eq!(crate::compat::older_server(other.clone(), "0.8.4"), other);
 }
 
 /// A server's `prove_first` (ADR 0083 item 6) reaches the window as a kind

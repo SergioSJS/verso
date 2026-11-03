@@ -324,6 +324,10 @@ fn a_member_works_on_a_folder_over_the_websocket() {
             .unwrap();
         let hello = next(&mut ws).await;
         assert_eq!(hello["hello"]["contract"], contract_version());
+        assert_eq!(
+            hello["hello"]["contractVersion"],
+            verso_contract::compat::VERSION
+        );
         // Before a folder: no folder.
         let none = call(&mut ws, 1, "list_notes", json!({})).await;
         assert_eq!(none["err"]["kind"], "no_folder", "{none}");
@@ -979,7 +983,11 @@ fn the_server_serves_its_own_tls() {
             .unwrap();
         assert_eq!(state["secure"], true);
         // A stranger is not told the version (threat-model.md, gap 15).
-        assert!(state["version"].is_null() && state["contract"].is_null());
+        assert!(
+            state["version"].is_null()
+                && state["contract"].is_null()
+                && state["contractVersion"].is_null()
+        );
         // Plain HTTP to the TLS port gets nothing.
         assert!(
             reqwest::get(format!("http://localhost:{port}/api/state"))
