@@ -2,7 +2,7 @@
 
 - Date: 2026-10-22
 - Source: the maintainer, 2026-10-22, with a specification he generated with
-  Gemini (`~/Projects/person/apps/verso-especificacao-temas-expandidos-2026-10-22.md`,
+  Gemini (`~/Projects/person/apps/verso-archive/decisoes-2026-10/verso-especificacao-temas-expandidos-2026-10-22.md`,
   outside the repository): *"Seria uma coisa muito legal se a gente
   conseguisse incorporar já todos esses temas no Verso, só que de um jeito
   um pouco diferente. Em vez de listar toda a caralhada de temas ali e ficar
@@ -18,7 +18,7 @@
   themes cover very few tokens; expand both the selection of themes and the
   tokens a theme and the theme builder cover). The specification was checked
   against the themes' repositories the same day
-  (`~/Projects/person/apps/verso-temas-verificacao-2026-10-22.md`): see
+  (`~/Projects/person/apps/verso-archive/decisoes-2026-10/verso-temas-verificacao-2026-10-22.md`): see
   Context. Written by Opus 5.5; to be read by the other model before it is
   accepted ([0032](0032-author-and-reviewer-roles.md)).
 - Related: [0100](0100-visual-customization-wizard.md) (the token contract
@@ -187,11 +187,11 @@ answers, not an alternative that was weighed.
 *"Aceitar as duas"*. The remaining `[PROPOSED]` items are accepted as built.
 
 Proposed (2026-10-22), until then. Items 2, 6 and 7 decided by the maintainer the same
-day (`~/Projects/person/apps/verso-decisoes-0109-temas-2026-10-22.md`,
+day (`~/Projects/person/apps/verso-archive/decisoes-2026-10/verso-decisoes-0109-temas-2026-10-22.md`,
 options A); the `[PROPOSED]` items stay the author's until accepted. Being
 built; waits for a reading by the other model.
 
-Decided 2026-10-22, later (`~/Projects/person/apps/verso-decisoes-temas-fidelidade-2026-10-22.md`),
+Decided 2026-10-22, later (`~/Projects/person/apps/verso-archive/decisoes-2026-10/verso-decisoes-temas-fidelidade-2026-10-22.md`),
 after the maintainer saw that the catalogue did not look like its originals
 (*"tá a mesma fonte do nosso… não tá mudando tanta coisa"*) and a side-by-side
 comparison: **TM.4 = B** — ten more structural keys, closed lists, no CSS:
