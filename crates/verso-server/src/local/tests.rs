@@ -97,6 +97,21 @@ pub(super) fn lab_with(addresses: &[&str], loopback: bool) -> Lab {
     }
 }
 
+/// On Windows the folder served is left in the temporary directory, not
+/// deleted. notify 8.2's Windows watcher closes the folder's handle before
+/// its read is cancelled: a change that completes in that moment re-arms
+/// the read on the closed handle's number, which Windows hands to the next
+/// opener — here `remove_dir_all`'s own handle on that folder — and both
+/// then wait on each other for ever (seen on GitHub's runner, 2026-11-02,
+/// every thread's stack). Fixed upstream by notify-rs/notify#1052, not in a
+/// release yet: drop this once notify is upgraded past it.
+impl Drop for Lab {
+    fn drop(&mut self) {
+        #[cfg(windows)]
+        self.notes.disable_cleanup(true);
+    }
+}
+
 impl Lab {
     /// Serving on, and the app's own certificate trusted: the only trust a
     /// phone that accepted the warning has.
