@@ -133,10 +133,75 @@ function walkDocument(text: string, doc: Document, label: string, b: Builder, an
   }
 }
 
+/** The deepest nesting handed to the library. It recurses on each level and
+ *  its stack ran out between 700 and 1000 levels in Node; when the stack
+ *  runs out while the engine compiles one of its regular expressions, V8
+ *  aborts the whole process instead of throwing (seen in CI, 2026-11-03),
+ *  and a WebView2 page is V8. Far past any real file. */
+export const YAML_MAX_DEPTH = 256;
+
+/** Whether the quote at `at` opens a quoted value: first on its line, or
+ *  after `:`, `,`, `[`, `{`, `-` or `?` and spaces. An apostrophe inside a
+ *  plain value (`Rowan's sword`) is not one. */
+function opensValue(text: string, at: number): boolean {
+  let j = at - 1;
+  while (j >= 0 && (text[j] === " " || text[j] === "\t")) j--;
+  return j < 0 || ":,[{-?\n".includes(text[j] ?? "");
+}
+
+/** An upper bound of the text's nesting, in one pass with no recursion:
+ *  the deepest flow brackets outside quotes and comments, plus the widest
+ *  indentation with the compact `- ` or `? ` entries that open a line. */
+export function yamlDepthBound(text: string): number {
+  let flow = 0;
+  let deepestFlow = 0;
+  let deepestBlock = 0;
+  let lineStart = true;
+  let block = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "\n") {
+      lineStart = true;
+      block = 0;
+      continue;
+    }
+    if (lineStart) {
+      if (c === " " || c === "\t") {
+        block++;
+        continue;
+      }
+      if ((c === "-" || c === "?") && (text[i + 1] === " " || text[i + 1] === "\t")) {
+        block += 2;
+        i++;
+        continue;
+      }
+      lineStart = false;
+      if (block > deepestBlock) deepestBlock = block;
+    }
+    if (c === "#" && (i === 0 || /\s/.test(text[i - 1] ?? ""))) {
+      while (i + 1 < text.length && text[i + 1] !== "\n") i++;
+    } else if (c === '"' && opensValue(text, i)) {
+      for (i++; i < text.length && text[i] !== '"'; i++) if (text[i] === "\\") i++;
+    } else if (c === "'" && opensValue(text, i)) {
+      for (i++; i < text.length; i++) if (text[i] === "'" && text[++i] !== "'") break;
+      i--;
+    } else if (c === "[" || c === "{") {
+      if (++flow > deepestFlow) deepestFlow = flow;
+    } else if ((c === "]" || c === "}") && flow > 0) {
+      flow--;
+    }
+  }
+  if (block > deepestBlock) deepestBlock = block;
+  return deepestFlow + deepestBlock;
+}
+
 /** YAML: every document a root. */
 export function parseYaml(text: string): Tree {
   const b = new Builder("yaml");
   let error: ParseError | null = null;
+  if (yamlDepthBound(text) > YAML_MAX_DEPTH) {
+    return b.done({ message: "The YAML nests too deeply to draw", from: 0, to: Math.min(1, text.length) });
+  }
   try {
     const docs = parseAllDocuments(text, { uniqueKeys: false, prettyErrors: false, merge: false });
     const list = Array.isArray(docs) ? docs : [docs];

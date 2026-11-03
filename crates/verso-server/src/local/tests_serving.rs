@@ -834,14 +834,21 @@ fn off_is_off() {
         let port = lab.port;
         lab.local.stop();
         assert!(!lab.local.status().unwrap().serving);
-        assert!(
+        // The listener ends on the stop signal, in the server's runtime, not
+        // inside `stop`: on a slow machine it can still accept for a moment
+        // (GitHub's Windows runner, 2026-11-03). Closed within 5 s.
+        let closed = |_| {
             std::net::TcpStream::connect_timeout(
                 &std::net::SocketAddr::from(([127, 0, 0, 1], port)),
-                std::time::Duration::from_secs(1)
+                std::time::Duration::from_secs(1),
             )
-            .is_err(),
-            "the port is closed"
-        );
+            .is_err()
+                || {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    false
+                }
+        };
+        assert!((0..50).any(closed), "the port is closed");
     });
 }
 

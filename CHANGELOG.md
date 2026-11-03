@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- **A YAML file nested hundreds of levels deep no longer can take the window down on Windows.** The data diagram measures how deep a YAML nests before reading it, and past 256 levels says "The YAML nests too deeply to draw" ([ADR 0106](docs/adr/0106-structured-data-as-a-diagram.md)). The YAML library recurses on each level; when its stack ran out while the engine compiled one of its regular expressions, V8 (the engine of Windows' WebView2) aborted the whole page instead of reporting the error.
 
 ## 0.8.4-beta.1 — 2026-11-03
 
