@@ -7,3 +7,4 @@ export * from "./state";
 export * from "./store";
 export { boardFits, boardOf, MAX_BOARD_CARDS } from "./saveBoardDoc";
 export { parseErrorPt } from "./words";
+export { YAML_MAX_DEPTH, yamlDepthBound } from "./yamlParse";

@@ -452,9 +452,27 @@ describe("hostile inputs", () => {
     const n = 20_000;
     assert.equal(D.parse("a = " + "[".repeat(n) + "]".repeat(n) + "\n", "toml").error, null);
     assert.equal(D.parse("<a>".repeat(n) + "</a>".repeat(n), "xml").error, null);
-    // The yaml library itself recurses: past its stack the diagram says so, and goes on.
+    // The yaml library itself recurses: a nesting past the bound never reaches it.
     const y = D.parse("[".repeat(200_000) + "]".repeat(200_000), "yaml");
-    assert.ok(y.error || y.nodes.length > 0);
+    assert.equal(y.error?.message, "The YAML nests too deeply to draw");
+    assert.equal(y.nodes.length, 0);
+  });
+  test("YAML up to the depth bound is drawn, past it is refused before the library recurses", () => {
+    const n = D.YAML_MAX_DEPTH;
+    for (const [shape, at] of [
+      ["flow", (k) => "[".repeat(k) + "]".repeat(k)],
+      ["maps", (k) => "{a: ".repeat(k) + "1" + "}".repeat(k)],
+      ["compact", (k) => "- ".repeat(k / 2) + "x"],
+      ["block", (k) => Array.from({ length: k / 2 }, (_, i) => "  ".repeat(i) + "a:").join("\n") + " 1"],
+    ]) {
+      assert.equal(D.parse(at(n), "yaml").error, null, `${shape} at the bound`);
+      assert.equal(D.parse(at(n + 4), "yaml").error?.message, "The YAML nests too deeply to draw", `${shape} past it`);
+    }
+  });
+  test("the depth bound skips quoted text and comments, and an apostrophe is not a quote", () => {
+    assert.equal(D.yamlDepthBound('a: "[[[[" # {{{{\nb: \'[[\'\' x\''), 0);
+    assert.equal(D.yamlDepthBound("name: Rowan's sword\nlist: [[1]]"), 2);
+    assert.equal(D.yamlDepthBound("- - [x]"), 5);
   });
   test("a YAML 'billion laughs' draws a few boxes", () => {
     let text = 'a: &a ["lol","lol","lol","lol","lol","lol","lol","lol","lol"]\n';
