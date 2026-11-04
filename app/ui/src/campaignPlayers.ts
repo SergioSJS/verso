@@ -138,7 +138,8 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
       return;
     }
     undo();
-    fb.say(`${cp.failed}: ${ui.status.textContent ?? ""}`, true);
+    // The status line already says it whole, "Não deu certo: …".
+    fb.say(ui.status.textContent || cp.failed, true);
   };
 
   const make = (p: CampaignPlayer): Row => {
@@ -354,8 +355,15 @@ export function playersBlock(root: string, after?: () => void): HTMLElement {
     box.addEventListener("change", () => {
       const want = box.checked;
       box.indeterminate = false;
-      box.disabled = true;
       const ids = playersAt(root).map((p) => p.id);
+      // No players, nothing to give: no call (the server names 1 to 500).
+      if (ids.length === 0) {
+        box.checked = false;
+        fb.say(cp.rightsNoPlayers, true);
+        ui.status.textContent = cp.rightsNoPlayers;
+        return;
+      }
+      box.disabled = true;
       void save(right, ids, want, want ? cp.rights[right].allOn : cp.rights[right].allOff, fb, () => {
         box.checked = !want;
       }).then(() => {

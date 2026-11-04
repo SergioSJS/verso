@@ -243,3 +243,33 @@ test("a player learns the permission live: the attach button comes and goes, and
   });
   expect(refused).toBe("you may only read this folder");
 });
+
+test("with no players, a right for everyone sends nothing and says why; a refusal is said once, in words", async ({ app }) => {
+  const dialog = await owner(app);
+  await app.page.evaluate(() => {
+    window.__harness.campaign.players = [];
+    window.__harness.emit("campaign-changed", { paths: [] });
+  });
+  await expect(dialog.getByText("Ninguém ainda.")).toBeVisible();
+  const all = dialog.getByRole("checkbox", { name: "Todos podem enviar imagens" });
+  // Clicked, not "checked": it does not stay ticked.
+  await all.click({ force: true });
+  await expect(app.page.locator("#status")).toHaveText("Esta mesa ainda não tem jogadores: nada mudou. Convide alguém primeiro.");
+  await expect(all).not.toBeChecked();
+  expect(await app.calls("table_rights_set")).toEqual([]);
+  // A refusal of the server (the table undone meanwhile): one "Não deu certo", in Portuguese.
+  await app.page.evaluate((players) => {
+    window.__harness.campaign.players = players;
+    window.__harness.emit("campaign-changed", { paths: [] });
+  }, PLAYERS);
+  const bia = grid(dialog).getByRole("row").filter({ hasText: "Bia" });
+  await bia.getByRole("button", { name: /^Bia tem/ }).click();
+  await app.page.evaluate(() => {
+    window.__harness.campaign.tables = [];
+  });
+  app.expected.push(/refused: that folder is not a table/);
+  await sw(dialog, "Bia").click({ force: true });
+  const fb = dialog.locator(".cd-right").filter({ has: app.page.getByRole("switch", { name: "Bia pode enviar imagens" }) }).locator(".cd-feedback");
+  await expect(fb).toHaveText("Não deu certo: essa pasta não é uma mesa.");
+  await expect(sw(dialog, "Bia")).not.toBeChecked();
+});

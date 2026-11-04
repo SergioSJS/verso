@@ -166,6 +166,13 @@ const pt = {
   undoNote: "Desfazer a mesa só tira o controle de quem joga: os arquivos nunca mudam.",
   intro2: "Só quem você convida entra; cada nota fica oculta até você liberar.",
   failed: "Não deu certo",
+  rightsNoPlayers: "Esta mesa ainda não tem jogadores: nada mudou. Convide alguém primeiro.",
+  // The server's refusals of the table's commands, in words (its English is the core's).
+  refusals: {
+    "name between 1 and 500 players": "escolha de 1 a 500 jogadores.",
+    "not a player of this table": "essa pessoa não joga nesta mesa.",
+    "that folder is not a table": "essa pasta não é uma mesa.",
+  } as Record<string, string>,
   // Who sees a note (2026-10-23): the menu's "Release to…" and the note's access indicator.
   tableWord: "Mesa",
   theMaster: "o mestre",
@@ -341,6 +348,12 @@ const en: typeof pt = {
   undoNote: "Undoing the table only takes away who plays: the files never change.",
   intro2: "Only the people you invite come in; each note stays hidden until you release it.",
   failed: "That did not work",
+  rightsNoPlayers: "This table has no players yet: nothing changed. Invite someone first.",
+  refusals: {
+    "name between 1 and 500 players": "choose between 1 and 500 players.",
+    "not a player of this table": "that person does not play at this table.",
+    "that folder is not a table": "that folder is not a table.",
+  },
   tableWord: "Table",
   theMaster: "the game master",
   accessWho: "Who sees this note",

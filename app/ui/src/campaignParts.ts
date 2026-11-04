@@ -134,7 +134,7 @@ export function openSwitch(root: string, id: string): HTMLElement {
       box.disabled = false;
       if (!ok) {
         paint(!want);
-        fb.say(`${cp.failed}: ${ui.status.textContent ?? ""}`, true);
+        fb.say(ui.status.textContent || cp.failed, true);
         return;
       }
       fb.say(want ? cp.tableOpened : cp.tableClosedNow);

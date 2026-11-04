@@ -84,7 +84,7 @@ export function openCampaignDialog(root: string, undo = false): void {
     });
     input.addEventListener("change", () => {
       void save(Number(input.value)).then((ok) => {
-        fb.say(ok ? cp.fieldSaved : `${cp.failed}: ${ui.status.textContent ?? ""}`, !ok);
+        fb.say(ok ? cp.fieldSaved : ui.status.textContent || cp.failed, !ok);
         if (!ok) draw();
       });
     });

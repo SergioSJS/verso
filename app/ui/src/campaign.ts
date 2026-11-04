@@ -92,7 +92,7 @@ const names = (ids: string[]): string => {
 
 function said(e: ContractError): string {
   told(e.kind, e.message, e);
-  return `${cp.failed}: ${e.message}`;
+  return `${cp.failed}: ${cp.refusals[e.message] ?? e.message}`;
 }
 
 function say(text: string): void {
