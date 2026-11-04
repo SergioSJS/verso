@@ -1120,6 +1120,23 @@ export const DEMO_RETIRED: DemoRetired[] = [
     ]
   },
   {
+    "path": "17 - Terminal, CLI e Agentes.md",
+    "to": "35 - Terminal, CLI e Agentes de IA.md",
+    "past": [
+      "26dcf81d5ce31500300897085727e48052f625ad75b9f0b7913e0f023711f309",
+      "29147a63438f2cbda3f77ddf7730b17e7fcdf78acd2373458c317a7cfdc4ad1e",
+      "3724cf4685bf41f260dcb4b8716269ed4fec61982ac870c0e2d0071fe5e584c8",
+      "3ce11aad46b0aeb6b9acaa6fc8874e09756a34129bcb60a90646613a1d2acc9d",
+      "88887f0f56e705a997ed90065830f37e1e63b0021aa1d033112f834a4804bdfb",
+      "8cd3ce3f9c4e1f50d17b8292ff7b1c49117ce2b372cfb67a2d8ef294fe265ff8",
+      "a77d2c0454dbcf9cf997450551bef1aee0f5b328c2c98258716ffc8eed2929e5",
+      "aeb65b7b6498bc0e9bdfd88bc4ea68dd3361e88ef4c9e684e685e11358c02108",
+      "b8da4a1f90d2a7f5552d1093c542be8a7a81f5d6a2f24a3edc227ac135e6b8f9",
+      "d2461341352e17aadf4924a9847b4427d83591ea1c17538a630c72b3c23dd678",
+      "e6c1162870b2d02e1528b637341de67484732eb60b228bec65293758a7928dac"
+    ]
+  },
+  {
     "path": "18 - Ajuda, Atualizações e Diagnóstico.md",
     "to": "37 - Ajuda, Atualizações e Diagnóstico.md",
     "past": [
@@ -1451,6 +1468,14 @@ export const DEMO_RETIRED: DemoRetired[] = [
       "7da79ee16e249db8bcc3f6f42a7f3a4b3a66b6a33378cc23768cb9c3c929a86a",
       "9dba3e7a4f3d0cd93b8454dffb8600ce556244b73057fd877960c5295c1167bd",
       "b23d5ca55c790bf3e4444b203913b8e6cf9d076eff1a5fa21458274f2b34d03f"
+    ]
+  },
+  {
+    "path": "35 - Terminal e Agentes de IA.md",
+    "to": "35 - Terminal, CLI e Agentes de IA.md",
+    "past": [
+      "446cb5706e301e5b1c0c32c6a302daf1d1043a551d07c5d2a002efd7baf0ed14",
+      "46508e2d8b04166725800a474e1fa568c6b148486a8e7e1adf8dda8315d9a395"
     ]
   },
   {
