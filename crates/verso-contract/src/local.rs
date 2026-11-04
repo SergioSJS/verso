@@ -118,6 +118,9 @@ pub struct LocalLink {
     /// How `cloudflared` reaches Cloudflare while on: `quic`, or `http2`
     /// when QUIC (UDP) found no way out and it tried again over TCP.
     pub protocol: Option<String>,
+    /// The origin as a QR, rows of `1` (dark) and `0`, for a phone at the
+    /// table to scan (D3 item 6); empty while off. The window draws it.
+    pub qr: Vec<String>,
 }
 
 /// The person's own address for the link (ADR 0117 D10 (a)): a hostname of

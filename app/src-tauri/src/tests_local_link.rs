@@ -304,6 +304,8 @@ fn the_window_is_told_the_link_in_seconds_and_with_how_it_reached_cloudflare() {
     });
     assert_eq!(on.until, Some(1_800_000_000));
     assert_eq!(on.protocol.as_deref(), Some("http2"));
+    // The QR is the origin's, square, drawn by the window; none while off.
+    assert!(on.qr.len() > 20 && on.qr.iter().all(|r| r.len() == on.qr.len()));
     let v = serde_json::to_value(&on).unwrap();
     assert_eq!(v["state"], json!("on"));
     let ended = contract(&LinkView {
@@ -318,4 +320,5 @@ fn the_window_is_told_the_link_in_seconds_and_with_how_it_reached_cloudflare() {
         serde_json::to_value(&ended).unwrap()["ended"],
         json!("ceiling")
     );
+    assert!(ended.qr.is_empty());
 }

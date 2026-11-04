@@ -95,6 +95,16 @@ export const CREDITS: Credit[] = [
     link: "https://github.com/AykutSarac/jsoncrack.com",
     licence: "Apache-2.0",
   },
+  {
+    id: "cloudflared",
+    name: "cloudflared (Cloudflare)",
+    line: {
+      pt: "Licença Apache-2.0: o programa da Cloudflare que leva o link pela internet de Transformar em servidor (ADR 0117). Não vem no app: é baixado na primeira vez que o link é ligado, numa versão fixa, conferida pela soma SHA-256, do GitHub da Cloudflare, e roda sem se atualizar sozinho.",
+      en: "Apache-2.0: Cloudflare's program that carries the internet link of Turn into a server (ADR 0117). It does not ship with the app: it is downloaded the first time the link is turned on, a pinned version checked by its SHA-256 sum, from Cloudflare's GitHub, and it runs without updating itself.",
+    },
+    link: "https://github.com/cloudflare/cloudflared",
+    licence: "Apache-2.0",
+  },
 ];
 
 export type SystemNotice = {
@@ -339,10 +349,13 @@ export type Dependency = { name: string; version: string; license: string; link:
 /** Written by scripts/credits-deps.mjs from node_modules at build time. */
 const JS_LIBS: Dependency[] = deps.map(({ name, version, license, link }) => ({ name, version, license, link }));
 
-/** Rust: licences read from the crates' own Cargo.toml (tauri 2.11.6, yrs 0.28.0). */
+/** Rust: licences read from the crates' own Cargo.toml (tauri 2.11.6, yrs 0.28.0, flate2 1.1, tar 0.4.46). */
 const RUST_LIBS: Dependency[] = [
   { name: "Tauri", version: "2", license: "Apache-2.0 OR MIT", link: "https://tauri.app" },
   { name: "yrs (Yjs for Rust)", version: "0.28", license: "MIT", link: "https://github.com/y-crdt/y-crdt" },
+  // The cloudflared archive of macOS opened in Rust (ADR 0117 D4 Q7).
+  { name: "flate2", version: "1.1", license: "MIT OR Apache-2.0", link: "https://github.com/rust-lang/flate2-rs" },
+  { name: "tar", version: "0.4", license: "MIT OR Apache-2.0", link: "https://github.com/alexcrichton/tar-rs" },
 ];
 
 export const DEPENDENCIES: Dependency[] = [...RUST_LIBS, ...JS_LIBS];

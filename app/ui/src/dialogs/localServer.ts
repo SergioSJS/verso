@@ -10,7 +10,7 @@
 // included, where the person acted.
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ContractError, type LocalAddressChoice, type LocalFolder, type LocalPairState, type LocalPairing, type LocalServerStatus } from "../bindings";
+import { commands, type ContractError, type LocalAddressChoice, type LocalFolder, type LocalLink, type LocalPairState, type LocalPairing, type LocalServerStatus } from "../bindings";
 import { button, h, ui } from "../dom";
 import { errorSentence } from "../errors";
 import { icon } from "../icons";
@@ -19,6 +19,12 @@ import { busy } from "../reach";
 import { asDialog, closed, opened } from "./a11y";
 import { servedFolders } from "./servedFolders";
 import { localStrings } from "./localServerStrings";
+import { linkBoxes, linkSentence } from "./localServerLink";
+import { linkStrings } from "./localServerLinkStrings";
+import { invitations } from "./localServerInvites";
+import { hearSeat, onSeatChange, seatBlock, seatOnMark, setOpener } from "./localServerSeat";
+import type { openFolderBy } from "../open";
+import { drawQr } from "./qr";
 
 /** What the host emits as `local-server` (verso_server::local::Event). */
 type Heard =
@@ -80,8 +86,12 @@ async function refreshMark(): Promise<void> {
     ui.status.after(mark);
   }
   const text = mark.querySelector<HTMLElement>(".ls-mark-text");
-  if (text) text.textContent = w.mark(s.phones_connected);
-  mark.title = where(s);
+  // The internet link is said in the mark while it is on (ADR 0117 D3
+  // item 6): nothing listens on the internet without being visible.
+  const linkOn = s.link.state === "on" || s.link.state === "starting";
+  if (text) text.textContent = linkOn ? linkStrings().markLink : w.mark(s.phones_connected);
+  mark.title = linkOn && s.link.origin ? s.link.origin : where(s);
+  seatOnMark(mark);
 }
 
 function markOff(): void {
@@ -92,9 +102,10 @@ function markOff(): void {
 /** Listen to the host, once: the mark follows, a phone's first connection
  *  and a stop by itself are notifications (ADR 0084), a phone asking opens
  *  the question wherever the person is. */
-export function hearLocalServer(): void {
+export function hearLocalServer(open: typeof openFolderBy): void {
   if (heard) return;
   heard = true;
+  setOpener(open);
   void listen<Heard>("local-server", (e) => {
     const p = e.payload;
     void refreshMark();
@@ -105,6 +116,19 @@ export function hearLocalServer(): void {
     // folders that are gone from the disk.
     else if (p.kind === "dropped") serveDroppedHeard(localStrings().droppedSaid(p.what.join(", ")));
     else if (p.kind === "asked") openPairing();
+  });
+  // The internet link (ADR 0117 D3 item 6): the mark and the section
+  // follow; a link that ended by itself is said where the person reads.
+  hearSeat();
+  onSeatChange(() => {
+    void refreshMark();
+    for (const redraw of redraws) redraw();
+  });
+  void listen<LocalLink>("local-server-link", (e) => {
+    void refreshMark();
+    for (const redraw of redraws) redraw();
+    const l = e.payload;
+    if (l.state === "offline" || l.ended === "ceiling") serveStoppedHeard(`${linkStrings().linkFell}. ${linkSentence(l)}`);
   });
   void refreshMark();
 }
@@ -135,6 +159,12 @@ export function localServerBody(_item: Item): HTMLElement {
   const failed = (e: ContractError | unknown) => say(errorSentence(e) || w.failed);
 
   const lead = h("p", "ls-lead", w.lead);
+  // The two boxes under the switch, and the link (ADR 0117 D1).
+  const boxes = linkBoxes({ say, redraw: () => void redraw() });
+  // Invitations (ADR 0117 D3 item 2).
+  const invites = invitations(say);
+  // The window at its own table (ADR 0117 D4 Q3).
+  const seat = seatBlock(say);
   const unsupported = h("p", "ls-warn", w.unsupported);
   unsupported.hidden = true;
 
@@ -355,7 +385,8 @@ export function localServerBody(_item: Item): HTMLElement {
       li.append(who, acts);
       phones.append(li);
     }
-    state.textContent = s.serving ? `${w.serving(where(s))} ${w.phones(s.phones_paired, s.phones_connected)}.` : `${w.off} ${w.phones(s.phones_paired, 0)}.`;
+    const on = s.port !== null ? w.serving(where(s)) : linkStrings().servingLinkOnly;
+    state.textContent = s.serving ? `${on} ${w.phones(s.phones_paired, s.phones_connected)}.` : `${w.off} ${w.phones(s.phones_paired, 0)}.`;
   };
 
   const drawDanger = () => {
@@ -419,7 +450,7 @@ export function localServerBody(_item: Item): HTMLElement {
     const s = r.data;
     void refreshMark();
     unsupported.hidden = s.supported;
-    for (const el of [foldersHead, foldersLead, folders, run, state, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
+    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, invites.el, seat.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
     if (!s.supported) return;
     keep.checked = s.keep_on;
     most.value = String(s.max_connected);
@@ -431,11 +462,18 @@ export function localServerBody(_item: Item): HTMLElement {
       const steps = mac ? w.unreachableMac : windows ? w.unreachableWindows : w.unreachableLinux(s.port);
       blocked.replaceChildren(h("p", "", w.unreachable), h("p", "ls-help", steps));
     }
-    pair.disabled = !s.serving;
-    pairHelp.hidden = s.serving;
+    // Pairing is the network's (a phone on the same Wi-Fi): not with the
+    // internet link alone.
+    const onNet = s.serving && s.port !== null;
+    pair.disabled = !onNet;
+    pairHelp.hidden = onNet;
+    pairHelp.textContent = s.serving ? linkStrings().pairNeedsNetwork : w.pairNeedsOn;
+    boxes.draw(s);
     if (!s.serving && s.stopped_because) say(w.stoppedNet);
     const f = await commands.localServerFolders();
     if (f.status === "ok") drawFolders(f.data, s.serving);
+    seat.draw(s, f.status === "ok" ? f.data : []);
+    await invites.draw(s, f.status === "ok" ? f.data : []);
     await drawPhones(s);
     drawCert(s);
     drawDanger();
@@ -453,17 +491,29 @@ export function localServerBody(_item: Item): HTMLElement {
         say(w.off);
         return redraw();
       }
-      if (!(await explainFirst())) return;
-      busy(run, true);
-      const r = await commands.localServerStart();
-      busy(run, false);
-      if (r.status !== "ok") return failed(r.error);
-      say(w.serving(where(r.data)));
-      // Chosen folders no longer on the disk were left out: said here and
-      // in the notifications, not only in the row.
-      if (r.data.dropped.length > 0) {
-        const said = w.droppedSaid(r.data.dropped.join(", "));
-        say(said);
+      // At least one box (ADR 0117 D1): the network, the link, or both.
+      const net = status?.network ?? true;
+      const link = boxes.wanted();
+      if (!net && !link) return say(linkStrings().tickOne);
+      if (net) {
+        // The system's prompts are the network's (ADR 0096 item 9).
+        if (!(await explainFirst())) return;
+        busy(run, true);
+        const r = await commands.localServerStart();
+        busy(run, false);
+        if (r.status !== "ok") return failed(r.error);
+        say(w.serving(where(r.data)));
+        // Chosen folders no longer on the disk were left out: said here and
+        // in the notifications, not only in the row.
+        if (r.data.dropped.length > 0) {
+          const said = w.droppedSaid(r.data.dropped.join(", "));
+          say(said);
+        }
+      }
+      if (link) {
+        busy(run, true);
+        await boxes.turnOn();
+        busy(run, false);
       }
       return redraw();
     })();
@@ -508,8 +558,10 @@ export function localServerBody(_item: Item): HTMLElement {
     return b;
   };
   box.append(
-    block(lead, unsupported, runRow, blocked, said, keepLabel, keepHelp),
+    block(lead, unsupported, runRow, said, boxes.el, blocked, keepLabel, keepHelp),
     block(foldersHead, foldersLead, folders),
+    block(seat.el),
+    block(invites.el),
     block(phonesHead, pair, pairHelp, phones, mostLabel, mostHelp),
     block(cert, danger, log),
   );
@@ -568,41 +620,6 @@ function explainFirst(): Promise<boolean> {
 /* ---------- The pairing dialog ---------- */
 
 let dialog: HTMLElement | null = null;
-
-/** The QR as an SVG built here from rows of 1 and 0: no markup comes from
- *  the host. */
-function drawQr(rows: string[], label: string): SVGSVGElement {
-  const ns = "http://www.w3.org/2000/svg";
-  const n = rows.length;
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", `0 0 ${n} ${n}`);
-  svg.setAttribute("class", "ls-qr");
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", label);
-  svg.setAttribute("shape-rendering", "crispEdges");
-  const back = document.createElementNS(ns, "rect");
-  back.setAttribute("width", String(n));
-  back.setAttribute("height", String(n));
-  back.setAttribute("fill", "#fff");
-  let d = "";
-  rows.forEach((row, y) => {
-    for (let x = 0; x < row.length; ) {
-      if (row[x] !== "1") {
-        x++;
-        continue;
-      }
-      let run = 1;
-      while (row[x + run] === "1") run++;
-      d += `M${x} ${y}h${run}v1h-${run}z`;
-      x += run;
-    }
-  });
-  const path = document.createElementNS(ns, "path");
-  path.setAttribute("d", d);
-  path.setAttribute("fill", "#000");
-  svg.append(back, path);
-  return svg;
-}
 
 /** Open the pairing dialog: a window of two minutes while it stays open;
  *  closing it ends the window. A phone that presents the token raises the

@@ -3151,6 +3151,11 @@ export type LocalLink = {
 	 *  when QUIC (UDP) found no way out and it tried again over TCP.
 	 */
 	protocol: string | null,
+	/**
+	 *  The origin as a QR, rows of `1` (dark) and `0`, for a phone at the
+	 *  table to scan (D3 item 6); empty while off. The window draws it.
+	 */
+	qr: string[],
 };
 
 /**  Why the link last ended. */

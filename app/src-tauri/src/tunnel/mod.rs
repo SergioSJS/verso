@@ -154,6 +154,11 @@ pub fn contract(view: &LinkView) -> verso_contract::LocalLink {
             LinkEnd::Quit => E::Quit,
         }),
         protocol: view.protocol.clone(),
+        qr: view
+            .origin
+            .as_deref()
+            .and_then(|o| verso_server::local::qr::matrix(o).ok())
+            .unwrap_or_default(),
     }
 }
 
@@ -785,6 +790,16 @@ pub fn own_set_up<R: tauri::Runtime>(
 pub fn own_delete<R: tauri::Runtime>(app: &tauri::AppHandle<R>, uuid: &str) -> Result<(), String> {
     let program = binary(app)?;
     named::delete(&program, &home_dir()?, &dir(app)?, uuid)
+}
+
+/// The link is on or starting (the tray says so); `false` before the
+/// manager was ever made.
+#[cfg(any(target_os = "macos", windows))]
+pub fn link_up<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
+    let slot = &app.state::<crate::App>().inner().local_server.link;
+    slot.manager
+        .get()
+        .is_some_and(|m| matches!(m.view().state, LinkState::On | LinkState::Starting))
 }
 
 /// Serving stopped, or the app ends: no tunnel stays.

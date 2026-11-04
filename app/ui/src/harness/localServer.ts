@@ -18,9 +18,17 @@
 // ended. A test makes the link fail with `failLink(words)`, and makes it
 // end by itself with `__harness.emit("local-server-link", …)`.
 
-import type { ContractError, LocalAudit, LocalFolder, LocalInvitation, LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus } from "../bindings";
+import { emit } from "@tauri-apps/api/event";
+import type { ContractError, FolderInfo, LocalAudit, LocalFolder, LocalInvitation, LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus } from "../bindings";
 
 type Args = Record<string, unknown>;
+
+/** A small square with a finder pattern in the corner: enough for the
+ *  window to draw; the Rust tests check the real encoding. */
+function square(): string[] {
+  const n = 29 + 8;
+  return Array.from({ length: n }, (_, y) => Array.from({ length: n }, (_, x) => (x >= 4 && y >= 4 && x < n - 4 && y < n - 4 && ((x * 7 + y * 3) % 5 < 2 || (x < 11 && y < 11)) ? "1" : "0")).join(""));
+}
 
 function refuse(message: string): never {
   const error: ContractError = { kind: "refused", message };
@@ -68,13 +76,15 @@ export class LocalServerHarness {
   private network = true;
   /** Serving on the network now (the link alone serves on no address). */
   private lan = false;
-  private link: LocalLink = { state: "off", origin: null, until: null, own: false, ended: null, protocol: null };
+  private link: LocalLink = { state: "off", origin: null, until: null, own: false, ended: null, protocol: null, qr: [] };
   private linkOwn = false;
   private own: { hostname: string } | null = null;
   private signedIn = false;
   /** The words the next `local_server_link_on` fails with (a test's). */
   private linkFailure: string | null = null;
   private invites: LocalInvitation[] = [];
+  /** The window sits at its own server's table (ADR 0117 D4 Q3). */
+  private seated = false;
   private nextInvite = 1;
 
   /** The next turn-on of the link fails, with the host's words. */
@@ -88,10 +98,21 @@ export class LocalServerHarness {
     if (this.link.state !== "on" && this.link.state !== "starting" && !this.lan) this.serving = false;
   }
 
+  /** Serving stopped under a seated window: the host lets it go and says
+   *  its session ended (S4). */
+  private letGo(): void {
+    if (!this.seated) return;
+    this.seated = false;
+    void emit("server-gone", { url: "https://this-computer.invalid", what: "session", address: null, reason: null });
+  }
+
   private linkOff(ended: LocalLink["ended"]): LocalLink {
-    this.link = { state: "off", origin: null, until: null, own: false, ended, protocol: null };
+    this.link = { state: "off", origin: null, until: null, own: false, ended, protocol: null, qr: [] };
     // As the server: with the network's box unticked nothing is left to serve.
-    if (!this.lan) this.serving = false;
+    if (!this.lan) {
+      this.serving = false;
+      this.letGo();
+    }
     return { ...this.link };
   }
 
@@ -220,6 +241,7 @@ export class LocalServerHarness {
     },
     local_server_stop: (): LocalServerStatus => {
       if (this.serving) this.log("local_off");
+      this.letGo();
       if (this.link.state === "on" || this.link.state === "starting") this.linkOff("stopped");
       this.serving = false;
       this.lan = false;
@@ -241,10 +263,7 @@ export class LocalServerHarness {
       this.open = true;
       this.asked = null;
       this.log("pair_open");
-      // A small square with the finder pattern in the corner is enough for
-      // the window to draw; the Rust tests check the real encoding.
-      const n = 29 + 8;
-      const rows = Array.from({ length: n }, (_, y) => Array.from({ length: n }, (_, x) => (x >= 4 && y >= 4 && x < n - 4 && y < n - 4 && ((x * 7 + y * 3) % 5 < 2 || (x < 11 && y < 11)) ? "1" : "0")).join(""));
+      const rows = square();
       return {
         url: `https://${chosen}:51234/pair#t=harness&fp=abcd&c=0123456789abcdef`,
         address: `${chosen}:51234`,
@@ -309,12 +328,16 @@ export class LocalServerHarness {
     },
     local_server_audit: (): LocalAudit[] => this.audit.map((e) => ({ ...e })),
     // The window at its own table (ADR 0117 D4 Q3): refused as the app
-    // refuses it while the folder is not served; the harness has no server
-    // a window sits at — the Rust tests drive the real seat.
-    local_server_sit_at_table: (): never => {
+    // refuses it while the folder is not served; sitting, the window gets
+    // a folder of the server's (its own key) — the harness's notes all the
+    // same. The Rust tests drive the real seat.
+    local_server_sit_at_table: (): FolderInfo => {
       if (!this.serving) refuse("turn serving on first, with this folder ticked");
       if (!this.ticked.has("harness")) refuse("this folder is not served: tick it to serve it");
-      refuse("the harness has no server to sit at");
+      if ((this.parts.get("harness") ?? []).length > 0) refuse("this folder is served in part: serve all of it to sit at its table");
+      this.seated = true;
+      this.log("seat_opened", "Vault");
+      return { name: "Vault", key: "seat:harness", index: { indexed: 0, unchanged: 0, removed: 0, placeholders: 0, problems: [], unwatched: null, unindexed: null }, late_outside_changes: null };
     },
     // ADR 0117: the two boxes, the link, the own address, invitations.
     local_server_network: (a): LocalServerStatus => {
@@ -336,7 +359,7 @@ export class LocalServerHarness {
       this.serving = true;
       const origin = this.linkOwn && this.own ? `https://${this.own.hostname}` : "https://exemplo-de-mesa.trycloudflare.com";
       const until = this.linkOwn ? null : Math.floor(Date.now() / 1000) + 12 * 3600;
-      this.link = { state: "on", origin, until, own: this.linkOwn, ended: null, protocol: "quic" };
+      this.link = { state: "on", origin, until, own: this.linkOwn, ended: null, protocol: "quic", qr: square() };
       this.log("link_on");
       return { ...this.link };
     },

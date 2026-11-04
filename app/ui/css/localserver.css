@@ -134,3 +134,31 @@
 .ls-recent-sum::before { content: ""; flex: none; width: 5px; height: 5px; margin: 0 .2rem 0 .1rem; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(-45deg); transition: transform .18s var(--ease-out); }
 .ls-recent[open] > .ls-recent-sum::before { transform: rotate(45deg); }
 @media (prefers-reduced-motion: reduce) { .ls-recent-sum::before { transition: none; } }
+
+/* ADR 0117: the two boxes under the switch, the internet link's panel,
+   "Usar meu endereço", the invitations and the window's seat. A long
+   address breaks anywhere: a phone at 390 px never scrolls sideways. */
+.ls-boxes { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.ls-boxes > .ls-h { margin-top: .2rem; }
+.ls-box { align-items: baseline; min-height: 32px; }
+.ls-box-help, .ls-testing { padding-inline-start: 1.5rem; }
+.ls-link, .ls-own-body, .ls-invites, .ls-seat { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
+.ls-link { margin: .3rem 0 0 1.5rem; padding: .6rem .8rem; background: var(--paper-2); border: 1px solid var(--hair); border-radius: 10px; }
+.ls-link[hidden], .ls-inv-made[hidden] { display: none; }
+.ls-link .btn, .ls-own-body > .btn, .ls-invites .btn, .ls-seat .btn { align-self: flex-start; }
+.ls-link-url code, .ls-inv-made code { overflow-wrap: anywhere; word-break: break-all; }
+.ls-link-where { display: flex; flex-direction: column; gap: .35rem; }
+.ls-link-qr .ls-qr { margin-top: .4rem; }
+.ls-own { margin-inline-start: 1.5rem; }
+.ls-own-body { padding-top: .4rem; }
+.ls-own-remove { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ls-inv-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .4rem .8rem; }
+.ls-inv-form .ls-pick { margin: 0; width: auto; flex: 1 1 10rem; min-width: 0; }
+.ls-inv-made { display: flex; flex-direction: column; gap: .35rem; padding: .6rem .8rem; border: 1px solid var(--hair); border-radius: 10px; }
+.ls-inv-list .ls-phone-who strong { overflow-wrap: anywhere; }
+@media (pointer: coarse) { .ls-box { min-height: 44px; } .ls-box input { width: 22px; height: 22px; } }
+/* The table offline, over the player's window (web/localTable.ts). */
+.web-offline { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: color-mix(in srgb, var(--paper) 82%, transparent); overflow: auto; }
+.web-offline .web-card { max-width: 28rem; width: 100%; }
+.web-offline-acts { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+.web-offline-acts button { flex: 1 1 8rem; min-height: 44px; }

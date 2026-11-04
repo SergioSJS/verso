@@ -1,0 +1,92 @@
+// The words of the internet link (ADR 0117 D3, D10; src/dialogs/
+// localServerLinkStrings.ts): every refusal of the host a person meets on
+// the link's path is said in the interface's language — and each phrase
+// matched is still the host's own (read from the Rust sources here, so a
+// host's message that changes fails this test instead of falling back to
+// English unseen); the time left of the twelve hours; both languages whole.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import * as esbuild from "esbuild";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+globalThis.document = { documentElement: { lang: "pt-BR" } };
+
+await esbuild.build({
+  entryPoints: ["src/dialogs/localServerLinkStrings.ts"],
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  outfile: "test/.bundles/localServerLink.test-bundle.mjs",
+  logLevel: "error",
+});
+const L = await import("./.bundles/localServerLink.test-bundle.mjs");
+
+/** The host's words: the link's module, the commands, the local server. */
+function hostSources() {
+  const dirs = ["../src-tauri/src/tunnel", "../src-tauri/src/local_server", "../../crates/verso-server/src/local"];
+  return dirs
+    .flatMap((d) => readdirSync(d).filter((f) => f.endsWith(".rs") && !f.startsWith("tests")).map((f) => readFileSync(join(d, f), "utf8")))
+    .join("\n");
+}
+
+const CASES = [
+  ["is not the one Verso pins", "checksum"],
+  ["the download of cloudflared", "download"],
+  ["no cloudflared is published", "system"],
+  ["reached no Cloudflare server", "blocked"],
+  ["gave no quick link in time", "noLink"],
+  ["ended before the link was up", "ended"],
+  ["the link was stopped", "stopped"],
+  ["tick at least one folder", "noFolder"],
+  ["set up your own address first", "needOwn"],
+  ["already has another DNS record", "taken"],
+  ["tunnel of that name already exists", "tunnelTaken"],
+  ["sign in to Cloudflare first", "signIn"],
+  ["like mesa.example.com", "hostname"],
+  ["not served now", "notServed"],
+  ["turn serving on first", "needOn"],
+];
+
+test("each refusal of the link's path is the host's own phrase and is said in words", () => {
+  const rust = hostSources();
+  const w = L.linkStrings();
+  for (const [phrase, key] of CASES) {
+    assert.ok(rust.includes(phrase), `the host no longer says “${phrase}”`);
+    assert.equal(L.linkWhy(`something: ${phrase} (detail)`, w), w.why[key], phrase);
+  }
+  // Anything else is errorSentence's.
+  assert.equal(L.linkWhy("a refusal of another kind", w), null);
+});
+
+test("the twelve hours: hours and minutes left, never below zero", () => {
+  const now = Date.UTC(2026, 10, 4, 12, 0, 0);
+  const until = now / 1000 + 12 * 3600;
+  assert.deepEqual(L.timeLeft(until, now), { h: 12, m: 0 });
+  assert.deepEqual(L.timeLeft(until, now + 61 * 60_000 + 30_000), { h: 10, m: 58 });
+  assert.deepEqual(L.timeLeft(until, now + 13 * 3600_000), { h: 0, m: 0 });
+  assert.match(L.clockAt(until, "pt-BR"), /^\d\d:\d\d$/);
+});
+
+test("both languages have every word, none empty", () => {
+  globalThis.document.documentElement.lang = "pt-BR";
+  const pt = L.linkStrings();
+  globalThis.document.documentElement.lang = "en";
+  const en = L.linkStrings();
+  assert.notEqual(pt, en);
+  const walk = (a, b, at) => {
+    assert.deepEqual(Object.keys(a).sort(), Object.keys(b).sort(), at);
+    for (const k of Object.keys(a)) {
+      if (typeof a[k] === "string") assert.ok(a[k].length > 0 && b[k].length > 0, `${at}.${k}`);
+      else if (typeof a[k] === "object") walk(a[k], b[k], `${at}.${k}`);
+      else assert.equal(typeof b[k], "function", `${at}.${k}`);
+    }
+  };
+  walk(pt, en, "words");
+  // The section's name stays the feature's; the box says testing mode.
+  assert.match(pt.linkBox, /modo de teste/);
+  assert.match(en.linkBox, /testing mode/);
+  assert.match(en.left(3, 5, "23:15"), /3 h 05 min/);
+  globalThis.document.documentElement.lang = "pt-BR";
+});
