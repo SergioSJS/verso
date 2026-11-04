@@ -9,7 +9,9 @@ use super::*;
 /// the configuration directory (ADR 0096 item 16), the window's files from
 /// the app's resources (and, in a debug build, the build next to the
 /// source).
-fn server<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<LocalServer, ContractError> {
+pub(super) fn server<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<LocalServer, ContractError> {
     let state = app.state::<App>();
     if let Some(s) = state.local_server.server.get() {
         return Ok(s.clone());
@@ -26,6 +28,11 @@ fn server<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<LocalServer, C
     ui.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui/dist"));
     let events = app.clone();
     let sink = Arc::new(move |event: Event| {
+        // Serving stopped by itself (the network changed): the link's
+        // tunnel has nothing left to reach (ADR 0117 D3 item 6).
+        if matches!(event, Event::Stopped { .. }) {
+            crate::tunnel::stop_with(&events, crate::tunnel::LinkEnd::Stopped);
+        }
         let _ = events.emit("local-server", &event);
         // The mark in the menu bar or the tray follows (macOS, Windows).
         #[cfg(any(target_os = "macos", windows))]
@@ -308,6 +315,7 @@ pub(super) async fn stop<R: tauri::Runtime>(
 ) -> Result<LocalServerStatus, ContractError> {
     let local = server(&app)?;
     blocking(move || {
+        crate::tunnel::stop_with(&app, crate::tunnel::LinkEnd::Stopped);
         local.stop();
         status_of(&local)
     })
@@ -440,6 +448,7 @@ pub(super) async fn replace_identity<R: tauri::Runtime>(
 ) -> Result<LocalServerStatus, ContractError> {
     let local = server(&app)?;
     blocking(move || {
+        crate::tunnel::stop_with(&app, crate::tunnel::LinkEnd::Stopped);
         local.replace_identity()?;
         status_of(&local)
     })

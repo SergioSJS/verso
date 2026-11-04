@@ -74,6 +74,15 @@ tokio = { version = "1", default-features = false, features = ["sync", "time", "
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "http2", "gzip", "json"] }
 zip = { version = "9", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
+# The internet link's `cloudflared` for macOS comes as a `.tgz` (ADR 0117
+# D3 item 5 and D4 Q7, "flate2 + tar"): `flate2` (MIT OR Apache-2.0; in the
+# tree already, at this version, through zip and reqwest; its pure-Rust
+# miniz_oxide back end) un-gzips it, and `tar` (MIT OR Apache-2.0; new; its
+# xattr default off, nothing of the archive's metadata is applied) reads
+# the one file out of it (src/tunnel/files.rs). They replace a run of the
+# system's `/usr/bin/tar` (discarded in ADR 0117) and our own tar reader.
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+tar = { version = "0.4", default-features = false }
 # The release files' signatures (ADR 0055, revised 2026-10-09): minisign,
 # as `tauri signer` writes them; the verifier Tauri's own updater uses.
 minisign-verify = "0.2"
