@@ -84,15 +84,38 @@ async fn reader(lab: &Lab, token: &str) -> Ws {
     ws
 }
 
+/// A visitor's window on link `token` through the internet link's
+/// listener on `port`, as the tunnel forwards it.
+async fn visitor_ws_by_link(port: u16, token: &str) -> Result<(), u16> {
+    let mut req = format!("ws://127.0.0.1:{port}/r/{token}/ws")
+        .into_client_request()
+        .unwrap();
+    let h = req.headers_mut();
+    h.insert("host", NAME.parse().unwrap());
+    h.insert("origin", super::tests_accounts::ORIGIN.parse().unwrap());
+    h.insert("x-forwarded-for", "203.0.113.40".parse().unwrap());
+    h.insert("x-forwarded-proto", "https".parse().unwrap());
+    match tokio_tungstenite::connect_async(req).await {
+        Ok(_) => Ok(()),
+        Err(tokio_tungstenite::tungstenite::Error::Http(res)) => Err(res.status().as_u16()),
+        Err(e) => panic!("{e}"),
+    }
+}
+
 /// A read link's WebSockets are a few in "this app is a server" (64 in
-/// all, shared by the network, the link and the owner's window): past
-/// them the next is refused with 429, and the owner's window is still
+/// all, shared by the network and the owner's window; the link's listener
+/// has places of its own): past them the next is refused with 429, on the
+/// network and through the link alike, and the owner's window is still
 /// answered.
 #[test]
 fn a_read_link_holds_a_few_connections() {
     run(async {
         let mut lab = lab_in_part(&[]);
         lab.serve();
+        let port = lab.local.link_open().unwrap();
+        lab.local
+            .set_link_origin(Some(super::tests_accounts::ORIGIN))
+            .unwrap();
         lab.local.set_read_links(true).unwrap();
         let seat = lab.local.sit(&campanha(&lab)).unwrap();
         let token = make(&seat, "folder", "Projetos");
@@ -101,6 +124,11 @@ fn a_read_link_holds_a_few_connections() {
             held.push(visitor_ws(&lab, &token).await.unwrap());
         }
         assert_eq!(visitor_ws(&lab, &token).await.err(), Some(429));
+        assert_eq!(
+            visitor_ws_by_link(port, &token).await.err(),
+            Some(429),
+            "through the link too"
+        );
         let state = seat.request("GET", "/api/state", None).unwrap();
         assert_eq!(state.status, 200);
         drop(held);

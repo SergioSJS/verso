@@ -46,6 +46,8 @@ mod tests_devices;
 #[cfg(test)]
 mod tests_link;
 #[cfg(test)]
+mod tests_link_load;
+#[cfg(test)]
 mod tests_parts;
 #[cfg(test)]
 mod tests_parts_bin;

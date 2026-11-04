@@ -152,25 +152,31 @@ impl Drop for Listener {
     }
 }
 
+/// The connections the system queues for the link's listener while its
+/// places are all held.
+const BACKLOG: u32 = 1024;
+
 /// Open the link's listener on `runtime`, for `server`: `127.0.0.1`, a
-/// port the system picks, plain HTTP, loopback peers alone, sharing the
-/// server's connections in all.
+/// port the system picks, plain HTTP, loopback peers alone, with places of
+/// its own (`listen::LOCAL_LINK`).
 pub(super) fn open(
     runtime: &tokio::runtime::Handle,
     server: &Arc<Server>,
 ) -> Result<Listener, String> {
-    let std_listener = std::net::TcpListener::bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))
-        .map_err(|e| format!("the internet link's listener: {e}"))?;
-    std_listener
-        .set_nonblocking(true)
-        .map_err(|e| e.to_string())?;
-    let port = std_listener.local_addr().map_err(|e| e.to_string())?.port();
     let _enter = runtime.enter();
-    let tcp = tokio::net::TcpListener::from_std(std_listener).map_err(|e| e.to_string())?;
+    let said = |e: std::io::Error| format!("the internet link's listener: {e}");
+    let socket = tokio::net::TcpSocket::new_v4().map_err(said)?;
+    socket
+        .bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))
+        .map_err(said)?;
+    // A long queue: past its places a connection waits there for one
+    // (`listen::Plain::for_link`); the system may keep it shorter.
+    let tcp = socket.listen(BACKLOG).map_err(said)?;
+    let port = tcp.local_addr().map_err(said)?.port();
     let slots = server
         .slots
         .beside(Arc::new(admits), crate::listen::LOCAL_LINK);
-    let plain = crate::listen::Plain::new(tcp, slots);
+    let plain = crate::listen::Plain::for_link(tcp, slots);
     let app = super::routes::router(Arc::clone(server)).layer(axum::Extension(ByLink));
     let (stop, mut stopped) = tokio::sync::watch::channel(false);
     runtime.spawn(async move {

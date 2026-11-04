@@ -31,8 +31,10 @@ pub const PER_ACCOUNT: u32 = 32;
 pub const PER_ADDRESS: u32 = 64;
 
 /// "This app is a server" holds 64 connections in all (ADR 0096 item 13,
-/// `crate::listen::LOCAL_CONNECTIONS`), shared by the network, the
-/// internet link and the owner's window: the WebSockets of one player's
+/// `crate::listen::LOCAL_CONNECTIONS`), shared by the network and the
+/// owner's window, and the internet link's listener holds its own
+/// (`crate::listen::LOCAL_LINK`), all from `cloudflared`: the fairness
+/// among the players is here, not in the listener. The WebSockets of one player's
 /// account, of one phone and of one read link are bounded to a few. A
 /// player's window in a browser holds one or two (its window's and the
 /// copy kept on the device), so a few tabs and a board fit. `[OPEN]` for
