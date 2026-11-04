@@ -14,7 +14,8 @@
 //! through the browser, by which an invited person's Verso syncs a folder
 //! shared with them (ADR 0117 D9, S11; `devices.rs`). A read link's page
 //! is served to whoever holds it, and the owner makes links from the
-//! window at the table (S12). An account has its tokens and its passkeys,
+//! window at the table (S12), and shares a folder inside a served one with
+//! a person invited, from the same window (ADR 0081). An account has its tokens and its passkeys,
 //! a passkey through the internet link alone (S13). There is no setup, no
 //! "forgot the password" or sign-in by mail and no admin console (D9).
 
@@ -97,6 +98,21 @@ pub fn router(server: Arc<Server>) -> Router {
         .route(
             "/api/folders/{id}/readlinks/{link}",
             delete(crate::readlinks::revoke),
+        )
+        // A folder's shares, its owner's (ADR 0081; ADR 0117 D9): here the
+        // owner's window at the table alone (`shares::owned`); a folder
+        // served in part has none (`crate::access::role`).
+        .route(
+            "/api/folders/{id}/shares",
+            get(crate::shares::list).put(crate::shares::grant),
+        )
+        .route(
+            "/api/folders/{id}/shares/revoke",
+            post(crate::shares::revoke),
+        )
+        .route(
+            "/api/folders/{id}/shares/attachments",
+            put(crate::shares::attachments),
         )
         .route_layer(middleware::from_fn_with_state(
             Arc::clone(&server),

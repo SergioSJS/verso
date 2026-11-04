@@ -65,9 +65,11 @@ pub const SEAT_DEVICE: &str = "This computer's window";
 /// The commands whose fresh proof is the owner's click in the app (ADR
 /// 0117 D4 Q4): those of the contract that ask for one — inviting a
 /// person to the table (`campaign_cmds.rs`), making a read link
-/// (`readlinks::make`, ADR 0117 D9, S12). A command of an account's
-/// own routes (the password, passkeys, tokens) is not the window's.
-pub const PROVED_BY_THE_CLICK: &[&str] = &["campaign_invite", "read_link_create"];
+/// (`readlinks::make`, ADR 0117 D9, S12), sharing a folder with a person
+/// or changing their role (`shares::grant`, ADR 0081). A command of an
+/// account's own routes (the password, passkeys, tokens) is not the
+/// window's.
+pub const PROVED_BY_THE_CLICK: &[&str] = &["campaign_invite", "read_link_create", "share_grant"];
 
 /// The buffer of one in-memory connection, each way.
 const BUFFER: usize = 256 * 1024;

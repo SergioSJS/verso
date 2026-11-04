@@ -169,6 +169,11 @@ pub(crate) async fn share_grant<R: tauri::Runtime>(
     role: String,
 ) -> Result<FolderShare, ContractError> {
     let (door, folder) = server_folder(&app, &window)?;
+    // The window at its own server's table: the owner's click is the fresh
+    // proof sharing asks (ADR 0117 D4 Q4; ADR 0083 item 6).
+    if let Door::Seat(seat) = &door {
+        seat.acted("share_grant").map_err(|e| refused(&e))?;
+    }
     let body = json!({ "path": path, "email": email, "role": role });
     Ok(share_of(
         &ask(door, "PUT", path_of(&folder), Some(body)).await?,

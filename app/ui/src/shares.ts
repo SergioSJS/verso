@@ -48,8 +48,8 @@ export async function loadShares(): Promise<void> {
   markShared();
   dispatchEvent(new Event("verso:campaign-status"));
   // The read links are the owner's too (ADR 0105), and mark the tree beside:
-  // the game master's at their own server's table too, whose server has no
-  // shares to list (ADR 0117 D4 Q3).
+  // the game master's at their own server's table too (ADR 0117 D4 Q3),
+  // whose server lists its shares as a UniVerso does (D9).
   if (owner || mayShare()) await loadReadLinks();
 }
 

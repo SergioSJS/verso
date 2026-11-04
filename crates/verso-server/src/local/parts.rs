@@ -161,10 +161,11 @@ pub fn plan(
 
 /// The database's folders and shares follow what is ticked and chosen: a
 /// folder no longer served is forgotten (its shares and grants go with it),
-/// a whole one is the owner's, one in part is the holder's with a share per
-/// chosen folder given to the owner at the most a phone may have, a share
-/// no longer chosen is deleted, and every share's attachments folder is set
-/// again from the vault's settings — or cleared.
+/// a whole one is the owner's and keeps the shares the owner made, one in
+/// part is the holder's with a share per chosen folder given to the owner
+/// at the most a phone may have, a share no longer chosen is deleted, and
+/// every part's attachments folder is set again from the vault's settings
+/// — or cleared.
 pub fn reconcile(
     db: &Db,
     owner: &str,
@@ -216,10 +217,11 @@ pub fn reconcile(
             Some(f) => f,
             None => db.create_folder(name, &want)?,
         };
+        // A whole folder's shares are the ones its owner made from the
+        // window at the table (ADR 0081; ADR 0117 D9): kept from one start
+        // to the next, as a UniVerso keeps them. A folder that was served in
+        // part was registered again above, its parts' shares gone with it.
         if s.parts.is_empty() {
-            for share in db.shares_of(&folder.id)? {
-                db.delete_share(&share.id)?;
-            }
             continue;
         }
         hidden.insert(folder.id.clone());

@@ -5,8 +5,8 @@
 //! What the accounts of this computer's server have, the host's side (ADR
 //! 0117 D9, S7c over S11 and S12): the desktop apps of the people invited,
 //! listed and ended from the section; the read links' switch; and a read
-//! link made from the owner's window at the table, through the seat's door
-//! — a real `LocalServer` in this process serving by the internet link
+//! link made, and a folder shared, from the owner's window at the table,
+//! through the seat's door — a real `LocalServer` in this process serving by the internet link
 //! alone (no address of a network in a test).
 
 use serde_json::{Value, json};
@@ -122,10 +122,9 @@ impl Served {
         (res.status().as_u16(), res.json().unwrap_or(Value::Null))
     }
 
-    /// A person invited by the owner makes an account through the link and
-    /// signs their desktop app `device` in through the browser (ADR 0074
-    /// item 8): the device's token.
-    fn invited_device(&self, email: &str, device: &str) -> String {
+    /// A person invited by the owner makes an account through the link:
+    /// their browser's cookie.
+    fn invited(&self, email: &str) -> String {
         let made = self.local.invite(None, None).unwrap();
         let token = made.link.rsplit_once("/invite/").unwrap().1.to_owned();
         let accepted = self
@@ -135,13 +134,20 @@ impl Served {
             .send()
             .unwrap();
         assert_eq!(accepted.status().as_u16(), 200);
-        let cookie = accepted
+        accepted
             .headers()
             .get("set-cookie")
             .and_then(|v| v.to_str().ok())
             .and_then(|v| v.split(';').next())
             .unwrap()
-            .to_owned();
+            .to_owned()
+    }
+
+    /// A person invited by the owner makes an account through the link and
+    /// signs their desktop app `device` in through the browser (ADR 0074
+    /// item 8): the device's token.
+    fn invited_device(&self, email: &str, device: &str) -> String {
+        let cookie = self.invited(email);
         let started: Value = self
             .through(reqwest::Method::POST, "/api/device/start")
             .json(&json!({ "device": device }))
@@ -302,4 +308,73 @@ fn the_window_at_the_table_makes_a_read_link_through_its_seat() {
     let seat = remote::of(s.app.handle(), "main").unwrap();
     let token = seat.seat.as_ref().unwrap().0.token().to_owned();
     assert_eq!(s.bearer("/api/folders", &token), 401);
+}
+
+/// The window at its own server's table shares a folder inside it as the
+/// desktop connected to a UniVerso does — the click its proof, through the
+/// seat's door (ADR 0117 D4 Q3 and Q4, D9; ADR 0081) — and the person
+/// invited, through the internet link, finds it in their list and reaches
+/// its files and nothing beside; revoked, they reach nothing. A window not
+/// seated shares nothing.
+#[test]
+fn the_window_at_the_table_shares_a_folder_through_its_seat() {
+    let s = served();
+    let vault = s._dirs[0].path().to_path_buf();
+    let mesa = tempfile::Builder::new()
+        .prefix("Mesa")
+        .rand_bytes(0)
+        .tempdir_in(&vault)
+        .unwrap();
+    let _files = [
+        note(mesa.path(), "pista.png", "png"),
+        note(&vault, "fora.png", "png"),
+    ];
+    let cookie = s.invited("ana@example.org");
+    let grant = || {
+        call(
+            &s.webview,
+            "share_grant",
+            json!({ "path": "Mesa", "email": "ana@example.org", "role": "reader" }),
+        )
+    };
+    let alone = grant().unwrap_err();
+    assert!(message(&alone).contains("not on a server"), "{alone}");
+    call(&s.webview, "local_server_sit_at_table", json!({})).unwrap();
+    let made = grant().unwrap();
+    assert_eq!(made["path"], "Mesa", "{made}");
+    assert_eq!(made["people"][0]["email"], "ana@example.org", "{made}");
+    let listed = call(&s.webview, "share_list", json!({})).unwrap();
+    assert_eq!(listed[1]["path"], "Mesa", "{listed}");
+    let get = |path: &str| {
+        s.through(reqwest::Method::GET, path)
+            .header("cookie", &cookie)
+            .send()
+            .unwrap()
+    };
+    let mine: Value = get("/api/folders").json().unwrap();
+    let id = mine["folders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["share"] == true)
+        .and_then(|f| f["id"].as_str())
+        .unwrap_or_else(|| panic!("no share in {mine}"))
+        .to_owned();
+    assert_eq!(get(&format!("/f/{id}/pista.png")).status().as_u16(), 200);
+    for outside in ["fora.png", "..%2Ffora.png"] {
+        assert_eq!(
+            get(&format!("/f/{id}/{outside}")).status().as_u16(),
+            404,
+            "{outside}"
+        );
+    }
+    call(
+        &s.webview,
+        "share_revoke",
+        json!({ "path": "Mesa", "account": "ana@example.org" }),
+    )
+    .unwrap();
+    assert_ne!(get(&format!("/f/{id}/pista.png")).status().as_u16(), 200);
+    let mine: Value = get("/api/folders").json().unwrap();
+    assert!(!mine.to_string().contains(&id), "{mine}");
 }

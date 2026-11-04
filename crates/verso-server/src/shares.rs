@@ -455,9 +455,21 @@ fn audit(ctx: &Ctx, action: &str, subject: Option<&str>, folder: &str, path: &st
 }
 
 /// The owner, and the folder.
+///
+/// "This app is a server" (ADR 0117 D9): a folder's shares are this
+/// computer's owner's, from the window at the table — an invited account
+/// owns no folder here, and shares none, even owning one by a grant made
+/// by mistake (as `readlinks::make`). A folder served in part has no
+/// shares to show or make: `crate::access::role` refuses its id to
+/// everyone, the owner included (the hide lock), so no share names a path
+/// beside the folders chosen inside it.
 fn owned(ctx: &Ctx, id: &str) -> ApiResult<Folder> {
     let who = ctx.person()?;
-    Ok(crate::access::at_least(&ctx.server, who, id, Role::Owner)?.0)
+    let folder = crate::access::at_least(&ctx.server, who, id, Role::Owner)?.0;
+    if ctx.server.local.is_some() && !crate::db::is_this_computer(&who.account.email) {
+        return Err(ApiError::forbidden("sharing is the owner's here"));
+    }
+    Ok(folder)
 }
 
 /// Every share of a folder and its members, for its owner (item 7).
@@ -494,6 +506,17 @@ pub async fn grant(
     ctx.proved()?;
     let folder = owned(&ctx, &id)?;
     if body.path.is_empty() {
+        // Here a person is given reading or editing, never the folder: it
+        // stays this computer's owner's, as an invitation's grant does
+        // (`local::invites`). [OPEN] for the maintainer: ADR 0117 does not
+        // say whether the owner may make an invited account an owner of a
+        // folder of the laptop; the smaller choice is kept.
+        if ctx.server.local.is_some() && body.role == Role::Owner {
+            return Err(ApiError::bad(
+                "owner",
+                "a person invited here reads or edits: the folder stays yours",
+            ));
+        }
         crate::folders::grant_whole(&ctx, &folder.id, &body.email, body.role)?;
         return Ok(ok(share_json(&ctx.server, &folder, "")?));
     }
