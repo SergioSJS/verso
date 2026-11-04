@@ -45,7 +45,7 @@
   of "this app is a server": the desktop host **downloads the pinned
   `cloudflared`** once, from `github.com/cloudflare/cloudflared/releases`
   (and the asset store GitHub redirects to), its SHA-256 checked against
-  the value written in Verso's source (0117 D3 item 5); and it **runs
+  the value written in Verso's source (0117 D11 item 5; D3 before 0117's rewrite of 2026-11-04); and it **runs
   `cloudflared`**, which connects out to Cloudflare's network — a quick link
   on `trycloudflare.com`, or, for the person's own address, their own
   Cloudflare account, whose login page it opens in the browser (0117 D10).

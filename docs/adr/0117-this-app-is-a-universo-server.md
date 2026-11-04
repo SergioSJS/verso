@@ -1,522 +1,413 @@
-# ADR 0117 — This app is a UniVerso server: one feature, on the network and by an internet link
+# ADR 0117 — This app is a UniVerso server: a folder or a table served from this computer, on the network and by a link
 
-- Date: 2026-11-03
-- Source: the maintainer, 2026-11-03, reading the plan for the online mode
-  (`~/.cache/verso-kit/plan-online-mode-2026-11-03.md`, written by Fable
-  from [0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md)
-  and the code). He asked first: *"esse modo online seria o mesmo do app
-  como servidor, não? aí teria um toggle pra gerar ou não link do
-  Cloudflare."* On the analysis: *"pra mim essa tabela deveria ser tudo
-  sobre a mesma funcionalidade, transformar o app em um servidor UniVerso,
-  concordo, precisa de revisão na 0111 e na 96 também, deveria ser uma
-  feature só com essas nuances aí."* On the form of the change (the plan's
-  Q1): *"adr nova substituindo, inclusive arquivando adrs que não fazem
-  sentido"* (a new ADR superseding; also archiving ADRs that no longer make
-  sense). On the plan's Q2 to Q9: *"gosto de todas sugestões"* (all the
-  recommendations, as written there). Later the same day, after the plan's
-  "limits" were read back to him: *"caralho, eu aceitei mas estou mudando de
-  ideia para fazer a aplicação ficar mais consistente. zero problemas no fato
-  do computador ter que ficar ligado, é assim com foundry rodando, não muda
-  nada, não conheço sessões de rpg que durem mais de 12h, sem falar que a
-  pessoa pode configurar um DNS fixo se quiser, e deveria ser fácil"* — the
-  one-feature change is his move for consistency; the machine staying on and
-  the twelve hours are how it works, as with Foundry; and **a fixed address
-  is in the scope of this feature and must be easy** (D10).
-- Supersedes: [0096](archive/0096-this-app-is-a-server.md) (built; its rules are
-  carried over below and stay built) and
+- Date: 2026-11-03; **rewritten in place 2026-11-04** (see Status).
+- Source: the maintainer. 2026-11-03, reading the plan for the online mode
+  (`~/.cache/verso-kit/plan-online-mode-2026-11-03.md`): *"deveria ser uma
+  feature só com essas nuances aí"*; *"gosto de todas sugestões"* (the
+  plan's Q2–Q9); *"a pessoa pode configurar um DNS fixo se quiser, e deveria
+  ser fácil"*. 2026-11-04, testing the build, after serving refused a folder
+  that syncs with a UniVerso (commit `8c9a77376`): *"merda de adr 96, a
+  lógica era pra ser a mesma de compartilhar mesa no UniVerso, só que usando
+  o app local"*, and the points quoted in D1–D8.
+- Supersedes: [0096](archive/0096-this-app-is-a-server.md) (built) and
   [0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md)
-  (accepted, never built; its rules are carried over below as the link).
-  A reader needs neither: this text is complete.
-- Related: [0073](0073-self-hosted-server-first.md) (items 2 and 6),
-  [0074](0074-accounts-and-access-on-the-server.md) (accounts, invitations,
-  the device session), [0081](0081-sharing-between-people-on-one-universo.md)
-  (shares, invitations with a path), [0083](0083-security-hardening-of-universo.md)
-  (bounds, trusted proxies, fresh proof), [0045](0045-server-and-mcp-security.md)
-  (`Host`, rebinding), [0050](0050-outbound-network-access.md) (outbound
-  reaches), [0055](0055-in-app-updater.md), [0005](0005-license.md),
-  [0107](0107-the-table-a-shared-roll-and-chat-log.md) and
-  [0110](0110-a-table-is-a-campaign-folder.md) (the table),
-  [0113](0113-one-access-model-for-a-table.md), [0092](0092-the-phone-offline.md),
-  [0097](0097-universo-found-on-the-network-and-a-bad-dns-survived.md),
-  [0069](0069-windows-port.md), [0029](0029-guardrails-in-ci.md),
-  [0058](0058-demo-vault-as-tutorial.md), [0035](0035-cross-cutting-requirements.md),
-  [the cross-platform checklist](../reference/cross-platform-checklist.md),
+  (never built), both archived. A reader needs neither.
+- Revisions: 2026-11-04 — rewritten in place by the maintainer's decision
+  (Status). The first text is at `62b901672`; the build's commits before
+  this date cite its numbers, which map to this text as: old D2 → D12,
+  old D3 (items kept) → D11, old D4 (Q2–Q9) → D13, old D5 → "As built: the
+  spike", old D6 → D10, old D7 → D17, old D8 → D16; D9 and D10 keep theirs.
+- Related: [0073](0073-self-hosted-server-first.md), [0074](0074-accounts-and-access-on-the-server.md),
+  [0077](0077-the-server-administration-console-and-folder-quotas.md),
+  [0079](0079-sync-a-local-folder-with-a-server.md), [0081](0081-sharing-between-people-on-one-universo.md),
+  [0082](0082-live-co-editing-of-a-synced-folder.md), [0083](0083-security-hardening-of-universo.md),
+  [0105](0105-read-links-without-an-account.md), [0107](0107-the-table-a-shared-roll-and-chat-log.md),
+  [0110](0110-a-table-is-a-campaign-folder.md), [0113](0113-one-access-model-for-a-table.md),
+  [0050](0050-outbound-network-access.md), [0065](0065-a-folder-per-window.md),
   `docs/reference/threat-model.md` ("The laptop as a server").
 - Status in the briefing: not present.
 
 ## Context
 
-**Two ADRs for one thing.** [0096](archive/0096-this-app-is-a-server.md) (built
-2026-10-15) made the desktop app a server on the local network: Settings ›
-*Transformar em servidor* / *Turn into a server*, the same service and code
-as `verso serve` (`crates/verso-server/src/local`), private addresses only,
-its own certificate, no accounts but one implicit owner, phones paired by a
-QR and a *Was it you?*, an allowlist of commands, a tray mark with *Stop*.
-[0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md)
-(accepted 2026-10-23, never built) added a second mode beside it: a
-Cloudflare Quick Tunnel giving a `*.trycloudflare.com` link, player accounts
-by invitation, loopback-only listening, a separate switch. The maintainer's
-goal for the link is Foundry's: a game master turns it on at home and sends
-players a link; they sign in and play at the Table ([0107](0107-the-table-a-shared-roll-and-chat-log.md),
-[0110](0110-a-table-is-a-campaign-folder.md)) as on a UniVerso.
+[0096](archive/0096-this-app-is-a-server.md) (built 2026-10-15) let the
+owner's **phones** reach folders of this computer: a switch in Settings, a
+list of folders ticked there "whole or in part", no other person, and a
+folder that syncs with a UniVerso never served (its item 11 (b)). The first
+text of this ADR (2026-11-03) joined it with 0111's internet link into one
+feature and then put the UniVerso's accounts, invitations, shares, tables,
+read links, device sync, tokens and passkeys **on top of 0096's frame**: the
+global folder list in Settings, "in part" meaning *for the owner's phones
+only*, invitations to whole folders only, and the synced-folder refusal. The
+build on `feat/app-server` (`a9305e645..62b901672`) followed that text.
 
-**Why one feature.** The maintainer's reason is consistency (*"estou
-mudando de ideia para fazer a aplicação ficar mais consistente"*): one
-section, one server, one set of lists; a person who serves their phone on
-the Wi-Fi and a game master who sends a link are doing the same thing.
-
-**What the review of 2026-11-03 found in the code** (state of `main` at
-5653f5b13):
-
-- The desktop's own window has **no table on a folder of this computer,
-  served or not**: every `table_*` and `campaign_*` command of the host
-  refuses (`app/src-tauri/src/table.rs:14-27`, `campaign.rs:17-19`) and the
-  window keeps its local roll list (`app/ui/src/table/join.ts`). Paired
-  phones do get the server's table (`crates/verso-server/src/local/allow.rs:81-99`).
-  A game master could not make a table, invite, or sit at it from the app.
-  0111 did not see this.
-- The local server has no path for a second person: the owner is a
-  passwordless, non-admin account "This computer"
-  (`crates/verso-server/src/db/local.rs:56-61`); a browser session without
-  a phone row opens nothing (`auth.rs:384-390`); every bearer token is
-  refused (`auth.rs:343-345`); the route table has no sign-in, invitation,
-  accept or join (`local/routes.rs:32-54`); a campaign invitation needs an
-  admin with a fresh proof (`campaign_cmds.rs:936-951`).
-- Nothing listens on loopback and no proxy is believed: the LAN admit
-  refuses loopback (`local/net.rs:191-197`), `Config::for_local` trusts no
-  proxy (`config.rs:320`), every listener speaks TLS (`local/mod.rs:896-899`),
-  `public_url` is `None` and immutable (`config.rs:314`; `lib.rs:163-168`
-  hands a bare path as a link). `CF-Connecting-IP` is read nowhere; only
-  `X-Forwarded-For` (`proxy.rs:11-16`).
-- The "served in part" lock hides a part's folder id from **phones** only
-  (`access.rs:28`); with accounts it must hold for every non-owner, or a
-  note of a folder not shared is one id away (a visibility leak is
-  BLOCKING).
-- No `cloudflared` code exists. The host has `reqwest` and `sha2`
-  (`app/src-tauri/Cargo.toml:74-76`, used by `update.rs:387-635`) and no
-  gzip/tar crate; the macOS release asset is a `.tgz`.
-
-**The attack surface**, both halves: a laptop on a network it does not
-control (a café's, a hotel's), and, with the link, a hostname on the open
-internet reaching that laptop — anyone with the link can try to sign in,
-flood, or attack the HTTP stack. What answers it is what UniVerso already
-has ([0083](0083-security-hardening-of-universo.md): limits, pace, bounds,
-headers, audit, password list, fuzzed inputs) **provided every limit sees
-the player's address and not `127.0.0.1`**, plus the switch, the ceiling, a
-new link each run, and the confinement of what is served.
+That frame was the wrong model. The maintainer, 2026-11-04: the logic is the
+UniVerso's — a person makes a folder available, makes tables in it, invites
+people — with this desktop app as the host. What the build made (the server
+code, the link, accounts, the seat at the table) is the UniVerso's and
+stays; what came from 0096's frame changes (D15).
 
 ## Decision
 
-### D1. One feature `[DECIDED 2026-11-03]`
+### D1. The model is the UniVerso's, with this app as the host `[DECIDED 2026-11-04]`
 
-*Transformar em servidor* / *Turn into a server* is the one feature, in the
-maintainer's words above. Its section in Settings keeps its switch and its
-list of served folders, and gains **two boxes under the switch** (Q2,
-decided 2026-11-03): **Na minha rede** / **On my network** (what 0096
-built) and **Por um link na internet (Cloudflare, modo de teste)** / **By an
-internet link (Cloudflare, testing mode)**. At least one is ticked to start;
-the link alone listens on loopback only and survives a change of Wi-Fi. One
-server, one status mark, one list of served folders, one list of paired
-phones, one list of invitations. "Online mode" as a name is retired.
+*"A lógica era pra ser a mesma de compartilhar mesa no UniVerso, só que
+usando o app local."* Serving follows the UniVerso's sharing of a folder and
+of a table ([0081](0081-sharing-between-people-on-one-universo.md),
+[0110](0110-a-table-is-a-campaign-folder.md),
+[0113](0113-one-access-model-for-a-table.md)): nothing reachable by default;
+a served folder is reached by the people invited or shared into it, at
+their role; the same server code judges every answer.
 
-### D2. Carried over from 0096, unchanged and built
+### D2. Per folder or subfolder, on the folder's page `[DECIDED 2026-11-04]`
 
-Every item of 0096 holds as decided and as built, under the one feature.
-The table names each with where it lives; the "As built" of 0096 (ranked
-addresses, *Can edit* per phone, the log's content, the copyable pairing
-link, the folder list as the switcher's, the section's name, the tray on
-macOS and Windows and not Linux) is accepted as built (`[DECIDED 2026-10-21]`)
-and stays.
+*"Deveria ser possível abrir servidor em uma sub-pasta assim como fazemos
+com mesa, inclusive, daria para aproveitar a mesma tela."*
 
-| Rule (0096 item) | Decided | Built in |
+- What is served is chosen **on the folder's page**, in the table card
+  ([0110](0110-a-table-is-a-campaign-folder.md); `app/ui/src/tableCard.ts`,
+  which today shows nothing on a folder of this computer): any folder or
+  subfolder, served from this computer, then made a table, given access and
+  invited to as on a UniVerso. Sitting at the table (D13 Q3) is offered
+  there too.
+- **Settings keep the transport**: the switch, *On my network*, *By an
+  internet link*, *Use my own address*, invitations and the people invited,
+  and a **read-only list** of what is served (each entry opens its folder's
+  page).
+
+### D3. N tables, N served folders, several active `[DECIDED 2026-11-04]`
+
+*"Eu posso ter N mesas dentro de uma pasta … consequentemente, eu posso ter N
+pastas servidas. Eu posso ter mais de uma mesa ativa."* A table is (folder,
+root inside it) as 0110 "As built (one chat per table)" made it; several
+served folders and several tables run at once on one host. A window opens
+one folder ([0065](0065-a-folder-per-window.md)), so the game master sits at
+each table from its own window.
+
+### D4. The host is chosen per table; a synced folder is no reason to refuse `[DECIDED 2026-11-04]`
+
+*"Se eu tenho um servidor sincronizando, não deveria ser motivo para não
+poder abrir a minha máquina como servidor para outras pessoas."* *"Eu
+deveria ser possível escolher se vou servir a mesa pelo UniVerso … ou pelo
+app Desktop, e em ambos os casos ser possível ter links do cloudflare."*
+
+1. The refusal of a synced folder (0096 item 11 (b); the first text's D3
+   item 11) **goes**. For a folder that syncs with a UniVerso, each table
+   (and each served folder) is hosted **on that UniVerso or on this
+   computer**, chosen on the folder's page.
+2. A Cloudflare link — quick or own address — exists on **both hosts**. On
+   this computer it is built (D11, D10). **On a UniVerso it is new scope**:
+   `cloudflared` beside the server in each way it is installed (the `.deb`
+   and `universo.sh`, Docker compose, ZimaOS), the public origin set at
+   runtime (today `VERSO_PUBLIC_URL` is read once at start; the spike
+   restarted the server when the quick link's address was known).
+3. A folder this person did not share as its owner (a share received from
+   another account, synced to this computer) is not served from here: by
+   [0081](0081-sharing-between-people-on-one-universo.md) item 4
+   (`[DECIDED 2026-10-10]`) a receiver does not re-share. Confirmation asked
+   in D14 (g).
+
+### D5. The owner reaches a table on this computer from his own browser and phone `[DECIDED 2026-11-04]`
+
+*"Se eu quiser abrir num navegador com minha conta para ver como tá ficando
+e testar"*; *"se fizer assim a gente mata a feature de abrir no celular
+usando o app desktop como servidor"* — it must not. The owner's phones keep
+working as built (pairing on the network, D12), and the owner reaches the
+host **through the link** too. Today he cannot: pairing answers only on the
+network (`64eeb999b`), and this computer's owner account has no password and
+opens no browser session that is not a paired phone (`49e1d91ed`). How he
+signs in through the link is D14 (b).
+
+### D6. One link per host, routes per folder and table; a link may expire `[DECIDED 2026-11-04]`
+
+*"O link pode expirar, não tem problema, a pessoa pode gerar um novo. Da
+mesma forma que a pessoa pode ter um link único para o universo inteiro e
+gerar rotas específicas para cada pasta … Talvez o hash também."*
+
+- One link per host (this computer's; a UniVerso's), its routes leading to
+  the folders and tables on it. A quick link ends (12 hours, D11 item 6) and
+  a new one is made; an own address stays.
+- Routes that exist today (`crates/verso-server/src/http.rs:487-496`,
+  `app/ui/src/web/bridge.ts:432-440`): `/?folder=<id>` (and `&note=`), the
+  folder's or share's opaque id, sign-in required; `/invite/<token>`
+  (single use, 7 days); `/r/<token>` read links ([0105](0105-read-links-without-an-account.md));
+  `/signin`, `/device`, `/reset/<token>`. A **readable route by name** (a
+  slug) does not exist: D14 (d).
+
+### D7. Several game masters on one UniVerso, each seeing only their own `[DECIDED 2026-11-04]`
+
+*"A gente conseguiria ter mais de um usuário dentro do universo servindo
+mesas … escolho ali algumas pessoas que vão ter permissões para isso … uma
+não vai ver o da outra, nem eu, se eu não tiver acesso, exceto, claro, se
+essa pessoa me convidar."* Read against the code on 2026-11-04:
+
+| Point | Today | Where |
 |---|---|---|
-| Off by default; on until quit; *Keep on at start* a separate switch (1) | 2026-10-15 | `local/mod.rs` (`LocalSettings.keep_on`), `app/src-tauri/src/local_server/platform.rs:468-492` |
-| Only the ticked folders, whole or in part; nothing by default; the attachments folder read by name; unticking the last part unticks the folder (2, amended 2026-10-16 and 2026-10-21) | 2026-10-15/16/21 | `local/parts.rs`, `db/local.rs` (vault holder), `access.rs:28` (hide lock) |
-| Private addresses only (RFC 1918, IPv4 link-local, IPv6 unique-local; not IPv6 link-local); stop when the set changes; peer on a subnet of the machine (3) | 2026-10-15 | `local/net.rs` (`rank`, `admits`), the watcher in `local/mod.rs` |
-| One random port, kept (4) | 2026-10-15 | `local/bind.rs` |
-| Own ECDSA certificate, 398 days, key in the local database; the host's own files when given; TOFU said in words; address change = new origin (5; (c) left for after V1, 2026-10-21) | 2026-10-15/21 | `local/cert.rs`, `tls.rs` |
-| Pairing: one token, 256 bits, 2 minutes, once, QR or 8-letter code, *Was it you?* on the laptop, three attempts close it, the click is the proof (6) | 2026-10-15 | `local/pairing.rs`, `local/routes.rs:76-130` |
-| The QR carries address, port, token, fingerprint and contract hash in the fragment; nothing else (7) | 2026-10-15 | `local/qr.rs` |
-| mDNS `_verso-local._tcp` only while the pairing dialog is open; `Verso-xxxx`; TXT `v` and `port` (8) | 2026-10-15 | `local/announce.rs` |
-| The system's prompts explained first; no elevation; self-test of reachability (9) | 2026-10-15 | `local/bind.rs:17` (`reachable`), the dialog |
-| Sleep: resume if the addresses are the same, else stop and ask (10) | 2026-10-15 | the watcher |
-| A folder that syncs with a UniVerso is never served (11) | 2026-10-15 | `platform.rs:272-292` |
-| A phone runs an allowlist, reader or editor, never owner; desktop-only commands refused; a test fails on a command with no verdict (12; owner's phone deletes, amended 2026-11-01 with 0113) | 2026-10-15, 2026-11-01 | `local/allow.rs`, `local/tests_parts.rs` |
-| 64 connections, 16 per address; 4 phones paired; *Devices connected at once* 1–16, default 4 (13, amended 2026-10-16) | 2026-10-15/16 | `listen.rs:129-139`, `local/mod.rs` (`CONNECTED*`) |
-| What is logged and never logged; the audit log in the configuration directory; a notification on a phone's first connection (14) | 2026-10-15 | `local/mod.rs`, `audit.rs` |
-| *Revoke*, *Stop serving*, *Forget all devices*, *Replace this computer's identity* (15) | 2026-10-15 | `local/mod.rs:1313-1416` |
-| State in the app's configuration directory, `0600`, never in a folder (16) | 2026-10-15 | `platform.rs:12-37` (`config.join("local-server")`) |
-| Windows serves with OpenSSL compiled in (17, revised 2026-10-15) | 2026-10-15 | `crates/verso-server/Cargo.toml` |
-| The updater restarts as today; "N phones are connected" in the dialog (18) | 2026-10-15 | `update.rs` |
-| Keyboard, screen reader, pt-BR and EN (19) | 2026-10-15 | `app/ui/src/dialogs/localServer.ts`, `localServerStrings.ts` |
+| The admin chooses who may make folders | **Holds**: *may create folders* per account, off for a new member ([0074](0074-accounts-and-access-on-the-server.md) item 6) | `folders.rs:51`, `admin.rs:108` |
+| A member's folders and tables are theirs | **Holds**: the maker owns the folder; the owner is the game master (0110 item 15) | `folders.rs:45-75` |
+| One member does not see another's folders | **Holds**: a member lists only their own and the shares given to them; another's id answers 404 | `folders.rs:31-38`, `access.rs:17-45` |
+| The admin does not see a member's notes | **Holds for content**: the admin has no role in a folder not granted; entering is a self-grant in the audit log, which the folder's owner reads | `access.rs:7`, `admin.rs:356-378`, `/api/folders/{id}/audit` |
+| …nor that the folder exists | **Does not hold**: the console lists every folder's name, owners, members, space and audit ([0077](0077-the-server-administration-console-and-folder-quotas.md) item 3) | `console.rs:81` — D14 (f) |
+| A game master invites players to their table | **Gap**: only the server's admin invites a person who has no account (0081 item 4, revision 2026-10-12); a member gives a place only to an existing account | `campaign_cmds.rs:945-949`, `can_invite` at `:763` — D14 (e) |
 
-### D3. The internet link `[DECIDED 2026-10-23, read inside one feature]`
+### D8. A table lives on one host; the files are the same through sync `[DECIDED 2026-11-04]`
 
-Carried over from 0111 with the changes of 2026-11-03. The maintainer's
-three points of 2026-10-23 stand: build it now on Cloudflare Quick Tunnels,
-the link changing at each run accepted and preferred (*"zero problemas o
-link mudar ... fica mais seguro"*); on only when the person wants; an
-official mode later (D6).
-
-1. **What the link serves.** What the person shares, by the UniVerso's own
-   rules ([0074](0074-accounts-and-access-on-the-server.md),
-   [0081](0081-sharing-between-people-on-one-universo.md),
-   [0110](0110-a-table-is-a-campaign-folder.md)): a folder shared with an
-   account, or made a table and joined by invitation, is reachable by that
-   account at its role; nothing by default; sharing everything is the
-   person's choice. A folder served *in part* is never reachable by an
-   account (the hide lock of 0096 item 2 widened to every non-owner).
-2. **Accounts and how a player gets in** (changed: no longer only with the
-   link, see D4 Q8). Accounts in the local server's database; a player is
-   invited by a single-use link (7 days, [0074](0074-accounts-and-access-on-the-server.md)
-   item 4), accepts with an e-mail-shaped identifier, a name and a password
-   (nothing is mailed; "any e-mail you own", Q5), and signs in under
-   [0083](0083-security-hardening-of-universo.md)'s limits. An account of
-   another table on this server joins the link signed in. The owner is this
-   local server's **admin**; a paired phone stays a device of the owner.
-3. **Where it listens** (replaces 0111 item 3). With the link box ticked
-   the one server also listens on `127.0.0.1`, a random port, **plain
-   HTTP**, admitting loopback alone; `cloudflared` is told that address.
-   The network listener keeps D2's rules; the two run at once when both
-   boxes are ticked (Q2).
-4. **TLS, the proxy and the origin.** Cloudflare ends HTTPS; the loopback
-   hop is HTTP, which [0073](0073-self-hosted-server-first.md) item 6 allows.
-   `127.0.0.1` and `::1` are the local server's **named** trusted proxies
-   ([0083](0083-security-hardening-of-universo.md) item 5), so the forwarded
-   address keys every delay, pace and count and a forwarded loopback is not
-   "this machine" (0083 item 7). The link's hostname is added to the
-   policy's `Host` list at runtime and removed the moment the link is off;
-   `Origin` follows it; the cookie is `Secure` from `X-Forwarded-Proto`;
-   invitation and share links are built from the link's origin. Which
-   header a client cannot forge (`CF-Connecting-IP` or the
-   `X-Forwarded-For` walk) is the spike's answer (D5); a spoofed value must
-   move no limit.
-5. **The `cloudflared` binary.** Downloaded on first use, a **pinned**
-   version with its SHA-256 written in Verso's source, from
-   `github.com/cloudflare/cloudflared/releases`, into the app's data
-   directory, never "latest", never `PATH` by default (a path given in
-   Settings is the only alternative). Owner of the code: the Tauri host
-   (`app/src-tauri/src/tunnel/`), which already downloads and checks the
-   update; `verso-server` and `verso-service` spawn nothing. The macOS asset
-   is a `.tgz`: extracted in Rust with `flate2` and `tar` (Q7; both
-   allowlisted licences, justified in the pull request). Apache-2.0: a
-   notice on the Credits page. The version moves with Verso's releases.
-   Signing, Gatekeeper, SmartScreen and the binary's size are tried on the
-   real systems in the build and written in "As built".
-6. **Lifecycle and visibility.** The link is **never kept on** across
-   starts (*Keep on at start* keeps the network serving only); a new link
-   at each run, said so; while on, always visible: the status mark, the
-   tray entry (macOS, Windows) with *Stop*, the link with *Copy* and a QR
-   and a countdown in Settings. It stops on *Stop*, on quit (the child is
-   killed; a Job Object on Windows; on Unix the host kills it and the
-   stderr reader exits it if the app's pid is gone), after **12 hours**
-   with *Extend* re-arming it for 12 more on the same link (Q6; the
-   maintainer: *"não conheço sessões de rpg que durem mais de 12h"* — a
-   session's length, not a limit), and when `cloudflared` exits by itself —
-   then "offline", no silent restart. The machine stays on while the table
-   runs, as it does with Foundry (*"zero problemas no fato do computador ter
-   que ficar ligado, é assim com foundry rodando"*). Players' pages say the table is offline, in their
-   language, and offer to retry.
-7. **The limits of Quick Tunnels**, from Cloudflare's page: testing and
-   development only, no uptime guarantee, a new hostname each run, 200
-   in-flight requests with `429` beyond, no SSE (Verso's rooms, sync and
-   table are WebSockets). The box is labelled *testing mode*; the measured
-   numbers (cold load, upload bound, WebSocket life) go in "As built".
-8. **Security review for the build**: everything [0083](0083-security-hardening-of-universo.md)
-   lists; the laptop's other folders never reachable; desktop-only commands
-   not served; the logs hold no link, cookie or password; a test for each
-   guardrail seen failing before merge ([0029](0029-guardrails-in-ci.md)).
-9. **Accessibility, languages, phones**: the served window is the existing
-   web window; the section, its messages and the offline page in pt-BR and
-   EN, keyboard-reachable, the link, the QR and the state readable by a
-   screen reader; a player on a phone at 390×844 reaches every panel and
-   every hide has a way back ([0035](0035-cross-cutting-requirements.md)).
-10. **The tutorial** ([0058](0058-demo-vault-as-tutorial.md)): a lesson
-    *Mesa pela Internet* / *A Table over the Internet* in both vaults with
-    the real steps, followed in the app before the pull request.
-11. **Coexistence with the sync**: D2's rule (0096 item 11) for both boxes;
-    the link never serves a folder made a table on someone else's UniVerso.
-
-### D4. Decided on 2026-11-03 (*"gosto de todas sugestões"*)
-
-- **Q2 `[DECIDED 2026-11-03]`** Two boxes under one switch (D1): the link
-  may be on with the network box off, on loopback only.
-- **Q3 `[DECIDED 2026-11-03]` The game master at the table.** The owner's
-  window on a served folder joins the table **as a client of its own
-  server**: the host mints, in process and with no route, a device session
-  for the local owner (its token kept in memory, marked as the owner's
-  window; `auth.rs:343`'s refusal of bearer tokens lets that one through),
-  and the window opens the folder through the existing "connect to a
-  server" path (`app/src-tauri/src/remote.rs`) against the loopback
-  listener — or, with only the network box ticked, the LAN address with the
-  own certificate pinned by fingerprint — offered as *Sentar à mesa* / *Sit
-  at the table* on a served folder. The window then has the table, the
-  campaign commands and the invitation exactly as the desktop connected to
-  a UniVerso does; closing the table returns to the local window. Nothing
-  in `verso-server`'s table or campaign code changes.
-- **Q4 `[DECIDED 2026-11-03]`** The owner's fresh proof
-  ([0083](0083-security-hardening-of-universo.md) item 6, needed to invite
-  and to change a table) is the click in the app, as 0096 item 6 decided for
-  pairing: the host stamps `proved_at` on the owner's token when the owner
-  acts from the window. No owner password.
-- **Q5 `[DECIDED 2026-11-03]`** A player's identifier is the e-mail-shaped
-  string the accept form already asks (`api.rs:329-335`); nothing is sent;
-  the tutorial says so. No new account kind.
-- **Q6 `[DECIDED 2026-11-03]`** The ceiling is 12 hours, with *Extend*.
-- **Q7 `[DECIDED 2026-11-03]`** `flate2` + `tar` for the macOS `.tgz`.
-- **Q8 `[DECIDED 2026-11-03]`** Invitations exist on the network too: a
-  friend on the same Wi-Fi is invited with `https://<address>:<port>/invite/<token>`
-  (own certificate, the TOFU warning in words). Accounts are part of the one
-  feature whether the link is on or not.
-- **Q9 `[DECIDED 2026-11-03]`** The spike (D5) is run by the maintainer
-  from his Mac with the plan's `spike.sh`; a session runs nothing that opens
-  a tunnel or a browser on his Mac without his OK.
+A table's players, access rows, grants, chat, rolls and pins live in its
+host's database ([0113](0113-one-access-model-for-a-table.md), schema 20+).
+The files are one set kept by [0079](0079-sync-a-local-folder-with-a-server.md):
+an edit made through this computer's server is a local change the sync
+uploads; edits on both sides meet by the sync's rules — the base hash, the
+append-merge, otherwise a conflict copy, **both kept**. There is no live
+room across the two hosts (0096 item 11 (a)'s limit): two people on one
+note, one per host, meet at the next sync, not keystroke by keystroke.
+Secret blocks ([0087](0087-secret-blocks-hidden-from-readers.md)) are in the
+file and hold on both; a note's audience is its host's.
 
 ### D9. What of the UniVerso works here `[DECIDED 2026-11-03: parity is the goal]`
 
-The maintainer, 2026-11-03: *"esse modo seria compatível com tudo que temos
-relacionado ao UniVerso, certo? edição conjunta, permissões, chat comum,
-rolagens, música, etc"*. The goal is **parity with a UniVerso**: the same
-server code serves, so what differs is only what the laptop's posture
-imposes. Verified against the code on 2026-11-03; the rows marked *spike*
-are measured in D5 and tried in the manual checks (S8). The four rows
-that said "not in this mode" were put to the maintainer on 2026-11-03 and
-answered *"Sim para todas"*: another desktop app connecting and syncing,
-read links, passkeys and tokens are **in** the feature; the console and
-sign-in by mail are **out**.
+*"Esse modo seria compatível com tudo que temos relacionado ao UniVerso,
+certo?"* Parity with a UniVerso; what differs is only what a laptop imposes
+(it is on while the table runs, as with Foundry; a quick link lasts a
+session). "Through the link" results are the spike's (As built).
 
-How it works, in every row and not counted against parity: the game
-master's machine is on and awake while the table runs, as with Foundry (a
-sleeping laptop serves nothing, D2 item 10), and a quick link lasts a
-session — twelve hours, extendable — and changes at the next run (an own
-address, D10, does not). What differs from a UniVerso and may cost a
-feature: Cloudflare's 200 in-flight requests and the upload bound of a Quick
-Tunnel (D3 item 7, measured in D5), and the origin — on the network a
-self-signed certificate, which is no secure context in the browser; through
-Cloudflare a real HTTPS one.
-
-| UniVerso feature | Here | Where it is decided by the code |
+| UniVerso feature | Here | Where |
 |---|---|---|
-| Live co-editing of a note in the browser (0073 item 7, 0082's rooms; presence: cursors and names) | **Works as on a UniVerso** for accounts (the UniVerso dispatch) and for phones (`collab_join`, `collab_awareness`, `collab_present` for any phone; `collab_update`, `collab_save` for an editor). Through the tunnel: *spike* (WebSocket) | `local/allow.rs:79-80, 101-102, 133-134`; `presence.rs:5-12` |
-| Live co-editing of a **synced desktop folder** (0082 proper) and **sync of a local folder** (0079) from another person's desktop app | **In this feature, needs S11** `[DECIDED 2026-11-03]`: the desktop's "connect to a server" device sign-in (0074 item 8), whose routes the local table lacks today, is added for accounts; `sync_*` stays refused to phones. Until S11 a player uses the browser; the owner's window joins by Q3 | `local/routes.rs:32-54`; `allow.rs:281-286`; `app/src-tauri/src/remote.rs:1-10`; `device.rs` |
-| Accounts, roles, invitations (0074), shares (0081) | **Needs S3** (accounts, invitations, `who()`); then as on a UniVerso, the owner sharing from their window (Q3). **Limit:** an account creates no folder on the laptop — the owner's folders only (`folders_dir` is a dead path) | `config.rs:315`; `allow.rs:233-236` (phones never share) |
-| One access model, per-path access, hides (0113) | **Works**: `may()` judges every answer for accounts and phones alike. **Needs S3** for the hide of a folder served in part, today phone-only (G8) | `access.rs:28`; `table_sound.rs:335` (one `may()` call among many) |
-| Campaign folder: tables, released notes, players' rights (0110 phase 1) | **Works** once the owner's window is at the table (Q3); phones never make or change a table. The dashboard, sessions and notices (0110 phase 2) are not built on a UniVerso either (roadmap V.43) | `allow.rs:261-269`; `app/src-tauri/src/campaign.rs:17-19` |
-| Chat, rolls, secret rolls, 3D dice (0107) | **Works as on a UniVerso**: `table_join`, `table_say`, `table_roll`, `table_history`, `table_pin`, `table_delete` for any phone; secret rolls are the server's; the 3D fall is the window's. Through the tunnel: *spike* | `allow.rs:84-91`; `collab_dice.rs:29-49` |
-| Images at the table (0107 item 3) | **Works with a limit**: `table_send_image`, `table_attach` for an editor phone and for accounts by right; the upload bound through the tunnel is *spike* | `allow.rs:139-140` |
-| Music and shared audio (0116) | **Works with a limit**: the game master alone controls (`may(Play)`; `table_play`, `audio_share_*` refused to phones); listening (`table_share_listen`) for everyone; the relay is **binary WebSocket messages, no UDP**, so it crosses the tunnel if WebSockets do — a ten-minute share is *spike*; the share starts from the game master's connection, which with Q3 is the owner's window as a client of its own server | `audio_relay.rs:5-8`; `table_sound.rs:12-16, 335`; `allow.rs:99, 244-260` |
-| Notifications in the window (0084) | In-window: **works**. The system's notifications need a secure context: **not on the network's certificate**, **yes through Cloudflare** (0073 item 6 (d)) | `app/ui/src/web/plainHttp.ts:6-12` |
-| The phone offline (0092) | **Works with a limit**: the service worker needs a secure context — not on the network's certificate (D2 item 5), yes through Cloudflare, but the cached origin dies with the link at the next run | `app/ui/src/web/offline/manager.ts:480` |
-| Trash (0080) and version history (0091) | **Works**: `trash_list/restore/delete`, `history_*` for an editor; the daily expiry runs; `trash_empty` and the days are the owner's | `allow.rs:141-147, 278-280`; `local/mod.rs:909-911` |
-| Admin console and quotas (0077) | **Not in this feature** `[DECIDED 2026-11-03]`: the owner administers from the app — Settings › *Turn into a server* is the console (phones, accounts, invitations, audit); no quota on a laptop | `local/routes.rs:5-11`; `config.rs:322` |
-| The web window on a phone (0076) | **Works**; the cold load against 200 in-flight requests is *spike* | `local/routes.rs:33-36, 53` |
-| Read links without an account (0105) | **In this feature, needs S12** `[DECIDED 2026-11-03]`: the refusal in local mode is lifted for the owner; a link's page is served on the network and through the link | `readlinks.rs:148, 414, 529` |
-| Sign-in by mail and "forgot the password" | **Not in this feature** `[DECIDED 2026-11-03]`: no mail server on a laptop; a player's password is reset by the owner, as 0074 item 5's admin does | `api.rs:759`; `mail.rs:5-10` |
-| Passkeys and tokens for programs (0074 items 3 and 8) | **In this feature, needs S13** `[DECIDED 2026-11-03]`: the passkey and token routes join the local table for accounts; a passkey needs a secure context, so it is registered through the link or the own address, not on the network's certificate; a `verso_pat_` token of an account is accepted (the refusal of every bearer in local mode is narrowed to phones) | `auth.rs:343-345`; `passkeys.rs`; `api.rs:624-690` |
+| Live co-editing in the browser, presence | **Works**, accounts and phones; through the link PASS (two accounts, named carets, 85–115 ms) | `local/allow.rs`, `presence.rs` |
+| Another person's desktop app signs in and syncs (0074 item 8, 0079, 0082) | **Built** (S11, `d3077a49b`); phones run no `sync_*`; listed in Settings with *End* (`f6ad84687`) | `local/devices.rs` |
+| Accounts, roles, invitations, shares | **Built** (S3 `49e1d91ed`; shares from the seat `ab79feac8`; people managed `27eece626`). **Changes (R1):** invitations and shares to a served subfolder. An account makes no folder on a laptop | `local/invites.rs`, `shares.rs` |
+| One access model (0113) | **Works**: `may()` for accounts and phones. The lock on what is not served holds for every non-owner (built); its meaning changes with D2 (R1) | `access.rs:23-31` |
+| Tables (0110 phase 1) | **Works** from the seat (S4 `32bacc553`), N per served folder; in a served subfolder **R1** (the code's `[OPEN]` of S4) | `local/seat.rs` |
+| Chat, rolls, secret rolls, 3D dice (0107) | **Works**; through the link PASS (secret roll at the protocol) | `collab_dice.rs` |
+| Images at the table | **Works**; the table's limit binds, not Cloudflare (none up to 120 MiB) | `table_image.rs` |
+| Music and shared audio (0116) | **Works**, the game master alone controls; a short share PASS through the link; a ten-minute share not yet tried (manual check) | `audio_relay.rs` |
+| Notifications (0084) | In the window: works. The system's: through the link yes, on the network's own certificate no | `web/plainHttp.ts` |
+| The phone offline (0092) | Through the link PASS; a quick link's origin dies with it, the own address keeps it | `web/offline/manager.ts` |
+| Trash, history (0080, 0091) | **Works** | `allow.rs` |
+| Admin console, quotas (0077) | **Not on this computer** `[DECIDED 2026-11-03]`: Settings is the console | — |
+| The web window on a phone (0076) | **Works**; cold load peaks at 52 requests in flight (cap 200), no 429 | — |
+| Read links (0105) | **Built** (S12 `dbebb66b5`, a switch, off at first); never into what is not served | `readlinks.rs`, `local/read_links.rs` |
+| Sign-in by mail, "forgot the password" | **Out** `[DECIDED 2026-11-03]`; the owner makes a new-password link (`27eece626`) | `local/players.rs` |
+| Passkeys, tokens (0074 items 3, 8) | **Built** (S13 `cd5bc9289`); a passkey only through the link; a quick link's passkey dies with it | `passkeys.rs` |
+| The owner's own browser or phone through the link (D5) | **No**: pairing is the network's; **R3** after D14 (b) | `local/routes.rs` |
+| A UniVerso's own Cloudflare link (D4) | **New**: **R5** | — |
 
-### D10. "My own address" `[DECIDED 2026-11-03]`: a named Cloudflare Tunnel, and what the person does by hand
+### D10. "My own address": a named Cloudflare Tunnel `[DECIDED 2026-11-03]`
 
-Read on 2026-11-03 from Cloudflare's "Create a locally-managed tunnel" page
-and the `cloudflared` source (`cmd/cloudflared/tunnel/{login,subcommands,cmd}.go`,
-`config/configuration.go`), and Tailscale's Funnel page. Nothing was run.
+A fixed address is in this feature (*"deveria ser fácil"*), on the person's
+Cloudflare account and a domain whose nameservers are at Cloudflare. By
+hand: own the domain, add it to Cloudflare, click through the login, type
+the hostname. By the app: `cloudflared tunnel login` (`cert.pem` stays in
+`~/.cloudflared`, read through `--origincert`, never copied), `tunnel
+create --credentials-file <config>/tunnel/<uuid>.json` (`0600`), `tunnel
+route dns`, `tunnel run --url http://127.0.0.1:<port>`, `tunnel delete`. No
+twelve-hour stop; follows *Keep on at start*. Built (S5b `8453abd86`, S6b
+`2efa3056b`, S7b `59ac81d77`; forgetting removes the credentials,
+`4c92cd24c`). Tailscale Funnel discarded. The own-address spike has not run
+(`8453abd86`): the readers of `cloudflared`'s words are from its source.
 
-- **(a) A named Cloudflare Tunnel on the person's own account and domain.**
-  Facts: it needs a Cloudflare account and **a domain whose nameservers are
-  at Cloudflare** (free plan; the Zero Trust dashboard is not needed; every
-  step is `cloudflared`'s). The steps and who does them:
-  1. The person owns a domain and adds it to Cloudflare (by hand, once; the
-     app links to Cloudflare's "Add a website" page and says what to do).
-  2. `cloudflared tunnel login` — the app runs it; it opens
-     `https://dash.cloudflare.com/argotunnel` in the browser, the person
-     signs in and picks the domain; `cloudflared` writes `cert.pem` into its
-     own directory (`~/.cloudflared` on every system; the login command has
-     no flag to put it elsewhere and does not overwrite one that exists).
-     That file is the person's Cloudflare credential, as the CLI leaves it;
-     the app reads it through `--origincert`/`TUNNEL_ORIGIN_CERT` and never
-     copies it.
-  3. `cloudflared tunnel create <name> --credentials-file <app data dir>/tunnel/<uuid>.json`
-     — the app runs it; the tunnel's own credentials stay in the app's data
-     directory, `0600`.
-  4. `cloudflared tunnel route dns <name> <hostname>` — the app runs it with
-     the hostname the person typed (`mesa.example.com`): a CNAME to
-     `<uuid>.cfargotunnel.com`.
-  5. `cloudflared tunnel run --no-autoupdate --url http://127.0.0.1:<port> --credentials-file … <name>`
-     — the app runs it at each start of the box (`--url` is a flag of
-     `tunnel run`, `configureProxyFlags`); the same binary, the same
-     loopback listener, the same proxy and `Host` rules as the quick link,
-     the hostname being the person's. `cloudflared tunnel delete` when the
-     person forgets the address.
-  By hand: own a domain, add it to Cloudflare, click through the login,
-  type the hostname. By the app: everything else. The same pinned binary;
-  no new dependency.
-- **(b) Tailscale Funnel.** Facts: Tailscale installed and signed in on the
-  laptop (on macOS the open-source variant, not the App Store app),
-  MagicDNS and HTTPS certificates on, the Funnel attribute approved in the
-  tailnet's policy (the CLI opens a page for it; owner or admin rights),
-  `tailscale funnel <port>`; the address is `<machine>.<tailnet>.ts.net`;
-  ports 443, 8443 and 10000 only; "currently in beta"; "non-configurable
-  bandwidth limits"; WebSocket support not stated; certificates may take
-  minutes and are rate-limited by Let's Encrypt. The app can detect
-  `tailscale` (it already does, D2 item 5 (d)) and run the command; the
-  person installs Tailscale and approves the policy.
-- **(c) The UniVerso on a host**: exists ([0073](0073-self-hosted-server-first.md)); outside this feature.
-- **Decided 2026-11-03: (a)** (*"Sim para todas"*); (b) is discarded, see
-  below. (a) uses the binary and
-  the code the quick link already has; the person's own domain is the
-  address they wanted; the steps by hand are the ones no program can do for
-  them. A test checks that the app never reads or writes outside
-  `~/.cloudflared/cert.pem` and its own data directory.
-- **The twelve hours** `[DECIDED 2026-11-03]`: the own address has no
-  twelve-hour stop and follows *Keep on at start* (it is the person's
-  account and domain; a stable link is meant to stay up, as Foundry does);
-  the quick link keeps 12 hours and is never kept on.
-- **Build** (in D8): S5b the named tunnel in the manager (login,
-  create, route dns, run, delete; the hostname and the tunnel's uuid in
-  `LocalSettings`); S6b `local_server_link_mode` (`quick` | `own`) and
-  `local_server_own_address`; S7b *Use my own address* under the link box,
-  with the hostname field, the three by-hand steps written where the person
-  reads them, and the state of the DNS record; S8b the lesson's section.
-- **Spike** (in D5): from the maintainer's Mac, the login from a
-  spawned process lands `cert.pem` where expected and the browser flow
-  completes; create, route dns and run with `--credentials-file` in a
-  chosen directory; how long until the hostname resolves; the WebSocket and
-  the table through the named tunnel as through the quick one; `tunnel
-  delete` leaves the DNS record or not (then the app removes it, or says
-  so).
+### D11. The internet link (from 0111; was D3, items kept) — built
 
-### D5. The first build step is the spike (from 0111 item 12)
+1. What the link serves: what is shared, by D1; nothing by default.
+2. Accounts in the local server; a player invited by a single-use link
+   (7 days), accepts with an e-mail-shaped identifier, a name, a password
+   (nothing mailed); the owner is the local server's admin; a paired phone
+   is a device of the owner. Built (S3).
+3. With the link on, the one server also listens on `127.0.0.1`, a random
+   port, plain HTTP, loopback peers only; with both boxes, both listeners.
+   Built (S2 `780e2cadc`).
+4. `127.0.0.1` and `::1` are named trusted proxies on that listener only;
+   the rightmost `X-Forwarded-For` (unforgeable, spike S0.5) keys every
+   limit; `Host` and `Origin` are the link's alone; `Secure` from
+   `X-Forwarded-Proto`; handed-out links carry the link's origin. Built.
+5. `cloudflared` 2026.10.3, downloaded on first use from GitHub's releases
+   only, pinned per system (on macOS the `.tgz`'s and the binary's
+   SHA-256), into the app's data directory, never `PATH`; one download at a
+   time (`29340f43f`); run by the Tauri host (`app/src-tauri/src/tunnel/`),
+   never by `verso-server`. `flate2` + `tar`. Built (S5).
+6. Never kept on across starts; a new quick link each run; visible in the
+   status mark, the tray (macOS, Windows), Settings with *Copy*, a QR and
+   the time left; stops on *Stop*, quit (Job Object on Windows, a watcher
+   on Unix), after **12 hours on the wall clock** (`812a26caf`) with
+   *Extend*, and when `cloudflared` ends (offline, no restart); *Stop*
+   during the first download starts nothing (`e08eafd57`). QUIC, then
+   HTTP/2 when no registration in 10 s. Players' pages say "offline" and
+   retry (`64eeb999b`).
+7. Quick Tunnels are testing-mode: 200 requests in flight, an origin
+   answer cut at ~100 s, a WebSocket cut now and then (the window
+   reconnects). The box says *testing mode*.
+8. Security: 0083's limits on the forwarded address; nothing outside what
+   is served; desktop-only commands never served; no link, cookie or
+   password in a log; each guardrail seen failing before merge.
+9. Both languages, keyboard, screen reader, 390×844 for a player's phone.
+10. The lesson *Mesa pela Internet* / *A Table over the Internet* (39).
+11. *Rewritten by D4*: synced folders are served; a received share is not.
 
-A script, no product code (`~/.cache/verso-kit/tunnel-spike/`), whose
-results are written in "As built" before any code: the checksum and
-Gatekeeper on the downloaded binary; the exact stderr line that carries the
-URL; from a phone on mobile data, sign-in, a note, the table, a roll, an
-image, co-editing one note from two phones with cursors seen, a secret
-roll, a ten-minute shared-audio stream and a music track, and a WebSocket
-held idle for 30 minutes (the rows of D9 marked *spike*); from a second
-desktop app, the device sign-in through the link and a shared folder
-synced and co-edited; a passkey registered and used through the link;
-which forwarded header a client cannot forge; the first upload size that fails; `429` on a cold load
-of the window; whether the child outlives a killed parent. **If the
-WebSocket fails through a Quick Tunnel, nothing is built on it** and D6 is
-brought forward.
+The link's share of the laptop's 64 connections (`c0ce21237`): the link at
+most 32; network and link together at most 56, 8 kept for the owner's
+window; 8 WebSockets per account, phone or read link; 16 per address. The
+numbers are `[OPEN]` (D14, the build's list).
 
-### D6. The fixed address is part of this feature `[DECIDED 2026-11-03]`
+### D12. The network (from 0096; was D2) — built, unchanged but two items
 
-0111 item 13 left a stable address to "a later official mode" and a future
-ADR, with three candidates listed on 2026-10-23 (*"perfeita a lista para
-modo oficial"*): (a) a named Cloudflare Tunnel on the person's own account
-and domain; (b) Tailscale Funnel; (c) the UniVerso on a host
-([0073](0073-self-hosted-server-first.md)). On 2026-11-03 the maintainer
-pulled it into this feature: *"a pessoa pode configurar um DNS fixo se
-quiser, e deveria ser fácil"*. So the link box has two forms — a **quick
-link** (random, new each run; the default) and **my own address** (stable,
-the person's) — and which mechanism serves the second is D10. This changes
-0111 item 13 and D3 as written on 2026-10-23: (c) stays what it is, the
-UniVerso itself, outside this feature.
+Off by default, on until quit, *Keep on at start*; private addresses only,
+stop when the set changes; one random port, kept; own ECDSA certificate
+(398 days) or the host's files, TOFU said in words; pairing by one 256-bit
+token, 2 minutes, QR or 8-letter code, *Was it you?*, three attempts; mDNS
+only while pairing; sleep resumes on the same addresses; a phone runs an
+allowlist, reader or editor, never owner; 64 connections, 16 per address,
+4 phones; the audit log; *Revoke*, *Stop serving*, *Forget all devices*,
+*Replace this computer's identity*; state in the configuration directory,
+`0600`; OpenSSL on Windows; both languages (`crates/verso-server/src/local/`,
+`app/src-tauri/src/local_server/`). **Changed:** 0096 item 2 (the folders
+ticked in Settings, whole or in part) by D2. **Gone:** 0096 item 11 by D4.
 
-### D7. A contradiction recorded, not resolved
+### D13. Decided 2026-11-03 (was D4; *"gosto de todas sugestões"*) — built
 
-[0107](0107-the-table-a-shared-roll-and-chat-log.md) item 9 (accepted as
-built 2026-10-28) says that *on a desktop serving its folder the desktop is
-the server and holds the table*. The desktop's window has no table on any
-folder of this computer (`app/src-tauri/src/table.rs:14-27`); only the
-phones' half of the sentence is true today. Q3 makes it true from the
-owner's side when built; 0107's sentence is left as written until then.
+- **Q2** Two boxes under one switch; the link may run alone, on loopback.
+- **Q3** The owner's window sits at the table as a client of its own server,
+  through an in-memory door (no socket), with an owner session minted in
+  process; *Sentar à mesa* / *Sit at the table*. Built (S4).
+- **Q4** The owner's click in the app is the fresh proof; no owner password.
+- **Q5** A player's identifier is an e-mail-shaped string; nothing is sent.
+- **Q6** Twelve hours, with *Extend*. **Q7** `flate2` + `tar`.
+- **Q8** Invitations on the network too, with the TOFU warning in words.
+- **Q9** The spike on the maintainer's OK; run 2026-11-03 by an Opus session
+  on VM 107 with his authorisation, not from his Mac (As built).
 
-### D8. The build, in order (one commit each; from the plan)
+### D14. Open `[OPEN]` — the maintainer's to answer; a recommendation each
 
-S1 these documents; S2 the loopback listener, the named loopback proxy, the
-runtime `Host`/origin; S3 accounts in the local server (owner admin, the
-routes, `who()`, the hide lock for accounts, the invitations list); S4 the
-owner's session and *Sit at the table*; S5 the `cloudflared` manager
-(fetch, verify, run, parse, stop, Job Object, ceiling); S6 contract types
-and commands (`local_server_link_on/off`, `local_server_invite`,
-`local_server_invitations`, `local_server_invitation_revoke`,
-`local_server_sit_at_table`; `build.rs` and `capabilities/default.json`;
-bindings regenerated; harness); S7 the UI, the web sign-in beside pairing,
-the offline page, the tray words; S8 changelog, the lesson, the walkthrough,
-manual checks per OS with one line per row of D9; S5b, S6b, S7b and S8b the own address (D10); S11 the device sign-in routes and page in the local table for accounts, so a desktop app connects and syncs a shared folder (0074 item 8, 0079, 0082; phones still refused `sync_*`; tests: a device token of an account opens its share, a phone's cannot, the owner's in-process token of S4 is not listed as a device); S12 read links in the local server (`readlinks.rs` refusals lifted for the owner; the hide lock of G8 judged for a link's reader; test: a link never opens a part's folder); S13 passkeys and tokens for accounts (routes added; the bearer refusal narrowed to phones; passkeys only on a secure origin, said in words on the network); S9 the guardrails seen failing; S10 the closing checks
-on the three systems and the beta installed on the maintainer's OK.
+- **(a) Moving a table to the other host once players joined.**
+  Recommended: allowed; players are invited again on the new host; the old
+  host's chat, rolls and grants are not migrated and stay there until that
+  table is turned back into a folder (0110 item 1).
+- **(b) How the owner signs in through the link (D5).** Recommended: the
+  phone's pairing, offered on the link's sign-in page too — a code typed in
+  the browser, approved in the app (*Foi você?*), two minutes, three
+  attempts — making a device of the owner, reader or editor as 0096 item 12
+  says; no owner password.
+- **(c) A UniVerso's link turned on from the admin console (D4.2).**
+  Recommended: yes, plus an environment variable and `universo.sh` for a
+  server with no browser; a quick link keeps the 12 hours with *Extend*.
+  **Contradiction recorded, not resolved:** 0077 item 6
+  (`[DECIDED 2026-10-10]`) says no setting of the server is edited in the
+  console; a yes here changes it.
+- **(d) A readable route by name** (`/mesa/<slug>`). Recommended: not now;
+  each table's route is the existing `/?folder=<id>` — the opaque id is
+  the "hash" — on the host's link, copied from the table card; sign-in or
+  an invitation still required.
+- **(e) A game master who is not the admin invites new people (D7).**
+  Recommended: an account the admin lets make folders may also invite
+  people into tables of its own folders (reader, audited, in the console's
+  invitations). This changes 0081 item 4's revision of 2026-10-12.
+- **(f) The console shows every folder's name and members to the admin
+  (D7).** Recommended: keep it (space and quotas need the list); the
+  content stays closed and a self-grant is in the owner's audit; the
+  lesson says so in words.
+- **(g) A received share synced here is not served (D4.3).** Recommended:
+  confirm; said in words on the folder's page.
+
+Left `[OPEN]` by the build, the smallest choice kept in the code: an
+invited account never made owner of a laptop folder (`ab79feac8`); an
+invitation reads or edits, never owns (`49e1d91ed`); the connection
+numbers (`c0ce21237`); read links a switch, off (`dbebb66b5`); passkeys
+not on the network even with the host's own certificate files
+(`cd5bc9289`); the tunnel named `verso-<hostname>` (`2efa3056b`); with both
+boxes on, a change of network stops both (`780e2cadc`); the seat's address
+`https://this-computer.invalid` before any address exists (`32bacc553`);
+the admin's reset link ending sessions here and not on a UniVerso
+(`27eece626`); the `std::fs` exception for `tunnel/files.rs` awaiting
+ratification ([0029](0029-guardrails-in-ci.md); `8453abd86`).
+
+### D15. What is built on `feat/app-server`: stays, changes, goes
+
+| | What | Where |
+|---|---|---|
+| Stays | The network (D12 but two items), the link (D11), the own address (D10), accounts and invitations, the seat and the click as proof, shares from the seat, read links, device sync, tokens and passkeys, people managed, the connection shares, the sign-in and offline pages, the tray, the guardrail fixes | S2–S7c, S11–S13 |
+| Changes | **"Served in part" for phones → served subfolders for everyone**: a served subfolder can be invited to, shared, made a table and sat at; what is not served stays unreachable to every non-owner (the lock of `access.rs:23-31`, `shares::scope_for`, `readlinks::live`) | `local/parts.rs`, `db/local.rs` (the holder) |
+| Changes | **The folder list in Settings moves to the folder's page** (D2); Settings keep a read-only list. *Sit at the table* and *Invite* on the folder's card | `dialogs/servedFolders.ts`, `servedTree.ts`, `servedParts.ts`, `localServerSeat.ts`, `tableCard.ts` |
+| Changes | Invitations to "a served whole folder (or none)" → to any served folder, subfolder or table | `local/invites.rs`, `dialogs/localServerInvites.ts` |
+| Changes | Pairing only on the network → also through the link, after D14 (b) | `local/routes.rs`, `web/localTable.ts` |
+| Changes | Lessons 22, 23 and 39, the changelog's entries, the walkthrough and manual checks say the folder's page and synced folders | `demo-vault*/`, `CHANGELOG.md`, `docs/reference/` |
+| Goes | **The refusal of a synced folder** and its words | `local_server/platform.rs:195-199` (on tick), `check_not_synced` at `:296-316` and its callers (`:323`, `:348`, `:508`, `link.rs:55`); the words of `8c9a77376` |
+
+### D16. The build that remains (one commit each, with tests; was D8)
+
+| Step | What | Tier |
+|---|---|---|
+| R1 | Served subfolders for everyone: served roots instead of phone-only parts; invitations, shares, read links, tables and the seat on a served subfolder; what was ticked carries over. Tests: a player in A never reaches B or the rest (id, share, list, file, link, device); the owner's phones as before | Opus |
+| R2 | Synced folders served: the refusal removed; a received share refused (D4.3); the host chosen per table. Tests: a served synced folder; a player's edit synced up; both sides edited → conflict copy, both kept; a received share refused in words | Opus |
+| R3 | The owner through the link, after D14 (b). Tests: the code works only once approved in the app; limits by forwarded address; no owner role through it | Opus |
+| R4 | The folder's page: serve from this computer, the host for a synced folder, *Sit*, *Invite*, *Copy the table's link*; Settings' read-only list. Both languages, keyboard, 390×844, e2e in Docker | Sonnet |
+| R5 | A UniVerso's own link (D4.2): a spike first (finding a quick link's address with no window; a named tunnel on a headless server), then the runtime origin in `verso-server`, `cloudflared` in the `.deb`/`universo.sh`, Docker compose and ZimaOS, on and off after D14 (c). Tests: `Host`/`Origin` follow the runtime origin; a forged header moves no limit | Opus |
+| R6 | After D14 (e): a game master invites people into their own tables. Tests: never into another's folder; audited | Opus |
+| R7 | Docs: the lessons (22, 23, 39, and the UniVerso's 31 for its link), changelog, walkthrough, manual checks, threat-model rows (a synced folder served, a UniVerso's link); the site's wiki imported again | Sonnet |
+| R8 | The guardrails seen failing; the checks on the three systems; the beta installed on the maintainer's OK | Opus |
+
+### D17. 0107 item 9
+
+0107 item 9 says a desktop serving its folder holds the table. Since S4 the
+owner's window sits at that table, so the sentence now holds; 0107 is not
+edited.
 
 ## Consequences
 
-- One section, one switch, two boxes. A game master runs a table from the
-  laptop and sends a link; no host, no domain, no Cloudflare account. The
-  link changes each run.
-- The local server gains accounts, an admin owner, invitations and a
-  loopback HTTP listener; the owner's window can be a client of its own
-  server. The phones' allowlist, pairing and the LAN rules are untouched.
-- The app downloads and runs a third-party binary: a line in
-  [0050](0050-outbound-network-access.md) (one pinned host for the download;
-  the tunnel's outbound connection to Cloudflare while the box is ticked),
-  a notice on the Credits page, two new dependencies justified in the pull
-  request.
-- The laptop faces the internet while the link is on; the mitigations are
-  the box, loopback-only listening, the ceiling, the new link per run,
-  what is shared and nothing else, and 0083's limits keyed on the forwarded
-  address. The residual risk is a bug in the HTTP stack reachable by anyone
+- Serving is a property of a folder, set where its table is, as on a
+  UniVerso; Settings hold only the transport. A person runs tables on this
+  computer, on their UniVerso, or both, each with a Cloudflare link.
+- A folder that syncs can be served here: two hosts write one set of files,
+  meeting by the sync's rules, with no live room across them (D8). A table
+  is on one host at a time.
+- The UniVerso gains `cloudflared` in its packages and a runtime public
+  origin (R5): a new outbound reach for [0050](0050-outbound-network-access.md)
+  and new rows in the threat model.
+- D7's gaps wait for the maintainer (D14 (e), (f)) before any code.
+- The laptop faces the internet while a link is on; the mitigations are
+  D11's. The residual risk is a bug in the HTTP stack reachable by anyone
   with the link.
-- The feature depends on a free testing service with no guarantee; when it
-  changes, the link stops working until D6 exists.
-- Guardrails, each seen failing first: the pinned URL host and 64-hex sums;
-  no secret in the logs; `Host` of the link refused when the link is off; a
-  forged `X-Forwarded-For` moving no limit; a part's id refused to an
-  account; the allowlist table for every new command; the fuzz targets
-  still compiling; the host test that every new command is permitted.
-- Documents: the roadmap rows V.20 and V.45 point here; the threat model
-  gains rows under "The laptop as a server"; the walkthrough and the manual
-  checks their lines; 0096 and 0111 carry a pointer to this ADR and are
-  not edited further.
-- Cost: S for the process and the link, M for the loopback listener and
-  the proxy handling, M for accounts in the local server, M for the owner's
-  session and *Sit at the table*, plus the spike. Phase 3, V1.
+- Cost: R1 and R2 M each, R3 S, R4 M, R5 M plus its spike, R6 S, R7 M.
+  Phase 3, V1 (roadmap V.20, V.45).
 
 ## Discarded alternatives
 
 Only alternatives actually considered:
 
-- **Two separate switches** (0111 item 3 as accepted): discarded by the
-  maintainer on 2026-11-03 — one feature.
-- **Amending 0096 and 0111 in place** (the plan's Q1 (a)): discarded by the
-  maintainer — a superseding ADR, as `docs/adr/README.md` rule 6 asks.
-- **The link only with the network serving on**, or **always both** (Q2 (a),
-  (c)): discarded for the GM on a hotel Wi-Fi who wants nothing listening
-  on that network.
-- **Bridging the host's table commands into the in-process server** (Q3 (b)):
-  new code into `verso-server`'s internals and two windows on one folder.
-  **The GM in the browser at the local address** (Q3 (c)): a browser
-  session is a phone of the owner, reader or editor, never owner.
-- **An owner password for the fresh proof** (Q4 (b)).
-- **A name-only account kind** (Q5 (b)).
-- **The system's `tar`** or **bundling the binary in the installers** (Q7
-  (b), (c); the latter is 0111 item 5 (b), about 35 MB per platform).
-- **Invitations only while the link is on** (Q8 (b)).
-- **Tailscale Funnel for the own address** (D10 (b)): it needs Tailscale
-  installed and signed in (the open-source client on macOS), a policy
-  approval with admin rights, three fixed ports, is in beta with
-  non-configurable bandwidth limits and does not state WebSocket support;
-  the named Cloudflare Tunnel uses the binary and code the quick link
-  already has. Discarded 2026-11-03.
-- From 0111: port forwarding or UPnP (fails behind carrier-grade NAT); a
-  secret token in the URL instead of accounts (leaks through screenshots,
-  history, previews); downloading "latest" (an unpinned binary with no
-  check).
-- From 0096: none recorded (plain HTTP on the local network was ruled out
-  by 0073 item 6 before it).
+- **A new ADR superseding this one** ([README](README.md) rule 6): the
+  maintainer, 2026-11-04: *"pq fazer outra adr se essa aí tá toda errada?
+  vai gerar mais lixo se pensar que ela nem foi concluída ainda."*
+- **One host for everything** (all of a person's tables on this computer,
+  or all on the UniVerso): discarded by D4 — the host is chosen per table.
+- **Refusing a synced folder** (0096 item 11 (b), built): discarded by D4.
+- From 2026-11-03: two separate switches; the link only with the network
+  on, or always both; bridging the host's table commands into the server
+  (Q3 (b)); the game master in the browser as the owner (Q3 (c)); an owner
+  password (Q4 (b)); a name-only account (Q5 (b)); the system's `tar` or
+  the binary in the installers (Q7); invitations only while the link is on
+  (Q8 (b)); Tailscale Funnel (D10).
+- From 0111: port forwarding or UPnP; a secret token in the URL instead of
+  accounts; downloading "latest".
 
 ## Status
 
-**Accepted (2026-11-03)** for the decided content: D1 and Q1 in the
-maintainer's words; Q2 to Q9 as the plan recommended (*"gosto de todas
-sugestões"*); D2 as 0096 decided and built; D3 as 0111 decided on
-2026-10-23, read inside one feature; D6 (the fixed address inside this
-feature) in the maintainer's words of the same day; D10 and the four rows
-of D9 decided the same evening (*"Sim para todas"*). Written by Fable 5.1 on 2026-11-03
-from the plan and the maintainer's answers, on `docs/app-server`; **the text
-awaits the maintainer's reading**, and the other model's reading goes with
-the build pull request ([0032](0032-author-and-reviewer-roles.md)). The
-network half is built (0096's "As built", `feat/local-server-build`,
-`3a721c11`); the link, the accounts and the owner's seat at the table are
-not built; the first step is the spike (D5). How the superseded ADRs are
-archived is a question put to the maintainer; until it is answered, 0096
-and 0111 stay in place with their pointer lines.
+**Accepted (2026-11-03)**: the one feature, Q2–Q9, D9's rows and D10 in the
+maintainer's words of that day.
+
+**2026-11-04 rewrite.** Rewritten in place, not superseded, by the
+maintainer's decision: *"pq fazer outra adr se essa aí tá toda errada? vai
+gerar mais lixo se pensar que ela nem foi concluída ainda"* — the feature is
+unreleased and the ADR not concluded. This departs from [README](README.md)
+rule 6 for this ADR only, recorded here. D1–D8 are decided in his words of
+2026-11-04; D14 is open. Written by an Opus session on `feat/app-server`
+from `62b901672` and the build's commits; awaits the maintainer's reading;
+no Fable reading.
+
+## As built: the spike (2026-11-03)
+
+Run from `~/.cache/verso-kit/tunnel-spike/` (`RESULTS.md`) against a
+throwaway UniVerso on VM 107, clients through `*.trycloudflare.com`: the
+WebSocket held past 30 minutes idle (cut now and then, close 1006); wait for
+"Registered tunnel connection", not the URL line; QUIC blocked by a VPN,
+HTTP/2 connected in 7 s; the child outlives a killed parent (hence the
+watcher and the Job Object); two forwarded headers a client cannot forge;
+no upload bound from Cloudflare up to 120 MiB; cold load 52 in flight, no
+429; every D9 row reachable from a browser passed, the two failures being
+the same without the tunnel; a passkey is bound to the quick link's name.
+Not run: the own address, a ten-minute audio share, a real phone.
