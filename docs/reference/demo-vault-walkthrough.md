@@ -1293,8 +1293,10 @@ rest below and in `manual-checks.md`.
 
 15. This app is a server (note 28, *Parear o Celular com o Seu Computador*;
     [ADR 0096](../adr/archive/0096-this-app-is-a-server.md)): *Ajustes* › *Este app é
-    um servidor* offers the folders opened on this computer, none ticked; the
-    one that also syncs with a server cannot be ticked. Nothing ticked,
+    um servidor* offers the folders opened on this computer, none ticked; a
+    folder of one's own that also syncs with a server is ticked like any
+    other, and one another account shared with the person cannot be (its
+    row says so; 2026-11-04). Nothing ticked,
     *Ligar o servidor* refuses and says so; ticked, the first turn-on
     explains what the system will ask, serves, and the status bar shows
     *Servindo* with *Parar*. *Parear um celular* shows a QR, the address and

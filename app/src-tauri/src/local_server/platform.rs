@@ -63,6 +63,21 @@ pub(super) async fn blocking<T: Send + 'static>(
         })
 }
 
+/// The UniVerso a folder of this computer was shared from, when it syncs a
+/// folder another account owns there — a share received, or a folder
+/// whose owner gave this person a role — as the server last said this
+/// person's role (the sync's `seat`, ADR 0113 S8). Such a folder is not
+/// served from here (ADR 0081 item 4, decided 2026-10-10: a receiver does
+/// not share it again; ADR 0117 D4). A folder of one's own that syncs, or
+/// one whose role the server has not said yet, is served like any other
+/// (the maintainer, 2026-11-04): the sync carries what is edited here to
+/// the server, as any edit on this computer.
+pub(super) fn received_from(config: Option<&Path>, key: &str) -> Option<String> {
+    let state = sync::synced(config, key)?;
+    let role = state.seat.as_ref()?.get("role")?.as_str()?;
+    (!role.is_empty() && role != "owner").then(|| host_of(&state.server))
+}
+
 fn host_of(url: &str) -> String {
     url.split_once("://")
         .map_or(url, |(_, rest)| rest)
@@ -170,7 +185,7 @@ fn rows<R: tauri::Runtime>(
                 } else {
                     verso_core::served_attachments(&path, &parts)
                 },
-                syncs_with: sync::synced(config, &key).map(|s| host_of(&s.server)),
+                received_from: received_from(config, &key),
                 key,
             }
         })
@@ -200,10 +215,9 @@ pub(super) async fn tick<R: tauri::Runtime>(
             .into_iter()
             .find(|p| verso_core::folder_key(p) == key)
             .ok_or_else(|| "this computer does not know that folder".to_owned())?;
-        if ticked && let Some(s) = sync::synced(config, &key) {
+        if ticked && let Some(host) = received_from(config, &key) {
             return Err(format!(
-                "this folder also syncs with {}: open that address on the phone instead",
-                host_of(&s.server)
+                "this folder was shared with you on {host}: only its owner serves it"
             ));
         }
         let mut settings = local.settings()?;
@@ -299,9 +313,10 @@ pub(super) async fn settings<R: tauri::Runtime>(
     .await
 }
 
-/// Every ticked folder still free to serve: one that began to sync with a
-/// server since it was ticked is named and stops the start (item 11).
-pub(super) fn check_not_synced<R: tauri::Runtime>(
+/// Every ticked folder still free to serve: one this person received from
+/// another account since it was ticked ([`received_from`]) is named and
+/// stops the start, the pairing and the link.
+pub(super) fn check_not_received<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     local: &LocalServer,
 ) -> Result<(), String> {
@@ -309,14 +324,13 @@ pub(super) fn check_not_synced<R: tauri::Runtime>(
     let config = state.service.config();
     for path in local.settings()?.folders {
         let key = verso_core::folder_key(Path::new(&path));
-        if let Some(s) = sync::synced(config, &key) {
+        if let Some(host) = received_from(config, &key) {
             let name = Path::new(&path)
                 .file_name()
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_default();
             return Err(format!(
-                "{name} also syncs with {}: open that address on the phone instead, or untick it",
-                host_of(&s.server)
+                "{name} was shared with you on {host}: only its owner serves it; untick it"
             ));
         }
     }
@@ -328,7 +342,7 @@ pub(super) async fn start<R: tauri::Runtime>(
 ) -> Result<LocalServerStatus, ContractError> {
     let local = server(&app)?;
     blocking(move || {
-        check_not_synced(&app, &local)?;
+        check_not_received(&app, &local)?;
         local.start()?;
         status_of(&app, &local)
     })
@@ -353,7 +367,7 @@ pub(super) async fn pair_open<R: tauri::Runtime>(
 ) -> Result<LocalPairing, ContractError> {
     let local = server(&app)?;
     blocking(move || {
-        check_not_synced(&app, &local)?;
+        check_not_received(&app, &local)?;
         let v = local.pair_open_on(address.as_deref())?;
         Ok(LocalPairing {
             url: v.url,
@@ -513,7 +527,7 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         if !set.keep_on || set.folders.is_empty() || (!set.network && own.is_none()) {
             return;
         }
-        let mut started = check_not_synced(&app, &local);
+        let mut started = check_not_received(&app, &local);
         if set.network {
             started = started.and_then(|()| local.start().map(|_| ()));
         }

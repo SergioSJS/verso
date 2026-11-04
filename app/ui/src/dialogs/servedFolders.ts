@@ -58,7 +58,7 @@ export interface ServedOptions {
   /** The section's heading: it carries the ticked count. */
   heading: HTMLElement;
   /** The words of the row, from the section's own strings. */
-  syncsWith: (server: string) => string;
+  receivedFrom: (server: string) => string;
   locked: string;
   none: string;
   /** Tick or untick; the new list when it worked, `null` when it did not
@@ -151,7 +151,7 @@ export function servedFolders(opts: ServedOptions): Served {
     const partly = f.ticked && f.parts.length > 0;
     input.checked = f.ticked && !partly;
     input.indeterminate = partly;
-    input.disabled = serving || f.syncs_with !== null;
+    input.disabled = serving || f.received_from !== null;
     const label = h("label", "ls-check");
     label.htmlFor = input.id;
     label.append(input, h("span", "ls-name", f.name));
@@ -159,20 +159,20 @@ export function servedFolders(opts: ServedOptions): Served {
     const hints: HTMLElement[] = [];
     if (twins.has(f.name) && f.place !== "") hints.push(h("small", "ls-place", w.inPlace(f.place)));
     // What of a ticked folder is served, beside its name.
-    if (f.ticked && f.syncs_with === null) hints.push(h("small", "ls-place ls-serves", partly ? w.servesSome(f.parts.length) : w.servesAll));
+    if (f.ticked && f.received_from === null) hints.push(h("small", "ls-place ls-serves", partly ? w.servesSome(f.parts.length) : w.servesAll));
     hints.forEach((n, i) => {
       n.id = `ls-h-${f.key}-${i}`;
       row.append(n);
     });
     li.append(row);
-    if (f.syncs_with !== null) {
-      const why = h("p", "ls-help ls-why", opts.syncsWith(f.syncs_with));
+    if (f.received_from !== null) {
+      const why = h("p", "ls-help ls-why", opts.receivedFrom(f.received_from));
       why.id = `ls-n-${f.key}-0`;
       hints.push(why);
       li.append(why);
     }
     if (hints.length > 0) input.setAttribute("aria-describedby", hints.map((n) => n.id).join(" "));
-    if (f.ticked && f.syncs_with === null) {
+    if (f.ticked && f.received_from === null) {
       li.append(
         partsRow(
           {

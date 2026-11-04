@@ -188,7 +188,7 @@ export function localServerBody(_item: Item): HTMLElement {
   const foldersLead = h("p", "ls-help", w.foldersLead);
   const served = servedFolders({
     heading: foldersHead,
-    syncsWith: w.syncsWith,
+    receivedFrom: w.receivedFrom,
     locked: w.foldersLocked,
     none: w.noFolders,
     tick: async (key, ticked) => {

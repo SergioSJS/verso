@@ -965,7 +965,8 @@ export const commands = {
 	localServerFolders: () => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_folders")),
 	/**
 	 *  Tick or untick a folder (by its key). A folder that also syncs with a
-	 *  UniVerso cannot be ticked in V1 (item 11).
+	 *  UniVerso is ticked like any other; one shared with this person by
+	 *  another account is not (ADR 0081 item 4).
 	 */
 	localServerTick: (key: string, ticked: boolean) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_tick", { key, ticked })),
 	/**
@@ -3145,11 +3146,12 @@ export type LocalFolder = {
 	 */
 	attachments: string | null,
 	/**
-	 *  The server this folder also syncs with: such a folder cannot be
-	 *  served in V1 (item 11), and the row says to open that address on
-	 *  the phone instead.
+	 *  The UniVerso this folder was shared with this person from, when it
+	 *  syncs a folder another account owns there: such a folder is not
+	 *  served from here (ADR 0081 item 4; ADR 0117 D4). A folder of one's
+	 *  own that syncs has none and is served like any other.
 	 */
-	syncs_with: string | null,
+	received_from: string | null,
 };
 
 /**  One invitation of this computer's server, as the section lists it. */

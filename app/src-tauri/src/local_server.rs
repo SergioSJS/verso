@@ -62,7 +62,8 @@ pub(crate) async fn local_server_folders<R: tauri::Runtime>(
 }
 
 /// Tick or untick a folder (by its key). A folder that also syncs with a
-/// UniVerso cannot be ticked in V1 (item 11).
+/// UniVerso is ticked like any other; one shared with this person by
+/// another account is not (ADR 0081 item 4).
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn local_server_tick<R: tauri::Runtime>(

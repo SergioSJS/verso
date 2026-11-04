@@ -57,10 +57,12 @@ test("each refusal of the link's path is the host's own phrase and is said in wo
     assert.ok(rust.includes(phrase), `the host no longer says “${phrase}”`);
     assert.equal(L.linkWhy(`something: ${phrase} (detail)`, w), w.why[key], phrase);
   }
-  // A folder that also syncs with a server, as the start and the tick say it.
-  assert.ok(rust.includes("also syncs with {}: open that address on the phone instead"), "the host no longer refuses a synced folder that way");
-  assert.equal(L.linkWhy("verso-vault-test also syncs with 192.168.3.150:7340: open that address on the phone instead, or untick it", w), w.synced("verso-vault-test", "192.168.3.150:7340"));
-  assert.match(L.linkWhy("this folder also syncs with 192.168.3.150:7340: open that address on the phone instead", w), /192\.168\.3\.150:7340/);
+  // A folder shared with this person by another account, as the start and
+  // the tick say it; a folder of one's own that syncs is no refusal.
+  assert.ok(rust.includes("was shared with you on {host}: only its owner serves it"), "the host no longer refuses a received folder that way");
+  assert.ok(!rust.includes("also syncs with {}"), "the host refuses a folder for syncing");
+  assert.equal(L.linkWhy("verso-vault-test was shared with you on 192.168.3.150:7340: only its owner serves it; untick it", w), w.received("verso-vault-test", "192.168.3.150:7340"));
+  assert.match(L.linkWhy("this folder was shared with you on 192.168.3.150:7340: only its owner serves it", w), /192\.168\.3\.150:7340/);
   assert.ok(rust.includes("turn serving off to change which folders are served"));
   assert.equal(L.linkWhy("turn serving off to change which folders are served", w), w.why.servingLocks);
   // Anything else is errorSentence's.

@@ -258,10 +258,11 @@ pub struct LocalFolder {
     /// read-only and files only (Obsidian's own setting, read at each
     /// start); none when it names none, or overlaps a chosen folder.
     pub attachments: Option<String>,
-    /// The server this folder also syncs with: such a folder cannot be
-    /// served in V1 (item 11), and the row says to open that address on
-    /// the phone instead.
-    pub syncs_with: Option<String>,
+    /// The UniVerso this folder was shared with this person from, when it
+    /// syncs a folder another account owns there: such a folder is not
+    /// served from here (ADR 0081 item 4; ADR 0117 D4). A folder of one's
+    /// own that syncs has none and is served like any other.
+    pub received_from: Option<String>,
 }
 
 /// A phone paired with this computer.

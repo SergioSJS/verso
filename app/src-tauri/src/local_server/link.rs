@@ -16,7 +16,7 @@
 use verso_contract::{LocalInvitation, LocalLink};
 use verso_server::local::LocalSettings;
 
-use super::platform::{blocking, check_not_synced, server, status_of};
+use super::platform::{blocking, check_not_received, server, status_of};
 use super::*;
 
 /// Seconds since 1970 as the contract's `u32` (until 2106).
@@ -51,7 +51,7 @@ pub(super) async fn link_on<R: tauri::Runtime>(
 ) -> Result<LocalLink, ContractError> {
     let local = server(&app)?;
     blocking(move || {
-        check_not_synced(&app, &local)?;
+        check_not_received(&app, &local)?;
         let set = local.settings()?;
         let view = match (set.link_own, set.own_address) {
             (true, Some(own)) => crate::tunnel::own_on(&app, &own.tunnel, &own.hostname)?,

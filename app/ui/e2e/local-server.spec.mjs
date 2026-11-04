@@ -21,13 +21,15 @@ test("it is off, serves only the ticked folders, and says what the system will a
   await section(app);
   const body = page.locator(".settings-body");
   await expect(body.getByText("Desligado.")).toBeVisible();
-  // None comes ticked; the one that also syncs with a server cannot be.
+  // None comes ticked. A folder that syncs with a server is ticked like any
+  // other (the host's tests); one shared with this person by another
+  // account cannot be: its owner serves it.
   const vault = body.getByRole("checkbox", { name: /^Vault/ });
   await expect(vault).not.toBeChecked();
   // The others are in the shut group of recent folders.
   await body.locator("details.ls-recent summary").click();
   await expect(body.getByRole("checkbox", { name: "Compartilhada" })).toBeDisabled();
-  await expect(body.getByText("também sincroniza com notas.exemplo: abra esse endereço no celular")).toBeVisible();
+  await expect(body.getByText("compartilhada com você em notas.exemplo: só quem é dona dela pode servi-la")).toBeVisible();
   // Nothing ticked: it will not start, and says so where the button is.
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
@@ -298,7 +300,7 @@ test("many folders are listed as in the folder switcher: the command's order, no
   await expect(body.getByText("Nenhuma pasta combina com o filtro.")).toBeVisible();
   await filter.press("Escape");
   await expect(filter).toHaveValue("");
-  // The folder that syncs with a server says why its box is off, on its row.
+  // The folder shared with this person says why its box is off, on its row.
   await expect(body.getByRole("checkbox", { name: "Compartilhada" })).toHaveAccessibleDescription(/notas\.exemplo/);
   // A phone's width: nothing runs off the side.
   await page.setViewportSize({ width: 360, height: 700 });

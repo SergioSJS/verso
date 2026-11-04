@@ -62,8 +62,8 @@ export class LocalServerHarness {
   private dropped: string[] = [];
   /** Folders the harness knows, one of them syncing with a server. */
   private folders: LocalFolder[] = [
-    { key: "harness", name: "Vault", place: "", ticked: false, parts: [], missing: [], attachments: null, syncs_with: null },
-    { key: "synced", name: "Compartilhada", place: "", ticked: false, parts: [], missing: [], attachments: null, syncs_with: "notas.exemplo" },
+    { key: "harness", name: "Vault", place: "", ticked: false, parts: [], missing: [], attachments: null, received_from: null },
+    { key: "synced", name: "Compartilhada", place: "", ticked: false, parts: [], missing: [], attachments: null, received_from: "notas.exemplo" },
     // As the maintainer's list: many folders, two of the same name, told
     // apart only by the directory they are in (a name, never a path).
     ...[
@@ -77,7 +77,7 @@ export class LocalServerHarness {
       ["Diario", "Documents"],
       ["Estudos", "Documents"],
       ["Projetos", "code"],
-    ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, parts: [], missing: [], attachments: null, syncs_with: null })),
+    ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, parts: [], missing: [], attachments: null, received_from: null })),
   ];
   private maxConnected = 4;
   private fingerprint = "AB:CD:EF:01:23:45:67:89";
@@ -285,7 +285,7 @@ export class LocalServerHarness {
       const folder = this.folders.find((f) => f.key === key);
       if (this.serving) refuse("turn serving off to change which folders are served");
       if (!folder) refuse("this computer does not know that folder");
-      if (a["ticked"] === true && folder.syncs_with) refuse(`this folder also syncs with ${folder.syncs_with}: open that address on the phone instead`);
+      if (a["ticked"] === true && folder.received_from) refuse(`this folder was shared with you on ${folder.received_from}: only its owner serves it`);
       // As the host: unticking forgets what was chosen inside a folder;
       // ticking it again while it is ticked changes nothing.
       if (a["ticked"] === true) this.ticked.add(key);
