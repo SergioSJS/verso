@@ -138,6 +138,24 @@ impl Slots {
         })
     }
 
+    /// Another listener's places beside these: the same connections in all
+    /// (the 64 of ADR 0096 item 13 are the one server's, whichever listener
+    /// a connection came in by), with its own test of who may connect —
+    /// the internet link's loopback listener admits loopback alone, the
+    /// network's never (ADR 0117 D3 item 3).
+    #[must_use]
+    pub fn beside(self: &Arc<Self>, admit: Admit) -> Arc<Self> {
+        Arc::new(Self {
+            all: Arc::clone(&self.all),
+            most: self.most,
+            by_address: Mutex::new(HashMap::new()),
+            per_address: self.per_address,
+            trusted: self.trusted.clone(),
+            admit: Some(admit),
+            said: Mutex::new(None),
+        })
+    }
+
     /// A place for a connection from `ip`, or none — the connection is
     /// then closed before anything is read from it.
     pub fn take(self: &Arc<Self>, ip: IpAddr) -> Option<Slot> {

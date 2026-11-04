@@ -332,7 +332,7 @@ fn peer_of(
     }
     let ip: std::net::IpAddr = remote.parse().unwrap();
     let remote = SocketAddr::new(ip, 5000);
-    crate::auth::peer(server, &headers, remote)
+    crate::auth::peer(server, &headers, remote, false)
 }
 
 #[test]

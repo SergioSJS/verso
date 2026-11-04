@@ -978,7 +978,7 @@ async fn invite(
             ok: true,
         });
         Ok(CampaignInvite {
-            link: crate::window_link(&s.config, &format!("/invite/{token}")),
+            link: crate::window_link(&s, &format!("/invite/{token}")),
             expires: u32::try_from(inv.expires).unwrap_or(u32::MAX),
         })
     })

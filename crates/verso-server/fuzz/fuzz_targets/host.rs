@@ -155,7 +155,7 @@ fuzz_target!(|data: &[u8]| {
         )
     });
 
-    let p = peer(server, &headers, SocketAddr::new(remote, 50_000));
+    let p = peer(server, &headers, SocketAddr::new(remote, 50_000), false);
     // With no public address only a name a public page cannot rebind is
     // answered (an IP, one label, `.local`, `.home.arpa`), or any name when
     // a proxy the host *named* forwarded the request: the default list

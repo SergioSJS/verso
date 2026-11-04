@@ -390,14 +390,14 @@ fn an_untrusted_local_proxy_is_said_once_a_minute() {
         let plain = axum::http::HeaderMap::new();
         let local: std::net::SocketAddr = "127.0.0.77:5000".parse().unwrap();
         let away: std::net::SocketAddr = "198.51.100.77:5000".parse().unwrap();
-        crate::auth::peer(&r.server, &plain, local);
-        crate::auth::peer(&r.server, &forwarded, away);
+        crate::auth::peer(&r.server, &plain, local, false);
+        crate::auth::peer(&r.server, &forwarded, away, false);
         assert!(
             crate::log::said("from 127.0.0.77").is_empty(),
             "nothing forwarded from here"
         );
         for _ in 0..3 {
-            let peer = crate::auth::peer(&r.server, &forwarded, local);
+            let peer = crate::auth::peer(&r.server, &forwarded, local, false);
             assert_eq!(peer.addr, local.ip(), "the header is still not believed");
         }
         let lines = crate::log::said("from 127.0.0.77");

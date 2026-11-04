@@ -82,7 +82,10 @@ pub struct Presented {
 /// not let in: the laptop is asked (item 6, point 3).
 async fn pair(ctx: Ctx, Json(body): Json<Presented>) -> ApiResult<Response> {
     let policy = local(&ctx)?;
-    if !policy.pairing_open(Instant::now()) {
+    // A phone pairs on the network, never through the internet link: there
+    // the route answers as an unknown one does (ADR 0096 items 3 and 6;
+    // ADR 0117 leaves pairing as it was).
+    if ctx.peer.link || !policy.pairing_open(Instant::now()) {
         return Err(ApiError::not_found());
     }
     // From a page of this server: a page of another site cannot ask.
@@ -115,6 +118,9 @@ pub struct Poll {
 /// handed over once, in its cookie.
 async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
     let policy = local(&ctx)?;
+    if ctx.peer.link {
+        return Err(ApiError::not_found());
+    }
     if !auth::origin_ok(&ctx.server, &ctx.headers, &ctx.peer) {
         return Err(ApiError::forbidden("not from a page of this server"));
     }

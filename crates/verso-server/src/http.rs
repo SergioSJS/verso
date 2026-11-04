@@ -128,7 +128,8 @@ impl FromRequestParts<Arc<Server>> for Ctx {
             .extensions
             .get::<ConnectInfo<Remote>>()
             .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
-        let peer = auth::peer(server, &parts.headers, remote);
+        let link = crate::local::link::by_link(&parts.extensions);
+        let peer = auth::peer(server, &parts.headers, remote, link);
         // Over plain HTTP the session cookie is the plain-named one
         // (ADR 0073 item 6, amended 2026-10-16).
         let who = auth::who(server, &parts.headers, peer.https)?;
@@ -736,20 +737,15 @@ fn client_key(server: &Server, request: &Request) -> Option<String> {
         .extensions()
         .get::<ConnectInfo<Remote>>()
         .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
-    let client = server.config.trusted_proxy.client(
-        remote.ip(),
-        request
-            .headers()
-            .get_all("x-forwarded-for")
-            .iter()
-            .filter_map(|v| v.to_str().ok()),
-    );
     // This machine speaking for itself is not counted; a forwarded
-    // address is, even a loopback one (ADR 0083 item 7).
-    if auth::is_local(server, remote.ip(), &client) {
-        return None;
-    }
-    Some(crate::limit::address_key(client.addr))
+    // address is, even a loopback one (ADR 0083 item 7) — through the
+    // internet link's listener, by that listener's proxies (ADR 0117).
+    auth::client_key(
+        server,
+        request.headers(),
+        remote,
+        crate::local::link::by_link(request.extensions()),
+    )
 }
 
 /// The request's body read whole within [`BODY_WITHIN`] and [`API_BODY`],
@@ -800,7 +796,12 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         .extensions()
         .get::<ConnectInfo<Remote>>()
         .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
-    let peer = auth::peer(&server, request.headers(), remote);
+    let peer = auth::peer(
+        &server,
+        request.headers(),
+        remote,
+        crate::local::link::by_link(request.extensions()),
+    );
     if !auth::host_ok(&server, request.headers(), &peer) {
         // A browser at the server's old address is shown a page naming the
         // right one (ADR 0073, 2026-10-31); every other client gets the

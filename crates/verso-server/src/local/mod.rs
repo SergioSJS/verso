@@ -25,6 +25,7 @@ pub mod allow;
 pub mod announce;
 mod bind;
 pub mod cert;
+pub mod link;
 pub mod net;
 pub mod pairing;
 mod parts;
@@ -33,6 +34,8 @@ pub mod qr;
 mod routes;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_link;
 #[cfg(test)]
 mod tests_parts;
 #[cfg(test)]
@@ -123,6 +126,12 @@ pub struct LocalSettings {
     /// Phones connected at once, at most, `CONNECTED_LEAST..=CONNECTED_MOST`
     /// (item 13, amended 2026-10-16).
     pub max_connected: u32,
+    /// The box *On my network* (ADR 0117 D1, D4 Q2): serve on the private
+    /// addresses as ADR 0096 built. On by default — what serving was
+    /// before the link existed. Unticked, only the internet link serves,
+    /// on loopback; the link's own box is never kept (D3 item 6), so it is
+    /// not a setting.
+    pub network: bool,
 }
 
 impl Default for LocalSettings {
@@ -135,6 +144,7 @@ impl Default for LocalSettings {
             key_file: None,
             host_name: None,
             max_connected: CONNECTED,
+            network: true,
         }
     }
 }
@@ -168,6 +178,11 @@ pub struct Status {
     /// The folders chosen inside a served folder that this start left out
     /// for not being on the disk: (the folder's path, the chosen folder).
     pub dropped: Vec<(String, String)>,
+    /// The internet link's loopback listener's port, while it is open
+    /// (ADR 0117 D3 item 3): the address the tunnel is told.
+    pub link_port: Option<u16>,
+    /// The internet link's origin, once known.
+    pub link_origin: Option<String>,
 }
 
 /// What the pairing dialog shows.
@@ -230,6 +245,9 @@ struct Running {
     /// The result of the app's try at its own address (item 9): 0 not
     /// tried yet, 1 reached, 2 not reached.
     reach: Arc<std::sync::atomic::AtomicU8>,
+    /// The internet link's listener, while the link box is ticked; `nets`
+    /// is empty when it serves alone.
+    link: Option<link::Listener>,
 }
 
 impl Drop for Running {
@@ -399,32 +417,48 @@ impl LocalServer {
                 ..Status::default()
             });
         };
+        // Serving on the network, or by the link alone (ADR 0117 D1).
+        let lan = !r.nets.is_empty();
         Ok(Status {
             serving: true,
-            port: Some(r.port),
+            port: lan.then_some(r.port),
             addresses: r.nets.iter().map(|n| n.ip.to_string()).collect(),
             phones_paired: r.server.db.phone_count()?,
             phones_connected: r.policy.connected(),
             pairing_open: r.policy.pairing_open(Instant::now()),
-            fingerprint: Some(cert::spaced(&r.fingerprint)),
+            fingerprint: lan.then(|| cert::spaced(&r.fingerprint)),
             certificate: r.certificate.to_owned(),
             tailscale: r.tailscale,
             stopped_because: None,
             unreachable: r.reach.load(Ordering::Relaxed) == 2,
             max_connected: read_settings(&r.server.db).max_connected,
             dropped: parts::read_dropped(&r.server.db),
+            link_port: r.link.as_ref().map(|l| l.port),
+            link_origin: r.policy.link_origin(),
         })
     }
 
-    /// Turn serving on, over the folders ticked. `Err` says why it did not
-    /// start, in words the person reads.
+    /// Turn serving on, over the folders ticked, on the network (the box
+    /// *On my network*; the link opens with [`Self::link_open`]). `Err`
+    /// says why it did not start, in words the person reads.
     pub fn start(&self) -> Result<Status, String> {
+        self.start_with(false)
+    }
+
+    /// Serving on: on the network when its box is ticked, and on the
+    /// link's loopback listener when `link` (ADR 0117 D1, D4 Q2) — either,
+    /// or both; neither is no start.
+    fn start_with(&self, link: bool) -> Result<Status, String> {
         if lock(&self.shared.inner).is_some() {
             return self.status();
         }
         let settings = self.settings()?;
         if settings.folders.is_empty() {
             return Err("tick at least one folder to serve".to_owned());
+        }
+        let lan = settings.network;
+        if !lan && !link {
+            return Err("tick On my network, or turn the internet link on, to serve".to_owned());
         }
         // The window the phone's browser is served: without its files a
         // phone would get a blank page, so it is said here instead.
@@ -440,8 +474,13 @@ impl LocalServer {
         let all = self.shared.ifaces.list();
         // Best first: the default route's address, then real networks, then
         // virtual ones (a VPN's, ZeroTier's): `nets[0]` is what is shown.
-        let nets = net::rank(&self.addresses(&all), self.shared.ifaces.default_route());
-        if nets.is_empty() {
+        // The link alone listens on no address of the network.
+        let nets = if lan {
+            net::rank(&self.addresses(&all), self.shared.ifaces.default_route())
+        } else {
+            Vec::new()
+        };
+        if lan && nets.is_empty() {
             return Err(
                 "this computer has no private network address: join a Wi-Fi or Ethernet network, then turn it on again"
                     .to_owned(),
@@ -456,14 +495,16 @@ impl LocalServer {
         let served = parts::plan(&folders, &settings.parts)?;
         let reconciled = parts::reconcile(&db, &owner.id, &served)?;
         let ips: Vec<IpAddr> = nets.iter().map(|n| n.ip).collect();
-        // The certificate: the host's own files when given, else ours.
+        // The certificate: the host's own files when given, else ours. The
+        // link alone needs none: the tunnel ends HTTPS (ADR 0117 D3 item 4).
         let (fingerprint, certificate, acceptor) = match (&settings.cert_file, &settings.key_file) {
+            _ if !lan => (String::new(), "own", None),
             (Some(c), Some(k)) if !c.is_empty() && !k.is_empty() => {
                 let (c, k) = (PathBuf::from(c), PathBuf::from(k));
                 (
                     cert::from_files(&c, &k)?,
                     "files",
-                    crate::tls::acceptor(&c, &k)?,
+                    Some(crate::tls::acceptor(&c, &k)?),
                 )
             }
             _ => {
@@ -472,7 +513,7 @@ impl LocalServer {
                 (
                     id.fingerprint.clone(),
                     "own",
-                    crate::tls::acceptor_from(chain, key)?,
+                    Some(crate::tls::acceptor_from(chain, key)?),
                 )
             }
         };
@@ -483,7 +524,11 @@ impl LocalServer {
             .build()
             .map_err(|e| e.to_string())?;
         // One port for every address, kept once chosen (item 4).
-        let (listeners, port) = bind_all(&db, &nets)?;
+        let (listeners, port) = if lan {
+            bind_all(&db, &nets)?
+        } else {
+            (Vec::new(), 0)
+        };
         let policy = Policy::new(Arc::clone(&self.shared.events));
         policy.set_connected_most(settings.max_connected);
         let extra: Vec<String> = settings
@@ -519,11 +564,11 @@ impl LocalServer {
             (self.shared.events)(Event::Dropped { what });
         }
         policy.parts.set(reconciled);
-        let config = Config::for_local(
-            self.shared.dir.clone(),
-            ui_dir,
-            SocketAddr::new(nets[0].ip, port),
+        let listen = nets.first().map_or_else(
+            || SocketAddr::from(([127, 0, 0, 1], 0)),
+            |n| SocketAddr::new(n.ip, port),
         );
+        let config = Config::for_local(self.shared.dir.clone(), ui_dir, listen);
         let server = Server::new_local(
             config,
             db,
@@ -535,7 +580,9 @@ impl LocalServer {
         let _ = server.runtime.set(runtime.handle().clone());
         {
             let _enter = runtime.enter();
-            for std_listener in listeners {
+            // Each network listener with the one acceptor; the link alone
+            // has neither.
+            for (std_listener, acceptor) in listeners.into_iter().zip(acceptor.iter().cycle()) {
                 let tcp =
                     tokio::net::TcpListener::from_std(std_listener).map_err(|e| e.to_string())?;
                 let tls =
@@ -560,11 +607,30 @@ impl LocalServer {
             .iter()
             .map(|n| format!("{} ({})", n.ip, n.name))
             .collect();
-        crate::log::info(&format!(
-            "local server on: {}; port {port}; certificate: {certificate}; {} folder(s)",
-            on.join(", "),
-            settings.folders.len()
-        ));
+        let link = if link {
+            Some(link::open(runtime.handle(), &server)?)
+        } else {
+            None
+        };
+        if lan {
+            crate::log::info(&format!(
+                "local server on: {}; port {port}; certificate: {certificate}; {} folder(s)",
+                on.join(", "),
+                settings.folders.len()
+            ));
+        } else {
+            crate::log::info(&format!(
+                "local server on, by the internet link alone; {} folder(s)",
+                settings.folders.len()
+            ));
+        }
+        if let Some(l) = &link {
+            crate::log::info(&format!(
+                "the internet link's listener is open on 127.0.0.1:{}",
+                l.port
+            ));
+            policy.audit(&server, "link_on", None, None);
+        }
         policy.audit(
             &server,
             "local_on",
@@ -583,6 +649,7 @@ impl LocalServer {
             certificate,
             tailscale,
             reach: Arc::new(std::sync::atomic::AtomicU8::new(0)),
+            link,
         });
         *lock(&self.shared.last_stop) = None;
         self.spawn_watcher(id);
@@ -622,11 +689,16 @@ impl LocalServer {
     fn self_test(&self, id: u64) {
         let (addr, reach, policy) = {
             let running = lock(&self.shared.inner);
-            let Some(r) = running.as_ref().filter(|r| r.id == id) else {
+            // The link alone has no address of the network to try.
+            let Some((r, first)) = running
+                .as_ref()
+                .filter(|r| r.id == id)
+                .and_then(|r| Some((r, r.nets.first()?)))
+            else {
                 return;
             };
             (
-                SocketAddr::new(r.nets[0].ip, r.port),
+                SocketAddr::new(first.ip, r.port),
                 Arc::clone(&r.reach),
                 Arc::clone(&r.policy),
             )
@@ -650,8 +722,13 @@ impl LocalServer {
             let Some(r) = running.as_ref().filter(|r| r.id == id) else {
                 return false;
             };
-            let now_nets = self.addresses(&self.shared.ifaces.list());
-            let changed = !net::same_set(&now_nets, &r.nets);
+            // Only the network's listeners follow the network: the link
+            // alone listens on loopback and survives a change of Wi-Fi
+            // (ADR 0117 D1). Serving on both, a change stops both, as it
+            // did — [OPEN] for the maintainer: whether the link should
+            // stay up then (the smallest change kept the network's rule).
+            let changed = !r.nets.is_empty()
+                && !net::same_set(&self.addresses(&self.shared.ifaces.list()), &r.nets);
             if slept && !changed {
                 crate::log::info("the computer woke; the addresses are the same, serving goes on");
                 if r.policy.pairing_open(Instant::now()) {
@@ -733,8 +810,15 @@ impl LocalServer {
                 "{PAIRED} phones are paired already: revoke one before pairing another"
             ));
         }
+        // A phone pairs on the network (ADR 0096 items 3 and 6); the link's
+        // listener answers no pairing ([OPEN] for the maintainer, the
+        // smaller door kept: `routes.rs`).
+        let first = r
+            .nets
+            .first()
+            .ok_or_else(|| "pairing a phone is on your network: tick On my network".to_owned())?;
         let chosen_net = match address.filter(|a| !a.is_empty()) {
-            None => &r.nets[0],
+            None => first,
             Some(a) => r
                 .nets
                 .iter()

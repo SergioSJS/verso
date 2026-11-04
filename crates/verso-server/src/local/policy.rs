@@ -64,6 +64,12 @@ pub struct Policy {
     pub(super) full_said: Mutex<HashMap<String, Instant>>,
     /// The folders served in part (item 2, amended 2026-10-16).
     pub(super) parts: parts::Parts,
+    /// The internet link's public origin and the `Host` it carries, while
+    /// it has one (ADR 0117 D3 item 4): set at runtime, gone the moment
+    /// the link is off.
+    pub(super) link: RwLock<Option<super::link::Origin>>,
+    /// The named proxies of the link's loopback listener.
+    pub(super) link_proxies: crate::proxy::Proxies,
     /// Loopback let in as a peer, for the tests only.
     #[cfg(test)]
     pub(super) test_loopback: std::sync::atomic::AtomicBool,
@@ -85,6 +91,8 @@ impl Policy {
             connected_most: std::sync::atomic::AtomicU32::new(CONNECTED),
             full_said: Mutex::new(HashMap::new()),
             parts: parts::Parts::default(),
+            link: RwLock::new(None),
+            link_proxies: crate::proxy::Proxies::loopback(),
             #[cfg(test)]
             test_loopback: std::sync::atomic::AtomicBool::new(false),
         })
