@@ -61,7 +61,7 @@ O repositório fica privado enquanto o app amadurece; ele está na Fase 2 do
   páginas da web guardadas como notas, e arquivos HTML.
 - **Encontrar.** Busca no texto, abrir pelo nome, paleta de comandos,
   localizar e substituir em todas as notas, abas (fixas e de
-  pré-visualização), painéis lado a lado, áreas, e uma pasta por janela.
+  pré-visualização), painéis lado a lado, espaços de trabalho e uma pasta por janela.
 - **Do seu jeito.** Temas, paletas, fontes, idioma e os seus próprios
   atalhos.
 - **Agentes e terminal.** O comando `verso` indexa, busca e lista
