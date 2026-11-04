@@ -13,7 +13,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 #[cfg(unix)]
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use sha2::Digest;
 
@@ -724,6 +724,50 @@ fn the_ceiling_stops_a_quick_link() {
     );
     assert!(unix::gone_within(pid, Duration::from_secs(2)));
     assert_eq!(closed(&door).last().map(String::as_str), Some("close"));
+}
+
+/// The twelve hours are the wall clock's: a laptop that slept past them
+/// (a monotonic clock and a wait both stop in sleep) stops the link at the
+/// next look, not twelve waking hours later.
+#[cfg(unix)]
+#[test]
+fn the_ceiling_counts_the_hours_the_machine_slept() {
+    let dir = tempfile::tempdir().unwrap();
+    let program = unix::sleeping(dir.path(), "https://a.trycloudflare.com", "0");
+    let start = SystemTime::UNIX_EPOCH + Duration::from_secs(1_800_000_000);
+    let wall = Arc::new(Mutex::new(start));
+    let read = Arc::clone(&wall);
+    let m = Manager::with_clock(
+        |_: &LinkView| {},
+        unix::TIMING,
+        CEILING,
+        Clock {
+            now: Arc::new(move || *read.lock().unwrap()),
+            nap: Duration::from_millis(50),
+        },
+    );
+    let door = FakeDoor::default();
+    let on = m
+        .start(Box::new(door.clone()), &program, Mode::Quick)
+        .unwrap();
+    assert_eq!(
+        on.until_ms,
+        Some(1_800_000_000_000 + 12 * 3600 * 1000),
+        "twelve hours on the wall clock"
+    );
+    let pid = m.pid().unwrap();
+    // Eleven hours asleep: still on.
+    *wall.lock().unwrap() = start + Duration::from_secs(11 * 3600);
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(m.view().state, LinkState::On);
+    // The lid opens thirteen hours after the start.
+    *wall.lock().unwrap() = start + Duration::from_secs(13 * 3600);
+    let view = wait_for(&m, Duration::from_secs(3), |v| v.state == LinkState::Off);
+    assert_eq!(
+        (view.state, view.ended),
+        (LinkState::Off, Some(LinkEnd::Ceiling))
+    );
+    assert!(unix::gone_within(pid, Duration::from_secs(2)));
 }
 
 #[cfg(unix)]

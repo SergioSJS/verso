@@ -33,7 +33,7 @@ mod tests;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 use tauri::{Emitter, Manager as _};
@@ -42,6 +42,31 @@ use self::run::{Seen, Timing, Tunnel};
 
 /// The quick link's ceiling (D4 Q6): twelve hours, *Extend* re-arms it.
 pub const CEILING: Duration = Duration::from_secs(12 * 60 * 60);
+
+/// The longest the ceiling's watch sleeps before it reads the clock
+/// again: a wait stops while the machine sleeps, the wall clock does not.
+pub const NAP: Duration = Duration::from_secs(30);
+
+/// The clock the ceiling is measured on: the wall clock, which goes on
+/// while the machine sleeps (a monotonic clock stops there, and a laptop
+/// shut for the night would wake to a link with hours left), read at
+/// least once every `nap`.
+#[derive(Clone)]
+pub struct Clock {
+    pub now: Arc<dyn Fn() -> SystemTime + Send + Sync>,
+    pub nap: Duration,
+}
+
+impl Clock {
+    /// The system's wall clock, read every [`NAP`].
+    #[must_use]
+    pub fn system() -> Self {
+        Self {
+            now: Arc::new(SystemTime::now),
+            nap: NAP,
+        }
+    }
+}
 
 /// The event the window hears at each change of the link.
 pub const EVENT: &str = "local-server-link";
@@ -177,8 +202,8 @@ struct Running {
     origin: String,
     own: bool,
     protocol: String,
-    /// The ceiling (quick links only) and the same moment for the window.
-    deadline: Option<(Instant, u64)>,
+    /// The ceiling (quick links only), on the wall clock.
+    deadline: Option<SystemTime>,
 }
 
 enum Phase {
@@ -200,6 +225,7 @@ struct Shared {
     events: Events,
     timing: Timing,
     ceiling: Duration,
+    clock: Clock,
     generation: AtomicU64,
     /// Held while the door is opened, and while a stop takes the link
     /// down: a stop and an immediate start again never interleave (the
@@ -229,6 +255,16 @@ impl Manager {
         timing: Timing,
         ceiling: Duration,
     ) -> Self {
+        Self::with_clock(events, timing, ceiling, Clock::system())
+    }
+
+    /// The same, the ceiling measured on `clock`.
+    pub fn with_clock(
+        events: impl Fn(&LinkView) + Send + Sync + 'static,
+        timing: Timing,
+        ceiling: Duration,
+        clock: Clock,
+    ) -> Self {
         Self {
             shared: Arc::new(Shared {
                 phase: Mutex::new(Phase::Off(None)),
@@ -236,6 +272,7 @@ impl Manager {
                 events: Box::new(events),
                 timing,
                 ceiling,
+                clock,
                 generation: AtomicU64::new(0),
                 door_ops: Mutex::new(()),
             }),
@@ -394,12 +431,7 @@ impl Manager {
             return Err(why);
         }
         let pid = tunnel.pid();
-        let deadline = matches!(mode, Mode::Quick).then(|| {
-            (
-                Instant::now() + shared.ceiling,
-                epoch_ms(SystemTime::now() + shared.ceiling),
-            )
-        });
+        let deadline = matches!(mode, Mode::Quick).then(|| shared.deadline());
         let view = {
             let mut phase = lock(&shared.phase);
             if !matches!(&*phase, Phase::Starting { generation: g, .. } if *g == generation) {
@@ -459,8 +491,7 @@ impl Manager {
             if r.deadline.is_none() {
                 return Err("an own address has no ceiling".to_owned());
             }
-            let c = self.shared.ceiling;
-            r.deadline = Some((Instant::now() + c, epoch_ms(SystemTime::now() + c)));
+            r.deadline = Some(self.shared.deadline());
             view_of(&phase)
         };
         self.shared.wake.notify_all();
@@ -477,6 +508,11 @@ impl Drop for Manager {
 }
 
 impl Shared {
+    /// The ceiling from now.
+    fn deadline(&self) -> SystemTime {
+        (self.clock.now)() + self.ceiling
+    }
+
     fn emit(&self) {
         let view = view_of(&lock(&self.phase));
         (self.events)(&view);
@@ -588,7 +624,8 @@ impl Shared {
     }
 
     /// The quick link's ceiling: wait until it, as *Extend* moves it, then
-    /// stop.
+    /// stop. The wait is a nap at most, the wall clock read after each: a
+    /// machine that slept past the ceiling stops the link once it wakes.
     fn watch_ceiling(shared: Arc<Self>, generation: u64) {
         let spawned = std::thread::Builder::new()
             .name("link-ceiling".to_owned())
@@ -599,16 +636,18 @@ impl Shared {
                     if r.generation != generation {
                         return;
                     }
-                    let Some((at, _)) = r.deadline else { return };
-                    let now = Instant::now();
-                    if now >= at {
-                        drop(phase);
-                        shared.stop_if(Some(generation), LinkEnd::Ceiling);
-                        return;
-                    }
+                    let Some(at) = r.deadline else { return };
+                    let left = match at.duration_since((shared.clock.now)()) {
+                        Ok(left) if !left.is_zero() => left,
+                        _ => {
+                            drop(phase);
+                            shared.stop_if(Some(generation), LinkEnd::Ceiling);
+                            return;
+                        }
+                    };
                     phase = shared
                         .wake
-                        .wait_timeout(phase, at - now)
+                        .wait_timeout(phase, left.min(shared.clock.nap))
                         .map_or_else(|e| e.into_inner().0, |(g, _)| g);
                 }
             });
@@ -647,7 +686,7 @@ fn view_of(phase: &Phase) -> LinkView {
         Phase::On(r) => LinkView {
             state: LinkState::On,
             origin: Some(r.origin.clone()),
-            until_ms: r.deadline.map(|(_, ms)| ms),
+            until_ms: r.deadline.map(epoch_ms),
             own: r.own,
             ended: None,
             protocol: Some(r.protocol.clone()).filter(|p| !p.is_empty()),
