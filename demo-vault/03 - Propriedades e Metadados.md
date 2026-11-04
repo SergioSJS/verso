@@ -24,7 +24,7 @@ O Verso reconhece metadados escritos em formato YAML no início do arquivo (o ch
 Observe a tabela de propriedades no topo desta nota:
 
 1. **Recolher e expandir**: clique em **Propriedades**, no topo do painel, para recolher ou expandir a lista. O Verso lembra a sua escolha.
-2. **Edição no local**: clique num valor para mudar um texto ou um número, marque e desmarque uma caixa, e acrescente ou tire itens de uma lista (como as tags). Uma data é escrita como texto, no formato `AAAA-MM-DD`.
+2. **Edição no local**: clique num valor para mudar um texto ou um número, marque e desmarque uma caixa, e acrescente ou tire itens de uma lista (como as tags). Uma data é escrita como texto, no formato `AAAA-MM-DD` (numa nota tipada, cujo schema declara a data, o campo é um seletor de data — veja [[21 - Notas Tipadas]]).
 3. **Propriedade nova**: o botão **Adicionar propriedade** cria uma linha nova no painel.
 4. **Persistência limpa**: o que muda no painel é gravado no bloco YAML da nota, sem mexer no resto do texto. Para editar o YAML direto, use o modo **Fonte**.
 

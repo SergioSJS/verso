@@ -26,11 +26,12 @@ Find a note, a passage or a command, replace text in all notes at once, and go b
 
 ## Search the Notes (`⌘K`)
 
-The search first finds the notes whose **file name** has the words, and then the ones that have **all** the words in the text, as whole words — ignoring case and accents. `Enter` opens the first result; the **×** at the end of the field clears the search (on the phone, where there is no `Esc`). Three filters refine the search:
+The search first finds the notes whose **file name** has the words, and then the ones that have **all** the words in the text, as whole words — ignoring case and accents. `Enter` opens the first result; the **×** at the end of the field clears the search (on the phone, where there is no `Esc`). Four filters refine the search:
 
 - `tag:project` — the notes with the `#project` tag (and the tags inside it, like `#project/alpha`);
 - `path:projects` — the notes whose path contains `projects`;
-- `file:Alpha` — the notes whose name contains `Alpha`.
+- `file:Alpha` — the notes whose name contains `Alpha`;
+- `type:character` — the notes whose `type:` is `character` (see [[21 - Typed Notes]]).
 
 Try it: `tag:project interface`, or `path:Daily tasks`.
 
@@ -64,6 +65,8 @@ Each pane remembers where it has been: **‹** and **›** in the tab bar, `⌘[
 - **Bookmarks** — the notes marked with the star;
 - **Focuses** — the named roots of the file tree;
 - **Calendar** — the daily notes (see [[07 - Daily Notes, Calendar and Templates]]).
+
+At a table, the panel also has **Table** and **Music**. A tab is hidden or moved with a right click — see [[13 - Tabs, Panes, Workspaces and Windows]].
 
 The **star** beside a note's title puts it in the bookmarks. Above the title, the note's path shows the folders it is in: a click opens the folder.
 

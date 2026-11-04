@@ -24,7 +24,7 @@ Verso recognizes metadata written in YAML at the top of the file (the so-called 
 Look at the properties table at the top of this note:
 
 1. **Collapse and expand**: click **Properties**, at the top of the panel, to collapse or expand the list. Verso remembers your choice.
-2. **Editing in place**: click a value to change a text or a number, tick and untick a checkbox, and add or remove items from a list (like the tags). A date is written as text, in the `YYYY-MM-DD` format.
+2. **Editing in place**: click a value to change a text or a number, tick and untick a checkbox, and add or remove items from a list (like the tags). A date is written as text, in the `YYYY-MM-DD` format (in a typed note whose schema declares the date, the field is a date picker — see [[21 - Typed Notes]]).
 3. **New property**: the **Add property** button creates a new row in the panel.
 4. **Clean persistence**: what you change in the panel is written to the note's YAML block, without touching the rest of the text. To edit the YAML directly, use **Source** mode.
 

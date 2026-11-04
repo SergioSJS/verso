@@ -27,13 +27,14 @@ It is **one feature**, **Turn into a server**, with two boxes: serving **on your
 2. Under **Folders served**, tick the campaign's folder. None comes ticked. For a table, serve the **whole folder**: it is the one you will invite people to and sit at.
 3. Under **Where to serve**, tick **By an internet link (Cloudflare, testing mode)**. If you do not want to serve phones on your network, leave **On my network** unticked: with the link alone, the computer accepts nothing from your home network.
 4. Tap **Turn the server on**. **The first time**, Verso downloads **cloudflared**, Cloudflare's program that opens the link (about 40 MB), and checks its sum before using it. It takes a moment; the panel says what is happening.
-5. When **Link on.** shows, the panel gives the **Table address**, with **Copy link** and **Show the link's QR**. The status bar now says **Serving · internet link**, and the book icon in the Mac's menu bar (or Windows' notification area) gains a line **Internet link on**; on Linux there is only the status bar's mark.
+5. When **The link is up.** shows, the panel gives **The table's address**, with **Copy link** and **Show the link's QR**. The status bar now says **Serving · internet link**, and the **Verso icon** in the Mac's menu bar (or Windows' notification area) gains a line **Internet link on**; on Linux there is only the status bar's mark.
 
 The panel also says:
 
 - **Time left**: *Closes by itself in … h … min*. The link lasts **12 hours**. **Extend by 12 hours** keeps the **same link** for 12 more. Past the 12 hours without extending, the link closes and the panel says so; turn it on again for a new link.
 - **A quick link changes each time it turns on.** Send the new one to the people; invitations made before point to the old link.
 - If the network blocks UDP: *the link now uses HTTP/2*. It works the same, sometimes a little slower.
+- If the link **drops** in the middle of the session (cloudflared stopped), nothing turns it back on by itself: the panel says *Table offline*. Untick and tick the link's box to turn it on again — a quick link comes out different.
 - **cloudflared** is Cloudflare's, Apache-2.0 licence; the list is in **Settings › Credits**.
 
 ### If it does not turn on
@@ -42,7 +43,7 @@ The panel gives the reason in words. The usual ones:
 
 - *Could not download cloudflared from GitHub*: no internet, or GitHub did not answer. Check the connection and try again.
 - *The downloaded cloudflared does not match the sum Verso pins*: the file was refused and deleted. Try again later.
-- *cloudflared reached no Cloudflare server*: the network seems to block it. Try another network.
+- *cloudflared reached Cloudflare neither over QUIC (UDP) nor over HTTP/2*: the network seems to block it. Try another network.
 - *Cloudflare gave no link in time*: the testing service may be down. Try again in a moment.
 
 ---
@@ -51,7 +52,7 @@ The panel gives the reason in words. The usual ones:
 
 Under **Invite people**:
 
-1. Under **Folder**, choose the served folder (or **None (the account only)**), and under **Can**, **Read** or **Edit**.
+1. Under **Folder**, choose a folder served whole (one served only in part does not show) or **None (the account only)**, and under **Can**, **Read** or **Edit**.
 2. **Make an invitation**. The link shows **only once**: **Copy invitation** and send it to the person however you like. It is good for **7 days** and for **one person only**.
 3. The player opens the link, makes the account with **any e-mail of theirs** (**nothing is sent**: the e-mail is only a sign-in name), a name and a password, and then signs in at the table address.
 4. The **Invitations** list shows each one (waiting, accepted by…, ended, expired) and **End** closes one still waiting.
@@ -98,7 +99,7 @@ Then tick **Use my address for the link (instead of a quick link)** with the lin
 ## 5. Accounts, passwords and other apps
 
 - **Password or passkey:** on your **network**, people sign in with the **password**. A **passkey** only works through the internet link. A passkey made on a **quick link goes away with it**; on **your own address**, it stays.
-- **People invited:** the list shows who accepted an invitation — name, e-mail, the folders they reach and when they were last seen. Nothing is sent by e-mail, so whoever forgot their password asks you: **New password** makes a link that works **once, for 24 hours**, and is shown only then — copy it and send it yourself; the person's sessions end at once, and the old password works until they make the new one. **End sessions** disconnects their browser, apps and tokens (the password stays). **Remove** asks first and deletes the account with everything it reached; you can invite them again later. Turn the server on before asking for a new password: the link needs an address.
+- **People invited:** the list shows who accepted an invitation — name, e-mail, the folders they reach and when they were last seen. Nothing is sent by e-mail, so whoever forgot their password asks you: **New password** makes a link that works **once, for 24 hours**, and is shown only then — copy it and send it yourself; the person's sessions end at once, and the old password works until they make the new one. **End sessions** disconnects their browser, apps and tokens (the password stays). **Remove** asks first and deletes the account: they lose everything they reached here, and their apps and tokens stop at once (the notes stay); you can invite them again later. Turn the server on before asking for a new password: the link needs an address.
 - **Other people's Verso apps:** someone you invited can connect their own Verso (**Settings › Servers**) and sync the folder shared with them. Use the **link's address**: on the network, their Verso does not trust your computer's certificate and does not connect. The list shows each app with its name and the person, and **End** disconnects it. **Phones never sync**: they use the browser's window.
 - **Tokens:** whoever has an account can make, in the browser, a personal token for a program of theirs; it reaches only that account's folders, and never opens anything of the computer's owner.
 - **Your own phone:** pairing by QR is **on the network only**. With the link alone, **Pair a phone** is off and says why.

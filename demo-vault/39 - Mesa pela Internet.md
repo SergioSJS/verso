@@ -27,13 +27,14 @@ Você quer jogar com gente que não está na sua casa, sem alugar servidor nem e
 2. Em **Pastas servidas**, marque a pasta da campanha. Nenhuma vem marcada. Para a mesa, sirva a **pasta inteira**: é ela que você vai convidar e é nela que você vai sentar.
 3. Em **Onde servir**, marque **Por um link na internet (Cloudflare, modo de teste)**. Se não quiser servir celulares na sua rede, deixe **Na minha rede** desmarcada: com só o link, o computador não aceita nada pela rede da casa.
 4. Toque em **Ligar o servidor**. Na **primeira vez** o Verso baixa o **cloudflared**, o programa da Cloudflare que abre o link (cerca de 40 MB), e confere a soma dele antes de usar. Demora um pouco; o painel diz o que está acontecendo.
-5. Quando aparecer **Link no ar.**, o painel mostra o **Endereço da mesa**, com **Copiar link** e **Mostrar o QR do link**. A barra de status passa a dizer **Servindo · link na internet**, e o ícone do livro na barra de menus do Mac (ou na área de notificação do Windows) ganha uma linha **Link pela internet ligado**; no Linux fica só a marca da barra de status.
+5. Quando aparecer **Link no ar.**, o painel mostra o **Endereço da mesa**, com **Copiar link** e **Mostrar o QR do link**. A barra de status passa a dizer **Servindo · link na internet**, e o **ícone do Verso** na barra de menus do Mac (ou na área de notificação do Windows) ganha uma linha **Link pela internet ligado**; no Linux fica só a marca da barra de status.
 
 O painel também diz:
 
 - **Quanto falta**: *Fecha sozinho em … h … min*. O link dura **12 horas**. **Prorrogar por 12 horas** mantém o **mesmo link** por mais 12. Passou das 12 sem prorrogar, o link fecha e o painel avisa; ligue de novo para um link novo.
 - **Um link rápido muda a cada vez que liga.** Mande o novo às pessoas; os convites feitos antes apontam para o link antigo.
 - Se a rede bloqueia UDP: *o link passou a usar HTTP/2*. Funciona igual, às vezes um pouco mais devagar.
+- Se o link **cair** no meio da sessão (o cloudflared parou), nada religa sozinho: o painel diz *Mesa offline*. Desmarque e marque a caixa do link para ligar de novo — um link rápido sai diferente.
 - O **cloudflared** é da Cloudflare, licença Apache-2.0; a lista está em **Ajustes › Créditos**.
 
 ### Se não ligar
@@ -42,7 +43,7 @@ O painel diz o motivo em palavras. Os mais comuns:
 
 - *Não foi possível baixar o cloudflared do GitHub*: sem internet, ou o GitHub não respondeu. Confira a conexão e tente de novo.
 - *O cloudflared baixado não confere com a soma que o Verso fixa*: o arquivo foi recusado e apagado. Tente mais tarde.
-- *O cloudflared não alcançou a Cloudflare*: a rede parece bloquear. Tente outra rede.
+- *O cloudflared não alcançou a Cloudflare nem por QUIC (UDP) nem por HTTP/2*: a rede parece bloquear. Tente outra rede.
 - *A Cloudflare não deu um link a tempo*: o serviço de teste pode estar fora. Tente em instantes.
 
 ---
@@ -51,7 +52,7 @@ O painel diz o motivo em palavras. Os mais comuns:
 
 Em **Convidar pessoas**:
 
-1. Em **Pasta**, escolha a pasta servida (ou **Nenhuma (só a conta)**), e em **Pode**, **Ler** ou **Editar**.
+1. Em **Pasta**, escolha uma pasta servida inteira (uma servida só em parte não aparece) ou **Nenhuma (só a conta)**, e em **Pode**, **Ler** ou **Editar**.
 2. **Criar convite**. O link aparece **uma única vez**: **Copiar convite** e mande à pessoa por onde preferir. Vale por **7 dias** e serve para **uma pessoa só**.
 3. A jogadora abre o link, cria a conta com **qualquer e-mail dela** (**nada é enviado**: o e-mail só serve de nome de entrada), um nome e uma senha, e depois entra pelo endereço da mesa.
 4. A lista **Convites** mostra cada um (esperando, aceito por…, encerrado, expirado) e **Encerrar** fecha um que ainda espera.
@@ -98,7 +99,7 @@ Depois, marque **Usar meu endereço no link (em vez de um link rápido)** com o 
 ## 5. Contas, senhas e outros apps
 
 - **Senha ou passkey:** pela sua **rede**, entra-se com a **senha**. Uma **passkey** só vale pelo link da internet. A passkey feita num **link rápido some com ele**; no **seu endereço**, ela fica.
-- **Pessoas convidadas:** a lista mostra quem aceitou um convite — nome, e-mail, as pastas que alcança e quando foi vista por último. Nada é mandado por e-mail, então quem esqueceu a senha pede a você: **Nova senha** cria um link que vale **uma vez, por 24 horas**, e só aparece naquela hora — copie e mande você mesmo; as sessões da pessoa terminam na hora, e a senha antiga vale até ela criar a nova. **Encerrar sessões** desconecta navegador, apps e tokens dela (a senha continua). **Remover** pergunta antes e apaga a conta com tudo o que ela alcançava; dá para convidar de novo depois. Ligue o servidor antes de pedir uma senha nova: o link precisa de um endereço.
+- **Pessoas convidadas:** a lista mostra quem aceitou um convite — nome, e-mail, as pastas que alcança e quando foi vista por último. Nada é mandado por e-mail, então quem esqueceu a senha pede a você: **Nova senha** cria um link que vale **uma vez, por 24 horas**, e só aparece naquela hora — copie e mande você mesmo; as sessões da pessoa terminam na hora, e a senha antiga vale até ela criar a nova. **Encerrar sessões** desconecta navegador, apps e tokens dela (a senha continua). **Remover** pergunta antes e apaga a conta: a pessoa perde tudo o que alcançava aqui, e os apps e tokens dela param na hora (as notas ficam); dá para convidar de novo depois. Ligue o servidor antes de pedir uma senha nova: o link precisa de um endereço.
 - **Apps Verso de outras pessoas:** quem você convidou pode conectar o próprio Verso (**Ajustes › Servidores**) e sincronizar a pasta compartilhada com ele. Use o **endereço do link**: pela rede, o Verso dela não confia no certificado do seu computador e não conecta. A lista mostra cada app com o nome e a pessoa, e **Encerrar** o desconecta. **Celulares nunca sincronizam**: usam a janela do navegador.
 - **Tokens:** quem tem conta pode criar, no navegador, um token pessoal para um programa dela; ele alcança só as pastas daquela conta, e nunca abre nada do dono do computador.
 - **Celular seu:** o pareamento por QR é **só pela rede**. Com o link sozinho, **Parear um celular** fica desligado e diz por quê.

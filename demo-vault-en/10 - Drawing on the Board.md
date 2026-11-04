@@ -10,7 +10,7 @@ status: active
 
 # Drawing on the Board
 
-Verso's boards are drawn with **Excalidraw**. To learn by doing, open the [[Board Training.canvas|Board Training]]: fourteen lessons, each with a space to practice. This note is the cheat sheet, to look things up later.
+Verso's boards are drawn with **Excalidraw**. To learn by doing, open the [[Board Training.canvas|Board Training]]: sixteen lessons, each with a space to practice. This note is the cheat sheet, to look things up later.
 
 ![[Board Training.canvas]]
 
@@ -90,6 +90,6 @@ With something selected, the left panel shows **Stroke**, **Background**, **Fill
 | **All shortcuts** | `?` | `?` |
 
 > [!NOTE]
-> With the board in focus, some of Verso's shortcuts give way to Excalidraw's: `⌘ D` duplicates, `⌘ K` creates a link on whatever is selected, `⌘ [` and `⌘ ]` change the layer. Click outside the board — in the file list, for example — to use them in Verso. `⌘ P`, `⌘ F` and `⌘ ⇧ E` work on the board too.
+> With the board in focus, some of Verso's shortcuts give way to Excalidraw's: `⌘ D` duplicates, `⌘ K` creates a link on whatever is selected, `⌘ [` and `⌘ ]` change the layer, and `⌘ +`, `⌘ −` and `⌘ 0` zoom the board, not the window. Click outside the board — in the file list, for example — to use them in Verso. `⌘ P`, `⌘ F` and `⌘ ⇧ E` work on the board too.
 
 Continue to [[11 - Writing in the Editor]] or go back to [[00 - Welcome to Verso|Home]] · See also the [[Verso Tour.canvas|Verso Tour]].

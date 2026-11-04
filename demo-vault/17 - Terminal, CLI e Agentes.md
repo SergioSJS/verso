@@ -59,7 +59,7 @@ Nos dois modos o app não precisa estar aberto: o agente inicia o `verso` sozinh
 
 O agente ganha estas ferramentas, todas só de leitura:
 
-- `search` (buscar) e `list_notes` (listar as notas e os boards — também só as de uma tag, como `projeto`, ou de uma propriedade, como `status: ativo`);
+- `search` (buscar) e `list_notes` (listar as notas e os boards — também só as de uma tag, como `projeto`, de uma propriedade, como `status: ativo`, ou de um tipo, como `Personagem` — veja [[21 - Notas Tipadas]]);
 - `read_note` (ler uma nota, com as propriedades e as tags dela);
 - `links` e `backlinks` (as ligações de uma nota — e, quando a ligação é uma propriedade do frontmatter, como `aliado: "[[Barão]]"`, qual é a relação);
 - `read_board` (ler um board: os cartões, as setas com as relações, os textos desenhados);

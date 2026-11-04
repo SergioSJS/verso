@@ -17,7 +17,7 @@ O cofre é uma pasta comum do seu computador: o que o Verso cria, renomeia ou ap
 ## Criar
 
 - `⌘N` cria uma nota nova; `⌘⇧N` pede o nome antes.
-- O botão **Nova nota** (`+`) da faixa da esquerda abre o menu **Nova…**: nota, pasta, **Nova base**, **Novo board** e **Nova página web…**.
+- O botão **Nova nota** (`+`) da faixa da esquerda abre o menu **Novo**: **Nova nota nesta pasta**, **Nova pasta**, **Novo projeto a partir de modelo…**, **Nova base**, **Novo board**, **Nova página web…** e **Importar arquivos…**.
 - O botão direito numa pasta da árvore, ou no espaço vazio dela, tem os mesmos itens — o que você criar entra naquela pasta.
 - Um nome que o Windows não guarda — `CON`, `NUL`, `COM1`, ponto ou espaço no fim, ou `: * " < > ? | \` — não é criado nem dado num renomear, em nenhum sistema: a pasta pode ser sincronizada com um Windows. O campo diz por quê. Um arquivo que já tem um nome assim continua abrindo, e pode ser renomeado para um nome que todo sistema guarda.
 - Também não é criado nem dado num renomear um nome que só difere de outro da mesma pasta em maiúsculas e minúsculas — `nota.md` ao lado de `Nota.md`: num Mac ou no Windows os dois seriam um arquivo só. O mesmo vale para um nome que só difere na forma em que os acentos foram gravados (um `Café.md` vindo de outro sistema). Renomear `nota.md` para `Nota.md` continua valendo.
@@ -56,7 +56,7 @@ O botão com o nome da pasta, no alto da árvore, abre o seletor: as pastas dest
 
 ## A Lixeira
 
-O que você apaga fica na **Lixeira** da pasta por 30 dias, e depois some de vez. Para vê-la: **Abrir a lixeira** na paleta de comandos, o botão direito no espaço vazio da árvore, ou **Ajustes › Arquivos e links**, onde o tamanho da lixeira aparece ao lado do espaço da pasta (ela não conta nesse espaço). A lixeira não aparece como uma linha da árvore: a árvore é dos seus arquivos.
+O que você apaga fica na **Lixeira** da pasta por 30 dias, e depois some de vez. Para vê-la: **Abrir a lixeira** na paleta de comandos ou no botão direito no espaço vazio da árvore, que abre **Ajustes › Lixeira**; em **Ajustes › Arquivos e links**, o tamanho da lixeira aparece ao lado do espaço da pasta (ela não conta nesse espaço). A lixeira não aparece como uma linha da árvore: a árvore é dos seus arquivos.
 
 - A lista mostra cada item com **onde estava**, o **tamanho**, **quando** foi apagado (e por quem, numa pasta de servidor) e **quando expira**; a busca no alto filtra pelo nome.
 - **Restaurar** devolve o item para onde estava — uma pasta volta com tudo o que tinha. Se já existe outro arquivo com aquele nome, nada é substituído: o item volta ao lado, como `Nome (restaurado 2026-10-11).md`, e o Verso diz onde ele foi parar — também quando o nome que está ali só difere em maiúsculas e minúsculas. Um nome que o Windows não guarda não é restaurado: o Verso diz por quê, e o item continua na lixeira.
@@ -96,7 +96,7 @@ A árvore de arquivos é uma única parada do `Tab`: ela lembra o item em que vo
 
 Um clique em qualquer ponto da linha de uma pasta abre e fecha a pasta na árvore (a setinha faz o mesmo); a página da pasta abre pelo botãozinho de pasta no fim da linha. O Verso lembra quais pastas você deixou abertas: ao abrir o app de novo, a árvore volta como estava. Num cofre grande, as pastas de primeiro nível começam fechadas, para a árvore não desenhar milhares de linhas de uma vez.
 
-Um clique no nome de uma pasta abre a pasta numa aba: **Miniaturas** ou **Lista**, com as colunas **Nome**, **Tipo**, **Tamanho** e **Modificado**. Uma imagem aparece em miniatura, e um PDF mostra a primeira página. Uma pasta pode ter a sua própria nota — `Pasta/Pasta.md` —, que aparece no topo como **Nota da pasta**; se ela não existe, **Criar nota da pasta** a cria.
+A página da pasta abre numa aba: **Miniaturas** ou **Lista**, com as colunas **Nome**, **Tipo**, **Tamanho** e **Modificado**. Uma imagem aparece em miniatura, e um PDF mostra a primeira página. Uma pasta pode ter a sua própria nota — `Pasta/Pasta.md` —, que aparece no topo como **Nota da pasta**; se ela não existe, **Criar nota da pasta** a cria.
 
 ---
 

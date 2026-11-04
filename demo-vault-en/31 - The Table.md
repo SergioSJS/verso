@@ -64,7 +64,7 @@ With **3D dice** on, other people's rolls also fall in 3D on your screen. To kee
 
 **Table sound.** When someone else sends a **message** (or a roll that does not fall in 3D) at the Table, the window plays a short sound — never for what **you** send, and not while you are writing in the Table's box. In **Settings › Notifications** pick **Table sound** (Soft, Bell, Pop or Off; it starts on Soft) and the **volume**; choosing plays it once so you can hear it. The dice have their own sound, switched on separately. If the browser has not yet allowed audio (it does so only after you touch the page), the sound stays silent instead of playing late.
 
-In a folder that is **not** a UniVerso's (only on your computer), the Table shows your rolls and the ones you hear in shared notes **this session**, and says it is neither shared nor kept. In a UniVerso folder it is **everyone's table**: see below.
+In a folder that is **not** a UniVerso's (only on your computer), the Table shows your rolls and the ones you hear in shared notes **this session**, and says it is neither shared nor kept. In a UniVerso folder, or in one your own Verso serves with the window sitting at the table ([[39 - A Table over the Internet]]), it is **everyone's table**: see below.
 
 ---
 
@@ -85,7 +85,7 @@ At the foot of the panel is the **Write to the table…** field:
 - **Messages.** Type and press **Enter** (Shift+Enter breaks the line). Plain text, up to **500 characters**; a counter shows near the limit. A `[[link]]` to a note of the folder is a link.
 - **Rolling.** Type `/r 1d20+3` (or `/roll 4d6kh3`) and the server rolls, for everyone to see — or put the roll together in the dice row right below, as above.
 - **Secret.** In the box's toolbar, the **Public / Secret** menu (Foundry's and Roll20's roll mode: who sees the roll) set to **Secret** makes the roll yours and the **folder's owners'**: the others read "Ana rolled in secret", with no notation and no number.
-- **Images.** **Paste** straight into the field: copy an image or take a screenshot and press `Ctrl+V` / `⌘V`, or right click › **Paste**, or, on a phone, hold your finger on the field › **Paste**; dropping an image on the panel works too, and the paperclip in the field picks from the gallery. The image waits in the field as a thumbnail with an **×** to take it out; `Enter` sends it (the image first, then the text, if any). It takes a **PNG, JPEG, WebP or GIF** (up to 10 MB; a GIF stays animated in the log). The image becomes **a file of the folder** (in the attachments place), shows as a thumbnail and opens large on a click. Someone without **Images** in the Table window sends no images; PDFs and audio need **Files**.
+- **Images.** **Paste** straight into the field: copy an image or take a screenshot and press `Ctrl+V` / `⌘V`, or right click › **Paste**, or, on a phone, hold your finger on the field › **Paste**; dropping an image on the panel works too, and the paperclip in the field picks from the gallery. The image waits in the field as a thumbnail with an **×** to take it out; `Enter` sends it (the image first, then the text, if any). It takes a **PNG, JPEG, WebP or GIF** (up to 10 MB, or the limit the game master set; a GIF stays animated in the log). The image becomes **a file of the folder** (in the attachments place), shows as a thumbnail and opens large on a click. Someone without **Images** in the Table window sends no images. **PDFs** and **audio** (MP3, Ogg, WAV, M4A) go too, with the same limit, for whoever has **Files**: they arrive as a card that opens the file.
 
 Every line has a **⋯** button:
 
@@ -101,7 +101,7 @@ In **Settings › Notifications**, the **Table** kind tells you of a message or 
 
 ## Taking a roll into a note
 
-**Drag** the line of a roll, a random-table roll or an oracle draw from the Table panel and **drop it on a note's text** (in Edit mode or in Source): a line shows where it will land, and the block goes in with a blank line each side, **in one step** that **⌘Z** undoes. Drop it on a **board** and it becomes a text card. Messages and images are not dragged: use the **⋯** (see below).
+**Drag** the line of a roll, a random-table roll or an oracle draw from the Table panel and **drop it on a note's text** (in Edit mode or in Source): a line shows where it will land, and the block goes in with a blank line each side, **in one step** that **⌘Z** undoes. Drop it on a **board** and it becomes a text card. **Messages** drag too (they go in as a line), and so do the chat's **images** and **files** (a link to the file, which is already in the folder, goes in; nothing is uploaded again). To drop, you only need to **edit** the target note or board, whoever wrote the line.
 
 In the note it is written as a small `roll` block, text anyone can read, even in Obsidian:
 

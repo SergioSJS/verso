@@ -18,7 +18,7 @@ Ele vem **desligado**. Um shell num app de notas não é para todo mundo; quem q
 
 ## Ligar
 
-Em **Ajustes › Recursos**, ligue **Terminal**. O atalho **Tudo** não liga o terminal: ele fica desligado até você ligar à mão, como os Dados 3D. Desligar fecha as abas de terminal abertas e encerra os programas delas.
+Em **Ajustes › Aplicação › Recursos**, ligue **Terminal**. O atalho **Tudo** não liga o terminal: ele fica desligado até você ligar à mão, como os Dados 3D. Desligar fecha as abas de terminal abertas e encerra os programas delas.
 
 ## Abrir um terminal
 

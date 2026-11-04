@@ -24,7 +24,7 @@ Como manter o Verso em dia, contar um problema e ver o que acontece por dentro.
 
 ## Notificações
 
-O que muda sem você ter pedido aparece num aviso no canto de baixo, à direita (no celular, no alto): a sincronização que caiu e a que voltou, a conexão com o servidor, uma cópia de conflito, uma pasta compartilhada com você ou um compartilhamento revogado, uma versão nova, uma pasta perto da cota, itens que saem da lixeira em até 3 dias, alguém que entra na nota que você está editando (esta começa **só na lista**, sem aviso: o sino a conta e a marca de quem entrou, ao lado de "ao vivo", ganha um anel breve). Cada mudança é dita **uma vez**; um aviso de informação some em 6 segundos, um de atenção ou de erro fica até você fechar (`Esc` fecha o que tem o foco) ou até o estado voltar. O que você fez — salvar, mover, renomear — continua dito na barra de status, não aqui.
+O que muda sem você ter pedido aparece num aviso no canto de baixo, à direita (no celular, no alto): a sincronização que caiu e a que voltou, a conexão com o servidor, uma cópia de conflito, uma pasta compartilhada com você ou um compartilhamento revogado, uma versão nova, uma pasta perto da cota, itens que saem da lixeira em até 3 dias, alguém que entra na nota que você está editando (esta começa **só na lista**, sem aviso: o sino a conta e a marca de quem entrou, ao lado de "ao vivo", ganha um anel breve), e uma mensagem, imagem ou rolagem de outra pessoa na [[31 - A Mesa|Mesa]] com o painel **Mesa** fechado (esta começa **Desligado**: ligue em **Ajustes › Notificações**). Cada mudança é dita **uma vez**; um aviso de informação some em 6 segundos, um de atenção ou de erro fica até você fechar (`Esc` fecha o que tem o foco) ou até o estado voltar. O que você fez — salvar, mover, renomear — continua dito na barra de status, não aqui.
 
 - **O sino**, na barra de status antes de **Relatar problema** (no celular, no alto do painel), conta o que você não viu. Clique nele — ou use **Notificações** na paleta (`⌘⇧P`) — para abrir a lista: o mais novo primeiro, com a hora, a pasta quando não é a desta janela e o que dá para fazer. Abrir marca tudo como visto; **Limpar** esvazia. A lista fica neste computador (até 100, por 30 dias), não vai para a conta.
 - **Ajustes › Notificações**: para cada tipo, **Aviso e lista**, **Só na lista** ou **Desligado**. Desligar não esconde o estado: a barra de status continua dizendo a sincronização, e a nota, o conflito.
@@ -38,7 +38,7 @@ Experimente: abra **Ajustes › Notificações**, ponha **Presença** em **Aviso
 
 O botão **Relatar problema**, na barra de status (embaixo, à direita), ganha um ponto quando algum erro aconteceu. Ele abre um relato já preenchido — a versão, o estado do app, os erros da sessão e o fim do registro — para você ler, editar e **Copiar**. Nada é enviado sozinho.
 
-O registro do app fica em `~/Library/Application Support/verso/logs/verso.log`, no seu computador: o que o app abriu, os comandos que falharam, os erros da janela.
+O registro do app fica no seu computador — `~/Library/Application Support/verso/logs/verso.log` no Mac, `%LOCALAPPDATA%\verso\logs\verso.log` no Windows, `~/.config/verso/logs/verso.log` no Linux: o que o app abriu, os comandos que falharam, os erros da janela.
 
 ---
 
@@ -56,16 +56,20 @@ Embaixo da janela: o botão de mostrar e ocultar os arquivos, as mensagens do ap
 
 ## O Menu do Mac
 
+Além dos comandos do Verso (veja [[15 - Ajustes, Aparência e Atalhos#A Barra de Menus (macOS)]]), a barra tem os itens da própria janela:
+
 - **Verso**: **Ajustes…** (`⌘,`) e **Encerrar o Verso** (`⌘Q`).
-- **Arquivo**: **Nova janela**, **Abrir pasta…** (`⌘⇧O`) e **Abrir recente**.
-- **Edição**: **Desfazer**, **Refazer** e **Selecionar tudo**.
-- **Visualização**: **Abrir console** (`⌥⌘I`).
+- **Arquivo**: **Nova janela**, **Abrir pasta…** (`⌘⇧O`), **Abrir arquivo…**, **Abrir recente**, **Fechar aba** (`⌘W`) e **Fechar janela**.
+- **Edição**: **Desfazer**, **Refazer**, **Recortar**, **Copiar**, **Colar** e **Selecionar tudo**.
+- **Visualização**: tela cheia, **Recarregar a janela** (`⌘R`) e **Abrir console** (`⌥⌘I`).
+- **Janela**: minimizar e maximizar.
+- **Ajuda**: **Notificações**, **Importar o tutorial…**, **Verificar atualizações…**, **Relatar um problema…** e **Créditos…**.
 
 ---
 
 ## Este Cofre
 
-Este cofre de exemplo veio de **Importar cofre de exemplo** (na paleta e no menu da árvore). Importar de novo traz o que for novo e mantém os arquivos que você já mudou.
+Este cofre de exemplo veio de **Importar cofre de exemplo** (na paleta, no menu do espaço vazio da árvore e em **Ajuda › Importar o tutorial…**). Importar de novo traz o que for novo, atualiza as notas que você não mudou e mantém, com o nome dito no aviso, os arquivos que você já mudou.
 
 ---
 

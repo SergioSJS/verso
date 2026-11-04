@@ -24,7 +24,7 @@ Abra [[Dados de Exemplo/npcs-da-campanha.json]] (ou o [[Dados de Exemplo/npcs-da
 2. **Recolha** um ramo na setinha da caixa (ou com **Enter**): ela passa a dizer quanto esconde, como *3 itens* ou *6 chaves*. **Recolher tudo**, **Expandir tudo** e **Expandir até o nível…** ficam na barra (no celular, no menu **…** do fim da barra).
 3. **Busque** no campo do alto: chaves e valores, mesmo dentro de um ramo recolhido — o diagrama abre o caminho até o resultado. **Enter** vai ao próximo, **Shift+Enter** ao anterior, **Esc** limpa.
 4. Clique numa caixa ou numa linha dela: o trecho correspondente fica **selecionado no texto**, se você abrir o mesmo arquivo em outro painel (⌘\ divide a tela). E o cursor no texto marca a caixa onde ele está.
-5. Clique com o botão direito numa caixa ou linha: **Copiar caminho** dá algo como `$.npcs[0].itens`; **Copiar valor** copia o valor.
+5. Clique com o botão direito numa caixa ou linha: **Copiar caminho** dá algo como `$.npcs[0].itens`; **Copiar valor** copia o valor; **Mostrar no texto** volta ao texto com aquele trecho selecionado.
 6. **Arrumar de novo** devolve tudo ao desenho original; **De cima para baixo** troca a direção; **Ajustar à tela** mostra o conjunto. No celular a barra é uma linha só de ícones — lupa, afastar, aproximar, ajustar — e o menu **…** guarda o resto; a lupa abre a busca sobre a barra, e a dica de toque some quando você a dispensa.
 
 Um valor comprido aparece cortado, com um **…** que mostra o texto inteiro. Um número aparece como foi escrito (`12345678901234567890`, sem arredondar).

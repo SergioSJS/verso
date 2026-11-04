@@ -10,7 +10,7 @@ status: active
 
 # Sound and Music at the Table
 
-In a session, music is half the mood: the noisy tavern, the road at night, the battle. In Verso, **the game master presses play and everyone at the table hears the same thing, at the same point**, each with their own volume. Music has a tab of its own, **Music**, in the right panel, beside the **Table** ([[31 - The Table]]); it works on a UniVerso ([[32 - Running a Table]]) and in the desktop app that serves the folder.
+In a session, music is half the mood: the noisy tavern, the road at night, the battle. In Verso, **the game master presses play and everyone at the table hears the same thing, at the same point**, each with their own volume. Music has a tab of its own, **Music**, in the right panel, beside the **Table** ([[31 - The Table]]); it works on a UniVerso ([[32 - Running a Table]]) and at the table your own Verso serves, with the window sitting at the table ([[39 - A Table over the Internet]]).
 
 No sound crosses the network: each window plays **its own copy** of the file, and only "what plays and where" is shared, by the server's clock. So the quality is the file's, and nobody lags behind. Nothing of it is written to any file: what is playing lives in the server's memory and goes away when the last person leaves the table.
 
@@ -18,7 +18,7 @@ No sound crosses the network: each window plays **its own copy** of the file, an
 
 ## Turn it on
 
-**Settings › Features › RPG and tabletop › Table sound**. It is on whenever the **Table** is on; off, there is no Music tab, no button and no status-bar item, and nothing is loaded. Until the first track plays, nothing of the player is loaded either.
+**Settings › RPG & Solo Play › Dice and RPG › Table sound**. It is on whenever the **Table** is on; off, there is no Music tab, no button and no status-bar item, and nothing is loaded. Until the first track plays, nothing of the player is loaded either.
 
 ---
 
@@ -140,7 +140,7 @@ The game master can share **the sound of the pages open in Verso** (YouTube, Spo
 
 > **On a Mac (macOS 14.4 or newer)** the only source is **Pages open in Verso**: the sound of the pages opened as a page (YouTube, Spotify Web, an ambience loop), all together, and its name says which sites are playing now (*Pages open in Verso: open.spotify.com*). It is listed once a page has made sound: start playing in it and open **Share audio…** again. Verso's own sounds leave, while you share, by a path of their own, a few hundredths of a second late. **Videos and pages shown inside a note go along**: on the Mac their sound cannot be told apart, and the notice Verso shows says so. The first time, macOS asks to allow **System Audio Recording** for Verso. If you say no, Verso tells you, and you can allow it later in **System Settings > Privacy & Security > System Audio Recording** (in some versions *Screen & System Audio Recording*), then start again. A source that gives *Silence* while it plays usually means this permission is off. A copy of Verso started from a terminal (a development build) finds no pages: use the installed app. On an older macOS the picker says it needs a newer one.
 >
-> **On Windows (Windows 11 or newer)** Verso shares **only the sound of pages open in Verso**, never other programs and never Verso's own sounds (dice, alerts, the table's music: those already play in your window). The list has one source, **Pages open in Verso**, and names the sites that are playing now; all open pages go together. Open the page **as a page**: a page shown inside a note is not shared, because inside a note its sound cannot be separated from Verso's own. With no page open the picker asks you to open one; on **Windows 10** it says it needs Windows 11. The pages now keep their sign-ins in a profile of their own, so after this update sign in once more in the pages you use.
+> **On Windows (Windows 11 or newer)** Verso shares **only the sound of pages open in Verso**, never other programs and never Verso's own sounds (dice, alerts, the table's music: those already play in your window). The list has one source, **Pages open in Verso**, and names the sites that are playing now; all open pages go together. Open the page **as a page**: a page shown inside a note is not shared, because inside a note its sound cannot be separated from Verso's own. With no page open the picker asks you to open one; on **Windows 10** it says it needs Windows 11. The pages keep their sign-ins in a profile of their own: sign in once, inside Verso, to the pages you use.
 >
 > **On Linux** the list is the same as on Windows: **only the sound of pages open in Verso** (YouTube, Spotify Web, an ambience loop), all together, never other programs and never Verso's own sounds; the list names the sites playing now. Open the page **as a page**: **videos and pages shown inside a note are not shared on Linux**. While you share, Verso's own sounds leave by a path of their own, a few hundredths of a second late. It needs the sound tools of PulseAudio (`pactl`, `parec` and `pacat`, from the package `pulseaudio-utils`, which PipeWire also uses): the .deb and .rpm recommend it, and whoever uses the AppImage installs it by hand. Without them the picker says so. With no page open it asks you to open one.
 
@@ -151,4 +151,4 @@ The two sample tracks
 
 The two sample tracks (`assets/sons/`) are by **RandomMind**, in the public domain (CC0 1.0): `taverna.mp3` is “The Old Tower Inn” (<https://opengameart.org/content/medieval-the-old-tower-inn>) and `estrada.mp3` is “The Bard's Tale” (<https://opengameart.org/content/medieval-the-bards-tale>), their loop versions, re-encoded in mono to weigh little.
 
-Go on to [[37 - Compatibility with Obsidian]], or back to [[34 - UniVerso on a Free Oracle Server]] or to [[31 - The Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].
+Go on to [[37 - Compatibility with Obsidian]], or back to [[35 - Terminal and AI Agents]] or to [[31 - The Table]], see the [[00 - Welcome to Verso|Home Page]] or explore the [[Verso Tour.canvas|Verso Tour]].

@@ -23,7 +23,9 @@ Three ways, all the same program (the full guide is in `docs/reference/server-in
 
 - **Docker**, for amd64 and arm64;
 - **CasaOS and ZimaOS**, through a compose file;
-- a **`.deb` or `.rpm`** package with a systemd service, for a machine without Docker.
+- a **`.deb` or `.rpm`** package with a systemd service, for a machine without Docker — or the **guided installer** `universo.sh`, which downloads, checks and installs the right package on a Linux machine with systemd (Ubuntu, Debian, Fedora…) and takes care of HTTPS, the first admin and backups.
+
+On a NAS or a VPS, step by step: [[38 - Installing the server on a NAS or a VPS]]; on Oracle's free server: [[34 - UniVerso on a Free Oracle Server]]. And, for a game session, the desktop app itself can be the server, with nothing to install: [[39 - A Table over the Internet]].
 
 Two folders matter: `VERSO_DATA_DIR`, on a local disk, with the accounts and the indexes; and `VERSO_FOLDERS_DIR`, with the note folders, which can live on a NAS. The backup covers both.
 
@@ -79,7 +81,7 @@ That is also where **this device's name** lives — by default, the system's nam
 
 ---
 
-**With no server at all**: the desktop app can also serve the folders you mark straight to the phone, on your network, with no account and no password — the phone is paired by a QR and you allow it on the computer. See [[22 - Verso on Phone and Tablet#Pair the Phone with Your Computer|Pair the phone with your computer]].
+**With no server at all**: the desktop app is a server too, in **Settings › Turn into a server**. **On my network**, it serves the folders you mark straight to your phone, with no account and no password — the phone is paired by a QR and you allow it on the computer; see [[22 - Verso on Phone and Tablet#Pair the Phone with Your Computer|Pair the phone with your computer]]. **By an internet link**, it takes in people from outside with invitations, accounts, the Table and read links, like a UniVerso, while the computer stays on; the Verso of someone you invited connects through **Settings › Servers** with the link's address. See [[39 - A Table over the Internet]].
 
 ## Syncing a folder from this computer
 
@@ -136,7 +138,7 @@ Whoever only **reads** a note does not receive its `[!secret]` blocks: the game 
 
 For players, or anyone, to **read** the world without making an account, the folder's owner makes a **read link**: right-click the folder and choose **Read link…**, or a note and choose **Copy read link…**. Pick the expiry (none, 1, 7 or 30 days, or until a date) and, if you like, a **password**. The address (`/r/…`) shows **once**, already copied: the server keeps only a mark of it. Whoever opens it reads, in a browser, only what the link points at — the folder, or the note and what it embeds —, in the reader's view: **without** the `[!secret]` blocks, no editing, no history, and a link to a note that was not shared shows as plain text *(not shared)*. Dice roll in the reader's browser and write nothing.
 
-Before the link is made, the dialog says how many notes have secrets and that readers will not see them. The tree marks what has a live link, and the panel lists the links with who made each and when it was last opened. **Revoke** ends the link at once, open pages included. Read links **start off**: whoever runs the server turns them on in *Administration › Server*, and turning them off ends them all. A wrong password counts as a refused sign-in, and the owner is mailed when there are many.
+Before the link is made, the dialog says how many notes have secrets and that readers will not see them. The tree marks what has a live link, and the panel lists the links with who made each and when it was last opened. **Revoke** ends the link at once, open pages included. Read links **start off**: whoever runs the server turns them on in *Administration › Server* (in the app serving over the internet, with **Turn read links on**; see [[39 - A Table over the Internet#Read links]]), and turning them off ends them all. A wrong password counts as a refused sign-in, and the owner is mailed when there are many — if the server has a mail server set up (`VERSO_SMTP_URL`).
 
 ---
 

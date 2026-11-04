@@ -15,7 +15,7 @@ A web page can be a note of yours, with annotations; an `.html` file in the fold
 
 ## A Page Saved as a Note
 
-**New web page…** (in the menu of the `+` button on the left ribbon, or in a folder's menu) asks for the address and creates a note with it. Every note with the `url` property at the top is a page: the tab gets the **Back**, **Forward** and **Reload** bar.
+**New web page…** (in the **New** menu of the `+` button on the left ribbon, or in a folder's menu) asks for the address and creates a note with it. Every note with the `url` property at the top is a page: the tab gets the **Back**, **Forward** and **Reload** bar.
 
 - **Show page** and **Show note** switch between the site and the note's text — your annotations about it.
 - The address, in the bar, opens the page in a window of its own.

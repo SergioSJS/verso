@@ -108,4 +108,4 @@ Desligar um recurso de RPG no Verso não muda nenhum arquivo; a ficha vira um bl
 
 Quando terminar, o cofre continua sendo um cofre do Obsidian.
 
-A seguir: [[38 - Instalar o servidor num NAS ou VPS]] põe as suas notas num servidor seu. Volte à [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].
+A seguir: [[38 - Instalar o servidor num NAS ou VPS]] põe as suas notas num servidor seu. Volte à [[36 - Som e Música na Mesa]], à [[00 - Bem-vindo ao Verso|Página Inicial]] ou abra o [[Tour do Verso.canvas|Tour do Verso]].

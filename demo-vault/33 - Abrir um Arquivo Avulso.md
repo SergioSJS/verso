@@ -39,7 +39,7 @@ Se ele está dentro de uma pasta que você **já abriu antes** no Verso, a faixa
 
 O Verso também aparece em **Abrir com** para `.json`, `.yaml`, `.yml`, `.toml`, `.xml` e `.csv`. Um arquivo desses abre na mesma janela de arquivos avulsos, mas **no diagrama** de [[28 - Dados Estruturados como Diagrama]]: caixas para mover, ramos para recolher, busca em todas as chaves e valores.
 
-- **Texto | Diagrama** no alto da aba passa para o texto do arquivo, que você pode editar; ele é gravado como um `.md` — de forma atômica, com a faixa de conflito se outro programa o mudou, e nada escrito ao lado. De volta ao **Diagrama**, as caixas acompanham o que você digitou.
+- **Texto | Diagrama** no alto da aba passa para o texto do arquivo, que você pode editar; ele é gravado como se grava um `.md` — de forma atômica, com a faixa de conflito se outro programa o mudou, e nada escrito ao lado. De volta ao **Diagrama**, as caixas acompanham o que você digitou.
 - Um arquivo que o diagrama **não consegue ler** — inválido, grande demais, caixas demais — abre como texto, com a própria linha do diagrama dizendo por quê acima dele.
 - **Salvar como board** não aparece aqui: criaria um arquivo novo ao lado deste. Abra a pasta inteira para fazer um board do diagrama.
 - Com o diagrama desligado (**Ajustes › Aplicação › Recursos › Diagrama de dados**), o arquivo abre como texto.

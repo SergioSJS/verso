@@ -56,7 +56,7 @@ Lists support smart indentation via `Tab` and `Shift-Tab`, with highlighted visu
 
 ## Code Blocks with a Copy Button
 
-Hover over any code block below to see the **Copy** button in the top-right corner:
+Hover over any code block below to see the **Copy code** button (the copy icon) in the top-right corner, in Reading and Edit modes:
 
 ### Rust
 ```rust

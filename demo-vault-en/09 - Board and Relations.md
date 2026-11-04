@@ -19,7 +19,7 @@ A **board** is a `.canvas` file — the same format as Obsidian's canvas — dra
 
 ## What you can do on a board
 
-- **Put things on it** with the **Insert** button, in the board's toolbar (where the picture is): *Picture or PDF from the computer…* (copied into the attachments folder — you can also drop or paste a picture onto the board), *Note or file of the folder…* (any note, picture or PDF — or drag a file from the tree onto the board), *Text card* (Markdown) and *Web link…* (an address, which only opens with a click). In the same menu, *Loose arrows* makes new arrows not attach to cards — holding `⌘` while drawing does the same.
+- **Put things on it** with the **Insert** button, in the board's toolbar (where the picture is): *Picture or PDF from the computer…* (copied into the attachments folder — you can also drop or paste a picture onto the board), *Note or file of the folder…* (any note, picture or PDF — or drag a file from the tree onto the board), *Text card* (Markdown), *Web link…* (an address, which only opens with a click) and *Web page…* (the live page inside a card, from a site you allowed — see [[16 - Web Pages and HTML]]). In the same menu, *Loose arrows* makes new arrows not attach to cards — holding `⌘` while drawing does the same.
 - **Pictures** show up as just the picture, with no frame or title; when selected, the **Open**, **Swap file…** and **Crop** buttons appear at the top right. **Crop** chooses the part of the picture the card shows, by dragging the corners — the picture's file does not change, and **Restore original** undoes it.
 - **Connect cards**: with Excalidraw's arrow tool, draw from one card's edge to another's. The arrow becomes a canvas edge, which Obsidian shows too.
 - **Draw freely**: shapes, freehand strokes, loose text and loose arrows are kept in the same file, under the `verso` key. Obsidian leaves that part intact when it edits the canvas.
@@ -28,10 +28,10 @@ A **board** is a `.canvas` file — the same format as Obsidian's canvas — dra
 - **See it as a list**: the *Outline* button shows groups, cards and connections in a list you can walk through with the keyboard.
 - **See the JSON**: the *Text* mode, in the tab's corner, shows the file as it is.
 - **Learn to draw**: the [[Board Training.canvas|Board Training]] teaches Excalidraw lesson by lesson, and [[10 - Drawing on the Board]] gathers the tools and shortcuts.
-- **Create a board**: **New board** in the palette, in the new menu of the `+` button in the ribbon, or in a tree folder's menu. It is born as `Untitled.canvas`, in the folder set in **Settings › Board › Folder for new boards** (empty: the root).
+- **Create a board**: **New board** in the palette, in the menu of the **New note** button (`+`) in the ribbon, or in a tree folder's menu. It is born as `Untitled.canvas`, in the folder set in **Settings › Board › Folder for new boards** (empty: the root).
 - **Export**: **Export image** (`⌘⇧E`, or the board's ☰ menu) — **Format** PNG or SVG, **Scale** from 1× to 3×, **Background**, **Dark** and **Selection only**; then **Save in the folder**, **Save to Downloads** or **Copy**.
 - **Lost card**: if a card's file disappears or is renamed outside Verso, the card shows *Not found in the folder*; a double click on it, or **Swap file…**, points the card at the right file.
-- **Settings › Board**: open a `.canvas` as a board or as text, open showing everything or where you left off, the stroke of new shapes (hand-drawn or clean), the font of the drawn text, the grid and the folder for new boards.
+- **Settings › Board**: open a `.canvas` as a board or as text, open showing everything or where you left off, the stroke of new shapes (hand-drawn or clean), the font of the drawn text, the grid, what a double click on an empty spot makes (**Text card** or **Drawn text**) and the folder for new boards.
 
 > [!NOTE]
 > Opening a board never rewrites the file. When saving, Verso changes only what you changed and keeps the layout Obsidian writes in — a `git diff` shows only the line of the card you dragged.
@@ -52,6 +52,6 @@ This very note has one: the `related` property at the top points to [[projects/P
 
 ## Drawings from the Excalidraw plugin
 
-A note drawn with Obsidian's Excalidraw plugin shows, below the title, the **Convert to board** button. It shows the new `.canvas` and creates it beside the drawing when you confirm; the original drawing stays as it was. Try it with [[Excalidraw Drawing.excalidraw|this vault's drawing]].
+A note drawn with Obsidian's Excalidraw plugin opens on its drawing, to look at; below the title, **Show the text** shows the note as it is written (and **Show the drawing** goes back), and **Convert to board** — also in the note's menu in the tree — shows the new `.canvas` and creates it beside the drawing when you confirm; the original drawing stays as it was. Try it with [[Excalidraw Drawing.excalidraw|this vault's drawing]].
 
 Back to [[00 - Welcome to Verso|Home]].

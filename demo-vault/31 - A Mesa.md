@@ -64,7 +64,7 @@ Com os **Dados 3D** ligados, a rolagem dos outros também cai em 3D na sua tela.
 
 **Som da Mesa.** Quando outra pessoa manda uma **mensagem** (ou uma rolagem que não cai em 3D) na Mesa, a janela toca um som curto — nunca para o que **você** manda, e não enquanto você escreve na caixa da Mesa. Em **Ajustes › Notificações** escolha **Som da Mesa** (Suave, Sino, Estalo ou Desligado; vem em Suave) e o **volume**; ao escolher, o som toca uma vez para você ouvir. Os dados têm o seu próprio som, ligado à parte. Se o navegador ainda não liberou o áudio (ele só libera depois que você toca na página), o som fica mudo em vez de tocar atrasado.
 
-Numa pasta que **não** é de um UniVerso (só do seu computador), a Mesa mostra as suas rolagens e as que você ouve nas notas compartilhadas **desta sessão**, e diz que não é compartilhada nem guardada. Numa pasta de um UniVerso, ela é **a mesa de todos**: veja abaixo.
+Numa pasta que **não** é de um UniVerso (só do seu computador), a Mesa mostra as suas rolagens e as que você ouve nas notas compartilhadas **desta sessão**, e diz que não é compartilhada nem guardada. Numa pasta de um UniVerso, ou numa que o seu próprio Verso serve com a janela sentada à mesa ([[39 - Mesa pela Internet]]), ela é **a mesa de todos**: veja abaixo.
 
 ---
 
@@ -85,7 +85,7 @@ No pé do painel há o campo **Escreva para a mesa…**:
 - **Mensagens.** Escreva e aperte **Enter** (Shift+Enter quebra a linha). Texto simples, até **500 caracteres**; perto do limite aparece um contador. Um `[[link]]` para uma nota da pasta vira link.
 - **Rolar.** Escreva `/r 1d20+3` (ou `/roll 4d6kh3`) e o servidor rola, para todos verem — ou monte a rolagem na fila de dados logo abaixo, como acima.
 - **Secreta.** Na barra da caixa, o menu **Pública / Secreta** (o de Foundry e Roll20: quem vê a rolagem) em **Secreta** faz a rolagem ser só sua e dos **donos da pasta**: os outros leem "Ana rolou em segredo", sem notação nem número.
-- **Imagens.** **Cole** direto no campo: copie uma imagem ou tire um print e aperte `Ctrl+V` / `⌘V`, ou botão direito › **Colar**, ou, no celular, segure o dedo no campo › **Colar**; também vale soltar a imagem sobre o painel, e o clipe do campo escolhe da galeria. A imagem espera no campo como uma miniatura com um **×** para tirar; `Enter` envia (a imagem primeiro, depois o texto, se houver). Aceita **PNG, JPEG, WebP ou GIF** (até 10 MB; o GIF continua animado no registro). A imagem vira **um arquivo da pasta** (na pasta de anexos), aparece como miniatura e abre grande com um clique. Quem não tem **Imagens** na janela da Mesa não envia imagens; PDF e áudio pedem **Arquivos**.
+- **Imagens.** **Cole** direto no campo: copie uma imagem ou tire um print e aperte `Ctrl+V` / `⌘V`, ou botão direito › **Colar**, ou, no celular, segure o dedo no campo › **Colar**; também vale soltar a imagem sobre o painel, e o clipe do campo escolhe da galeria. A imagem espera no campo como uma miniatura com um **×** para tirar; `Enter` envia (a imagem primeiro, depois o texto, se houver). Aceita **PNG, JPEG, WebP ou GIF** (até 10 MB, ou o limite que a mestra definir; o GIF continua animado no registro). A imagem vira **um arquivo da pasta** (na pasta de anexos), aparece como miniatura e abre grande com um clique. Quem não tem **Imagens** na janela da Mesa não envia imagens. **PDF** e **áudio** (MP3, Ogg, WAV, M4A) também vão, com o mesmo limite, para quem tem **Arquivos**: chegam como um cartão que abre o arquivo.
 
 Cada linha tem o botão **⋯**:
 
@@ -101,7 +101,7 @@ Em **Ajustes › Notificações**, o tipo **Mesa** avisa de uma mensagem ou rola
 
 ## Levar uma rolagem para uma nota
 
-**Arraste** a linha de uma rolagem, de uma tabela sorteada ou de um oráculo do painel da Mesa e **solte sobre o texto de uma nota** (no modo Editar ou na Fonte): um traço mostra onde ela vai cair, e o bloco entra com uma linha em branco de cada lado, **num único passo** que um **⌘Z** desfaz. Solte sobre um **board** e ela vira um cartão de texto. Quem edita a nota arrasta também **mensagens** e **rolagens** do chat da Mesa; as imagens não se arrastam: use o **⋯** (veja abaixo).
+**Arraste** a linha de uma rolagem, de uma tabela sorteada ou de um oráculo do painel da Mesa e **solte sobre o texto de uma nota** (no modo Editar ou na Fonte): um traço mostra onde ela vai cair, e o bloco entra com uma linha em branco de cada lado, **num único passo** que um **⌘Z** desfaz. Solte sobre um **board** e ela vira um cartão de texto. Arrastam-se também as **mensagens** (entram como uma linha) e as **imagens** e **arquivos** do chat (entra um link para o arquivo, que já está na pasta; nada é enviado de novo). Para soltar basta poder **editar** a nota ou o board de destino, seja quem for o autor da linha.
 
 Na nota ela fica escrita como um pequeno bloco `roll`, texto que qualquer um lê, até no Obsidian:
 

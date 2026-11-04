@@ -11,7 +11,7 @@ status: ativo
 
 Uma **mesa** é uma pasta de campanha num UniVerso (o Verso num servidor seu, [[23 - Verso num Servidor]]): você, a mestra, convida as jogadoras só para ela, e cada nota fica **oculta** até você liberar. Nada disso é escrito nas notas: o que está liberado, o que tem nome secreto e quem pode editar fica no banco do servidor, então um arquivo sincronizado, ou aberto no Obsidian, é uma nota comum.
 
-Só a dona da pasta faz isto, numa pasta de um servidor ou numa pasta deste computador **sincronizada** com ele ([[23 - Verso num Servidor]]): a mestra pode conduzir a sessão do app de desktop, com a pasta local, enquanto as jogadoras usam o navegador ou o app do Windows na pasta do servidor. Sem conexão (ou com a sincronização pausada) a mesa fica indisponível e o painel **Mesa** diz isso; ela volta sozinha quando a conexão volta. Numa pasta só deste computador não há mesa, e nada disto aparece.
+Só a dona da pasta faz isto, numa pasta de um servidor ou numa pasta deste computador **sincronizada** com ele ([[23 - Verso num Servidor]]): a mestra pode conduzir a sessão do app de desktop, com a pasta local, enquanto as jogadoras usam o navegador ou o app de desktop delas na pasta do servidor. Sem conexão (ou com a sincronização pausada) a mesa fica indisponível e o painel **Mesa** diz isso; ela volta sozinha quando a conexão volta. Numa pasta só deste computador não há mesa, e nada disto aparece — a não ser que o próprio Verso dela vire servidor e você se sente à mesa ([[39 - Mesa pela Internet]]): aí é a mesma mesa, com a mesma janela **Mesa** e os mesmos convites.
 
 ---
 
@@ -55,7 +55,7 @@ Uma nota oculta não existe para a jogadora: não está em lista nenhuma, e pedi
 
 ## Quem vê esta nota
 
-Dentro da nota, ao lado da estrela, há um ícone de **usuários com um número**: quantas jogadoras veem esta nota. Passe o mouse (ou toque, ou dê foco com Tab e aperte Enter) para abrir a lista: para você, **cada jogadora da mesa**, com **Vê**, **Edita** ou **Não vê** (o ícone e a palavra, não só a cor) e um atalho **Acesso…** que abre o mesmo diálogo da nota; para a jogadora, só **quem vê a nota** ("Você, Bruno e o mestre" ou "A mesa toda"), nunca os seus controles. **Esc** fecha e o foco volta ao botão; no celular a lista abre como uma folha de baixo, com um botão para fechar. O ícone só aparece em notas de uma mesa que já tem jogadoras.
+Dentro da nota, ao lado da estrela, há um ícone de **usuários com um número**: quantas jogadoras veem esta nota. Passe o mouse (ou toque, ou dê foco com Tab e aperte Enter) para abrir a lista: para você, **cada jogadora da mesa**, com **Vê**, **Edita** ou **Não vê** (o ícone e a palavra, não só a cor) e um atalho **Alterar o acesso…** que abre o mesmo diálogo da nota; para a jogadora, só **quem vê a nota** ("Você, Bruno e o mestre" ou "A mesa toda"), nunca os seus controles. **Esc** fecha e o foco volta ao botão; no celular a lista abre como uma folha de baixo, com um botão para fechar. O ícone só aparece em notas de uma mesa que já tem jogadoras.
 
 ---
 
@@ -88,7 +88,7 @@ O cartão **Jogadores** é uma **tabela**, uma linha por jogadora, com colunas p
 | **Edita** | quantas notas ela pode editar (as que você marcou com **Edita** em **Acesso…**); clique para ver quais |
 | **Direitos** | quantos dos quatro direitos você deu a ela; clique no número para abrir as **quatro chaves** |
 
-Por padrão a jogadora só lê e escreve texto no chat: os quatro direitos começam **desligados** e é você quem liga, uma jogadora de cada vez, ou pela caixa **Todos** de cada direito, logo abaixo da tabela, que fica "mista" quando as jogadoras diferem:
+Por padrão a jogadora só lê e escreve texto no chat: os quatro direitos começam **desligados** e é você quem liga, uma jogadora de cada vez, ou pelas caixas de **Todos os jogadores**, logo abaixo da tabela, uma por direito, que ficam "mistas" quando as jogadoras diferem:
 
 | Direito | O que ela passa a poder |
 |---|---|
@@ -105,7 +105,7 @@ Cada chave salva na hora e diz **Salvo** ao lado; o leitor de tela lê "Ana pode
 
 ## Limites da mesa
 
-Em **Avançado: limites da mesa** (recolhido; cada campo salva ao sair dele ou com Enter e diz **Salvo** ao lado): quantas entradas o registro da [[31 - A Mesa|Mesa]] guarda (de 1.000 a 200.000; 20.000 de início) e o tamanho de uma imagem nela (de 1 a 30 MB; 10 de início). Passando do limite do registro, saem as mais antigas que não estão fixadas. Cada mesa tem o seu registro e os seus limites: o ajuste de uma não muda a outra.
+Em **Avançado: limites da mesa** (recolhido; cada campo salva ao sair dele ou com Enter e diz **Salvo** ao lado): quantas entradas o registro da [[31 - A Mesa|Mesa]] guarda (de 1.000 a 200.000; 20.000 de início) e o tamanho de um arquivo nela — imagem, PDF ou áudio (de 1 a 30 MB; 10 de início). Passando do limite do registro, saem as mais antigas que não estão fixadas. Cada mesa tem o seu registro e os seus limites: o ajuste de uma não muda a outra.
 
 ---
 

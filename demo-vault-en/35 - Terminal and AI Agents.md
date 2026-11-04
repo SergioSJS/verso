@@ -18,7 +18,7 @@ It comes **off**. A shell in a notes app is not for everyone; whoever wants it t
 
 ## Turning it on
 
-In **Settings › Features**, turn on **Terminal**. The **Everything** shortcut does not turn the terminal on: it stays off until you turn it on by hand, like the 3D dice. Turning it off closes the open terminal tabs and ends their programs.
+In **Settings › Application › Features**, turn on **Terminal**. The **Everything** shortcut does not turn the terminal on: it stays off until you turn it on by hand, like the 3D dice. Turning it off closes the open terminal tabs and ends their programs.
 
 ## Opening a terminal
 

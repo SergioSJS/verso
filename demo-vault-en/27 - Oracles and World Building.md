@@ -16,7 +16,7 @@ Tools for game masters, solo players and people who build worlds — or just wri
 
 ## 🎚️ Turning on and off: Settings › RPG & Solo Play › Dice and RPG
 
-The RPG features have a page of their own, the first of the **RPG & Solo Play** group: **Dice and RPG**. Each tool is a feature with its own switch: **Dice**, **Random tables**, **Oracles**, **Statblocks** (the ones in [[26 - Statblocks]]) **World and campaign wizard** and **3D dice**. All of them come **on**, except 3D dice. The page has **Turn all on** and **Turn all off** links, and **Oracles** and **Statblocks** have a **Settings…** link to their own page. The shortcuts **Everything** and **Writing only**, in **Settings › Application › Features** (which also holds the **Data diagram** switch), turn them all on or off at once, the RPG ones too — first, Verso shows what will change, and you can cancel.
+The RPG features have a page of their own, the first of the **RPG & Solo Play** group: **Dice and RPG**. Each tool is a feature with its own switch: **Dice**, **Random tables**, **Oracles**, **Statblocks** (the ones in [[26 - Statblocks]]), **World and campaign wizard**, **3D dice**, **Table** (see [[31 - The Table]]) and **Table sound** (see [[36 - Sound and Music at the Table]]). All of them come **on**, except 3D dice. The page has **Turn all on** and **Turn all off** buttons (**Turn all on** leaves 3D dice alone: those only by their own switch), and **Oracles** and **Statblocks** have a **Settings…** link to their own page. The shortcuts **Everything** and **Writing only**, in **Settings › Application › Features** (which also holds the **Data diagram**, **Colour swatches** and, in the desktop app, **Terminal** switches), turn them all on or off at once, the RPG ones too — first, Verso shows what will change, and you can cancel.
 
 Turning one off changes no file: a statblock becomes a code block, an `[!oracle]` becomes an ordinary callout, as Obsidian shows them without the plugin. Turning it on again brings everything back. The choice is **yours**: a folder never turns a feature on or off for whoever opens it.
 
@@ -55,7 +55,7 @@ A Markdown table or a list with a `^id` identifier can be drawn from, in any fol
 | 6 | Something supernatural changes the rules of the place |
 ^reviravolta
 
-In the text, `dice: [[#^reviravolta]]` becomes a button that draws a row. All the tables in the folder also show up in the oracle's **Tables** tab — with the name of the note they come from. Each is named by the nearest heading above it (here, *Tables are notes*) or, with no heading, by its `^id`; two tables under the same heading get the `^id` after it.
+In the text, `dice: [[#^reviravolta]]` becomes a button that draws a row. All the tables in the folder also show up in the oracle's **Tables** tab — with the note they come from and the `^id` under the list. Tables with two rows or more come in, and lists that are not task lists. Each is named by the nearest heading above it (here, *Tables are notes*) or, with no heading, by its `^id`; two tables under the same heading get the `^id` after it.
 
 ### Tuning the oracle
 
@@ -64,11 +64,11 @@ In **Settings › RPG & Solo Play › Oracles & Solo RPG**, everything saves its
 - **Try the oracle** opens the window so you can test without saving anything.
 - **Yes-or-no odds**: each bar shows how the d100 splits among the six answers, from *Yes, and…* to *No, and…*. Pick a **style** — *Balanced* (the default), *Likely twists* (inspired by Mythic GME, without its chaos factor), *Ironsworn* or *Narrative*, each with a sentence on what changes at the table — and it applies at once; **Undo** goes back to the previous one. In **Adjust by hand…** you change the numbers of each chance: the row says how much is missing or over (*3% missing*) and is saved only when it adds up to 100.
 - **Idea sparks**: when off, the oracle uses Verso's words, **in the window's language**. Turn on **Use my own words** to edit the four lists: type a word and press Enter, or paste several separated by commas; the **×** removes one (the arrows move between them, Delete erases). **Back to Verso's words** undoes it.
-- **Tables to draw from**: Verso's and those from your notes, with three sample options. **New table** writes a note with the list and the `^id` — you see the text first.
+- **Tables to draw from**: Verso's and those from your notes, with three sample options. **New table** writes a note with the list and the `^id` — you see the text first. **Import JSON…** brings tables in from a JSON (they become a note too); **Copy the folder's (JSON)** takes yours elsewhere.
 
 These settings stay **in the folder** and apply to everyone who opens it: if you share the folder, the other person sees the oracle the way you do. Where you can only read the folder, the page shows the values and says why they cannot be changed.
 
-In a server room, it is the server that **draws**, and everyone in the room sees who asked.
+In a server room, it is the server that **draws**, and everyone in the room sees who asked. With the **Table** on, each question also goes into the **Table** panel.
 
 ---
 

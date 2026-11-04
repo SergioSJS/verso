@@ -56,7 +56,7 @@ As listas suportam indentação inteligente via `Tab` e `Shift-Tab`, com níveis
 
 ## Blocos de Código com Botão de Copiar
 
-Passe o cursor sobre qualquer bloco de código abaixo para visualizar o botão **Copiar** no canto superior direito:
+Passe o cursor sobre qualquer bloco de código abaixo para visualizar o botão **Copiar código** (o ícone de cópia) no canto superior direito, nos modos Leitura e Editar:
 
 ### Rust
 ```rust

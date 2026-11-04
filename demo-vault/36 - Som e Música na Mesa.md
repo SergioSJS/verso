@@ -10,7 +10,7 @@ status: ativo
 
 # Som e Música na Mesa
 
-Numa sessão, a música faz metade do clima: a taverna barulhenta, a estrada à noite, a batalha. No Verso, **o mestre aperta tocar e todo mundo da mesa ouve a mesma coisa, no mesmo ponto**, cada um com o próprio volume. A música tem uma aba só dela, **Música**, no painel da direita, ao lado da **Mesa** ([[31 - A Mesa]]); funciona num UniVerso ([[32 - Rodando uma Mesa]]) e no app de desktop que serve a pasta.
+Numa sessão, a música faz metade do clima: a taverna barulhenta, a estrada à noite, a batalha. No Verso, **o mestre aperta tocar e todo mundo da mesa ouve a mesma coisa, no mesmo ponto**, cada um com o próprio volume. A música tem uma aba só dela, **Música**, no painel da direita, ao lado da **Mesa** ([[31 - A Mesa]]); funciona num UniVerso ([[32 - Rodando uma Mesa]]) e na mesa que o seu próprio Verso serve, com a janela sentada à mesa ([[39 - Mesa pela Internet]]).
 
 Nenhum som passa pela rede: cada janela toca a **sua própria cópia** do arquivo, e só o "o que toca e em que ponto" é dividido, pelo relógio do servidor. Por isso a qualidade é a do arquivo e ninguém fica atrás de ninguém. Nada disso é escrito em arquivo nenhum: o que está tocando fica na memória do servidor e some quando a última pessoa sai da mesa.
 
@@ -18,7 +18,7 @@ Nenhum som passa pela rede: cada janela toca a **sua própria cópia** do arquiv
 
 ## Ligar
 
-**Ajustes › Recursos › RPG e mesa › Som da mesa**. Vem ligado sempre que a **Mesa** está ligada; desligado, não há aba Música, botão nem item na barra de status, e nada é carregado. Até a primeira música tocar, nada do tocador é carregado também.
+**Ajustes › RPG & Mesa Solo › Dados e RPG › Som da mesa**. Vem ligado sempre que a **Mesa** está ligada; desligado, não há aba Música, botão nem item na barra de status, e nada é carregado. Até a primeira música tocar, nada do tocador é carregado também.
 
 ---
 
@@ -140,7 +140,7 @@ O mestre pode compartilhar **o som das páginas abertas no Verso** (YouTube, Spo
 
 > **No Mac (macOS 14.4 ou mais novo)** a única fonte é **Páginas abertas no Verso**: o som das páginas abertas como página (YouTube, Spotify Web, uma trilha de ambiente), todas juntas, e o nome diz quais sites estão tocando agora (*Páginas abertas no Verso: open.spotify.com*). Ela aparece quando uma página já fez som: comece a tocar nela e abra **Compartilhar áudio…** de novo. Os sons do próprio Verso saem por um caminho próprio enquanto você compartilha, com um atraso de alguns centésimos de segundo. **Vídeos e páginas mostrados dentro de uma nota vão junto**: no Mac o som deles não se separa, e o aviso do Verso diz isso. Na primeira vez, o macOS pede para permitir **Gravação de Áudio do Sistema** ao Verso. Se você disser não, o Verso avisa, e você pode permitir depois em **Ajustes do Sistema > Privacidade e Segurança > Gravação de Áudio do Sistema** (em algumas versões, *Tela e Áudio do Sistema*), e começar de novo. Uma fonte que dá *Silêncio* enquanto toca costuma ser esta permissão desligada. Uma cópia do Verso aberta pelo terminal (build de desenvolvimento) não acha páginas: use o app instalado. Num macOS mais antigo o seletor diz que precisa de um mais novo.
 >
-> **No Windows (Windows 11 ou mais novo)** o Verso compartilha **só o som das páginas abertas no Verso**, nunca outros programas e nunca os sons do próprio Verso (dados, avisos, a música da mesa: esses já tocam na sua janela). A lista tem uma fonte, **Páginas abertas no Verso**, e diz quais sites estão tocando agora; todas as páginas abertas vão juntas. Abra a página **como página**: uma página mostrada dentro de uma nota não é compartilhada, porque ali ela não se separa dos sons do próprio Verso. Sem página aberta, o seletor pede para abrir uma; no **Windows 10** ele diz que precisa do Windows 11. As páginas agora guardam seus logins num perfil só delas, então depois desta atualização entre mais uma vez nas páginas que você usa.
+> **No Windows (Windows 11 ou mais novo)** o Verso compartilha **só o som das páginas abertas no Verso**, nunca outros programas e nunca os sons do próprio Verso (dados, avisos, a música da mesa: esses já tocam na sua janela). A lista tem uma fonte, **Páginas abertas no Verso**, e diz quais sites estão tocando agora; todas as páginas abertas vão juntas. Abra a página **como página**: uma página mostrada dentro de uma nota não é compartilhada, porque ali ela não se separa dos sons do próprio Verso. Sem página aberta, o seletor pede para abrir uma; no **Windows 10** ele diz que precisa do Windows 11. As páginas guardam seus logins num perfil só delas: entre uma vez, dentro do Verso, nas páginas que você usa.
 >
 > **No Linux** a lista é a mesma do Windows: **só o som das páginas abertas no Verso** (YouTube, Spotify Web, uma trilha de ambiente), todas juntas, nunca outros programas e nunca os sons do próprio Verso; a lista diz quais sites estão tocando agora. Abra a página **como página**: **vídeos e páginas mostrados dentro de uma nota não são compartilhados no Linux**. Enquanto você compartilha, os sons do próprio Verso saem por um caminho próprio, com um atraso de alguns centésimos de segundo. Precisa das ferramentas de som do PulseAudio (`pactl`, `parec` e `pacat`, do pacote `pulseaudio-utils`, que o PipeWire também usa): o .deb e o .rpm as recomendam, e quem usa o AppImage as instala à mão. Sem elas o seletor avisa. Sem página aberta, ele pede para abrir uma.
 
@@ -151,4 +151,4 @@ As duas faixas
 
 As duas faixas de amostra (`assets/sons/`) são de **RandomMind**, em domínio público (CC0 1.0): `taverna.mp3` é “The Old Tower Inn” (<https://opengameart.org/content/medieval-the-old-tower-inn>) e `estrada.mp3` é “The Bard's Tale” (<https://opengameart.org/content/medieval-the-bards-tale>), as versões em loop, regravadas em mono para pesar pouco.
 
-Siga para a [[37 - Compatibilidade com o Obsidian]], ou volte à [[34 - UniVerso num Servidor Grátis da Oracle]] ou a [[31 - A Mesa]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].
+Siga para a [[37 - Compatibilidade com o Obsidian]], ou volte ao [[35 - Terminal e Agentes de IA]] ou à [[31 - A Mesa]], consulte a [[00 - Bem-vindo ao Verso|Página Inicial]] ou explore o [[Tour do Verso.canvas|Tour do Verso]].

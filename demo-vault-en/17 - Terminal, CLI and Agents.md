@@ -59,7 +59,7 @@ In both modes the app does not need to be open: the agent starts `verso` by itse
 
 The agent gets these tools, all read-only:
 
-- `search` and `list_notes` (list the notes and boards — also only those with a tag, like `project`, or a property, like `status: active`);
+- `search` and `list_notes` (list the notes and boards — also only those with a tag, like `project`, a property, like `status: active`, or a type, like `Character` — see [[21 - Typed Notes]]);
 - `read_note` (read a note, with its properties and tags);
 - `links` and `backlinks` (a note's connections — and, when the connection is a frontmatter property, like `ally: "[[Baron]]"`, what the relation is);
 - `read_board` (read a board: the cards, the arrows with their relations, the drawn texts);

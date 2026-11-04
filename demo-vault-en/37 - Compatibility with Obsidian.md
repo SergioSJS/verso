@@ -108,4 +108,4 @@ Turning an RPG feature off in Verso changes no file; the statblock becomes a cod
 
 When you are done, the vault is still an Obsidian vault.
 
-Next: [[38 - Installing the server on a NAS or a VPS]] puts your notes on a server of your own. Back to the [[00 - Welcome to Verso|Home Page]] or the [[Verso Tour.canvas|Verso Tour]].
+Next: [[38 - Installing the server on a NAS or a VPS]] puts your notes on a server of your own. Back to [[36 - Sound and Music at the Table]], to the [[00 - Welcome to Verso|Home Page]] or the [[Verso Tour.canvas|Verso Tour]].

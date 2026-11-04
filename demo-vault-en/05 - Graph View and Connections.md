@@ -29,6 +29,7 @@ Verso's **Knowledge Graph** maps the connections between all your notes, reveali
 - **Show notes without links**, **Names** and **Color by folder** turn what you see on and off.
 - **Existing files only** starts on. Turn it off to also see the notes you have already cited with `[[ ]]` but not created yet: each is an empty circle with a dashed outline and an italic name, joined to the notes that cite it. Double-click it, or reach it with the arrow keys and press Enter, to create the note and open it — Verso asks first (**Create the note "Goblin Rei"?**).
 - **Repulsion**, **Distance** and **Size** adjust the drawing.
+- In a narrow pane or on a phone, the controls are tucked behind the **Graph settings** button, at the top of the graph.
 - **Zoom out**, **Zoom in** and **See everything**; the **Show all** button (at the top of the graph, shown only while a note, a filter or a tag narrows the view) clears everything and returns to the whole graph; the **×** in the filter field, or Esc inside it, clears the filter only.
 
 ---

@@ -16,20 +16,37 @@ status: ativo
 
 ## As Seções
 
-- **Geral**: o idioma (**Sistema**, **Português (Brasil)** ou **English**), o tempo do salvamento automático, as atualizações, o console do desenvolvedor, o conteúdo remoto e os sites permitidos nas notas.
-- **Notificações**: para cada tipo — sincronização, conflitos, compartilhamento, atualizações, cota, lixeira, presença — **Aviso e lista**, **Só na lista** ou **Desligado**, e as notificações do sistema (veja [[18 - Ajuda, Atualizações e Diagnóstico#Notificações]]).
+A lista da esquerda vem em quatro grupos. Uma seção só aparece onde vale: a da lixeira e a das notas periódicas pedem uma pasta aberta, e as de rede só existem no aplicativo de mesa.
+
+**Aplicação**
+- **Geral**: o idioma (**Sistema**, **Português (Brasil)** ou **English**), o tempo do salvamento automático, as atualizações e a versão do app, o console do desenvolvedor, o conteúdo remoto, os sites permitidos nas notas e o **Fundo dos mapas**.
 - **Aparência**: tema, tom do escuro, tamanho e largura do texto e a galeria de **Temas** — um clique troca o visual; **Copiar** e **Editar** abrem o **Construtor de tema** —, com temas para compartilhar.
-- **Editor**: abas de pré-visualização, o modo em que as notas abrem, a correção ortográfica e os números de linha.
-- **Arquivos e links**: pastas de build e `.gitignore`, o formato dos links novos, e as pastas de anexos, das notas diárias e dos templates.
-- **Board**: como um `.canvas` abre e como os boards novos nascem (veja [[09 - Board e Relações]]).
+- **Recursos**: liga e desliga os recursos opcionais (diagrama de dados, amostras de cor, terminal), com os atalhos **Tudo**, **Só escrita** e **Personalizado**. Desligar um recurso não muda nenhum arquivo.
+- **Notificações**: para cada tipo — sincronização, conflitos, compartilhamento, atualizações, cota, lixeira, presença, mesa — **Aviso e lista**, **Só na lista** ou **Desligado**, o **Som da Mesa** e as notificações do sistema (veja [[18 - Ajuda, Atualizações e Diagnóstico#Notificações]]).
 - **Atalhos**: as teclas de cada comando.
-- **Terminal e agentes**: o comando `verso` e o Verso nos agentes de IA (veja [[17 - Terminal, CLI e Agentes]]).
+- **Créditos e agradecimentos**: quem e o que o Verso usa, com os avisos que cada licença pede.
+
+**Notas & Editor**
+- **Editor**: abas de pré-visualização, o modo em que as notas abrem, a correção ortográfica, as alças dos blocos, as sugestões de link e os números de linha.
+- **Arquivos e links**: o espaço da pasta e o tamanho da lixeira, o prazo do histórico de versões, pastas de build e `.gitignore`, o tamanho máximo de um arquivo importado, as pastas ocultas do seletor, o formato dos links novos, e as pastas de anexos e dos templates.
+- **Organização**: figurinhas, capas, a nota da pasta, os favoritos, a ordem manual e as pastas ocultas da árvore (veja [[19 - Organizando com figurinhas, capas e páginas]]).
+- **Notas periódicas**: o dia, a semana, o mês, o trimestre e o ano, cada um com o seu formato, pasta e template (veja [[07 - Notas Diárias, Calendário e Templates]]).
+- **Lixeira**: o que foi apagado nesta pasta (veja [[14 - Arquivos e Pastas#A Lixeira]]).
+- **Board**: como um `.canvas` abre e como os boards novos nascem (veja [[09 - Board e Relações]]).
+
+**RPG & Mesa Solo**
+- **Dados e RPG**, **Oráculos e Solo RPG** e **Fichas e Templates**: os recursos de RPG, um por chave, e os seus ajustes (veja [[25 - Dados e Tabelas Sorteadas]]).
+
+**Rede & Conexões**
+- **Sincronizar**, **Servidores** e **Transformar em servidor**: a pasta com um servidor ou uma nuvem, os servidores em que você entra e este computador servindo as pastas dele (veja [[23 - Verso num Servidor]] e [[22 - Verso no Celular e no Tablet]]).
+- **Terminal e agentes**: o comando `verso`, o terminal e o Verso nos agentes de IA (veja [[17 - Terminal, CLI e Agentes]]).
+- **Conta**: a sua conta, quando a janela é de um servidor.
 
 ---
 
 ## Da pasta ou desta máquina
 
-Três ajustes são da pasta, não do computador: os **Favoritos**, as **pastas de build** e o **`.gitignore`** (em **Arquivos e links**) e o **Nome da nota da pasta** (em **Organização**). Eles ficam dentro da própria pasta, em `.verso/settings.json`, e viajam com ela: abra a pasta sincronizada em outro computador — pela sincronização do Verso (veja [[23 - Verso num Servidor]]), iCloud, OneDrive, Syncthing ou git — e eles estão lá. Ao lado de cada um, os Ajustes dizem **Da pasta** ou **Desta máquina**: desta máquina enquanto a pasta não tem o arquivo, que só aparece na primeira mudança — abrir uma pasta nunca o cria. Quem só lê uma pasta de servidor guarda os favoritos dela neste computador, e a estrela funciona do mesmo jeito: ao lado deles, os Ajustes dizem **Desta máquina**.
+Quatro ajustes são da pasta, não do computador: as **pastas de build** e o **`.gitignore`** (em **Arquivos e links**), e o **Nome da nota da pasta** e os **Favoritos** (em **Organização**). Eles ficam dentro da própria pasta, em `.verso/settings.json`, e viajam com ela: abra a pasta sincronizada em outro computador — pela sincronização do Verso (veja [[23 - Verso num Servidor]]), iCloud, OneDrive, Syncthing ou git — e eles estão lá. Ao lado de cada um, os Ajustes dizem **Da pasta** ou **Desta máquina**: desta máquina enquanto a pasta não tem o arquivo, que só aparece na primeira mudança — abrir uma pasta nunca o cria. Quem só lê uma pasta de servidor guarda os favoritos dela neste computador, e a estrela funciona do mesmo jeito: ao lado deles, os Ajustes dizem **Desta máquina**.
 
 Experimente: em **Arquivos e links**, desligue **Ignorar pastas de build** e veja a etiqueta passar a **Da pasta**; ligue de novo para voltar.
 

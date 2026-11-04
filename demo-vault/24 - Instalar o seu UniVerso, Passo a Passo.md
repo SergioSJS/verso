@@ -17,10 +17,10 @@ Esta nota leva você, sem pressa, de uma máquina vazia a um **UniVerso** funcio
 > Ainda **não há um download público**: o repositório do Verso é privado enquanto o app amadurece, e os comandos abaixo baixam o programa de lá com um **token** do GitHub que o mantenedor lhe dá. Sem esse acesso, ainda não dá para instalar. Os comandos são os do guia de referência do projeto (`docs/reference/server-hands-on.md`), escritos a partir da versão **0.8.0-beta.1** e conferidos passo a passo, em 2026-10-15, numa máquina Ubuntu 26.04 de 1 núcleo e 1 GB com a **0.8.2-beta.1** (o Caminho 1 inteiro; o Caminho 2 com a imagem montada à mão). O que ficou sem rodar num navegador de verdade: o HTTPS com nome ou Tailscale, o app de desktop e o celular. Se algo não bater, vá a [[#Se algo der errado]] e conte ao mantenedor.
 
 > [!TIP] Nunca montou um servidor?
-> A nota [[34 - UniVerso num Servidor Grátis da Oracle]] é o roteiro com o **menu do instalador** (`sh universo.sh`): HTTPS com um nome grátis e o primeiro admin em poucos passos, numa máquina grátis da Oracle. O que está abaixo é o caminho manual.
+> A nota [[34 - UniVerso num Servidor Grátis da Oracle]] é o roteiro com o **menu do instalador** (`sh universo.sh`): HTTPS com um nome grátis e o primeiro admin em poucos passos, numa máquina grátis da Oracle. Num NAS (ZimaOS, CasaOS) ou num VPS, o roteiro é a [[38 - Instalar o servidor num NAS ou VPS]]; para jogar algumas horas sem servidor nenhum, o próprio app do computador serve a mesa: [[39 - Mesa pela Internet]]. O que está abaixo é o caminho manual.
 
 > [!NOTE] O caminho mais curto
-> Cole o arquivo compose, abra `http://<IP da máquina>:7340` e use o link de configuração que aparece no log. **Sem HTTPS, sem nome, sem proxy.** O HTTPS é um passo opcional, depois, para liberar o modo offline e as notificações (seção 5). Isso vale a partir da versão que vem depois da 0.8.2-beta.1; as anteriores recusam entrar por HTTP vindo de outra máquina.
+> Cole o arquivo compose, abra `http://<IP da máquina>:7340` e use o link de configuração que aparece no log. **Sem HTTPS, sem nome, sem proxy.** O HTTPS é um passo opcional, depois, para liberar o modo offline e as notificações (seção 5). Isso vale desde a 0.8.3-beta.2; as anteriores recusam entrar por HTTP vindo de outra máquina.
 
 ---
 
@@ -48,7 +48,7 @@ O UniVerso é **livre e seu**: roda numa máquina sua, as notas continuam arquiv
 Serve para uma máquina Linux com `apt` ou `dnf`, com ou sem Docker. No servidor, com o seu usuário comum (o script pede `sudo` quando precisar):
 
 ```bash
-V=0.8.2-beta.1
+V=0.8.4-beta.1
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                          # opcional: ler o que ele faz (q para sair)
 read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # cole o token, Enter; enquanto o repositório é privado
@@ -117,7 +117,7 @@ O `Login Succeeded` **não prova** que o token serve: o registro só o confere a
 **Passo 3: a versão e o arquivo compose.**
 
 ```bash
-V=0.8.2-beta.1
+V=0.8.4-beta.1
 echo "V=$V" | sudo tee /srv/universo/.env
 sudoedit /srv/universo/compose.yaml
 ```
@@ -143,6 +143,11 @@ services:
     security_opt:
       - no-new-privileges:true
     mem_limit: 768m           # limite de memória: se acabar, o contêiner reinicia, a máquina não cai
+    logging:                  # o log girado pelo Docker: até três arquivos de 10 MB
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "7340:7340"                                 # todos os endereços: HTTP simples pela rede
     volumes:
@@ -195,6 +200,11 @@ services:
     security_opt:
       - no-new-privileges:true
     mem_limit: 768m           # limite de memória: se acabar, o contêiner reinicia, a máquina não cai
+    logging:                  # o log girado pelo Docker: até três arquivos de 10 MB
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "7340:7340"
     volumes:
@@ -347,7 +357,7 @@ scp 'ubuntu@<IP do servidor>:universo-backup-*.tar.gz' .                        
 
 Copie o nome que o comando imprimiu (ou veja com `ls /var/backups/universo`): numa cópia mais nova do script ele traz no fim uma parte aleatória (`-a1b2c3`), numa mais antiga termina na hora.
 
-O guia também ensina a **criptografar** o backup (`backup --keygen` e `backup --encrypt`) antes de ele sair da máquina, numa versão mais nova do script.
+O guia também ensina a **criptografar** o backup (`backup --keygen` e `backup --encrypt`) antes de ele sair da máquina.
 
 Com **Docker**, pare o servidor, copie os dois diretórios e ligue de novo. O `umask 077` e o `>` fazem o arquivo nascer seu e legível só por você (ele guarda as contas e as senhas em hash; sem isso o `tar` com `sudo` o deixa do root e aberto a qualquer usuário da máquina):
 
@@ -368,7 +378,7 @@ Com **Docker**, troque a versão no `.env` e recrie o contêiner (os dados ficam
 
 ```bash
 cd /srv/universo
-echo "V=0.8.2-beta.1" | sudo tee .env   # troque pelo número da versão nova
+echo "V=0.8.4-beta.1" | sudo tee .env   # troque pelo número da versão nova
 docker compose pull
 docker compose up -d
 ```

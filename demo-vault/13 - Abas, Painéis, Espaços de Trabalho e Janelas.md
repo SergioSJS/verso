@@ -34,7 +34,7 @@ Várias notas abertas ao mesmo tempo: em abas, lado a lado, em espaços de traba
 
 - `⌘\` divide à direita e `⌘⇧\` divide abaixo.
 - Ou arraste uma aba até a borda de um painel: a borda escolhe o lado; o meio põe a aba ali.
-- O **painel da direita** (estrutura, backlinks, tags, favoritos, focos, calendário e, numa mesa, **Mesa** e **Música**) abre pelo botão **Mostrar painel da direita** da barra de status, pelo botão do mesmo nome na faixa da esquerda, ou por `⌘⌥→`. No celular, é o botão **Painel** da barra de baixo. As abas do painel mudam de lugar: arraste uma aba, ou use `Alt+←` e `Alt+→` numa aba com o foco, ou o botão direito › **Mover para a esquerda / direita**; a ordem fica guardada. Uma aba também se **oculta**: botão direito (no celular, um toque longo) › **Ocultar esta aba**. Para trazê-la de volta, o botão **⋯** lista as abas ocultas (**Mostrar “Links”**, **Restaurar abas**), e **Ajustes › Aparência › Abas do painel direito** tem cada aba com um interruptor e setas para cima e para baixo — o caminho que sempre existe. A aba aberta nunca some (abrir a Música pela barra de status a mostra enquanto estiver escolhida), e a última aba não se oculta. Quando faltam espaço (e, no Windows e no Linux, o app desenha os próprios botões de janela no canto), as abas que não cabem vão para o botão **⋯** (**Mais abas do painel**), seguindo a sua ordem; Mesa e Música ficam na barra antes das outras.
+- O **painel da direita** (estrutura, backlinks, tags, favoritos, focos, calendário e, numa mesa, **Mesa** e **Música**) abre pelo botão **Mostrar painel da direita** da barra de status, pelo botão do mesmo nome na faixa da esquerda, ou por `⌘⌥→`. No celular, é o botão **Painel** da barra de baixo. As abas do painel mudam de lugar: arraste uma aba, ou use `Alt+←` e `Alt+→` numa aba com o foco, ou o botão direito › **Mover para a esquerda / direita**; a ordem fica guardada. Uma aba também se **oculta**: botão direito (no celular, um toque longo) › **Ocultar esta aba**. Para trazê-la de volta, o botão **⋯** lista as abas ocultas (**Mostrar “Links”**, **Restaurar abas**), e **Ajustes › Aparência › Abas do painel direito** tem cada aba com um interruptor e setas para cima e para baixo — o caminho que sempre existe. A aba aberta nunca some (abrir a Música pela barra de status a mostra enquanto estiver escolhida), e a última aba não se oculta. Quando falta espaço (e, no Windows e no Linux, o app desenha os próprios botões de janela no canto), as abas que não cabem vão para o botão **⋯** (**Mais abas do painel**), seguindo a sua ordem; Mesa e Música ficam na barra antes das outras.
 - `⌘⇧M` maximiza o painel e `⌘⇧W` o fecha.
 - O botão **Todas as abas**, no canto da barra de abas, lista as abas do painel e tem **Abas na vertical** e **Ocultar barra de abas** — para trazê-la de volta, no celular toque na faixa **Mostrar barra de abas** que aparece no alto do painel; em qualquer tela use a Paleta de comandos (`⌘⇧P`; no celular, o botão **Comandos** da barra de baixo) ou o interruptor em **Ajustes › Editor**; um duplo clique no painel vazio também serve.
 
@@ -44,9 +44,9 @@ Várias notas abertas ao mesmo tempo: em abas, lado a lado, em espaços de traba
 
 Um espaço de trabalho é um conjunto de painéis e abas, para trocar de assunto sem fechar nada.
 
-- `⌘T` cria um espaço de trabalho novo; com dois ou mais, aparece a barra de espaços e `⌘1` a `⌘9` trocam entre elas.
-- Um duplo clique no nome de um espaço de trabalho (ou `F2`, ou **Renomear** no botão direito) a renomeia.
-- Arraste uma aba para o nome de outro espaço de trabalho para levá-la até lá.
+- `⌘T` (na paleta, **Nova área**) cria um espaço de trabalho novo, chamado *Área 2*, *Área 3*…; com dois ou mais, aparece a barra de espaços e `⌘1` a `⌘9` trocam entre eles. O **×** no nome, ou **Fechar espaço de trabalho** no botão direito, fecha um.
+- Um duplo clique no nome de um espaço de trabalho (ou `F2`, ou **Renomear** no botão direito) o renomeia.
+- Arraste uma aba para o nome de outro espaço de trabalho para levá-la até lá — ou, no menu da aba, **Mover para: Área 2**.
 
 ---
 

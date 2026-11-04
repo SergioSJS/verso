@@ -23,7 +23,9 @@ Três jeitos, do mesmo programa (o guia completo está em `docs/reference/server
 
 - **Docker**, para amd64 e arm64;
 - **CasaOS e ZimaOS**, por um arquivo compose;
-- um pacote **`.deb` ou `.rpm`** com um serviço do systemd, para uma máquina sem Docker.
+- um pacote **`.deb` ou `.rpm`** com um serviço do systemd, para uma máquina sem Docker — ou o **instalador guiado** `universo.sh`, que baixa, confere e instala o pacote certo num Linux com systemd (Ubuntu, Debian, Fedora…) e cuida do HTTPS, do primeiro admin e dos backups.
+
+Num NAS ou num VPS, passo a passo: [[38 - Instalar o servidor num NAS ou VPS]]; no servidor grátis da Oracle: [[34 - UniVerso num Servidor Grátis da Oracle]]. E, para uma sessão de jogo, o próprio app do computador pode ser o servidor, sem instalar nada: [[39 - Mesa pela Internet]].
 
 Duas pastas importam: `VERSO_DATA_DIR`, num disco local, com as contas e os índices; e `VERSO_FOLDERS_DIR`, com as pastas de notas, que pode ficar num NAS. O backup é das duas.
 
@@ -79,7 +81,7 @@ Ali também fica o **nome deste aparelho** — por padrão, o nome do sistema. D
 
 ---
 
-**Sem servidor nenhum**: o app do computador também pode servir as pastas que você marcar direto ao celular, na sua rede, sem conta e sem senha — o celular é pareado por um QR e você permite no computador. Veja [[22 - Verso no Celular e no Tablet#Parear o Celular com o Seu Computador|Parear o celular com o seu computador]].
+**Sem servidor nenhum**: o app do computador também é um servidor, em **Ajustes › Transformar em servidor**. **Na minha rede**, ele serve as pastas que você marcar direto ao seu celular, sem conta e sem senha — o celular é pareado por um QR e você permite no computador; veja [[22 - Verso no Celular e no Tablet#Parear o Celular com o Seu Computador|Parear o celular com o seu computador]]. **Por um link na internet**, ele recebe gente de fora com convites, contas, a Mesa e os links de leitura, como um UniVerso, enquanto o computador fica ligado; o Verso de quem você convidou conecta por **Ajustes › Servidores** com o endereço do link. Veja [[39 - Mesa pela Internet]].
 
 ## Sincronizar uma pasta deste computador
 
@@ -99,7 +101,7 @@ Com a pasta aberta, o jeito mais curto é **Ajustes › Servidores › Sincroniz
 
 A barra de status mostra o estado — *Sincronizada*, *enviando 3*, *Sem conexão*, *Servidor fora de alcance*, *Pausada*, *1 conflito* — e um clique nela abre a seção. Com o servidor fora do ar, a seção diz qual servidor não respondeu, e *Sincronizar agora* tenta de novo; *Sincronizar esta pasta* e a lista de pastas em Ajustes › Servidores dizem o mesmo ali mesmo, com **Tentar de novo**. Quem só **lê** a pasta no servidor recebe as mudanças; as feitas aqui ficam aqui. Desligar deixa os dois lados como estão.
 
-Arquivos que o iCloud ou o OneDrive deixaram só na nuvem aparecem em **Configurações › Sincronizar** como *arquivos que ainda não estão neste computador*, com o botão **Baixar N arquivos (X MB)**: ele diz o tamanho antes, recusa começar se o disco não comporta (ou se não dá para saber o espaço livre), baixa um de cada vez com o progresso e um **Parar**, e os que descem sincronizam na passada seguinte. Um arquivo que já sincronizou e voltou para a nuvem não pede nada: a linha discreta *estão só na nuvem; o servidor tem a cópia* o conta, e ele nunca é apagado no servidor.
+Arquivos que o iCloud ou o OneDrive deixaram só na nuvem aparecem em **Ajustes › Sincronizar** como *arquivos que ainda não estão neste computador*, com o botão **Baixar N arquivos (X MB)**: ele diz o tamanho antes, recusa começar se o disco não comporta (ou se não dá para saber o espaço livre), baixa um de cada vez com o progresso e um **Parar**, e os que descem sincronizam na passada seguinte. Um arquivo que já sincronizou e voltou para a nuvem não pede nada: a linha discreta *estão só na nuvem; o servidor tem a cópia* o conta, e ele nunca é apagado no servidor.
 
 ### Editar junto numa pasta sincronizada
 
@@ -136,7 +138,7 @@ Quem só **lê** uma nota não recebe os blocos `[!secret]` dela: o segredo do m
 
 Para que jogadores, ou qualquer pessoa, **leiam** o mundo sem fazer uma conta, a dona da pasta faz um **link de leitura**: clique com o botão direito na pasta e escolha **Link de leitura…**, ou numa nota e escolha **Copiar link de leitura…**. Escolha a validade (sem validade, 1, 7 ou 30 dias, ou até uma data) e, se quiser, uma **senha**. O endereço (`/r/…`) aparece **uma vez**, já copiado: o servidor guarda só uma marca dele. Quem o abrir lê, num navegador, só o que o link aponta — a pasta, ou a nota e o que ela incorpora —, na visão do leitor: **sem** os blocos `[!secret]`, sem editar, sem histórico, e um link para uma nota que não foi compartilhada aparece como texto simples *(não compartilhado)*. Os dados rolam no navegador de quem lê e não escrevem nada.
 
-Antes de o link ser feito, o diálogo diz quantas notas têm segredos e que quem lê não as verá. A árvore marca o que tem um link ativo, e o painel lista os links com quem fez cada um e quando foi aberto pela última vez. **Revogar** acaba o link na hora, até nas páginas que já estavam abertas. Os links de leitura **começam desligados**: quem administra liga em *Administração › Servidor*, e desligar encerra todos. Uma senha errada conta como um login recusado, e a dona é avisada por e-mail quando são muitas.
+Antes de o link ser feito, o diálogo diz quantas notas têm segredos e que quem lê não as verá. A árvore marca o que tem um link ativo, e o painel lista os links com quem fez cada um e quando foi aberto pela última vez. **Revogar** acaba o link na hora, até nas páginas que já estavam abertas. Os links de leitura **começam desligados**: quem administra liga em *Administração › Servidor* (no app que serve pela internet, em **Ligar os links de leitura**; veja [[39 - Mesa pela Internet#Links de leitura]]), e desligar encerra todos. Uma senha errada conta como um login recusado, e a dona é avisada por e-mail quando são muitas — se o servidor tem um servidor de e-mail configurado (`VERSO_SMTP_URL`).
 
 ---
 

@@ -61,10 +61,10 @@ A sound file included as an embed becomes a **player**, as in Obsidian. `![[asse
 
 ![[assets/sons/taverna.mp3]]
 
-- **Play** and **Pause**; the bar with the time (drag it, or use the arrow keys, to go elsewhere in the track); **Mute** and the **Volume**. The volume is yours, kept on this device, and the same for every player.
+- **Play** and **Pause**; the bar with the time (drag it, or use the arrow keys, to go elsewhere in the track); **Mute** and the **Volume**; **Loop** plays the file over and over, for you only. The volume is yours, kept on this device, and the same for every player.
 - A click on the **name** opens the file (with `⌘`, beside).
 - It plays **for you only**, one at a time: starting a player pauses the other.
-- It works for `.mp3`, `.m4a`, `.aac`, `.ogg`, `.wav` and `.flac`, and for the Markdown embed too: `![](assets/sons/estrada.mp3)`. **MP3** and **AAC** play everywhere; OGG does not play on the iPhone, the iPad or the Mac.
+- It works for `.mp3`, `.m4a`, `.aac`, `.ogg`, `.opus`, `.wav` and `.flac`, and for the Markdown embed too: `![](assets/sons/estrada.mp3)`. **MP3** and **AAC** play everywhere; OGG does not play on the iPhone, the iPad or the Mac.
 - In **Source** mode the text shows as written; opening or playing never changes the note.
 - On a phone or a tablet, the volume is the device's own buttons; **Mute** stays on the player.
 - On a **board**, a sound file — brought from **Insert › Note or file of the folder…** or dragged from the computer — becomes a card with the same player, resized like the others.

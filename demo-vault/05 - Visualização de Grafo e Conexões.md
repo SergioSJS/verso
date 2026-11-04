@@ -29,6 +29,7 @@ O **Grafo de Conhecimento** do Verso mapeia as conexões entre todas as suas not
 - **Mostrar notas sem links**, **Nomes** e **Cor por pasta** ligam e desligam o que se vê.
 - **Só arquivos existentes** vem ligado. Desligue para ver também as notas que você já citou com `[[ ]]` mas ainda não criou: cada uma é um círculo vazio, de contorno tracejado e nome em itálico, ligado às notas que a citam. Dê um duplo clique nela, ou chegue pelas setas e aperte Enter, para criar a nota e abri-la — o Verso pergunta antes (**Criar a nota "Goblin Rei"?**).
 - **Repulsão**, **Distância** e **Tamanho** ajustam o desenho.
+- Num painel estreito ou no celular, os controles ficam guardados atrás do botão **Ajustes do grafo**, no alto do grafo.
 - **Afastar**, **Aproximar** e **Ver tudo**; o botão **Mostrar tudo** (no alto do grafo, só aparece quando uma nota, um filtro ou uma tag restringe a vista) limpa tudo e volta para o grafo inteiro; o **×** no campo de filtro, ou Esc dentro dele, limpa só o filtro.
 
 ---

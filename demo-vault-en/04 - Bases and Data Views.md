@@ -137,8 +137,8 @@ views:
 
 ## How to Create a Base
 
-- In the left ribbon, the **New note** button (`+`) opens the **New** menu: choose **New base**.
-- Right-click on a folder, or on the empty space of the file tree: **New base**.
+- In the left ribbon, the **New note** button (`+`) opens a menu of what can be made: choose **New base**.
+- Right-click on the empty space of the file tree: **New base**; on a folder, under **New** › **New base**.
 - In the command palette (`⌘⇧P`): **New base**.
 
 Explore this vault's project notes:

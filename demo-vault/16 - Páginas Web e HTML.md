@@ -15,7 +15,7 @@ Uma página da web pode ser uma nota sua, com anotações; um arquivo `.html` da
 
 ## Uma Página Guardada como Nota
 
-**Nova página web…** (no menu **Nova…** do botão `+` da faixa da esquerda, ou no menu de uma pasta) pede o endereço e cria uma nota com ele. Toda nota com a propriedade `url` no topo é uma página: a aba ganha a barra **Voltar**, **Avançar** e **Recarregar**.
+**Nova página web…** (no menu **Novo** do botão `+` da faixa da esquerda, ou no menu de uma pasta) pede o endereço e cria uma nota com ele. Toda nota com a propriedade `url` no topo é uma página: a aba ganha a barra **Voltar**, **Avançar** e **Recarregar**.
 
 - **Ver página** e **Ver nota** alternam entre o site e o texto da nota — as suas anotações sobre ele.
 - O endereço, na barra, abre a página numa janela própria.

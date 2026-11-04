@@ -17,10 +17,10 @@ This note takes you, with no rush, from an empty machine to a working **UniVerso
 > There is **no public download** yet: Verso's repository is private while the app matures, and the commands below fetch the program from there with a GitHub **token** that the maintainer gives you. Without that access, you cannot install yet. The commands are the ones in the project's reference guide (`docs/reference/server-hands-on.md`), written from version **0.8.0-beta.1** and checked step by step, on 2026-10-15, on an Ubuntu 26.04 machine with 1 core and 1 GB, running **0.8.2-beta.1** (all of Path 1; Path 2 with the image built by hand). What was left unrun in a real browser: HTTPS with a name or Tailscale, the desktop app and the phone. If something does not match, go to [[#If something goes wrong]] and tell the maintainer.
 
 > [!TIP] Never set up a server?
-> The note [[34 - UniVerso on a Free Oracle Server]] is the route with the **installer's menu** (`sh universo.sh`): HTTPS with a free name and the first admin in a few steps, on a free Oracle machine. What is below is the manual road.
+> The note [[34 - UniVerso on a Free Oracle Server]] is the route with the **installer's menu** (`sh universo.sh`): HTTPS with a free name and the first admin in a few steps, on a free Oracle machine. On a NAS (ZimaOS, CasaOS) or a VPS, the route is [[38 - Installing the server on a NAS or a VPS]]; to play for a few hours with no server at all, the desktop app itself serves the table: [[39 - A Table over the Internet]]. What is below is the manual road.
 
 > [!NOTE] The shortest path
-> Paste the compose file, open `http://<machine IP>:7340` and use the setup link that shows up in the log. **No HTTPS, no name, no proxy.** HTTPS is an optional step, later, to unlock offline mode and notifications (section 5). This holds from the version after 0.8.2-beta.1; earlier ones refuse to let you in over HTTP from another machine.
+> Paste the compose file, open `http://<machine IP>:7340` and use the setup link that shows up in the log. **No HTTPS, no name, no proxy.** HTTPS is an optional step, later, to unlock offline mode and notifications (section 5). This holds since 0.8.3-beta.2; earlier ones refuse to let you in over HTTP from another machine.
 
 ---
 
@@ -48,7 +48,7 @@ The UniVerso is **free and yours**: it runs on a machine of your own, your notes
 It works for a Linux machine with `apt` or `dnf`, with or without Docker. On the server, as your regular user (the script asks for `sudo` when it needs it):
 
 ```bash
-V=0.8.2-beta.1
+V=0.8.4-beta.1
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                          # optional: read what it does (q to quit)
 read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # paste the token, Enter; while the repository is private
@@ -117,7 +117,7 @@ echo "$TOKEN" | sudo docker login ghcr.io -u <your-github-user> --password-stdin
 **Step 3: the version and the compose file.**
 
 ```bash
-V=0.8.2-beta.1
+V=0.8.4-beta.1
 echo "V=$V" | sudo tee /srv/universo/.env
 sudoedit /srv/universo/compose.yaml
 ```
@@ -143,6 +143,11 @@ services:
     security_opt:
       - no-new-privileges:true
     mem_limit: 768m           # memory limit: if it runs out, the container restarts, the machine does not go down
+    logging:                  # the log rotated by Docker: three files of 10 MB at most
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "7340:7340"                                 # all addresses: plain HTTP over the network
     volumes:
@@ -195,6 +200,11 @@ services:
     security_opt:
       - no-new-privileges:true
     mem_limit: 768m           # memory limit: if it runs out, the container restarts, the machine does not go down
+    logging:                  # the log rotated by Docker: three files of 10 MB at most
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "7340:7340"
     volumes:
@@ -347,7 +357,7 @@ scp 'ubuntu@<server IP>:universo-backup-*.tar.gz' .                             
 
 Copy the name the command printed (or look with `ls /var/backups/universo`): in a newer copy of the script it ends with a random part (`-a1b2c3`), in an older one it ends with the time.
 
-The guide also teaches how to **encrypt** the backup (`backup --keygen` and `backup --encrypt`) before it leaves the machine, in a newer version of the script.
+The guide also teaches how to **encrypt** the backup (`backup --keygen` and `backup --encrypt`) before it leaves the machine.
 
 With **Docker**, stop the server, copy the two directories and start it again. The `umask 077` and the `>` make the file be born yours and readable only by you (it holds the accounts and the password hashes; without that, `tar` with `sudo` leaves it owned by root and open to any user on the machine):
 
@@ -368,7 +378,7 @@ With **Docker**, change the version in `.env` and recreate the container (the da
 
 ```bash
 cd /srv/universo
-echo "V=0.8.2-beta.1" | sudo tee .env   # swap in the new version's number
+echo "V=0.8.4-beta.1" | sudo tee .env   # swap in the new version's number
 docker compose pull
 docker compose up -d
 ```

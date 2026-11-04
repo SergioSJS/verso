@@ -17,7 +17,7 @@ Your folder is an ordinary folder on your computer: whatever Verso creates, rena
 ## Create
 
 - `⌘N` creates a new note; `⌘⇧N` asks for the name first.
-- The **New note** (`+`) button on the left ribbon opens a menu: note, folder, **New base**, **New board** and **New web page…**.
+- The **New note** (`+`) button on the left ribbon opens the **New** menu: **New note in this folder**, **New folder**, **New project from a template…**, **New base**, **New board**, **New web page…** and **Import files…**.
 - Right-click a folder in the tree, or the empty space of the tree, for the same items — whatever you create goes into that folder.
 - A name that Windows cannot store — `CON`, `NUL`, `COM1`, a dot or space at the end, or `: * " < > ? | \` — is not created or accepted in a rename, on any system: the folder might be synced with a Windows machine. The field tells you why. A file that already has such a name keeps opening, and can be renamed to a name every system stores.
 - Neither is a name accepted, when creating or renaming, that differs from another name in the same folder only in upper and lower case — `note.md` beside `Note.md`: on a Mac or on Windows the two would be a single file. The same goes for a name that differs only in the way the accents were stored (a `Café.md` that came from another system). Renaming `note.md` to `Note.md` is still fine.
@@ -56,7 +56,7 @@ The button with the folder's name, at the top of the tree, opens the switcher: t
 
 ## The Trash
 
-What you delete stays in the folder's **Trash** for 30 days, and then is gone for good. To see it: **Open the trash** in the command palette, a right-click on the empty space of the tree, or **Settings › Files and links**, where the trash's size appears beside the folder's space (it does not count toward that space). The trash does not show up as a row in the tree: the tree is for your files.
+What you delete stays in the folder's **Trash** for 30 days, and then is gone for good. To see it: **Open the trash** in the command palette or on a right-click on the empty space of the tree, which opens **Settings › Trash**; in **Settings › Files and links**, the trash's size appears beside the folder's space (it does not count toward that space). The trash does not show up as a row in the tree: the tree is for your files.
 
 - The list shows each item with **where it was**, its **size**, **when** it was deleted (and by whom, in a server folder) and **when it expires**; the search at the top filters by name.
 - **Restore** puts the item back where it was — a folder comes back with everything it had. If another file with that name already exists, nothing is replaced: the item comes back beside it, as `Name (restored 2026-10-11).md`, and Verso tells you where it went — also when the name that is there differs only in upper and lower case. A name that Windows cannot store is not restored: Verso says why, and the item stays in the trash.
@@ -96,7 +96,7 @@ The file tree is a single stop of `Tab`: it remembers the item you were on, so `
 
 A click anywhere on a folder's row opens and closes it in the tree (the little arrow does the same); the folder's page opens from the small folder button at the end of the row. Verso remembers which folders you left open: when you open the app again, the tree comes back as it was. In a large folder, the first-level folders start closed, so the tree does not draw thousands of rows at once.
 
-A click on a folder's name opens the folder in a tab: **Thumbnails** or **List**, with the columns **Name**, **Kind**, **Size** and **Modified**. An image appears as a thumbnail, and a PDF shows its first page. A folder can have its own note — `Folder/Folder.md` —, which appears at the top as the **Folder note**; if it does not exist, **Create the folder note** creates it.
+The folder's page opens in a tab: **Thumbnails** or **List**, with the columns **Name**, **Kind**, **Size** and **Modified**. An image appears as a thumbnail, and a PDF shows its first page. A folder can have its own note — `Folder/Folder.md` —, which appears at the top as the **Folder note**; if it does not exist, **Create the folder note** creates it.
 
 ---
 

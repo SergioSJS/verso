@@ -16,20 +16,37 @@ status: active
 
 ## The Sections
 
-- **General**: the language (**System**, **Português (Brasil)** or **English**), the autosave delay, updates, the developer console, remote content and the sites allowed in notes.
-- **Notifications**: for each kind — sync, conflicts, sharing, updates, quota, trash, presence — **Notice and list**, **List only** or **Off**, and the system's notifications (see [[18 - Help, Updates and Diagnostics#Notifications]]).
+The list on the left comes in four groups. A section only shows where it applies: the trash and periodic notes need an open folder, and the network ones exist only in the desktop app.
+
+**Application**
+- **General**: the language (**System**, **Português (Brasil)** or **English**), the autosave delay, updates and the app's version, the developer console, remote content, the sites allowed in notes and the **Maps' background**.
 - **Appearance**: theme, dark tone, text size and width and the **Themes** gallery — one click changes the look; **Copy** and **Edit** open the **Theme builder** —, with themes to share.
-- **Editor**: preview tabs, the mode notes open in, spell check and line numbers.
-- **Files and links**: build folders and `.gitignore`, the format of new links, and the folders for attachments, daily notes and templates.
-- **Board**: how a `.canvas` opens and how new boards are born (see [[09 - Board and Relations]]).
+- **Features**: turns the optional features on and off (data diagram, colour swatches, terminal), with the **Everything**, **Writing only** and **Custom** shortcuts. Turning a feature off changes no file.
+- **Notifications**: for each kind — sync, conflicts, sharing, updates, quota, trash, presence, table — **Notice and list**, **List only** or **Off**, the **Table sound** and the system's notifications (see [[18 - Help, Updates and Diagnostics#Notifications]]).
 - **Hotkeys**: the keys for each command.
-- **Terminal and agents**: the `verso` command and Verso in AI agents (see [[17 - Terminal, CLI and Agents]]).
+- **Credits and acknowledgements**: who and what Verso draws from, with the notices each licence asks for.
+
+**Notes & Editor**
+- **Editor**: preview tabs, the mode notes open in, spell check, block handles, link suggestions and line numbers.
+- **Files and links**: the folder's space and the trash's size, how long version history is kept, build folders and `.gitignore`, the largest file an import takes, the folders hidden from the picker, the format of new links, and the folders for attachments and templates.
+- **Organizing**: stickers, covers, the folder note, bookmarks, manual order and the folders hidden from the tree (see [[19 - Organizing with Stickers, Covers and Pages]]).
+- **Periodic notes**: the day, the week, the month, the quarter and the year, each with its format, folder and template (see [[07 - Daily Notes, Calendar and Templates]]).
+- **Trash**: what was deleted in this folder (see [[14 - Files and Folders#The Trash]]).
+- **Board**: how a `.canvas` opens and how new boards are born (see [[09 - Board and Relations]]).
+
+**RPG & Solo Play**
+- **Dice and RPG**, **Oracles & Solo RPG** and **Statblock Templates**: the RPG features, one switch each, and their settings (see [[25 - Dice and Random Tables]]).
+
+**Network & System**
+- **Sync**, **Servers** and **Turn into a server**: the folder with a server or a cloud, the servers you sign in to and this computer serving its own folders (see [[23 - Verso on a Server]] and [[22 - Verso on Phone and Tablet]]).
+- **Terminal and agents**: the `verso` command, the terminal and Verso in AI agents (see [[17 - Terminal, CLI and Agents]]).
+- **Account**: your account, when the window is a server's.
 
 ---
 
 ## From the Folder or from This Machine
 
-Three settings belong to the folder, not to the computer: the **Bookmarks**, the **build folders** and the **`.gitignore`** (in **Files and links**), and the **Folder note name** (in **Organizing**). They live inside the folder itself, in `.verso/settings.json`, and travel with it: open the synced folder on another computer — through Verso's sync (see [[23 - Verso on a Server]]), iCloud, OneDrive, Syncthing or git — and they are there. Beside each one, Settings says **Of the folder** or **Of this machine**: of this machine as long as the folder does not have the file, which only appears on the first change — opening a folder never creates it. Whoever can only read a server folder keeps its bookmarks on this computer, and the star works the same way: beside them, Settings says **Of this machine**.
+Four settings belong to the folder, not to the computer: the **build folders** and the **`.gitignore`** (in **Files and links**), and the **Folder note name** and the **Bookmarks** (in **Organizing**). They live inside the folder itself, in `.verso/settings.json`, and travel with it: open the synced folder on another computer — through Verso's sync (see [[23 - Verso on a Server]]), iCloud, OneDrive, Syncthing or git — and they are there. Beside each one, Settings says **Of the folder** or **Of this machine**: of this machine as long as the folder does not have the file, which only appears on the first change — opening a folder never creates it. Whoever can only read a server folder keeps its bookmarks on this computer, and the star works the same way: beside them, Settings says **Of this machine**.
 
 Try it: in **Files and links**, turn off **Ignore build folders** and watch the label change to **Of the folder**; turn it on again to go back.
 

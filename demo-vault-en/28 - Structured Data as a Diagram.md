@@ -24,7 +24,7 @@ Open [[Sample Data/campaign-npcs.json]] (or [[Sample Data/campaign-npcs.yaml]], 
 2. **Fold** a branch with the little arrow on the box (or with **Enter**): it then says how much it hides, like *3 items* or *6 keys*. **Fold all**, **Unfold all** and **Unfold to level…** are in the bar (on a phone, in the **…** menu at the bar's end).
 3. **Search** in the field at the top: keys and values, even inside a folded branch — the diagram opens the way to the result. **Enter** goes to the next one, **Shift+Enter** to the previous, **Esc** clears.
 4. Click a box or one of its lines: the matching piece of text is **selected in the text**, if you open the same file in another pane (⌘\ splits the screen). And the cursor in the text marks the box it is in.
-5. Right-click a box or line: **Copy path** gives something like `$.npcs[0].items`; **Copy value** copies the value.
+5. Right-click a box or line: **Copy path** gives something like `$.npcs[0].items`; **Copy value** copies the value; **Show in the text** goes back to the text with that piece selected.
 6. **Arrange again** puts everything back in the original layout; **Top to bottom** switches the direction; **Fit to window** shows the whole. On a phone the bar is a single row of icons — magnifier, zoom out, zoom in, fit — and the **…** menu keeps the rest; the magnifier opens the search over the bar, and the touch tip goes away when you dismiss it.
 
 A long value appears cut off, with a **…** that shows the whole text. A number appears as it was written (`12345678901234567890`, not rounded).
