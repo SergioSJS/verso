@@ -70,6 +70,10 @@ Servir não abre a mesa na **sua** janela. Para mestrar, vá a **Esta janela na 
 
 **Sair da mesa** (na seção, ou na marca da barra de status) volta à pasta deste computador. Se o servidor **parar** com a janela sentada, ela volta sozinha para a pasta do computador e avisa. Na próxima vez, o Verso abre a pasta do computador, nunca a mesa.
 
+### Compartilhar uma pasta
+
+Na janela sentada à mesa, **Compartilhar…** no menu de uma pasta a entrega a uma pessoa que você convidou, com o papel **lê** ou **edita** (nunca **dona**). O clique no app vale como a sua confirmação: nenhuma senha é pedida. O compartilhamento fica de uma sessão para a outra, e você o revoga no mesmo diálogo. Uma pasta servida só em parte, e as subpastas que você escolheu nela, nunca se compartilham: são dos seus celulares. Jogadoras e celulares não compartilham nada aqui.
+
 ### Links de leitura
 
 Em **Links de leitura**, **Ligar os links de leitura** vem **desligado**. Ligado, você cria um link no menu de uma nota ou pasta **na janela sentada à mesa**, e quem o tiver lê, sem conta e sem editar. Desligar **fecha todos os links na hora**; ligar de novo reabre os que você não revogou. Um link nunca abre uma pasta servida só em parte.

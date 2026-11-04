@@ -70,6 +70,10 @@ Serving does not open the table in **your** window. To run it, go to **This wind
 
 **Leave the table** (in the section, or on the status bar's mark) goes back to this computer's folder. If the server **stops** with the window seated, it goes back to the computer's folder by itself and says so. Next time, Verso opens the computer's folder, never the table.
 
+### Share a folder
+
+In the window sitting at the table, **Share…** in a folder's menu gives it to a person you invited, with the role **reads** or **edits** (never **owner**). The click in the app counts as your confirmation: no password is asked. The share stays from one session to the next, and you revoke it in the same dialog. A folder served only in part, and the sub-folders you chose in it, are never shared: they belong to your phones. Players and phones share nothing here.
+
 ### Read links
 
 Under **Read links**, **Turn read links on** starts **off**. On, you make a link in a note's or a folder's menu **in the window sitting at the table**, and whoever has it reads, with no account and without editing. Turning it off **closes every link at once**; on again reopens the ones you did not revoke. A link never opens a folder served only in part.
