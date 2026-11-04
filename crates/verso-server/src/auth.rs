@@ -432,17 +432,27 @@ pub fn who(server: &Server, headers: &HeaderMap, https: bool) -> Result<Option<W
     if s.kind != "browser" {
         return Ok(None);
     }
-    // A session that is no phone's opens nothing here (ADR 0096 item 12):
-    // fail closed.
+    let Some(mut account) = server.db.account(&s.account)? else {
+        return Ok(None);
+    };
+    // "This app is a server": a phone is a session of the owner with its
+    // row, a reader or an editor and never the admin the owner is (ADR 0096
+    // item 12); an account of a person signs in as on a UniVerso (ADR 0117
+    // D3 item 2); a session of this computer's own accounts that is no
+    // phone's opens nothing — fail closed.
     let phone = if server.local.is_some() {
-        match server.db.phone_role(&s.id)? {
-            Some(role) => Some(role),
-            None => return Ok(None),
+        let phone = server.db.phone_role(&s.id)?;
+        if phone.is_some() {
+            account.admin = false;
+            account.may_create = false;
+        } else if crate::db::is_this_computer(&account.email) {
+            return Ok(None);
         }
+        phone
     } else {
         None
     };
-    Ok(server.db.account(&s.account)?.map(|account| Who {
+    Ok(Some(Who {
         account,
         via: Via::Browser {
             session: s.id,

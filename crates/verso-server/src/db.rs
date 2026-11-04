@@ -1434,7 +1434,7 @@ pub use table::{ROWS_MOST, Row as TableRow};
 mod tokens;
 mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
-pub use local::{LOCAL_OWNER, Phone, VAULT_HOLDER};
+pub use local::{LOCAL_OWNER, Phone, VAULT_HOLDER, is_this_computer};
 pub use readlinks::{NewReadLink, ReadLink};
 pub use shares::{Share, covers};
 pub use sync::{Change, Known, Made, Notice, Notices, ReaderOf, Recorded};

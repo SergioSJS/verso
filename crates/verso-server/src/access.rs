@@ -20,12 +20,13 @@ pub fn role(server: &Server, who: &Who, id: &str) -> ApiResult<(Folder, Role)> {
     if !reaches {
         return Err(ApiError::not_found());
     }
-    // A folder served in part is no phone's: only the shares of the
-    // folders chosen inside it are (ADR 0096 item 2, amended 2026-10-16).
-    // Its holder is not the phones' account, which already opens nothing
-    // here; this is the second lock, so a grant made by mistake cannot
-    // open it.
-    if who.phone.is_some() && server.local.as_ref().is_some_and(|p| p.hides(id)) {
+    // A folder served in part is no one's by its own id: only the shares of
+    // the folders chosen inside it are, and those the owner's phones' (ADR
+    // 0096 item 2, amended 2026-10-16; for every account since ADR 0117 D3
+    // item 1). Its holder is no person, and the owner has no grant in it,
+    // which already opens nothing here; this is the second lock, so a grant
+    // made by mistake cannot open it — to a phone or to a player.
+    if server.local.as_ref().is_some_and(|p| p.hides(id)) {
         return Err(ApiError::not_found());
     }
     let role = server

@@ -189,8 +189,10 @@ fn a_host_that_is_not_ours_is_refused() {
     });
 }
 
-/// There is no sign-in, no account page, no token and no console here: a
-/// phone gets in by pairing and by nothing else.
+/// No setup, no token, no console, no device flow here, and a phone has
+/// none of an account's routes: it gets in by pairing and by nothing else.
+/// (The sign-in is here since ADR 0117 D3 item 2, for a person invited;
+/// `tests_accounts.rs` has its rules.)
 #[test]
 fn the_routes_of_a_server_with_accounts_are_not_here() {
     run(async {
@@ -198,7 +200,6 @@ fn the_routes_of_a_server_with_accounts_are_not_here() {
         lab.serve();
         let cookie = lab.pair("iPhone", true, Role::Editor).await.unwrap();
         for (method, path) in [
-            ("POST", "/api/signin"),
             ("POST", "/api/setup"),
             ("POST", "/api/forgot"),
             ("GET", "/api/me/tokens"),

@@ -53,6 +53,20 @@ pub fn scope_for(
     if server.db.share_role(&share.id, account)?.is_none() {
         return Ok(None);
     }
+    // The folders chosen inside one served in part are the owner's phones'
+    // and no player's (ADR 0117 D3 item 1): a share of such a folder opens
+    // for this computer's owner alone, whatever grant was made.
+    if server
+        .local
+        .as_ref()
+        .is_some_and(|p| p.hides(&share.folder))
+        && !server
+            .db
+            .account(account)?
+            .is_some_and(|a| crate::db::fold_email(&a.email) == crate::db::LOCAL_OWNER)
+    {
+        return Ok(None);
+    }
     let Some(folder) = server.db.folder(&share.folder)? else {
         return Ok(None);
     };
@@ -361,7 +375,9 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
     let mut by_me = Vec::new();
     let person = !matches!(who.via, crate::auth::Via::Token { .. });
     for (f, role) in server.db.folders_of(&who.account.id)? {
-        if !who.reaches(&f.id).0 {
+        // A folder served in part is listed to no one by its own id (ADR
+        // 0117 D3 item 1; `crate::access::role` refuses it as well).
+        if !who.reaches(&f.id).0 || server.local.as_ref().is_some_and(|p| p.hides(&f.id)) {
             continue;
         }
         let owner = if role == Role::Owner {

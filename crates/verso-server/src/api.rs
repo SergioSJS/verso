@@ -32,9 +32,10 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
         "contractVersion": known.then_some(verso_contract::compat::VERSION),
         "secure": ctx.peer.https,
         "web": ctx.server.config.web,
-        // "This app is a server" (ADR 0096): there is no sign-in here, only
-        // pairing; the page says so instead of asking for a password.
+        // "This app is a server" (ADR 0096): a phone pairs; since ADR 0117
+        // D3 item 2 a person invited signs in there too ("accounts").
         "local": ctx.server.local.is_some(),
+        "accounts": true,
         // Links by e-mail exist only with a public address to build them
         // from (see [`mail_ready`]); the sign-in page hides them otherwise.
         "mail": mail_ready(&ctx.server),
@@ -329,6 +330,15 @@ pub async fn accept(
     let email = link.email.clone().unwrap_or(body.email);
     if !db::is_email(&email) {
         return Err(ApiError::bad("not_email", "not an e-mail address"));
+    }
+    // This computer's own accounts' addresses are no person's (ADR 0117
+    // D3 item 1): the holder of the folders served in part is found by its
+    // address, which no player may take first.
+    if ctx.server.local.is_some() && db::is_this_computer(&email) {
+        return Err(ApiError::bad(
+            "not_email",
+            "that address is this computer's own: use one of yours",
+        ));
     }
     check_password(&body.password, &email)?;
     check_name(&body.name)?;

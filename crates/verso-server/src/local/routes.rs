@@ -4,20 +4,26 @@
 
 //! The routes of "this app is a server" (ADR 0096): a smaller table than
 //! `verso serve`'s, in the same layers (`Host` check, head and body bounds,
-//! pace, headers). There is no sign-in, no invitation, no password, no
-//! account page, no admin console, no token, no passkey and no device
-//! flow: a phone gets in by pairing and nothing else. What it has is the
-//! window's files, the contract's WebSocket, its folders' files, its own
-//! state and sign-out, and the two routes of pairing.
+//! pace, headers). A phone gets in by pairing: the window's files, the
+//! contract's WebSocket, its folders' files, its own state and sign-out,
+//! and the two routes of pairing. A person invited gets in by an account
+//! (ADR 0117 D3 item 2, on the network and through the link, D4 Q8): the
+//! sign-in, an invitation's offer, accepting it, joining it signed in, the
+//! password, the proof and the sessions — the routes of an account, which
+//! a phone is answered as unknown ones. There is still no setup, no "forgot
+//! the password" or sign-in by mail, no admin console, no token, no
+//! passkey, no device flow and no read link (ADR 0117 D9: S11 to S13).
 
 use std::sync::Arc;
 use std::time::Instant;
 
 use axum::Json;
 use axum::Router;
+use axum::extract::Request;
 use axum::http::{HeaderValue, header};
-use axum::response::Response;
-use axum::routing::{any, get, get_service, post};
+use axum::middleware::{self, Next};
+use axum::response::{IntoResponse, Response};
+use axum::routing::{any, delete, get, get_service, post};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -36,10 +42,28 @@ pub fn router(server: Arc<Server>) -> Router {
         .append_index_html_on_directories(false)
         .fallback(tower_http::services::ServeFile::new(ui.join(PAGE)));
     let page = || get_service(tower_http::services::ServeFile::new(ui.join(PAGE)));
+    // The routes of an account's own (ADR 0117 D3 item 2): a phone is the
+    // owner's device and has none of them.
+    let accounts: Router<Arc<Server>> = Router::new()
+        .route("/api/invite/{token}/join", post(crate::invite_join::join))
+        .route("/api/me/password", post(crate::api::password))
+        .route("/api/me/prove", post(crate::proof::prove))
+        .route("/api/me/sessions", get(crate::api::sessions))
+        .route("/api/me/sessions/others", delete(crate::api::end_others))
+        .route("/api/me/sessions/{id}", delete(crate::api::end_session))
+        .route_layer(middleware::from_fn_with_state(
+            Arc::clone(&server),
+            not_a_phone,
+        ));
     let table: Router<Arc<Server>> = Router::new()
         .route("/f/{folder}/{*path}", get(crate::files::file))
         .route("/api/ws", get(crate::rpc::upgrade))
         .route("/api/state", get(crate::api::state))
+        .route("/api/signin", post(crate::api::sign_in))
+        .route(
+            "/api/invite/{token}",
+            get(crate::api::invitation).post(crate::api::accept),
+        )
         .route("/api/signout", post(crate::api::sign_out))
         .route("/api/me", get(crate::api::me))
         .route(
@@ -49,11 +73,21 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/folders", get(crate::folders::mine))
         .route("/api/pair", post(pair))
         .route("/api/pair/poll", post(poll))
+        .merge(accounts)
         // Everything else under /api/ is what an unknown route answers.
         .route("/api/{*rest}", any(crate::http::no_route))
         .route("/", page())
         .fallback_service(static_files);
     crate::http::guarded(table, server)
+}
+
+/// Before a route of an account: a paired phone is answered as an unknown
+/// route is, as before accounts were here (ADR 0096 item 12).
+async fn not_a_phone(ctx: Ctx, request: Request, next: Next) -> Response {
+    if ctx.who.as_ref().is_some_and(|w| w.phone.is_some()) {
+        return ApiError::not_found().into_response();
+    }
+    next.run(request).await
 }
 
 fn local(ctx: &Ctx) -> ApiResult<Arc<super::Policy>> {
