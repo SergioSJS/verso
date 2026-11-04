@@ -132,7 +132,7 @@ Numa pasta só deste computador não há mesa, mas a aba Música funciona do mes
 
 O mestre pode compartilhar **o som das páginas abertas no Verso** (YouTube, Spotify Web, uma trilha de ambiente) com todos da mesa, sem nenhum arquivo na pasta. Entra só essa fonte: nunca outros programas do computador, nunca o som do sistema inteiro, e nunca os sons do próprio Verso (dados, avisos, a música da mesa, os players de áudio das notas). Esses continuam tocando na sua janela, a partir do próprio aplicativo, e nunca chegam à mesa. Isso existe só no **app para computador**; no navegador e no celular você **ouve**, mas não compartilha, e o botão nem aparece.
 
-1. Na aba **Música**, **Compartilhar áudio…** (no estado vazio ou no alto da aba). Só o mestre vê o botão.
+1. Na aba **Música**, **Compartilhar áudio…** (no alto da aba). Só o mestre vê o botão.
 2. Abra a página **como página**, não dentro de uma nota, e deixe-a tocar. Na lista, escolha **Páginas abertas no Verso**. Em **Qualidade** (fechado) fica a taxa: 96 kbit/s é um bom começo. Sem página aberta, a lista pede para abrir uma.
 3. Na primeira vez, o Verso avisa: *o som do que você compartilha vai para todos desta mesa; o que você pode tocar para os outros é responsabilidade sua; o Verso não grava nada*.
 4. Enquanto compartilha, a aba mostra *Compartilhando …*, um **medidor de nível** com a frase *Som chegando* (ou *Silêncio*, se a página não está soltando som ou está bloqueada), quantos ouvem e a taxa. **Parar de compartilhar** está na aba, na linha da aba Mesa e na barra de status. Você continua ouvindo a página direto; o Verso nunca toca o seu próprio fluxo de volta.

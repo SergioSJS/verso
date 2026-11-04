@@ -132,7 +132,7 @@ In a folder of this computer alone there is no table, but the Music tab works th
 
 The game master can share **the sound of the pages open in Verso** (YouTube, Spotify Web, an ambience loop) with everyone at the table, with no file in the folder. Only that source goes: never other programs on the computer, never the whole system, and never Verso's own sounds (dice, alerts, the table's music, the audio players in notes). Those keep playing on your computer, from the application itself, and never reach the table. This exists only in the **desktop app**; in a browser or on a phone you **listen**, but cannot share, and the button is not drawn.
 
-1. In the **Music** tab, **Share audio…** (in the empty state or at the top of the tab). Only the game master sees the button.
+1. In the **Music** tab, **Share audio…** (at the top of the tab). Only the game master sees the button.
 2. Open the page **as a page**, not inside a note, and let it play. In the list, pick **Pages open in Verso**. Under **Quality** (folded) is the rate: 96 kbit/s is a good start. With no page open, the list asks you to open one.
 3. The first time, Verso says: *the sound of what you share goes to everyone at this table; what you may play to others is your responsibility; Verso records nothing*.
 4. While you share, the tab shows *Sharing …*, a **level meter** with *Sound arriving* (or *Silence*, when the page gives no sound or is blocked), how many are listening and the rate. **Stop sharing** is in the tab, in the Table tab's row and in the status bar. You keep hearing the page directly; Verso never plays your own stream back to you.

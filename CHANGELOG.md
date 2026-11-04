@@ -42,6 +42,8 @@ test release.
 
 ### Fixed
 
+- **The Music tab shows *Share audio…* once.** The game master saw the button twice, in the empty state and in the tab's header; it is now only in the header, which is on screen whether nothing plays, a file plays or someone else shares (the button hides itself only while your own share runs, and *Stop sharing* is still in the share's card, the mini-player and the status bar). The Music lesson of the tutorial says so.
+
 - **Settings in the desktop app no longer offers the browser's offline copy.** A desktop window on a server's folder listed *Sem rede* / *Offline*, the section of a window in a browser (ADR 0092), which the app does not use: it keeps folders with sync.
 
 - **The table's window says a refusal once, in your language, and a right for every player of a table with no players sends nothing** ([ADR 0113](docs/adr/0113-one-access-model-for-a-table.md) K.6). Ticking a right under *All players* with nobody at the table asked the server for an empty list and showed *Não deu certo: Não deu certo: name between 1 and 500 players*; it now asks nothing and says the table has no players yet. A refusal beside a switch or a field said *Não deu certo* twice and the server's English; it says it once, and the table's refusals (no players named, not a player of this table, not a table) in Portuguese or English.
