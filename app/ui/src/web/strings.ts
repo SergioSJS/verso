@@ -195,6 +195,10 @@ const pt = {
   passkeySignIn: "Entrar com passkey",
   passkeyNeedsEmail: "Digite o e-mail primeiro.",
   passkeyUnavailable: "Este navegador ou este endereço não oferecem passkeys (é preciso HTTPS).",
+  // A computer that serves (ADR 0117 D9): its network's own certificate is
+  // no secure context; a passkey is the internet link's.
+  passkeyByLinkOnly: "Nesta rede, use a senha: passkeys só pelo link da internet de quem serve.",
+  passkeyQuickLink: "Uma passkey criada num link rápido some com esse link; no endereço próprio de quem serve, ela fica.",
   noPasskey: "Nenhuma passkey para este e-mail: use a senha.",
   mailLink: "Receber um link por e-mail",
   forgot: "Esqueci a senha",
@@ -461,6 +465,8 @@ const en: WebStrings = {
   passkeySignIn: "Sign in with a passkey",
   passkeyNeedsEmail: "Type the e-mail first.",
   passkeyUnavailable: "This browser or this address offers no passkeys (HTTPS is needed).",
+  passkeyByLinkOnly: "On this network, use the password: passkeys only through the internet link of whoever serves.",
+  passkeyQuickLink: "A passkey made on a quick link goes away with that link; on the own address of whoever serves, it stays.",
   noPasskey: "No passkey for this e-mail: use the password.",
   mailLink: "Get a link by e-mail",
   forgot: "Forgot the password",

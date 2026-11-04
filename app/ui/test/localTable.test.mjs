@@ -42,6 +42,14 @@ test("the sign-in says how an invited player gets in; the pairing link only wher
   document.body.innerHTML = `<main class="web-page"><div class="web-card"></div></main>`;
   T.localSignInNotes(true);
   assert.equal(document.querySelector("a[href='/pair']").textContent, "Parear este celular com um código");
+  // Through the link a passkey is offered: no word against it.
+  assert.doesNotMatch(document.querySelector(".web-card").textContent, /passkeys só/);
+});
+
+test("on the network, where no passkey is offered, the sign-in says the password is the way (ADR 0117 D9)", () => {
+  document.body.innerHTML = `<main class="web-page"><div class="web-card"></div></main>`;
+  T.localSignInNotes(true, false);
+  assert.match(document.querySelector(".web-card").textContent, /Nesta rede, entre com a senha: passkeys só pelo link da internet/);
 });
 
 test("a server answers with JSON; Cloudflare's page or no network is no answer", async () => {

@@ -14,14 +14,16 @@ import { fileURLToPath } from "node:url";
 
 const page_ = join(fileURLToPath(new URL(".", import.meta.url)), ".site", "web.html");
 
-/** The computer's server as the page meets it: `pairing` is the door's. */
-async function serve(page, pairing) {
+/** The computer's server as the page meets it: `pairing` and `passkeys`
+ *  are the door's — the network's pairs and offers no passkey, the link's
+ *  the other way round (ADR 0117 D9). */
+async function serve(page, pairing, passkeys = !pairing) {
   const sent = [];
   await page.route("**/api/**", async (route) => {
     const req = route.request();
     const path = new URL(req.url()).pathname;
     if (path === "/api/state") {
-      return route.fulfill({ json: { version: null, contract: null, secure: true, web: true, mail: false, local: true, accounts: true, pairing, setup: false, account: null, csrf: null } });
+      return route.fulfill({ json: { version: null, contract: null, secure: true, web: true, mail: false, local: true, accounts: true, pairing, passkeys, setup: false, account: null, csrf: null } });
     }
     if (path === "/api/signin" && req.method() === "POST") {
       sent.push(req.postDataJSON());
@@ -62,4 +64,22 @@ test("on the network: the sign-in and, beside it, the owner's phone's pairing wi
   await page.getByRole("link", { name: "Parear este celular com um código" }).click();
   await expect(page.getByRole("heading", { name: "Conectar este celular" })).toBeVisible();
   await expect(page.getByLabel(/código/i).first()).toBeVisible();
+});
+
+test("on the network no passkey is offered: the sign-in says to use the password; through the link the button is there @layout", async ({ page }) => {
+  await serve(page, true);
+  await page.goto("/signin");
+  await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Entrar com passkey" })).toBeHidden();
+  await expect(page.getByText("Nesta rede, entre com a senha: passkeys só pelo link da internet de quem mestra.")).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  // Through the link: offered wherever this browser can make one.
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+  await serve(page, false);
+  await page.goto("/signin");
+  await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible();
+  await expect(page.getByText("passkeys só pelo link da internet", { exact: false })).toHaveCount(0);
+  const can = await page.evaluate(() => typeof window.PublicKeyCredential === "function" && window.isSecureContext);
+  if (can) await expect(page.getByRole("button", { name: "Entrar com passkey" })).toBeVisible();
 });

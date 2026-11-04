@@ -24,6 +24,7 @@ import { askProof } from "./web/proveDialog";
 import { holdClicks } from "./earlyClicks";
 import { watchDeskOnPhone } from "./deskOnPhone";
 import { localSignInNotes, watchTableOffline } from "./web/localTable";
+import { setPasskeysOffered } from "./web/passkeys";
 
 // The folder button is on the page before the window's script, which this
 // one imports only after the server said who is signed in: a click on it
@@ -81,6 +82,7 @@ async function start(): Promise<void> {
   setStateFallback(() => offline.cachedState());
   const s = await state();
   setByApp(Boolean(s.local));
+  setPasskeysOffered(s.passkeys !== false);
   setLang(s.account?.lang);
   if (stateWasKept()) {
     // Offline: the folders kept open the window; nothing else is asked.
@@ -113,7 +115,7 @@ async function start(): Promise<void> {
       return;
     }
     signInPage(false);
-    localSignInNotes(pairing);
+    localSignInNotes(pairing, s.passkeys !== false);
     return;
   }
   if (s.local && path === "/pair") {

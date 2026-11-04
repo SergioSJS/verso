@@ -26,6 +26,9 @@ export type State = {
   /** This door pairs a phone (ADR 0117 D1): the network's does, the
    *  internet link's does not. */
   pairing?: boolean;
+  /** This door offers passkeys: false on the network of a computer that
+   *  serves (ADR 0117 D9, S13), true through its link and on a UniVerso. */
+  passkeys?: boolean;
   setup: boolean;
   account: Account | null;
   csrf: string | null;
