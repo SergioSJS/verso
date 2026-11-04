@@ -81,7 +81,7 @@ mod terminal;
 mod trash;
 #[cfg(any(target_os = "macos", windows))]
 mod tray;
-pub mod tunnel;
+mod tunnel;
 mod update;
 mod version;
 mod web;
@@ -971,6 +971,17 @@ macro_rules! commands_for {
                 local_server_replace_identity::<$runtime>,
                 local_server_audit::<$runtime>,
                 local_server_sit_at_table::<$runtime>,
+                local_server_network::<$runtime>,
+                local_server_link_on::<$runtime>,
+                local_server_link_off::<$runtime>,
+                local_server_link_extend::<$runtime>,
+                local_server_link_mode::<$runtime>,
+                local_server_own_address_login::<$runtime>,
+                local_server_own_address_set_up::<$runtime>,
+                local_server_own_address_remove::<$runtime>,
+                local_server_invite::<$runtime>,
+                local_server_invitations::<$runtime>,
+                local_server_invitation_revoke::<$runtime>,
                 folder_sync::<$runtime>,
                 folder_sync_start::<$runtime>,
                 folder_sync_stop::<$runtime>,
@@ -1040,6 +1051,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()
             .typ::<verso_contract::ServerGone>()
+            .typ::<verso_contract::LocalLink>()
             .typ::<verso_contract::ServerBack>()
             .typ::<verso_contract::FolderQuota>()
             .typ::<verso_contract::ShareGiven>()
@@ -1419,6 +1431,8 @@ mod tests_live;
 mod tests_live_table;
 #[cfg(test)]
 mod tests_local;
+#[cfg(test)]
+mod tests_local_link;
 #[cfg(test)]
 mod tests_local_seat;
 #[cfg(test)]

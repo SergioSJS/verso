@@ -2,8 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! "This app is a server" (ADR 0096): what Settings and the pairing dialog
-//! of the desktop app read and say. These are the desktop's own commands —
+//! "This app is a server" (ADR 0096; ADR 0117, one feature with the internet
+//! link): what Settings and the pairing dialog of the desktop app read and
+//! say. These are the desktop's own commands —
 //! a phone never runs them (the allowlist refuses the `local_server_`
 //! prefix whole) — so they cross between the host and its window only.
 //! No path crosses: a folder is named by its name and an opaque key; the
@@ -53,6 +54,121 @@ pub struct LocalServerStatus {
     /// Chosen folders this start left out for not being on the disk, each as
     /// `folder/chosen`: the window says so.
     pub dropped: Vec<String>,
+    /// The box *On my network* (ADR 0117 D1, D4 Q2): serve on the private
+    /// addresses, as ADR 0096 built. Kept; on by default.
+    pub network: bool,
+    /// The box *By an internet link* (ADR 0117 D3): where the link stands.
+    /// Never kept across starts (item 6).
+    pub link: LocalLink,
+    /// The link is turned on with the person's own address, not a quick
+    /// link (ADR 0117 D10, `local_server_link_mode`).
+    pub link_own: bool,
+    /// The own address, once set up (D10 (a)); none before.
+    pub own_address: Option<LocalOwnAddress>,
+    /// `cloudflared tunnel login` was done on this computer: the person's
+    /// Cloudflare credential is where `cloudflared` keeps it (D10 item 2).
+    pub cloudflare_signed_in: bool,
+}
+
+/// Where the internet link stands (ADR 0117 D3 item 6).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalLinkState {
+    #[default]
+    Off,
+    /// Fetching `cloudflared`, or waiting for its first connection.
+    Starting,
+    On,
+    /// `cloudflared` ended by itself: no link until it is turned on again
+    /// (a new link, for a quick one); nothing restarts it silently.
+    Offline,
+}
+
+/// Why the link last ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalLinkEnd {
+    /// The person stopped it, or serving stopped.
+    Stopped,
+    /// A quick link's twelve hours ran out (D4 Q6).
+    Ceiling,
+    /// `cloudflared` ended by itself.
+    Exited,
+    /// It never came up; the command said why.
+    Failed,
+    /// The app ended.
+    Quit,
+}
+
+/// The internet link, as Settings shows it and the event
+/// `local-server-link` says it at each change.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalLink {
+    pub state: LocalLinkState,
+    /// The link's origin while on (`https://…`), to copy and to show as a
+    /// QR. Never logged.
+    pub origin: Option<String>,
+    /// A quick link's ceiling, in seconds since the epoch; none for an own
+    /// address, which has none (D10).
+    pub until: Option<u32>,
+    /// The link is the person's own address.
+    pub own: bool,
+    /// Why it last ended.
+    pub ended: Option<LocalLinkEnd>,
+    /// How `cloudflared` reaches Cloudflare while on: `quic`, or `http2`
+    /// when QUIC (UDP) found no way out and it tried again over TCP.
+    pub protocol: Option<String>,
+}
+
+/// The person's own address for the link (ADR 0117 D10 (a)): a hostname of
+/// their domain, routed at Cloudflare to a tunnel this computer made.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalOwnAddress {
+    /// `mesa.example.com`.
+    pub hostname: String,
+}
+
+/// How `cloudflared tunnel login` ended (D10 item 2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalOwnLogin {
+    /// The person's Cloudflare credential is in place now.
+    pub signed_in: bool,
+    /// It was there already, from an earlier login (`cloudflared` does not
+    /// overwrite it).
+    pub already: bool,
+    /// When the login did not end: Cloudflare's page to open by hand, if
+    /// `cloudflared` gave it. It carries a one-time callback: shown, never
+    /// logged.
+    pub url: Option<String>,
+    /// Why not, in `cloudflared`'s words with every address taken out.
+    pub why: Option<String>,
+}
+
+/// An invitation just made (ADR 0117 D3 item 2, D4 Q8): its single-use link
+/// is said this once.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalInvite {
+    pub id: String,
+    pub link: String,
+    /// Seconds since the epoch.
+    pub expires: u32,
+}
+
+/// One invitation of this computer's server, as the section lists it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalInvitation {
+    pub id: String,
+    /// The served folder it carries, by the name a person is shown.
+    pub folder: Option<String>,
+    /// `reader` or `editor`; none with no folder.
+    pub role: Option<String>,
+    /// Seconds since the epoch.
+    pub created: u32,
+    pub expires: u32,
+    /// `pending`, `used`, `ended` or `expired`.
+    pub state: String,
+    /// The name of the account that used it.
+    pub used_by: Option<String>,
 }
 
 /// A folder the person may tick to serve.

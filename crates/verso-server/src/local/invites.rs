@@ -135,6 +135,23 @@ impl LocalServer {
         })
     }
 
+    /// The name a served `folder` (a path the host knows) is shown by, the
+    /// one [`Self::invite`] takes; none when serving is off or the folder
+    /// is not served.
+    pub fn served_name(&self, folder: &std::path::Path) -> Option<String> {
+        let running = lock(&self.shared.inner);
+        let key = verso_core::folder_key(folder);
+        running
+            .as_ref()?
+            .policy
+            .folders
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .find(|(_, p)| verso_core::folder_key(p) == key)
+            .map(|(n, _)| n.clone())
+    }
+
     /// Every invitation of this server, freshest first (on or off).
     pub fn invitations(&self) -> Result<Vec<InvitationRow>, String> {
         self.with_db(|db| {

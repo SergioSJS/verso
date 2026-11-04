@@ -10,8 +10,15 @@
 // (`crates/verso-server/src/local`) drive the real server. A test moves
 // the story on with `askAsPhone()`, which stands for a phone presenting
 // the token.
+//
+// ADR 0117 (one feature): the box *On my network* is a setting; the box
+// *By an internet link* answers with a quick link at once (no cloudflared
+// runs here — `app/src-tauri/src/tunnel/tests.rs` drives a fake one); an
+// own address is set up after a login; invitations are made, listed and
+// ended. A test makes the link fail with `failLink(words)`, and makes it
+// end by itself with `__harness.emit("local-server-link", …)`.
 
-import type { ContractError, LocalAudit, LocalFolder, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus } from "../bindings";
+import type { ContractError, LocalAudit, LocalFolder, LocalInvitation, LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus } from "../bindings";
 
 type Args = Record<string, unknown>;
 
@@ -57,6 +64,36 @@ export class LocalServerHarness {
   private fingerprint = "AB:CD:EF:01:23:45:67:89";
   /** The identity's generation: replaced, the fingerprint changes. */
   private generation = 1;
+  /** The box *On my network* (ADR 0117 D1): kept, on by default. */
+  private network = true;
+  /** Serving on the network now (the link alone serves on no address). */
+  private lan = false;
+  private link: LocalLink = { state: "off", origin: null, until: null, own: false, ended: null, protocol: null };
+  private linkOwn = false;
+  private own: { hostname: string } | null = null;
+  private signedIn = false;
+  /** The words the next `local_server_link_on` fails with (a test's). */
+  private linkFailure: string | null = null;
+  private invites: LocalInvitation[] = [];
+  private nextInvite = 1;
+
+  /** The next turn-on of the link fails, with the host's words. */
+  failLink(words: string | null): void {
+    this.linkFailure = words;
+  }
+
+  /** The link's state as the host's event would set it (a test's). */
+  setLink(link: Partial<LocalLink>): void {
+    this.link = { ...this.link, ...link };
+    if (this.link.state !== "on" && this.link.state !== "starting" && !this.lan) this.serving = false;
+  }
+
+  private linkOff(ended: LocalLink["ended"]): LocalLink {
+    this.link = { state: "off", origin: null, until: null, own: false, ended, protocol: null };
+    // As the server: with the network's box unticked nothing is left to serve.
+    if (!this.lan) this.serving = false;
+    return { ...this.link };
+  }
 
   private rows(): LocalFolder[] {
     return this.folders.map((f) => {
@@ -76,19 +113,24 @@ export class LocalServerHarness {
     return {
       supported: true,
       serving: this.serving,
-      port: this.serving ? 51234 : null,
-      addresses: this.serving ? ["192.168.1.20"] : [],
+      port: this.lan ? 51234 : null,
+      addresses: this.lan ? ["192.168.1.20"] : [],
       phones_paired: this.paired.length,
       phones_connected: this.serving ? Math.min(this.paired.length, this.maxConnected) : 0,
       max_connected: this.maxConnected,
       pairing_open: this.open,
-      fingerprint: this.serving ? this.fingerprint : null,
+      fingerprint: this.lan ? this.fingerprint : null,
       certificate: this.cert.cert_file ? "files" : "own",
       tailscale: false,
       stopped_because: null,
       unreachable: false,
       keep_on: this.keepOn,
       dropped: this.dropped,
+      network: this.network,
+      link: { ...this.link },
+      link_own: this.linkOwn,
+      own_address: this.own ? { ...this.own } : null,
+      cloudflare_signed_in: this.signedIn,
       ...this.cert,
     };
   }
@@ -159,7 +201,9 @@ export class LocalServerHarness {
       return this.status();
     },
     local_server_start: (): LocalServerStatus => {
+      if (this.serving && this.lan) return this.status();
       if (this.ticked.size === 0) refuse("tick at least one folder to serve");
+      if (!this.network) refuse("tick On my network, or turn the internet link on, to serve");
       this.dropped = [];
       for (const key of this.ticked) {
         const chosen = this.parts.get(key) ?? [];
@@ -170,12 +214,15 @@ export class LocalServerHarness {
         this.dropped.push(...chosen.filter((p) => p === "Antigo").map((p) => `${name}/${p}`));
       }
       this.serving = true;
+      this.lan = true;
       this.log("local_on", "1 address(es), port 51234");
       return this.status();
     },
     local_server_stop: (): LocalServerStatus => {
       if (this.serving) this.log("local_off");
+      if (this.link.state === "on" || this.link.state === "starting") this.linkOff("stopped");
       this.serving = false;
+      this.lan = false;
       this.open = false;
       this.asked = null;
       return this.status();
@@ -251,7 +298,9 @@ export class LocalServerHarness {
       return n;
     },
     local_server_replace_identity: (): LocalServerStatus => {
+      if (this.link.state === "on") this.linkOff("stopped");
       this.serving = false;
+      this.lan = false;
       this.paired = [];
       this.generation += 1;
       this.fingerprint = `AB:CD:EF:01:23:45:67:${String(80 + this.generation)}`;
@@ -267,7 +316,96 @@ export class LocalServerHarness {
       if (!this.ticked.has("harness")) refuse("this folder is not served: tick it to serve it");
       refuse("the harness has no server to sit at");
     },
+    // ADR 0117: the two boxes, the link, the own address, invitations.
+    local_server_network: (a): LocalServerStatus => {
+      if (this.serving) refuse("turn serving off to change where it serves");
+      this.network = a["on"] === true;
+      return this.status();
+    },
+    local_server_link_on: (): LocalLink => {
+      if (this.link.state === "on" || this.link.state === "starting") refuse("the internet link is already on");
+      const words = this.linkFailure;
+      if (words !== null) {
+        this.linkFailure = null;
+        this.link = { ...this.link, state: "off", ended: "failed" };
+        refuse(words);
+      }
+      if (this.ticked.size === 0) refuse("tick at least one folder to serve");
+      if (this.linkOwn && !this.own) refuse("set up your own address first, or use a quick link");
+      if (!this.serving) this.dropped = [];
+      this.serving = true;
+      const origin = this.linkOwn && this.own ? `https://${this.own.hostname}` : "https://exemplo-de-mesa.trycloudflare.com";
+      const until = this.linkOwn ? null : Math.floor(Date.now() / 1000) + 12 * 3600;
+      this.link = { state: "on", origin, until, own: this.linkOwn, ended: null, protocol: "quic" };
+      this.log("link_on");
+      return { ...this.link };
+    },
+    local_server_link_off: (): LocalLink => {
+      if (this.link.state === "on") this.log("link_off");
+      return this.linkOff("stopped");
+    },
+    local_server_link_extend: (): LocalLink => {
+      if (this.link.state !== "on") refuse("the internet link is off");
+      if (this.link.until === null) refuse("an own address has no ceiling");
+      this.link = { ...this.link, until: Math.floor(Date.now() / 1000) + 12 * 3600 };
+      return { ...this.link };
+    },
+    local_server_link_mode: (a): LocalServerStatus => {
+      const own = a["own"] === true;
+      if (own && !this.own) refuse("set up your own address first");
+      this.linkOwn = own;
+      return this.status();
+    },
+    local_server_own_address_login: (): LocalOwnLogin => {
+      const already = this.signedIn;
+      this.signedIn = true;
+      return { signed_in: true, already, url: null, why: null };
+    },
+    local_server_own_address_set_up: (a): LocalServerStatus => {
+      if (this.own) refuse("remove the address set up before first");
+      const host = String(a["hostname"]).trim().replace(/^https?:\/\//, "").split("/")[0]!.replace(/\.$/, "").toLowerCase();
+      if (!/^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/.test(host)) refuse("an address in lower case, of at least two parts, like mesa.example.com");
+      if (!this.signedIn) refuse("sign in to Cloudflare first");
+      if (host.startsWith("ocupado.")) refuse(`${host} already has another DNS record at Cloudflare: choose another address, or remove that record in Cloudflare's dashboard`);
+      this.own = { hostname: host };
+      this.linkOwn = true;
+      return this.status();
+    },
+    local_server_own_address_remove: (): LocalServerStatus => {
+      if (this.link.own && this.link.state === "on") this.linkOff("stopped");
+      this.own = null;
+      this.linkOwn = false;
+      return this.status();
+    },
+    local_server_invite: (a): LocalInvite => {
+      if (!this.serving) refuse("turn serving on first");
+      const key = typeof a["key"] === "string" ? a["key"] : null;
+      const folder = key === null ? null : this.folders.find((f) => f.key === key);
+      if (key !== null && (!folder || !this.ticked.has(key))) refuse("this folder is not served now: tick it and turn serving on");
+      if (folder && (this.parts.get(folder.key) ?? []).length > 0) refuse(`${folder.name} is served in part: its folders are your phones' alone`);
+      const id = `i${this.nextInvite++}`;
+      const created = Math.floor(Date.UTC(2026, 10, 4) / 1000);
+      const expires = created + 7 * 24 * 3600;
+      this.invites.unshift({ id, folder: folder?.name ?? null, role: folder ? (a["editor"] === true ? "editor" : "reader") : null, created, expires, state: "pending", used_by: null });
+      this.log("invitation_created", id);
+      const base = this.link.state === "on" && this.link.origin ? this.link.origin : "https://192.168.1.20:51234";
+      return { id, link: `${base}/invite/convite-${id}`, expires };
+    },
+    local_server_invitations: (): LocalInvitation[] => this.invites.map((i) => ({ ...i })),
+    local_server_invitation_revoke: (a): null => {
+      const inv = this.invites.find((i) => i.id === String(a["id"]));
+      if (!inv || inv.state !== "pending") refuse("that invitation is used, ended or not there");
+      inv.state = "ended";
+      this.log("invitation_ended", inv.id);
+      return null;
+    },
   };
+
+  /** An invitation was accepted by a player (a test's). */
+  acceptInvitation(id: string, name = "Bia"): void {
+    const inv = this.invites.find((i) => i.id === id);
+    if (inv) Object.assign(inv, { state: "used", used_by: name });
+  }
 }
 
 /** The arguments the harness answers read, for the harness's own check

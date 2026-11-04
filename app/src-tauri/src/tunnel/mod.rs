@@ -17,15 +17,15 @@
 //! The log holds no link (D3 item 8): neither the quick link's URL nor an
 //! own hostname is written in it.
 //!
-//! The window's commands over these functions are S6's (contract types,
-//! `build.rs`, capabilities); this module is public in the crate so that it
-//! builds whole until they call it. What the window hears: the event
-//! [`EVENT`] with a [`LinkView`] at each change.
+//! The window's commands over these functions are `local_server`'s (the
+//! contract's `LocalLink`, `build.rs`, the capability). What the window
+//! hears: the event [`EVENT`] with a `LocalLink` ([`contract`] of a
+//! [`LinkView`]) at each change.
 
-pub mod fetch;
+pub(crate) mod fetch;
 mod files;
-pub mod named;
-pub mod run;
+pub(crate) mod named;
+pub(crate) mod run;
 
 #[cfg(test)]
 mod tests;
@@ -125,6 +125,36 @@ pub struct LinkView {
     pub own: bool,
     /// Why it last ended.
     pub ended: Option<LinkEnd>,
+    /// How `cloudflared` reached Cloudflare while on: `quic`, or `http2`
+    /// after QUIC found no way out (`run::up`).
+    pub protocol: Option<String>,
+}
+
+/// What the window is told: the contract's form of a [`LinkView`].
+#[must_use]
+pub fn contract(view: &LinkView) -> verso_contract::LocalLink {
+    use verso_contract::{LocalLinkEnd as E, LocalLinkState as S};
+    verso_contract::LocalLink {
+        state: match view.state {
+            LinkState::Off => S::Off,
+            LinkState::Starting => S::Starting,
+            LinkState::On => S::On,
+            LinkState::Offline => S::Offline,
+        },
+        origin: view.origin.clone(),
+        until: view
+            .until_ms
+            .map(|ms| u32::try_from(ms / 1000).unwrap_or(u32::MAX)),
+        own: view.own,
+        ended: view.ended.map(|e| match e {
+            LinkEnd::Stopped => E::Stopped,
+            LinkEnd::Ceiling => E::Ceiling,
+            LinkEnd::Exited => E::Exited,
+            LinkEnd::Failed => E::Failed,
+            LinkEnd::Quit => E::Quit,
+        }),
+        protocol: view.protocol.clone(),
+    }
 }
 
 struct Running {
@@ -133,6 +163,7 @@ struct Running {
     door: Box<dyn Door>,
     origin: String,
     own: bool,
+    protocol: String,
     /// The ceiling (quick links only) and the same moment for the window.
     deadline: Option<(Instant, u64)>,
 }
@@ -204,7 +235,8 @@ impl Manager {
         view_of(&lock(&self.shared.phase))
     }
 
-    /// The running child's process id (the log; the tests).
+    /// The running child's process id (the tests).
+    #[cfg(test)]
     #[must_use]
     pub fn pid(&self) -> Option<u32> {
         match &*lock(&self.shared.phase) {
@@ -348,6 +380,7 @@ impl Manager {
                 door,
                 origin,
                 own: hostname.is_some(),
+                protocol: up.protocol.clone(),
                 deadline,
             });
             view_of(&phase)
@@ -566,6 +599,7 @@ fn view_of(phase: &Phase) -> LinkView {
             until_ms: None,
             own: false,
             ended: *ended,
+            protocol: None,
         },
         Phase::Starting { own, .. } => LinkView {
             state: LinkState::Starting,
@@ -573,6 +607,7 @@ fn view_of(phase: &Phase) -> LinkView {
             until_ms: None,
             own: *own,
             ended: None,
+            protocol: None,
         },
         Phase::On(r) => LinkView {
             state: LinkState::On,
@@ -580,6 +615,7 @@ fn view_of(phase: &Phase) -> LinkView {
             until_ms: r.deadline.map(|(_, ms)| ms),
             own: r.own,
             ended: None,
+            protocol: Some(r.protocol.clone()).filter(|p| !p.is_empty()),
         },
         Phase::Offline => LinkView {
             state: LinkState::Offline,
@@ -587,6 +623,7 @@ fn view_of(phase: &Phase) -> LinkView {
             until_ms: None,
             own: false,
             ended: Some(LinkEnd::Exited),
+            protocol: None,
         },
     }
 }
@@ -605,7 +642,10 @@ fn manager<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> &Manager {
         let events = app.clone();
         Manager::new(
             move |view| {
-                let _ = events.emit(EVENT, view);
+                let _ = events.emit(EVENT, contract(view));
+                // The mark in the menu bar or the tray says the link too.
+                #[cfg(any(target_os = "macos", windows))]
+                crate::tray::follow(&events);
             },
             Timing::default(),
             CEILING,
@@ -685,6 +725,66 @@ pub fn link_extend<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<LinkV
 /// Where the link stands.
 pub fn link_view<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> LinkView {
     manager(app).view()
+}
+
+/* ---------- The own address's steps (D10 (a)), for the window ---------- */
+
+fn home_dir() -> Result<PathBuf, String> {
+    named::home().ok_or_else(|| {
+        "this computer's home folder is unknown, where cloudflared keeps its login".to_owned()
+    })
+}
+
+/// `cloudflared tunnel login` was done: the person's Cloudflare credential
+/// is where `cloudflared` keeps it (only whether it is there is asked).
+#[must_use]
+pub fn signed_in() -> bool {
+    named::home().is_some_and(|h| files::is_there(&named::cert_path(&h)))
+}
+
+/// Log in to Cloudflare (blocking, up to [`named::LOGIN_WAIT`]: the person
+/// in the browser).
+pub fn own_login<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<(named::Login, Option<String>), String> {
+    named::login(&binary(app)?)
+}
+
+/// Make the named tunnel for `hostname` and route the hostname to it; says
+/// the tunnel's id. A route refused leaves no tunnel behind.
+pub fn own_set_up<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    hostname: &str,
+) -> Result<String, String> {
+    if !named::valid_hostname(hostname) {
+        return Err(
+            "an address in lower case, of at least two parts, like mesa.example.com".to_owned(),
+        );
+    }
+    if !signed_in() {
+        return Err("sign in to Cloudflare first".to_owned());
+    }
+    let program = binary(app)?;
+    let (home, dir) = (home_dir()?, dir(app)?);
+    let uuid = named::create(&program, &home, &dir, &named::tunnel_name(hostname))?;
+    let why = match named::route_dns(&program, &home, &uuid, hostname) {
+        Ok(named::Route::Added | named::Route::AlreadyOurs) => return Ok(uuid),
+        Ok(named::Route::Taken) => format!(
+            "{hostname} already has another DNS record at Cloudflare: choose another address, or remove that record in Cloudflare's dashboard"
+        ),
+        Ok(named::Route::Failed(words)) => format!("the address was not routed: {words}"),
+        Err(e) => e,
+    };
+    if let Err(left) = named::delete(&program, &home, &dir, &uuid) {
+        crate::log::write("WARN", "host", &format!("the own address: {left}"));
+    }
+    Err(why)
+}
+
+/// Delete the named tunnel `uuid` and its credentials.
+pub fn own_delete<R: tauri::Runtime>(app: &tauri::AppHandle<R>, uuid: &str) -> Result<(), String> {
+    let program = binary(app)?;
+    named::delete(&program, &home_dir()?, &dir(app)?, uuid)
 }
 
 /// Serving stopped, or the app ends: no tunnel stays.

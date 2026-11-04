@@ -12,7 +12,9 @@
 //! the pinned `cloudflared` (downloaded, checked, extracted, made
 //! runnable) and an own address's tunnel credentials (ADR 0117 D10 item 3,
 //! `0600`). Never a file of an open folder (ADR 0026 rule 5), and never
-//! `~/.cloudflared/cert.pem`, which `cloudflared` itself reads (D10 item 2).
+//! `~/.cloudflared/cert.pem`, which `cloudflared` itself reads (D10 item 2)
+//! — of that file only whether it is there is asked ([`is_there`]), for
+//! Settings to say whether the login was done.
 
 use std::io::{Read, Write};
 use std::path::Path;
@@ -133,6 +135,11 @@ pub(crate) fn settle_credentials(from: &Path, to: &Path) -> Result<(), String> {
             .map_err(|e| format!("the tunnel's credentials: {e}"))?;
     }
     rename(from, to)
+}
+
+/// Whether a file is at `path` (its metadata alone: nothing is read).
+pub(crate) fn is_there(path: &Path) -> bool {
+    std::fs::metadata(path).is_ok_and(|m| m.is_file())
 }
 
 /// Remove a file; one that is not there is no failure.

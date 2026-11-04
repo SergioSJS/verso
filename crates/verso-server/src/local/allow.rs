@@ -487,6 +487,19 @@ mod tests {
             "local_server_pair_open",
             "local_server_answer",
             "local_server_forget",
+            // ADR 0117's: the link, the own address, the invitations, the seat.
+            "local_server_network",
+            "local_server_link_on",
+            "local_server_link_off",
+            "local_server_link_extend",
+            "local_server_link_mode",
+            "local_server_own_address_login",
+            "local_server_own_address_set_up",
+            "local_server_own_address_remove",
+            "local_server_invite",
+            "local_server_invitations",
+            "local_server_invitation_revoke",
+            "local_server_sit_at_table",
             "a_command_added_tomorrow",
         ] {
             for role in [Role::Reader, Role::Editor, Role::Owner] {

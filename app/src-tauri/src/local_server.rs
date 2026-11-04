@@ -11,8 +11,8 @@
 //! `verso-server` builds on Windows with OpenSSL compiled in, as elsewhere).
 
 use verso_contract::{
-    LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing,
-    LocalPhone, LocalServerStatus,
+    LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalInvitation, LocalInvite,
+    LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus,
 };
 
 use super::*;
@@ -25,6 +25,10 @@ pub(crate) struct LocalSlot {
     pub(crate) link: crate::tunnel::Slot,
 }
 
+mod link;
+mod own;
+#[cfg(test)]
+pub(crate) use own::hostname_of;
 mod platform;
 pub(crate) mod seat;
 
@@ -236,6 +240,121 @@ pub(crate) async fn local_server_sit_at_table<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<FolderInfo, ContractError> {
     seat::sit(app, window).await
+}
+
+/// The box *On my network* (ADR 0117 D1, D4 Q2): kept; changed while
+/// serving is off.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_network<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    on: bool,
+) -> Result<LocalServerStatus, ContractError> {
+    link::network(app, on).await
+}
+
+/// The box *By an internet link* ticked (ADR 0117 D3): a quick link, or the
+/// own address when that is the mode. Starts serving when it was off. The
+/// first time it downloads the pinned `cloudflared`.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_link_on<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<LocalLink, ContractError> {
+    link::link_on(app).await
+}
+
+/// The link off: with *On my network* unticked, serving stops with it.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_link_off<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<LocalLink, ContractError> {
+    link::link_off(app).await
+}
+
+/// *Extend*: a quick link's twelve hours from now again (D4 Q6).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_link_extend<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<LocalLink, ContractError> {
+    link::link_extend(app).await
+}
+
+/// A quick link (`own` false) or the own address (D10), for the next time
+/// the link is turned on.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_link_mode<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    own: bool,
+) -> Result<LocalServerStatus, ContractError> {
+    link::link_mode(app, own).await
+}
+
+/// *Use my own address*, step one: log in to Cloudflare in the browser
+/// (D10 item 2).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_own_address_login<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<LocalOwnLogin, ContractError> {
+    own::login(app).await
+}
+
+/// *Use my own address*, step two: the tunnel made and `hostname` routed to
+/// it (D10 items 3 and 4); the link uses it from now on.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_own_address_set_up<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    hostname: String,
+) -> Result<LocalServerStatus, ContractError> {
+    own::set_up(app, hostname).await
+}
+
+/// Forget the own address: deleted at Cloudflare, or on this computer
+/// alone with `here_only`.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_own_address_remove<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    here_only: bool,
+) -> Result<LocalServerStatus, ContractError> {
+    own::remove(app, here_only).await
+}
+
+/// Invite a person (ADR 0117 D3 item 2, D4 Q5 and Q8): to the served
+/// folder this computer knows by `key`, editing or reading, or to none. The
+/// single-use link (seven days) is said this once.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_invite<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    key: Option<String>,
+    editor: bool,
+) -> Result<LocalInvite, ContractError> {
+    link::invite(app, key, editor).await
+}
+
+/// Every invitation of this computer's server.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_invitations<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<LocalInvitation>, ContractError> {
+    link::invitations(app).await
+}
+
+/// End an invitation not used yet.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_invitation_revoke<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), ContractError> {
+    link::invitation_revoke(app, id).await
 }
 
 /// At the app's start: serve again when the person asked it to keep on

@@ -276,13 +276,24 @@ pub const LOGIN_WAIT: Duration = Duration::from_secs(10 * 60);
 pub const STEP_WAIT: Duration = Duration::from_secs(60);
 
 /// Log in: the browser opens on Cloudflare's page; `cert.pem` lands in
-/// `~/.cloudflared`.
-pub fn login(program: &Path) -> Result<Login, String> {
-    Ok(parse_login(&run::run_step(
-        program,
-        &login_args(),
-        LOGIN_WAIT,
-    )?))
+/// `~/.cloudflared`. With how it ended, the page's address `cloudflared`
+/// printed, for the window to offer when the browser did not open (never
+/// logged).
+pub fn login(program: &Path) -> Result<(Login, Option<String>), String> {
+    let step = run::run_step(program, &login_args(), LOGIN_WAIT)?;
+    Ok((parse_login(&step), login_url(&step.text)))
+}
+
+/// The name of the tunnel made for `hostname`: `verso-` and the hostname,
+/// its dots as dashes, at most 64 characters (`[OPEN]` for the maintainer:
+/// ADR 0117 D10 names no tunnel; this is the smallest choice, one per
+/// hostname, readable in Cloudflare's dashboard).
+#[must_use]
+pub fn tunnel_name(hostname: &str) -> String {
+    format!("verso-{}", hostname.replace('.', "-"))
+        .chars()
+        .take(64)
+        .collect()
 }
 
 /// Make the tunnel `name`; its credentials end at `<dir>/<uuid>.json`
@@ -337,6 +348,7 @@ pub fn delete(program: &Path, home: &Path, dir: &Path, uuid: &str) -> Result<(),
 /// Every path a command line names (the arguments that are absolute
 /// paths), for the test that the app reads and writes nothing but
 /// `cert.pem` and its own directory.
+#[cfg(test)]
 #[must_use]
 pub fn paths_of(args: &[OsString]) -> Vec<PathBuf> {
     args.iter()

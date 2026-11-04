@@ -63,10 +63,23 @@ fn host_of(url: &str) -> String {
         .to_owned()
 }
 
-fn status_of(local: &LocalServer) -> Result<LocalServerStatus, String> {
+pub(super) fn status_of<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    local: &LocalServer,
+) -> Result<LocalServerStatus, String> {
     let s = local.status()?;
     let set = local.settings()?;
     Ok(LocalServerStatus {
+        network: set.network,
+        link: crate::tunnel::contract(&crate::tunnel::link_view(app)),
+        link_own: set.link_own,
+        own_address: set
+            .own_address
+            .as_ref()
+            .map(|o| verso_contract::LocalOwnAddress {
+                hostname: o.hostname.clone(),
+            }),
+        cloudflare_signed_in: crate::tunnel::signed_in(),
         supported: true,
         serving: s.serving,
         port: s.port.map(u32::from),
@@ -102,7 +115,7 @@ pub(super) async fn status<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalServerStatus, ContractError> {
     let local = server(&app)?;
-    blocking(move || status_of(&local)).await
+    blocking(move || status_of(&app, &local)).await
 }
 
 /// The folders this computer has opened, ticked or not, and which of them
@@ -272,14 +285,14 @@ pub(super) async fn settings<R: tauri::Runtime>(
             max_connected,
             ..was
         })?;
-        status_of(&local)
+        status_of(&app, &local)
     })
     .await
 }
 
 /// Every ticked folder still free to serve: one that began to sync with a
 /// server since it was ticked is named and stops the start (item 11).
-fn check_not_synced<R: tauri::Runtime>(
+pub(super) fn check_not_synced<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     local: &LocalServer,
 ) -> Result<(), String> {
@@ -308,7 +321,7 @@ pub(super) async fn start<R: tauri::Runtime>(
     blocking(move || {
         check_not_synced(&app, &local)?;
         local.start()?;
-        status_of(&local)
+        status_of(&app, &local)
     })
     .await
 }
@@ -320,7 +333,7 @@ pub(super) async fn stop<R: tauri::Runtime>(
     blocking(move || {
         crate::tunnel::stop_with(&app, crate::tunnel::LinkEnd::Stopped);
         local.stop();
-        status_of(&local)
+        status_of(&app, &local)
     })
     .await
 }
@@ -453,7 +466,7 @@ pub(super) async fn replace_identity<R: tauri::Runtime>(
     blocking(move || {
         crate::tunnel::stop_with(&app, crate::tunnel::LinkEnd::Stopped);
         local.replace_identity()?;
-        status_of(&local)
+        status_of(&app, &local)
     })
     .await
 }
@@ -482,10 +495,23 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     tauri::async_runtime::spawn_blocking(move || {
         let Ok(local) = server(&app) else { return };
         let Ok(set) = local.settings() else { return };
-        if !set.keep_on || set.folders.is_empty() {
+        // The own address follows *Keep on at start*; a quick link never
+        // does (ADR 0117 D10, D3 item 6).
+        let own = set
+            .own_address
+            .clone()
+            .filter(|_| set.link_own && crate::tunnel::signed_in());
+        if !set.keep_on || set.folders.is_empty() || (!set.network && own.is_none()) {
             return;
         }
-        let started = check_not_synced(&app, &local).and_then(|()| local.start().map(|_| ()));
+        let mut started = check_not_synced(&app, &local);
+        if set.network {
+            started = started.and_then(|()| local.start().map(|_| ()));
+        }
+        if let Some(o) = own {
+            started = started
+                .and_then(|()| crate::tunnel::own_on(&app, &o.tunnel, &o.hostname).map(|_| ()));
+        }
         match started {
             Ok(()) => log::write(
                 "INFO",

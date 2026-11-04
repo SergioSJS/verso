@@ -1009,6 +1009,51 @@ export const commands = {
 	 *  serve, and while it serves none.
 	 */
 	localServerSitAtTable: () => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("local_server_sit_at_table")),
+	/**
+	 *  The box *On my network* (ADR 0117 D1, D4 Q2): kept; changed while
+	 *  serving is off.
+	 */
+	localServerNetwork: (on: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_network", { on })),
+	/**
+	 *  The box *By an internet link* ticked (ADR 0117 D3): a quick link, or the
+	 *  own address when that is the mode. Starts serving when it was off. The
+	 *  first time it downloads the pinned `cloudflared`.
+	 */
+	localServerLinkOn: () => typedError<LocalLink, ContractError>(__TAURI_INVOKE("local_server_link_on")),
+	/**  The link off: with *On my network* unticked, serving stops with it. */
+	localServerLinkOff: () => typedError<LocalLink, ContractError>(__TAURI_INVOKE("local_server_link_off")),
+	/**  *Extend*: a quick link's twelve hours from now again (D4 Q6). */
+	localServerLinkExtend: () => typedError<LocalLink, ContractError>(__TAURI_INVOKE("local_server_link_extend")),
+	/**
+	 *  A quick link (`own` false) or the own address (D10), for the next time
+	 *  the link is turned on.
+	 */
+	localServerLinkMode: (own: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_link_mode", { own })),
+	/**
+	 *  *Use my own address*, step one: log in to Cloudflare in the browser
+	 *  (D10 item 2).
+	 */
+	localServerOwnAddressLogin: () => typedError<LocalOwnLogin, ContractError>(__TAURI_INVOKE("local_server_own_address_login")),
+	/**
+	 *  *Use my own address*, step two: the tunnel made and `hostname` routed to
+	 *  it (D10 items 3 and 4); the link uses it from now on.
+	 */
+	localServerOwnAddressSetUp: (hostname: string) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_own_address_set_up", { hostname })),
+	/**
+	 *  Forget the own address: deleted at Cloudflare, or on this computer
+	 *  alone with `here_only`.
+	 */
+	localServerOwnAddressRemove: (hereOnly: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_own_address_remove", { hereOnly })),
+	/**
+	 *  Invite a person (ADR 0117 D3 item 2, D4 Q5 and Q8): to the served
+	 *  folder this computer knows by `key`, editing or reading, or to none. The
+	 *  single-use link (seven days) is said this once.
+	 */
+	localServerInvite: (key: string | null, editor: boolean) => typedError<LocalInvite, ContractError>(__TAURI_INVOKE("local_server_invite", { key, editor })),
+	/**  Every invitation of this computer's server. */
+	localServerInvitations: () => typedError<LocalInvitation[], ContractError>(__TAURI_INVOKE("local_server_invitations")),
+	/**  End an invitation not used yet. */
+	localServerInvitationRevoke: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_invitation_revoke", { id })),
 	/**  The window's folder's sync: off, or its state. */
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
@@ -3054,6 +3099,111 @@ export type LocalFolder = {
 	syncs_with: string | null,
 };
 
+/**  One invitation of this computer's server, as the section lists it. */
+export type LocalInvitation = {
+	id: string,
+	/**  The served folder it carries, by the name a person is shown. */
+	folder: string | null,
+	/**  `reader` or `editor`; none with no folder. */
+	role: string | null,
+	/**  Seconds since the epoch. */
+	created: number,
+	expires: number,
+	/**  `pending`, `used`, `ended` or `expired`. */
+	state: string,
+	/**  The name of the account that used it. */
+	used_by: string | null,
+};
+
+/**
+ *  An invitation just made (ADR 0117 D3 item 2, D4 Q8): its single-use link
+ *  is said this once.
+ */
+export type LocalInvite = {
+	id: string,
+	link: string,
+	/**  Seconds since the epoch. */
+	expires: number,
+};
+
+/**
+ *  The internet link, as Settings shows it and the event
+ *  `local-server-link` says it at each change.
+ */
+export type LocalLink = {
+	state: LocalLinkState,
+	/**
+	 *  The link's origin while on (`https://…`), to copy and to show as a
+	 *  QR. Never logged.
+	 */
+	origin: string | null,
+	/**
+	 *  A quick link's ceiling, in seconds since the epoch; none for an own
+	 *  address, which has none (D10).
+	 */
+	until: number | null,
+	/**  The link is the person's own address. */
+	own: boolean,
+	/**  Why it last ended. */
+	ended: LocalLinkEnd | null,
+	/**
+	 *  How `cloudflared` reaches Cloudflare while on: `quic`, or `http2`
+	 *  when QUIC (UDP) found no way out and it tried again over TCP.
+	 */
+	protocol: string | null,
+};
+
+/**  Why the link last ended. */
+export type LocalLinkEnd = 
+/**  The person stopped it, or serving stopped. */
+"stopped" | 
+/**  A quick link's twelve hours ran out (D4 Q6). */
+"ceiling" | 
+/**  `cloudflared` ended by itself. */
+"exited" | 
+/**  It never came up; the command said why. */
+"failed" | 
+/**  The app ended. */
+"quit";
+
+/**  Where the internet link stands (ADR 0117 D3 item 6). */
+export type LocalLinkState = "off" | 
+/**  Fetching `cloudflared`, or waiting for its first connection. */
+"starting" | "on" | 
+/**
+ *  `cloudflared` ended by itself: no link until it is turned on again
+ *  (a new link, for a quick one); nothing restarts it silently.
+ */
+"offline";
+
+/**
+ *  The person's own address for the link (ADR 0117 D10 (a)): a hostname of
+ *  their domain, routed at Cloudflare to a tunnel this computer made.
+ */
+export type LocalOwnAddress = {
+	/**  `mesa.example.com`. */
+	hostname: string,
+};
+
+/**  How `cloudflared tunnel login` ended (D10 item 2). */
+export type LocalOwnLogin = {
+	/**  The person's Cloudflare credential is in place now. */
+	signed_in: boolean,
+	/**
+	 *  It was there already, from an earlier login (`cloudflared` does not
+	 *  overwrite it).
+	 */
+	already: boolean,
+	/**
+	 *  When the login did not end: Cloudflare's page to open by hand, if
+	 *  `cloudflared` gave it. It carries a one-time callback: shown, never
+	 *  logged.
+	 */
+	url: string | null,
+	/**  Why not, in `cloudflared`'s words with every address taken out. */
+	why: string | null,
+};
+
 /**  The dialog's state, asked while it is open. */
 export type LocalPairState = {
 	open: boolean,
@@ -3159,6 +3309,28 @@ export type LocalServerStatus = {
 	 *  `folder/chosen`: the window says so.
 	 */
 	dropped: string[],
+	/**
+	 *  The box *On my network* (ADR 0117 D1, D4 Q2): serve on the private
+	 *  addresses, as ADR 0096 built. Kept; on by default.
+	 */
+	network: boolean,
+	/**
+	 *  The box *By an internet link* (ADR 0117 D3): where the link stands.
+	 *  Never kept across starts (item 6).
+	 */
+	link: LocalLink,
+	/**
+	 *  The link is turned on with the person's own address, not a quick
+	 *  link (ADR 0117 D10, `local_server_link_mode`).
+	 */
+	link_own: boolean,
+	/**  The own address, once set up (D10 (a)); none before. */
+	own_address: LocalOwnAddress | null,
+	/**
+	 *  `cloudflared tunnel login` was done on this computer: the person's
+	 *  Cloudflare credential is where `cloudflared` keeps it (D10 item 2).
+	 */
+	cloudflare_signed_in: boolean,
 };
 
 /**  One file the loose-files window shows (ADR 0114 item 18). */

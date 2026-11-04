@@ -140,6 +140,22 @@ pub struct LocalSettings {
     /// on loopback; the link's own box is never kept (D3 item 6), so it is
     /// not a setting.
     pub network: bool,
+    /// The link is turned on with the person's own address, not a quick
+    /// link (ADR 0117 D10; the host's `local_server_link_mode`).
+    pub link_own: bool,
+    /// The own address, once the host set it up (D10 (a)): the hostname
+    /// routed at Cloudflare and the named tunnel's id.
+    pub own_address: Option<OwnAddress>,
+}
+
+/// An own address for the internet link (ADR 0117 D10 (a)), as the host's
+/// `cloudflared` made it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnAddress {
+    pub hostname: String,
+    /// The named tunnel's id (`cloudflared tunnel create`).
+    pub tunnel: String,
 }
 
 impl Default for LocalSettings {
@@ -153,6 +169,8 @@ impl Default for LocalSettings {
             host_name: None,
             max_connected: CONNECTED,
             network: true,
+            link_own: false,
+            own_address: None,
         }
     }
 }
