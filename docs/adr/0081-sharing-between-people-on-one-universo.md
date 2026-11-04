@@ -54,6 +54,11 @@
   [0105](0105-read-links-without-an-account.md), Accepted that day: a read
   link without an account on a folder or on one note, off on a new server;
   sharing one note **to write** stays as item 17 left it.
+  2026-11-04 — item 4: a game master the admin lets make folders may
+  invite people who have no account into tables of their own folders, by
+  [0117](0117-this-app-is-a-universo-server.md) D14 (e) (the maintainer,
+  *"confirmo tudo"*); the 2026-10-12 answer ("only the admin invites")
+  holds for everything else.
   2026-10-21 (review of the afternoon batch; answered 2026-10-22, below,
   question T.9 of the decisions list of the afternoon; the answer is below)
   — item 5 says "names and keys, no path", and the folder switcher now shows a
@@ -166,7 +171,11 @@ carried a recommendation; the maintainer decided. Open items answered
    Links that anyone holding them may open are not in this ADR
    (`[DECIDED 2026-10-10]`, for when asked; a server of private notes starts without
    them — decided 2026-10-10: not now). *(Decided 2026-10-12, Revisions:
-   only the admin invites a person who has no account.)*
+   only the admin invites a person who has no account.)* *(Revised
+   2026-11-04, Revisions: an account the admin lets make folders may also
+   invite people into tables of its own folders — readers, audited, in the
+   console's invitations — per [0117](0117-this-app-is-a-universo-server.md)
+   D14 (e); not built.)*
 5. **Where it appears.** A section **"Shared with me"** — *Compartilhados
    comigo* — in every place that lists a person's folders: the browser's
    folder picker and Settings › Account › Folders; the desktop app's

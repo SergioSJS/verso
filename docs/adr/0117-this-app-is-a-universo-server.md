@@ -24,6 +24,11 @@
   pairs through the link (D5); the UniVerso's own link reuses the tunnel
   module (D4, a plan); one function per administrator's act (D18, new);
   D15 and D16 say what is built and what is left.
+  2026-11-04, evening — D14's seven questions answered by the maintainer,
+  *"confirmo tudo"*: each decided as recommended and moved into the
+  decision it belongs to (D4.2, D4.3, D5, D6, D7, D8); D14 keeps only the
+  build's smallest choices still open. 0077 item 6 and 0081 item 4 carry a
+  dated revision for (c) and (e).
 - Related: [0073](0073-self-hosted-server-first.md), [0074](0074-accounts-and-access-on-the-server.md),
   [0077](0077-the-server-administration-console-and-folder-quotas.md),
   [0079](0079-sync-a-local-folder-with-a-server.md), [0081](0081-sharing-between-people-on-one-universo.md),
@@ -131,15 +136,22 @@ app Desktop, e em ambos os casos ser possível ter links do cloudflare."*
    `[OPEN]`, R5), for the `.deb`, Docker compose and ZimaOS alike, the
    public origin then set at runtime (today `VERSO_PUBLIC_URL` is read once
    at start; the spike restarted the server when the quick link's address
-   was known).
+   was known). *(Decided 2026-11-04, was D14 (c), `[DECIDED 2026-11-04]`:)*
+   the UniVerso's link is turned on and off **from the admin console** as
+   well as by the environment variable and `universo.sh` (for a server
+   with no browser); a quick link keeps the 12 hours with *Extend*. This
+   revises [0077](0077-the-server-administration-console-and-folder-quotas.md)
+   item 6 (no setting edited in the console), dated there. Not built (R5).
 3. A folder this person did not share as its owner (a share received from
    another account, synced to this computer) is not served from here: by
    [0081](0081-sharing-between-people-on-one-universo.md) item 4
    (`[DECIDED 2026-10-10]`) a receiver does not re-share. Built so
    (`96123d8f4`): a synced folder whose server last said this person is not
    its owner is refused at ticking, start, pairing and the link, in words
-   (`received_from`); one whose role was not said yet is served. The
-   maintainer's confirmation is still asked in D14 (g).
+   (`received_from`); one whose role was not said yet is served.
+   *(Decided 2026-11-04, was D14 (g), `[DECIDED 2026-11-04]`:)* confirmed;
+   said in words on the folder's row (built) and, when R4 builds it, on the
+   folder's page.
 
 ### D5. The owner reaches a table on this computer from his own browser and phone `[DECIDED 2026-11-04]`
 
@@ -150,9 +162,11 @@ working as built (pairing on the network, D12), and the owner reaches the
 host **through the link** too. Today he cannot: pairing answers only on the
 network (`64eeb999b`), and this computer's owner account has no password and
 opens no browser session that is not a paired phone (`49e1d91ed`). **The
-owner pairs through the link** (the lean version, D14 (b)'s recommendation):
-the phone's pairing — a code typed in the browser, approved in the app — on
-the link's sign-in page too. Not built (R3).
+owner pairs through the link** *(decided 2026-11-04, was D14 (b),
+`[DECIDED 2026-11-04]`)*: the phone's pairing, offered on the link's sign-in
+page too — a code typed in the browser, approved in the app (*Foi você?*),
+two minutes, three attempts — making a device of the owner, reader or
+editor as 0096 item 12 says; no owner password. Not built (R3).
 
 ### D6. One link per host, routes per folder and table; a link may expire `[DECIDED 2026-11-04]`
 
@@ -168,7 +182,10 @@ gerar rotas específicas para cada pasta … Talvez o hash também."*
   folder's or share's opaque id, sign-in required; `/invite/<token>`
   (single use, 7 days); `/r/<token>` read links ([0105](0105-read-links-without-an-account.md));
   `/signin`, `/device`, `/reset/<token>`. A **readable route by name** (a
-  slug) does not exist: D14 (d).
+  slug) does not exist. *(Decided 2026-11-04, was D14 (d),
+  `[DECIDED 2026-11-04]`:)* not now; each table's route is the existing
+  `/?folder=<id>` — the opaque id is the "hash" — on the host's link,
+  copied from the table card; sign-in or an invitation still required.
 
 ### D7. Several game masters on one UniVerso, each seeing only their own `[DECIDED 2026-11-04]`
 
@@ -183,8 +200,20 @@ essa pessoa me convidar."* Read against the code on 2026-11-04:
 | A member's folders and tables are theirs | **Holds**: the maker owns the folder; the owner is the game master (0110 item 15) | `folders.rs:45-75` |
 | One member does not see another's folders | **Holds**: a member lists only their own and the shares given to them; another's id answers 404 | `folders.rs:31-38`, `access.rs:17-45` |
 | The admin does not see a member's notes | **Holds for content**: the admin has no role in a folder not granted; entering is a self-grant in the audit log, which the folder's owner reads | `access.rs:7`, `admin.rs:356-378`, `/api/folders/{id}/audit` |
-| …nor that the folder exists | **Does not hold**: the console lists every folder's name, owners, members, space and audit ([0077](0077-the-server-administration-console-and-folder-quotas.md) item 3) | `console.rs:81` — D14 (f) |
-| A game master invites players to their table | **Gap**: only the server's admin invites a person who has no account (0081 item 4, revision 2026-10-12); a member gives a place only to an existing account | `campaign_cmds.rs:945-949`, `can_invite` at `:763` — D14 (e) |
+| …nor that the folder exists | **Does not hold**: the console lists every folder's name, owners, members, space and audit ([0077](0077-the-server-administration-console-and-folder-quotas.md) item 3) | `console.rs:81` — kept, below (f) |
+| A game master invites players to their table | **Gap**: only the server's admin invites a person who has no account (0081 item 4, revision 2026-10-12); a member gives a place only to an existing account | `campaign_cmds.rs:945-949`, `can_invite` at `:763` — closed, below (e) |
+
+*Decided 2026-11-04 (were D14 (e) and (f), `[DECIDED 2026-11-04]`):*
+
+- **(e)** An account the admin lets make folders may also invite people who
+  have no account into tables of its own folders — readers, audited, in the
+  console's invitations; never into another's folder. This revises
+  [0081](0081-sharing-between-people-on-one-universo.md) item 4's answer of
+  2026-10-12 ("only the admin invites"), dated there. Not built (R6).
+- **(f)** The console keeps listing every folder's name and members to the
+  admin (space and quotas need the list); the content stays closed, and a
+  self-grant is in the owner's audit; the lesson says so in words. Nothing
+  to build beyond the lesson (R7).
 
 ### D8. A table lives on one host; the files are the same through sync `[DECIDED 2026-11-04]`
 
@@ -198,6 +227,12 @@ room across the two hosts (0096 item 11 (a)'s limit): two people on one
 note, one per host, meet at the next sync, not keystroke by keystroke.
 Secret blocks ([0087](0087-secret-blocks-hidden-from-readers.md)) are in the
 file and hold on both; a note's audience is its host's.
+
+*Decided 2026-11-04 (was D14 (a), `[DECIDED 2026-11-04]`):* a table may move
+to the other host once players joined; the players are invited again on
+the new host; the old host's chat, rolls and grants are not migrated and
+stay there until that table is turned back into a folder (0110 item 1).
+Not built.
 
 ### D9. What of the UniVerso works here `[DECIDED 2026-11-03: parity is the goal]`
 
@@ -224,7 +259,7 @@ session). "Through the link" results are the spike's (As built).
 | Read links (0105) | **Built** (S12 `dbebb66b5`, a switch, off at first); never into what is not served | `readlinks.rs`, `local/read_links.rs` |
 | Sign-in by mail, "forgot the password" | **Out** `[DECIDED 2026-11-03]`; the owner makes a new-password link (`27eece626`) | `local/players.rs` |
 | Passkeys, tokens (0074 items 3, 8) | **Built** (S13 `cd5bc9289`); a passkey only through the link; a quick link's passkey dies with it | `passkeys.rs` |
-| The owner's own browser or phone through the link (D5) | **No**: pairing is the network's; **R3** after D14 (b) | `local/routes.rs` |
+| The owner's own browser or phone through the link (D5) | **No**: pairing is the network's; decided (D5), **R3** to build | `local/routes.rs` |
 | A UniVerso's own Cloudflare link (D4) | **New**: **R5** | — |
 
 ### D10. "My own address": a named Cloudflare Tunnel `[DECIDED 2026-11-03]`
@@ -310,39 +345,12 @@ ticked in Settings, whole or in part) by D2. **Gone:** 0096 item 11 by D4.
 - **Q9** The spike on the maintainer's OK; run 2026-11-03 by an Opus session
   on VM 107 with his authorisation, not from his Mac (As built).
 
-### D14. Open `[OPEN]` — the maintainer's to answer; a recommendation each
+### D14. The build's smallest choices, still open `[OPEN]`
 
-- **(a) Moving a table to the other host once players joined.**
-  Recommended: allowed; players are invited again on the new host; the old
-  host's chat, rolls and grants are not migrated and stay there until that
-  table is turned back into a folder (0110 item 1).
-- **(b) How the owner signs in through the link (D5).** Recommended: the
-  phone's pairing, offered on the link's sign-in page too — a code typed in
-  the browser, approved in the app (*Foi você?*), two minutes, three
-  attempts — making a device of the owner, reader or editor as 0096 item 12
-  says; no owner password. The lean version (2026-11-04) takes this
-  recommendation; it stays here until the maintainer confirms it on reading.
-- **(c) A UniVerso's link turned on from the admin console (D4.2).**
-  Recommended: yes, plus an environment variable and `universo.sh` for a
-  server with no browser; a quick link keeps the 12 hours with *Extend*.
-  **Contradiction recorded, not resolved:** 0077 item 6
-  (`[DECIDED 2026-10-10]`) says no setting of the server is edited in the
-  console; a yes here changes it.
-- **(d) A readable route by name** (`/mesa/<slug>`). Recommended: not now;
-  each table's route is the existing `/?folder=<id>` — the opaque id is
-  the "hash" — on the host's link, copied from the table card; sign-in or
-  an invitation still required.
-- **(e) A game master who is not the admin invites new people (D7).**
-  Recommended: an account the admin lets make folders may also invite
-  people into tables of its own folders (reader, audited, in the console's
-  invitations). This changes 0081 item 4's revision of 2026-10-12.
-- **(f) The console shows every folder's name and members to the admin
-  (D7).** Recommended: keep it (space and quotas need the list); the
-  content stays closed and a self-grant is in the owner's audit; the
-  lesson says so in words.
-- **(g) A received share synced here is not served (D4.3).** Recommended:
-  confirm; said in words on the folder's page. Built as recommended
-  (`96123d8f4`), from 0081 item 4; the confirmation is still his.
+Its seven questions, (a)–(g), were answered by the maintainer on 2026-11-04
+— *"confirmo tudo"*, each as recommended — and are recorded where they
+belong: (a) in D8, (b) in D5, (c) in D4.2, (d) in D6, (e) and (f) in D7,
+(g) in D4.3. What stays here is open:
 
 Left `[OPEN]` by the build, the smallest choice kept in the code: an
 invited account never made owner of a laptop folder (`ab79feac8`); an
@@ -367,7 +375,10 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | Changed | A player accepting an invitation is told to the table's windows | **Built** (`22a2eea9d`) | `campaign_cmds::people_changed` |
 | To build | A served subfolder for players = a share or a table root on the owner's registered folder (D1, D2) — nothing of the app's own | Not built: R1 | `local/parts.rs` (unchanged for phones) |
 | To build | The folder's page: serve from this computer, *Sit*, the table's link; Settings' read-only list (D2) | Not built: R4 | `tableCard.ts`, `dialogs/servedFolders.ts` |
-| To build | The owner pairs through the link (D5) | Not built: R3 | `local/routes.rs`, `web/localTable.ts` |
+| To build | The owner pairs through the link (D5, decided 2026-11-04) | Not built: R3 | `local/routes.rs`, `web/localTable.ts` |
+| To build | The UniVerso's link from the admin console (D4.2, decided 2026-11-04; revises 0077 item 6) | Not built: R5 | `console.rs`, `app/ui/src/web/console.ts` |
+| To build | A game master who may make folders invites into their own tables (D7 (e), decided 2026-11-04; revises 0081 item 4) | Not built: R6 | `campaign_cmds.rs`, `shares.rs` |
+| To build | Moving a table to the other host (D8, decided 2026-11-04) | Not built | — |
 | To build | A UniVerso's own link, reusing the tunnel module (D4.2) | Not built: R5 | `app/src-tauri/src/tunnel/` → a crate |
 | To build | Lessons 22, 23 and the UniVerso's 31 for its link; manual checks; the threat model's rows | Partly (29 and 28 say the folder's page, synced folders, received ones) | `demo-vault*/`, `docs/reference/` |
 
@@ -379,8 +390,8 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | R2 | ~~Synced folders served; a received share refused~~ — **built** (`96123d8f4`); the host per table follows D4.1 with nothing more to build | — |
 | R3 | The owner pairs through the link (D5). Tests: the code works only once approved in the app; limits by forwarded address; no owner role through it | Opus |
 | R4 | The folder's page: serve from this computer, *Sit*, *Copy the table's link*; Settings' read-only list. Both languages, keyboard, 390×844, e2e in Docker | Sonnet |
-| R5 | A UniVerso's own link (D4.2): the tunnel module moved into a crate both hosts use; a spike first (a quick link's address with no window; a named tunnel on a headless server); the runtime origin in `verso-server`; an environment variable and `universo.sh` for the `.deb`, Docker compose and ZimaOS; on and off after D14 (c). Tests: `Host`/`Origin` follow the runtime origin; a forged header moves no limit | Opus |
-| R6 | After D14 (e): a game master invites people into their own tables. Tests: never into another's folder; audited | Opus |
+| R5 | A UniVerso's own link (D4.2): the tunnel module moved into a crate both hosts use; a spike first (a quick link's address with no window; a named tunnel on a headless server); the runtime origin in `verso-server`; an environment variable and `universo.sh` for the `.deb`, Docker compose and ZimaOS; on and off from the console as well (D4.2, decided). Tests: `Host`/`Origin` follow the runtime origin; a forged header moves no limit | Opus |
+| R6 | D7 (e), decided: a game master who may make folders invites people into their own tables. Tests: never into another's folder; audited | Opus |
 | R7 | Docs: lessons 22, 23 and the UniVerso's 31 for its link, the walkthrough, manual checks, threat-model rows (a synced folder served, a UniVerso's link); the site's wiki imported again | Sonnet |
 | R8 | The guardrails seen failing; the checks on the three systems; the beta installed on the maintainer's OK | Opus |
 
@@ -436,7 +447,8 @@ until the folder was opened again; the folder's windows now hear it
 - The UniVerso gains `cloudflared` in its packages and a runtime public
   origin (R5): a new outbound reach for [0050](0050-outbound-network-access.md)
   and new rows in the threat model.
-- D7's gaps wait for the maintainer (D14 (e), (f)) before any code.
+- D7's gaps are decided (2026-11-04): (e) closes the invitation gap (R6);
+  (f) keeps the console's folder list, said in the lesson.
 - The laptop faces the internet while a link is on; the mitigations are
   D11's. The residual risk is a bug in the HTTP stack reachable by anyone
   with the link.
@@ -487,8 +499,12 @@ maintainer's direction of that day as relayed to the session building it
 ("the app holds folders as a UniVerso does; who sees what = the UniVerso's
 shares and tables on the folder page; host = the window you make the table
 in; keep phones' parts as built") and his decisions on the audit (D18).
-D14 (b) is written as the lean version takes it, still listed for his
-confirmation; every other `[OPEN]` stays open. Written by an Opus session;
+D14 (b) was written as the lean version took it, pending his confirmation.
+
+**2026-11-04, evening.** The maintainer answered D14: *"confirmo tudo"* —
+(a)–(g) decided as recommended, (c) despite 0077 item 6 and (e) changing
+0081 item 4's revision of 2026-10-12; both carry a dated revision. Recorded
+by an Opus session; nothing of (a), (b), (c) or (e) is built. Written by an Opus session;
 awaits the maintainer's reading; no Fable reading.
 
 ## As built: the spike (2026-11-03)
