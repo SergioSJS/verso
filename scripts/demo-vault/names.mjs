@@ -49,6 +49,7 @@ export const NAMES = {
   "36 - Som e Música na Mesa.md": "36 - Sound and Music at the Table.md",
   "37 - Compatibilidade com o Obsidian.md": "37 - Compatibility with Obsidian.md",
   "38 - Instalar o servidor num NAS ou VPS.md": "38 - Installing the server on a NAS or a VPS.md",
+  "39 - Mesa pela Internet.md": "39 - A Table over the Internet.md",
   "Tour do Verso.canvas": "Verso Tour.canvas",
   "Treino do Board.canvas": "Board Training.canvas",
   "Board de Demonstração.canvas": "Demo Board.canvas",

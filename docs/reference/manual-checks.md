@@ -20,6 +20,36 @@ in the real app.
 
 ## Not yet checked
 
+### This app is a server: the internet link, invitations and the table (ADR 0117, note 39, 2026-11-04)
+
+The harness answers the link, the own address, the invitations and the seat in memory, and the Rust tests run the real server on a loopback listener; nothing downloaded, ran or talked to `cloudflared` or Cloudflare. Per system, then one line per row of ADR 0117 D9. Follow note 39 as a layperson would.
+
+- [ ] **The download of `cloudflared` on each system** (A, macOS, Windows, Linux): with the link box ticked the first time, the panel says it is downloading (about 40 MB), the checksum passes and **Link no ar.** shows. On macOS the downloaded binary runs with no Gatekeeper prompt; on Windows no SmartScreen or firewall prompt blocks it; on Linux it runs from the data directory. Turn the link off and on again: no second download.
+- [ ] **The child dies with the app** (A, each system): with the link on, quit Verso; no `cloudflared` stays in `ps` / Activity Monitor / Task Manager. On Windows also end the app from Task Manager: the Job Object takes `cloudflared` with it. On macOS/Linux kill the app with `kill -9`: the child exits by itself once it sees the app gone.
+- [ ] **A real phone on mobile data** (A, iPhone Safari and Android Chrome, Wi-Fi off): open the quick link: the sign-in; open an invitation link made on it, make the account, sign in, and play at the Table (see the rows below).
+- [ ] **A second Verso app through the link** (A, a second computer): **Ajustes › Servidores** with the quick link's address and an invited account; it signs in through the browser, syncs the shared folder both ways, appears in **Apps Verso de outras pessoas** and **Encerrar** drops it. With the network's address instead it does not connect.
+- [ ] **Own address with `mesa.versomd.com`** (A, the maintainer's Cloudflare account): **Entrar na Cloudflare** opens the browser and finishes; **Configurar** makes the tunnel and the DNS record; the link comes up on the name with no countdown; quit and open with **Manter ligado ao abrir o app**: it comes back on the same address; a passkey made on it still works after a restart; **Remover meu endereço** deletes the tunnel at Cloudflare.
+- [ ] **The 12 hours and a lost link** (A): with the link on, the countdown ticks and **Prorrogar por 12 horas** keeps the same address; let the computer sleep a few minutes, wake it: the window and a player's page both say the table is offline, and **Tentar de novo** works once it is back. A player's page for a link that ended shows **A mesa está offline**, not Cloudflare's page.
+- [ ] **The tray and the status mark** (A, macOS and Windows): with the link on the tray shows **Link pela internet ligado** and **Parar**, in the window's language; Linux shows only the status bar's **Servindo · link na internet**.
+
+D9, one line per row (A, with the link on and a real player in a browser, unless said):
+
+- [ ] **Live co-editing in the browser**: two people in the same note see each other's cursors and names through the link; type for ten minutes, reload one side: nothing lost (WebSocket through the tunnel).
+- [ ] **Sync from another person's desktop app**: the row above; also edit the same note on both and see it live. A phone is offered no sync.
+- [ ] **Accounts, roles, invitations, shares**: an invited reader cannot edit; an editor can; an account creates no folder on the computer; ending an invitation before it is used makes its link open nothing.
+- [ ] **One access model and the hides**: a folder served in part is invisible to an invited account by name and by id; a note hidden from a player stays hidden after a reload.
+- [ ] **Campaign folder**: **Sentar à mesa**, make the folder a table, invite, release a note: the player sees it only once released. A phone is offered none of this.
+- [ ] **Chat, rolls, secret rolls, 3D dice**: a player rolls and chats; a secret roll reaches only the game master; the dice fall on both screens.
+- [ ] **Images at the table**: a player's image reaches the table through the link; an image over the tunnel's upload bound is refused in words (the measured numbers belong in the ADR's "As built").
+- [ ] **Music and shared audio**: the game master's music is heard by a player through the link; a ten-minute **Compartilhar áudio** stays in sync (binary WebSocket, no UDP).
+- [ ] **Notifications**: a system notification reaches a player through the link; on the network's certificate none is offered.
+- [ ] **The phone offline**: a player through the link can make a folder available offline; at the next quick link that copy belongs to the old origin.
+- [ ] **Trash and version history**: delete a note as an editor and restore it; the history lists the player's edit with their name.
+- [ ] **The web window on a phone**: cold load through the link on mobile data, at 390 x 844: every panel reachable, no sideways scroll, within Cloudflare's 200 requests at once.
+- [ ] **Read links**: turn **Ligar os links de leitura** on, make a link from the seated window, open it in a private window through the link with no account; turn it off and reload: it closes. A link made on a folder served in part opens nothing.
+- [ ] **Passkeys and tokens**: on the network the password only and no passkey button; through the quick link a passkey is made and signs in, and is gone at the next link; a personal token made in the browser lists a folder and writes nothing when it reads only.
+- [ ] **Out on purpose**: there is no admin console and no sign-in by mail on this server (nothing to look for; the lesson does not promise either).
+
 ### The embedded terminal (ADR 0115, 2026-10-31)
 
 The harness has no pseudo-terminal (its shell is scripted); the host tests run a real shell on macOS, Linux (the container) and Windows (VM 103). What a real app, a real person's startup files, a screen reader and the AI tools themselves do is listed here, per system — macOS, Windows (VM 103), Linux (VM 104) — with Ajustes › Recursos › Terminal on:
