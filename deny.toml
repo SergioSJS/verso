@@ -93,6 +93,12 @@ confidence-threshold = 0.9
 unused-allowed-license = "allow"
 exceptions = [
   # { allow = ["..."], crate = "..." }  # only with a justification in the PR
+  # Boost Software License 1.0: permissive, OSI and FSF approved, no notice
+  # required in a binary — as permissive as MIT. xxhash-rust (its xxh3), a
+  # required dependency of notify 9 (the poll watcher's hashes), taken for
+  # the Windows watcher fix (C5, the maintainer, 2026-11-03: "atualiza").
+  # Only this crate; to be ratified by the maintainer.
+  { allow = ["BSL-1.0"], crate = "xxhash-rust" },
 ]
 
 [bans]
