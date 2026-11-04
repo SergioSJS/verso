@@ -90,6 +90,10 @@ export function linkBoxes(ctx: Ctx): Boxes {
   const live = h("p", "ls-state ls-link-state");
   live.setAttribute("role", "status");
   live.setAttribute("aria-live", "polite");
+  // A quick link is a new name at Cloudflare: its DNS takes a moment to
+  // reach everyone (about a minute, the test of 2026-11-04).
+  const fresh = h("p", "ls-help ls-link-fresh", w.freshLink);
+  fresh.hidden = true;
   const where = h("div", "ls-link-where");
   const left = h("p", "ls-help ls-link-left");
   left.id = "ls-link-left";
@@ -104,7 +108,7 @@ export function linkBoxes(ctx: Ctx): Boxes {
   cancel.classList.add("ls-link-cancel");
   cancel.hidden = true;
   const own = ownAddress(ctx);
-  panel.append(live, where, left, extend, cancel, notes);
+  panel.append(live, fresh, where, left, extend, cancel, notes);
   el.append(title, netRow, netHelp, linkRow, linkHelp, testing, panel, own.el);
 
   let status: LocalServerStatus | null = null;
@@ -173,6 +177,7 @@ export function linkBoxes(ctx: Ctx): Boxes {
     drawWhere(l);
     extend.hidden = !(l.state === "on" && l.until !== null);
     cancel.hidden = l.state !== "starting";
+    fresh.hidden = !(l.state === "on" && !l.own);
     notes.replaceChildren();
     if (l.state === "on" && l.protocol === "http2") notes.append(h("p", "ls-help", w.http2));
     if (l.state === "on" && !l.own) notes.append(h("p", "ls-help", w.newEachRun));

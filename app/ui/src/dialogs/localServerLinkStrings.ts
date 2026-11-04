@@ -30,6 +30,7 @@ const pt = {
   cancelled: "Cancelado: o link não foi ligado.",
   on: "Link no ar.",
   onOwn: "Seu endereço está no ar.",
+  freshLink: "Um link novo pode levar até um minuto para abrir.",
   off: "Link desligado.",
   ended: {
     stopped: "Link desligado.",
@@ -167,6 +168,7 @@ const en: typeof pt = {
   cancelled: "Cancelled: the link was not turned on.",
   on: "The link is up.",
   onOwn: "Your address is up.",
+  freshLink: "A new link can take up to a minute to open.",
   off: "The link is off.",
   ended: {
     stopped: "The link is off.",

@@ -45,6 +45,8 @@ test("the link alone serves: its address with Copy and a QR, the hours left with
   // No question about the network: nothing listens on it.
   await expect(page.getByRole("dialog", { name: "Antes de ligar" })).toHaveCount(0);
   await expect(body.locator(".ls-link-state")).toHaveText("Link no ar.");
+  // Right under it: a new quick link takes a moment to open everywhere.
+  await expect(body.locator(".ls-link-state + p")).toHaveText("Um link novo pode levar até um minuto para abrir.");
   await expect(body.getByText("https://exemplo-de-mesa.trycloudflare.com")).toBeVisible();
   await expect(body.getByText("Servindo só pelo link na internet.", { exact: false })).toBeVisible();
   await expect(body.getByText(/Fecha sozinho em 1[12] h \d\d min \(às \d\d:\d\d\)\./)).toBeVisible();
@@ -220,6 +222,8 @@ test("my own address: the three steps written out, the login, a taken name said,
   await body.getByRole("checkbox", { name: "Por um link na internet (Cloudflare, modo de teste)" }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await expect(body.locator(".ls-link-state")).toHaveText("Seu endereço está no ar.");
+  // An own address is no new name: no wait to say.
+  await expect(body.getByText("Um link novo pode levar até um minuto para abrir.")).toBeHidden();
   await expect(body.locator(".ls-link-url")).toContainText("https://mesa.exemplo.com");
   await expect(body.getByText("Seu endereço não fecha sozinho", { exact: false })).toBeVisible();
   await expect(body.getByRole("button", { name: "Prorrogar por 12 horas" })).toBeHidden();

@@ -27,7 +27,7 @@ It is **one feature**, **Turn into a server**, with two boxes: serving **on your
 2. Under **Folders served**, tick the campaign's folder. None comes ticked. For a table, serve the **whole folder**: it is the one you will invite people to and sit at.
 3. Under **Where to serve**, tick **By an internet link (Cloudflare, testing mode)**. If you do not want to serve phones on your network, leave **On my network** unticked: with the link alone, the computer accepts nothing from your home network.
 4. Tap **Turn the server on**. **The first time**, Verso downloads **cloudflared**, Cloudflare's program that opens the link (about 40 MB), and checks its sum before using it. It takes a moment; the panel shows how many MB have come, and **Cancel** stops it right there — nothing turns on afterwards and the half-downloaded file is deleted.
-5. When **The link is up.** shows, the panel gives **The table's address**, with **Copy link** and **Show the link's QR**. The status bar now says **Serving · internet link**, and the **Verso icon** in the Mac's menu bar (or Windows' notification area) gains a line **Internet link on**; on Linux there is only the status bar's mark.
+5. When **The link is up.** shows, the panel gives **The table's address**, with **Copy link** and **Show the link's QR**. The status bar now says **Serving · internet link**, and the **Verso icon** in the Mac's menu bar (or Windows' notification area) gains a line **Internet link on**; on Linux there is only the status bar's mark. A new link can take up to a minute to open: if the page does not open at once, wait a moment and try again.
 
 The panel also says:
 

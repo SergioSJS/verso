@@ -112,3 +112,11 @@ test("the download is said only while it downloads, in megabytes of the whole", 
   assert.match(L.linkStrings().downloading(3, 40), /3 of 40 MB/);
   globalThis.document.documentElement.lang = "pt-BR";
 });
+
+test("a new quick link's wait is said in both languages", () => {
+  globalThis.document.documentElement.lang = "pt-BR";
+  assert.equal(L.linkStrings().freshLink, "Um link novo pode levar até um minuto para abrir.");
+  globalThis.document.documentElement.lang = "en";
+  assert.match(L.linkStrings().freshLink, /up to a minute/);
+  globalThis.document.documentElement.lang = "pt-BR";
+});
