@@ -13,13 +13,10 @@
 
 import { commands, type LocalPlayer, type LocalServerStatus } from "../bindings";
 import { button, h } from "../dom";
+import { humanDate } from "../dates";
 import { busy } from "../reach";
 import { whyOf } from "./localServerLink";
 import { playerStrings } from "./localServerPlayersStrings";
-
-function when(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleDateString(document.documentElement.lang.startsWith("pt") ? "pt-BR" : "en");
-}
 
 export function playersBlock(say: (text: string) => void): { el: HTMLElement; draw: (s: LocalServerStatus) => Promise<void> } {
   const w = playerStrings();
@@ -80,7 +77,7 @@ export function playersBlock(say: (text: string) => void): { el: HTMLElement; dr
     const reaches = p.reaches.map((r) => `${r.name} (${w.role[r.role] ?? r.role})`).join(", ");
     who.append(
       h("strong", "", p.name),
-      h("small", "", w.seen(p.email, p.last_seen === null ? null : when(p.last_seen))),
+      h("small", "", w.seen(p.email, p.last_seen === null ? null : humanDate(p.last_seen))),
       h("small", "", reaches ? w.reaches(reaches) : w.reachesNone),
     );
     const actions = h("div", "ls-player-actions");

@@ -8,7 +8,7 @@ import { LOCALE, t } from "./strings";
 
 /** The system asks for reduced motion: no smooth scrolling, no animation. */
 export const calm = window.matchMedia("(prefers-reduced-motion: reduce)");
-export const dateFmt = new Intl.DateTimeFormat(LOCALE, { dateStyle: "medium", timeStyle: "short" });
+export { dateFmt, humanDate } from "./dates";
 export function humanSize(n: number): string {
   if (n < 1024) return `${n} B`;
   const units = ["KB", "MB", "GB", "TB"];
@@ -19,9 +19,6 @@ export function humanSize(n: number): string {
     i++;
   }
   return `${v.toLocaleString(LOCALE, { maximumFractionDigits: v < 10 ? 1 : 0 })} ${units[i]}`;
-}
-export function humanDate(secs: number): string {
-  return secs > 0 ? dateFmt.format(new Date(secs * 1000)) : "";
 }
 export function kindLabel(path: string, kind: Kind): string {
   if (kind === "folder") return t.kindFolder;

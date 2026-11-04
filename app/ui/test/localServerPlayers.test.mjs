@@ -108,6 +108,9 @@ test("each person is listed with what they reach and when last seen, never anyon
   assert.equal(rows.length, 2);
   assert.match(rows[0].textContent, /Ana/);
   assert.match(rows[0].textContent, /ana@casa\.example · visto por último em/);
+  // The day and the hour, as the app's other dates say them (the re-test
+  // of 2026-11-04: the day alone).
+  assert.match(rows[0].textContent, /visto por último em [^·]*\d{1,2}:\d{2}/);
   assert.match(rows[0].textContent, /Alcança: Campanha \(edita\), Campanha\/Mapas \(lê\)/);
   assert.match(rows[1].textContent, /rui@casa\.example · sem sessão aberta/);
   assert.match(rows[1].textContent, /Não alcança nenhuma pasta ainda/);
