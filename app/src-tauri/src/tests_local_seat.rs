@@ -306,7 +306,8 @@ fn the_window_sits_at_its_own_table_with_a_player() {
     // Serving stops: the window is let go of the seat and told.
     s.local.stop();
     let gone = s.heard("server-gone", |_| true);
-    assert_eq!(gone["what"], "session", "{gone}");
+    // Said as the seat's, never as a session a server ended.
+    assert_eq!(gone["what"], "seat", "{gone}");
     let deadline = Instant::now() + Duration::from_secs(10);
     while remote::of(s.app.handle(), "main").is_some() {
         assert!(Instant::now() < deadline, "the seat was let go");

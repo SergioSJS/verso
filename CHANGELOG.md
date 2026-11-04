@@ -36,6 +36,8 @@ test release.
 
 ### Fixed
 
+- **Settings in the desktop app no longer offers the browser's offline copy.** A desktop window on a server's folder listed *Sem rede* / *Offline*, the section of a window in a browser (ADR 0092), which the app does not use: it keeps folders with sync.
+
 - **The table's window says a refusal once, in your language, and a right for every player of a table with no players sends nothing** ([ADR 0113](docs/adr/0113-one-access-model-for-a-table.md) K.6). Ticking a right under *All players* with nobody at the table asked the server for an empty list and showed *Não deu certo: Não deu certo: name between 1 and 500 players*; it now asks nothing and says the table has no players yet. A refusal beside a switch or a field said *Não deu certo* twice and the server's English; it says it once, and the table's refusals (no players named, not a player of this table, not a table) in Portuguese or English.
 
 - **"Transformar em servidor" says in words why a folder that syncs with a server stops it.** Turning serving on with such a folder ticked showed *Esse caminho não pode nomear um arquivo da pasta*, a sentence about file paths, followed by the host's English. It now names the folder and the server, says the folder's table is on that server, and that unticking the folder lets this app serve the others; *turn serving off first* is said in words too.

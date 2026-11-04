@@ -1203,10 +1203,19 @@ pub(crate) fn hear<R: tauri::Runtime>(
                     }
                 }
                 Heard::Gone(what, reason) => {
+                    let what = what.as_str().unwrap_or_default();
+                    // The owner's own window at the table: its session ends
+                    // because serving stopped, which the person did — said as
+                    // the seat's, never as a server that ended a session.
+                    let what = if seated && what == "session" {
+                        "seat"
+                    } else {
+                        what
+                    };
                     let _ = app_r.emit_to(
                         label_r.as_str(),
                         "server-gone",
-                        gone(&url_r, what.as_str().unwrap_or_default(), reason, None),
+                        gone(&url_r, what, reason, None),
                     );
                 }
                 // A window on a server's folder asks its capabilities
@@ -1230,7 +1239,7 @@ pub(crate) fn hear<R: tauri::Runtime>(
             let _ = app_r.emit_to(
                 label_r.as_str(),
                 "server-gone",
-                gone(&url_r, "session", None, None),
+                gone(&url_r, "seat", None, None),
             );
         } else if let Some(folder) = still {
             let _ = app_r.emit_to(

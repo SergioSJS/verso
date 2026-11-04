@@ -812,7 +812,9 @@ pub struct ServerGone {
     /// (the connection dropped; the app tries again), `unreachable` (a
     /// try found the server out of reach: `address` names it) or `closed`
     /// (the table is closed by its game master: the app tries again and
-    /// gets in when it opens).
+    /// gets in when it opens), or `seat` (the owner's own window at the
+    /// table of this app's server, which stopped serving: the window goes
+    /// back to this computer's folder; ADR 0117 D4 Q3).
     pub what: String,
     /// With `folder`, when the server says it: `revoked` by its owner,
     /// `deleted` (the shared folder went), `left` by the person.

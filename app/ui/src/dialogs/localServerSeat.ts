@@ -7,7 +7,7 @@
 // table, the campaign and the invitations as on a UniVerso. *Sair da
 // mesa* opens this computer's folder again (its key, the one remembered
 // for the next start). When serving stops the host lets the window go and
-// says `server-gone` with `session`: the window goes back to this
+// says `server-gone` with `seat`: the window goes back to this
 // computer's folder by itself and says so. The way back is in the
 // section and on the status bar's mark, which is there while it serves.
 
@@ -101,7 +101,7 @@ export function hearSeat(): void {
   if (heard) return;
   heard = true;
   void listen<ServerGone>("server-gone", (e) => {
-    if (!seated || e.payload.what !== "session") return;
+    if (!seated || e.payload.what !== "seat") return;
     const said = linkStrings().seatGone;
     void leave((t) => (ui.status.textContent = t), said);
   });

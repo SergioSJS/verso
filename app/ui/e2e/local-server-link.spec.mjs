@@ -224,6 +224,10 @@ test("the window sits at its own table and leaves; serving stopped under it brin
   await expect(sit).toBeEnabled();
   await sit.click();
   await expect(body.getByText("Na mesa de Vault.").first()).toBeVisible();
+  // Seated, the side is the server, and still no browser's offline copy here.
+  await app.key("Escape");
+  await section(app);
+  await expect(page.locator(".settings-nav-item", { hasText: /^(Sem rede|Offline)$/ })).toHaveCount(0);
   // The next start opens this computer's folder, never the seat.
   expect(await page.evaluate(() => localStorage.getItem("verso.lastFolder"))).toBe("harness");
   // The way back is on the status bar too, with Settings closed.
@@ -238,4 +242,11 @@ test("the window sits at its own table and leaves; serving stopped under it brin
   await app.key("Escape");
   await page.locator("#local-mark").getByRole("button", { name: "Parar de servir ao celular" }).click();
   await expect(page.locator("#status")).toContainText("O servidor parou: a janela voltou à pasta deste computador.");
+  // The person's own stop is said by that line alone: no "session ended"
+  // notice with a way to Servers, and no browser's offline copy in Settings.
+  await expect(page.getByText("Sessão encerrada", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("O servidor encerrou a sessão deste computador", { exact: false })).toHaveCount(0);
+  await section(app);
+  await expect(page.locator(".settings-nav-item", { hasText: /^(Sem rede|Offline)$/ })).toHaveCount(0);
+  await expect(page.locator(".settings-nav-item", { hasText: "Servidores" })).toHaveCount(1);
 });

@@ -177,7 +177,7 @@ export class LocalServerHarness {
   private letGo(): void {
     if (!this.seated) return;
     this.seated = false;
-    void emit("server-gone", { url: "https://this-computer.invalid", what: "session", address: null, reason: null });
+    void emit("server-gone", { url: "https://this-computer.invalid", what: "seat", address: null, reason: null });
   }
 
   private linkOff(ended: LocalLink["ended"]): LocalLink {

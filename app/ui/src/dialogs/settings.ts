@@ -161,8 +161,11 @@ export class SettingsDialog {
    *  says why when it cannot keep a folder — no HTTPS, no folder open, no
    *  storage — rather than vanishing (the maintainer, 2026-10-16, over
    *  plain HTTP: "onde está offline?"). */
+  /** The browser's copy kept offline (ADR 0092): a window in a browser on
+   *  a server. The desktop app on a server's folder — its own table's
+   *  included — has none; it keeps folders with sync. */
   private offlineHere(): boolean {
-    return host() === "server";
+    return host() === "server" && !can("local_folders");
   }
   private sections(): { id: string; label: string; icon: string; category: "app" | "editor" | "rpg" | "system" }[] {
     return [

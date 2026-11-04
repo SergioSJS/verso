@@ -182,6 +182,10 @@ export function hearServers(): void {
   void listen<ServerGone>("server-gone", (e) => {
     const s = serverStrings();
     const p = e.payload;
+    // The person stopped their own server under the window at its table:
+    // the seat says that, alone (localServerSeat.ts); no server ended a
+    // session, nothing to connect again.
+    if (p.what === "seat") return;
     // The game master closed the table: said as that, in the folder's place
     // (tableClosed.ts); the host tries again by itself.
     if (p.what === "closed") {
