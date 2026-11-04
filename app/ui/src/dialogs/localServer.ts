@@ -21,7 +21,7 @@ import { servedFolders } from "./servedFolders";
 import { localStrings } from "./localServerStrings";
 import { linkBoxes, linkSentence, whyOf } from "./localServerLink";
 import { ownerNameBlock } from "./localServerOwnerName";
-import { linkStrings } from "./localServerLinkStrings";
+import { linkStrings, markSaid } from "./localServerLinkStrings";
 import { invitations } from "./localServerInvites";
 import { accountsBlock } from "./localServerAccounts";
 import { playersBlock } from "./localServerPlayers";
@@ -95,8 +95,7 @@ async function refreshMark(): Promise<void> {
   // The internet link is said in the mark while it is on (ADR 0117 D3
   // item 6): nothing listens on the internet without being visible.
   // Up only once it has its address; until then, "turning the link on".
-  const lw = linkStrings();
-  const said = linkStarting ? (s.serving ? lw.markLinkStarting : lw.markOnlyStarting) : s.link.state === "on" ? lw.markLink : w.mark(s.phones_connected);
+  const said = markSaid(s, w.mark(s.phones_connected));
   if (text) text.textContent = said;
   mark.title = s.link.state === "on" && s.link.origin ? s.link.origin : s.serving ? where(s) : said;
   seatOnMark(mark);

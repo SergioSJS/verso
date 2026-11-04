@@ -121,3 +121,20 @@ test("a new quick link's wait is said in both languages", () => {
   assert.match(L.linkStrings().freshLink, /up to a minute/);
   globalThis.document.documentElement.lang = "pt-BR";
 });
+
+test("the status mark says what is on: the link's stop is never 'serving to the phone' (the re-test of 2026-11-04)", () => {
+  globalThis.document.documentElement.lang = "pt-BR";
+  const phones = "Servindo ao celular";
+  const s = (network, state) => ({ serving: true, network, link: { state } });
+  // Only the link ticked, its download cancelled: serving stops with it.
+  assert.equal(L.markSaid(s(false, "off"), phones), "Parando o servidor…");
+  assert.equal(L.markSaid(s(false, "starting"), phones), L.linkStrings().markLinkStarting);
+  assert.equal(L.markSaid({ ...s(false, "starting"), serving: false }, phones), L.linkStrings().markOnlyStarting);
+  assert.equal(L.markSaid(s(false, "on"), phones), L.linkStrings().markLink);
+  assert.equal(L.markSaid(s(true, "on"), phones), L.linkStrings().markLink);
+  // The network ticked, the link off: the phones, as before.
+  assert.equal(L.markSaid(s(true, "off"), phones), phones);
+  globalThis.document.documentElement.lang = "en";
+  assert.equal(L.markSaid(s(false, "off"), "Serving to the phone"), "Stopping the server…");
+  globalThis.document.documentElement.lang = "pt-BR";
+});

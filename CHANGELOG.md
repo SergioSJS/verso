@@ -46,6 +46,8 @@ test release.
 
 ### Fixed
 
+- **Stopping the internet link no longer reads *Serving to the phone*** (ADR 0117). With only the link ticked, cancelling its download or stopping it showed *Serving to the phone* on the status bar for a few seconds while serving stopped; it now says *Stopping the server…*, and the app's log says the link was stopped instead of a warning about phones.
+
 - **A folder shared with you says on its own page why this computer does not serve it** (ADR 0117). A folder another account shared with you on a UniVerso, synced here, is not served from this computer; Settings said so beside the folder, and now the folder's page says it too, where the table strip would be: *Turn into a server — shared with you on …: only its owner can serve it*.
 
 - **The page of a folder's root lists its notes again** (since 0.4; the re-test of 2026-11-04). The table on the root's page said *Invalid expression: : empty expression* over *0 results*: the page's base wrote `filters:` with nothing after it, which was read as an empty filter instead of none. A base whose `filters:` (or a view's) is empty now has no filter, so a saved `index.base` with that line shows its notes too.

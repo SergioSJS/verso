@@ -130,6 +130,7 @@ const pt = {
   markLink: "Servindo · link na internet",
   markLinkStarting: "Servindo · ligando o link…",
   markOnlyStarting: "Ligando o link…",
+  markStopping: "Parando o servidor…",
   markSeated: "Na mesa",
   linkFell: "O link pela internet caiu",
 };
@@ -246,6 +247,7 @@ const en: typeof pt = {
   markLink: "Serving · internet link",
   markLinkStarting: "Serving · turning the link on…",
   markOnlyStarting: "Turning the link on…",
+  markStopping: "Stopping the server…",
   markSeated: "At the table",
   linkFell: "The internet link dropped",
 };
@@ -258,6 +260,19 @@ export type LinkWords = typeof pt;
 
 /** The host's refusal on the link's path, in the person's words; null when
  *  it is none of these (then `errorSentence` says it). */
+/** The status bar's mark, as what is on says it (ADR 0117 D3 item 6):
+ *  the link while it starts or is on; serving with neither the network
+ *  ticked nor the link up — the link stopped, its download cancelled —
+ *  is serving stopping with it (the re-test of 2026-11-04 read "serving
+ *  to the phone" there); otherwise `phones`, the network's own words. */
+export function markSaid(s: { serving: boolean; network: boolean; link: { state: string } }, phones: string): string {
+  const lw = linkStrings();
+  if (s.link.state === "starting") return s.serving ? lw.markLinkStarting : lw.markOnlyStarting;
+  if (s.link.state === "on") return lw.markLink;
+  if (!s.network) return lw.markStopping;
+  return phones;
+}
+
 export function linkWhy(message: string, w: LinkWords): string | null {
   const m = message;
   // "<name> was shared with you on <host>: …" (start) or "this folder was shared with you on <host>: …" (tick).

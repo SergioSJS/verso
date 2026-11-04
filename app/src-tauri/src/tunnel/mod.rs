@@ -24,6 +24,7 @@
 
 pub(crate) mod fetch;
 mod files;
+pub(crate) use files::STOPPED;
 pub(crate) mod named;
 pub(crate) mod run;
 

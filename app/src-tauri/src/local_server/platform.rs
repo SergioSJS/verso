@@ -58,9 +58,23 @@ pub(super) async fn blocking<T: Send + 'static>(
         .await
         .map_err(|e| failed(e.to_string()))?
         .map_err(|words| {
-            log::write("WARN", "host", &format!("serving to a phone: {words}"));
+            let (level, line) = said_of(&words);
+            log::write(level, "host", &line);
             refused(&words)
         })
+}
+
+/// A refusal as the log says it: the link stopped by the person while it
+/// started (their Stop, or Cancel during the download) is their own act,
+/// said as that; anything else is a warning of serving.
+fn said_of(words: &str) -> (&'static str, String) {
+    if words == crate::tunnel::STOPPED {
+        return (
+            "INFO",
+            "the internet link was stopped while it started".to_owned(),
+        );
+    }
+    ("WARN", format!("serving to a phone: {words}"))
 }
 
 /// The UniVerso a folder of this computer was shared from, when it syncs a
@@ -568,5 +582,26 @@ pub(super) fn serving_now<R: tauri::Runtime>(
 pub(super) fn stop_on_exit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     if let Some(local) = app.state::<App>().local_server.server.get() {
         local.stop();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::said_of;
+
+    /// The person's own Stop or Cancel while the link starts is no warning,
+    /// and is not "serving to a phone" (the re-test of 2026-11-04: only
+    /// the link was ticked); any other refusal still is a warning.
+    #[test]
+    fn a_link_stopped_by_the_person_is_said_as_that() {
+        let (level, line) = said_of(crate::tunnel::STOPPED);
+        assert_eq!(level, "INFO");
+        assert!(
+            line.contains("internet link") && !line.contains("phone"),
+            "{line}"
+        );
+        let (level, line) = said_of("turn serving on first");
+        assert_eq!(level, "WARN");
+        assert_eq!(line, "serving to a phone: turn serving on first");
     }
 }
