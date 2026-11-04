@@ -1285,3 +1285,20 @@ fn a_paired_phones_role_changes_at_once() {
         assert!(lab.local.set_phone_role("nobody", true).is_err());
     });
 }
+
+/// Pairing on a machine whose only served address is loopback — the
+/// tests' — announces nothing: mDNS would open its socket on every address
+/// of the machine, and the macOS firewall asked about each new test binary
+/// (2026-11-04). A computer that serves listens on a private address and
+/// announces there, as before.
+#[test]
+fn pairing_on_loopback_alone_announces_nothing_on_the_network() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        lab.local.pair_open().unwrap();
+        let running = super::lock(&lab.local.shared.inner);
+        let policy = &running.as_ref().unwrap().policy;
+        assert!(super::lock(&policy.announcer).is_none());
+    });
+}

@@ -333,7 +333,7 @@ struct Shared {
     stops: AtomicU64,
     /// Loopback let in as a private address: for the tests only, which
     /// cannot count on a private address on the machine they run on.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     loopback: bool,
 }
 
@@ -371,7 +371,7 @@ impl LocalServer {
                 last_stop: Mutex::new(None),
                 next: AtomicU64::new(1),
                 stops: AtomicU64::new(0),
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-support"))]
                 loopback: false,
             }),
         }
@@ -381,7 +381,7 @@ impl LocalServer {
     /// Under test, loopback may stand in (a test cannot count on a private
     /// address on the machine it runs on).
     fn addresses(&self, all: &[IfNet]) -> Vec<IfNet> {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         if self.shared.loopback {
             return all.to_vec();
         }
@@ -390,7 +390,7 @@ impl LocalServer {
 
     /// For the tests: the given interfaces, and loopback standing in for a
     /// private address when `loopback` is set.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn for_tests(
         dir: PathBuf,
         ui_dirs: Vec<PathBuf>,
@@ -605,7 +605,7 @@ impl LocalServer {
             .filter(|h| !h.is_empty())
             .map(|h| format!("{h}:{port}"))
             .collect();
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         policy
             .test_loopback
             .store(self.shared.loopback, Ordering::Relaxed);

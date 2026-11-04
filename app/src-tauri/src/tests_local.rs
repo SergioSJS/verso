@@ -63,6 +63,17 @@ fn a_folder_of_ones_own_that_syncs_with_a_server_is_ticked_and_served() {
             !status.to_string().contains("uni.casa.lan"),
             "{role:?}: refused for its sync: {status}"
         );
+        // Served on loopback alone under test: never a listener on this
+        // machine's network (the macOS firewall asked about each new test
+        // binary, 2026-11-04).
+        let addresses = status["addresses"].as_array().cloned().unwrap_or_default();
+        assert!(!addresses.is_empty(), "{role:?}: not serving: {status}");
+        assert!(
+            addresses
+                .iter()
+                .all(|a| a.as_str().is_some_and(|a| a.starts_with("127.0.0.1"))),
+            "{role:?}: listening on {addresses:?}"
+        );
         let _ = call(&webview, "local_server_stop", json!({}));
     }
 }

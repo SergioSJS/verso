@@ -38,7 +38,13 @@ pub(super) fn server<R: tauri::Runtime>(
         #[cfg(any(target_os = "macos", windows))]
         crate::tray::follow(&events);
     });
+    #[cfg(not(test))]
     let made = LocalServer::new(config.join("local-server"), ui, env!("VERSO_COMMIT"), sink);
+    // Under test the network box listens on 127.0.0.1 alone, never on the
+    // machine's private addresses: each new test binary listening there was
+    // asked about by the macOS firewall (2026-11-04).
+    #[cfg(test)]
+    let made = LocalServer::on_loopback_for_tests(config.join("local-server"), ui, sink);
     // The players see a person, not "This computer" (the test of
     // 2026-11-04): the system's user until the person names themselves.
     if let Some(name) = super::owner::system_person()

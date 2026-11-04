@@ -82,3 +82,38 @@ impl LocalServer {
             .map(|(n, _)| n.clone())
     }
 }
+
+/// This machine's interfaces as a test sees them: loopback alone.
+struct LoopbackOnly;
+
+impl super::net::Interfaces for LoopbackOnly {
+    fn list(&self) -> Vec<super::net::IfNet> {
+        vec![super::net::IfNet {
+            ip: std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+            prefix: 8,
+            name: "lo0".to_owned(),
+        }]
+    }
+}
+
+impl LocalServer {
+    /// A computer that serves whose network box listens on `127.0.0.1`
+    /// alone, never on the machine's private addresses: a test of the
+    /// app's host turns serving on and off without a listener on the
+    /// network (each new test binary was asked about by the macOS
+    /// firewall, 2026-11-04). Otherwise [`LocalServer::new`].
+    #[must_use]
+    pub fn on_loopback_for_tests(
+        dir: std::path::PathBuf,
+        ui_dirs: Vec<std::path::PathBuf>,
+        events: std::sync::Arc<dyn Fn(super::Event) + Send + Sync>,
+    ) -> Self {
+        Self::for_tests(
+            dir,
+            ui_dirs,
+            events,
+            std::sync::Arc::new(LoopbackOnly),
+            true,
+        )
+    }
+}

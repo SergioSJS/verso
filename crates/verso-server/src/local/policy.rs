@@ -79,7 +79,7 @@ pub struct Policy {
     /// through the seat's door (`seat.rs`).
     pub(super) seat: RwLock<Option<String>>,
     /// Loopback let in as a peer, for the tests only.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub(super) test_loopback: std::sync::atomic::AtomicBool,
 }
 
@@ -103,7 +103,7 @@ impl Policy {
             net_base: RwLock::new(None),
             link_proxies: crate::proxy::Proxies::loopback(),
             seat: RwLock::new(None),
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             test_loopback: std::sync::atomic::AtomicBool::new(false),
         })
     }
@@ -184,7 +184,7 @@ impl Policy {
                 .served
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-support"))]
             if ip.is_loopback() && policy.test_loopback.load(Ordering::Relaxed) {
                 return true;
             }
@@ -402,6 +402,13 @@ impl Policy {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
+        // Nothing of a network to announce on: the tests' loopback alone,
+        // where mDNS would still open its socket on every address (the
+        // macOS firewall asked about each new test binary, 2026-11-04). A
+        // computer that serves always listens on a private address.
+        if ips.iter().all(|ip| ip.to_canonical().is_loopback()) {
+            return;
+        }
         match announce::Announcer::start(port, &ips) {
             Ok(a) => {
                 *lock(&self.announcer) = Some(a);
