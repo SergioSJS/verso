@@ -500,7 +500,7 @@ export class LocalServerHarness {
     // ADR 0117 D9: the people invited.
     local_server_accounts: (): LocalPlayer[] => this.players.map((p) => ({ ...p, reaches: p.reaches.map((r) => ({ ...r })) })),
     local_server_account_reset: (a): LocalReset => {
-      const p = this.player(a);
+      const p = this.player(String(a["id"]));
       if (!this.serving) refuse("turn serving on first");
       p.last_seen = null;
       this.log("reset_link", p.email);
@@ -508,14 +508,14 @@ export class LocalServerHarness {
       return { link: `${base}/reset/senha-${p.id}-${this.nextId++}`, expires: Math.floor(Date.UTC(2026, 10, 5) / 1000) };
     },
     local_server_account_end_sessions: (a): null => {
-      const p = this.player(a);
+      const p = this.player(String(a["id"]));
       p.last_seen = null;
       this.devices = this.devices.filter((d) => d.email !== p.email);
       this.log("account_sessions_ended", p.email);
       return null;
     },
     local_server_account_remove: (a): null => {
-      const p = this.player(a);
+      const p = this.player(String(a["id"]));
       this.players = this.players.filter((x) => x.id !== p.id);
       this.devices = this.devices.filter((d) => d.email !== p.email);
       this.log("account_deleted", p.email);
@@ -537,8 +537,8 @@ export class LocalServerHarness {
   }
 
   /** The person a command names, as the server refuses one it has not. */
-  private player(a: Args): LocalPlayer {
-    const p = this.players.find((x) => x.id === String(a["id"]));
+  private player(id: string): LocalPlayer {
+    const p = this.players.find((x) => x.id === id);
     if (!p) refuse("that person has no account here");
     return p;
   }
