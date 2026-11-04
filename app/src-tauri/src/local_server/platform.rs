@@ -80,6 +80,7 @@ pub(super) fn status_of<R: tauri::Runtime>(
                 hostname: o.hostname.clone(),
             }),
         cloudflare_signed_in: crate::tunnel::signed_in(),
+        read_links: local.read_links_on()?,
         supported: true,
         serving: s.serving,
         port: s.port.map(u32::from),

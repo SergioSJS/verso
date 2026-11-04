@@ -1338,11 +1338,12 @@ export class Core {
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_attachments: () => refuse("refused", "this folder is not on a server: sync it with one first"),
-    // Read links are a server's (ADR 0105): a test answers them as one.
-    read_link_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
-    read_link_secrets: () => refuse("refused", "this folder is not on a server: sync it with one first"),
-    read_link_create: () => refuse("refused", "this folder is not on a server: sync it with one first"),
-    read_link_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    // Read links are a server's (ADR 0105): a test answers them as one; the
+    // window seated at its own table (ADR 0117 D4 Q3), as that server.
+    read_link_list: (a) => this.localServer.atTable("read_link_list", a, () => refuse("refused", "this folder is not on a server: sync it with one first")),
+    read_link_secrets: (a) => this.localServer.atTable("read_link_secrets", a, () => refuse("refused", "this folder is not on a server: sync it with one first")),
+    read_link_create: (a) => this.localServer.atTable("read_link_create", a, () => refuse("refused", "this folder is not on a server: sync it with one first")),
+    read_link_revoke: (a) => this.localServer.atTable("read_link_revoke", a, () => refuse("refused", "this folder is not on a server: sync it with one first")),
     server_prove: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     // The folder switcher's "On this computer" (ADR 0081 item 5): the
     // demo vault, opened before.
@@ -1405,6 +1406,9 @@ export class Core {
       latency_ms: null,
       // A server's size cap for a bin (ADR 0080), set by a test.
       ...(this.trashCap === null ? {} : { trash_cap: this.trashCap }),
+      // Seated at its own server's table, the server says the owner is its
+      // game master (ADR 0113).
+      ...(this.localServer.isSeated() ? { access: this.localServer.access() } : {}),
     }),
     folder_space: (): FolderSpace => {
       let notes = 0;

@@ -11,8 +11,9 @@
 //! `verso-server` builds on Windows with OpenSSL compiled in, as elsewhere).
 
 use verso_contract::{
-    LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalInvitation, LocalInvite,
-    LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus,
+    LocalAddressChoice, LocalAsked, LocalAudit, LocalDevice, LocalFolder, LocalInvitation,
+    LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone,
+    LocalServerStatus,
 };
 
 use super::*;
@@ -25,6 +26,7 @@ pub(crate) struct LocalSlot {
     pub(crate) link: crate::tunnel::Slot,
 }
 
+mod accounts;
 mod link;
 mod own;
 #[cfg(test)]
@@ -357,6 +359,38 @@ pub(crate) async fn local_server_invitation_revoke<R: tauri::Runtime>(
     link::invitation_revoke(app, id).await
 }
 
+/// The desktop apps of other people signed in to this computer's server
+/// (ADR 0117 D9, S11), to end one; never the window at the table, never a
+/// phone.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_devices<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<LocalDevice>, ContractError> {
+    accounts::devices(app).await
+}
+
+/// *End* a desktop app's session: it syncs nothing until it signs in again.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_end_device<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), ContractError> {
+    accounts::end_device(app, id).await
+}
+
+/// Read links on or off for this computer's server (ADR 0105 item 3; ADR
+/// 0117 D9, S12): off at first; off ends every link at once.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_read_links<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    on: bool,
+) -> Result<LocalServerStatus, ContractError> {
+    accounts::read_links(app, on).await
+}
+
 /// At the app's start: serve again when the person asked it to keep on
 /// (item 1), after the setup, off the main thread.
 pub(crate) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
@@ -388,7 +422,8 @@ pub(crate) fn stop_on_exit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     platform::stop_on_exit(app);
 }
 
-/// The mode's server, for the link's tunnel (`crate::tunnel`).
+/// The mode's server, for the link's tunnel (`crate::tunnel`) and the
+/// address of a read link made from the window at the table (`shares.rs`).
 pub(crate) fn server_for_link<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<verso_server::local::LocalServer, String> {

@@ -500,6 +500,10 @@ mod tests {
             "local_server_invitations",
             "local_server_invitation_revoke",
             "local_server_sit_at_table",
+            // S7c: the desktop apps signed in, and the read links' switch.
+            "local_server_devices",
+            "local_server_end_device",
+            "local_server_read_links",
             "a_command_added_tomorrow",
         ] {
             for role in [Role::Reader, Role::Editor, Role::Owner] {

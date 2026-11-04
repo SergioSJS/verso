@@ -17,9 +17,14 @@
 // own address is set up after a login; invitations are made, listed and
 // ended. A test makes the link fail with `failLink(words)`, and makes it
 // end by itself with `__harness.emit("local-server-link", …)`.
+//
+// S7c: another person's desktop app signs in (`signInDevice`, a test's)
+// and is listed and ended; the read links' switch, off at first; and the
+// window seated at its own table makes read links as the server answers
+// them through the seat's door (`atTable`).
 
 import { emit } from "@tauri-apps/api/event";
-import type { ContractError, FolderInfo, LocalAudit, LocalFolder, LocalInvitation, LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus } from "../bindings";
+import type { ContractError, FolderAccess, FolderInfo, LocalAudit, LocalDevice, LocalFolder, LocalInvitation, LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus, ReadLinkInfo } from "../bindings";
 
 type Args = Record<string, unknown>;
 
@@ -86,6 +91,48 @@ export class LocalServerHarness {
   /** The window sits at its own server's table (ADR 0117 D4 Q3). */
   private seated = false;
   private nextInvite = 1;
+  /** Read links on for this server (ADR 0105 item 3): off at first. */
+  private readLinks = false;
+  /** The read links the window at the table made. */
+  private links: ReadLinkInfo[] = [];
+  /** Other people's desktop apps signed in (ADR 0117 D9, S11). */
+  private devices: LocalDevice[] = [];
+
+  /** Another person's desktop app signs in through the browser (a test's). */
+  signInDevice(device = "Verso · Mac da Ana", account = "Ana", email = "ana@casa.example"): void {
+    const at = Math.floor(Date.UTC(2026, 10, 4) / 1000);
+    this.devices.unshift({ id: `d${this.nextId++}`, device, account, email, created: at, last_used: at + 600 });
+  }
+
+  /** The window sits at its own server's table. */
+  isSeated(): boolean {
+    return this.seated;
+  }
+
+  /** What the server says of the seated window: the owner, its game master. */
+  access(): FolderAccess | null {
+    return this.seated ? { seat: "master", role: "owner", cap: "write", table: false } : null;
+  }
+
+  /** A read link's command (ADR 0105) of the window at its own table, as
+   *  the server answers it through the seat's door; `otherwise` for a
+   *  window that is not seated. */
+  atTable(cmd: string, a: Args, otherwise: () => unknown): unknown {
+    if (!this.seated) return otherwise();
+    if (cmd === "read_link_list") return { enabled: this.readLinks, links: this.links.map((l) => ({ ...l })) };
+    if (cmd === "read_link_secrets") return 0;
+    if (cmd === "read_link_revoke") {
+      this.links = this.links.filter((l) => l.id !== String(a["id"]));
+      return null;
+    }
+    if (!this.readLinks) refuse("read links are turned off on this computer's server: turn them on in Settings, where it serves");
+    const id = `rl${this.nextId++}`;
+    const link: ReadLinkInfo = { id, kind: String(a["kind"]), path: String(a["path"]), made_by: "Sérgio", made_at: Math.floor(Date.UTC(2026, 10, 4) / 1000), expires: null, has_password: Boolean(a["password"]), last_opened: null, open: 0 };
+    this.links.push(link);
+    const base = this.link.state === "on" && this.link.origin ? this.link.origin : "https://192.168.1.20:51234";
+    this.log("read_link_created", id);
+    return { url: `${base}/r/leitura-${id}`, link: { ...link } };
+  }
 
   /** The next turn-on of the link fails, with the host's words. */
   failLink(words: string | null): void {
@@ -152,6 +199,7 @@ export class LocalServerHarness {
       link_own: this.linkOwn,
       own_address: this.own ? { ...this.own } : null,
       cloudflare_signed_in: this.signedIn,
+      read_links: this.readLinks,
       ...this.cert,
     };
   }
@@ -421,6 +469,20 @@ export class LocalServerHarness {
       inv.state = "ended";
       this.log("invitation_ended", inv.id);
       return null;
+    },
+    // S7c: the desktop apps of other people, and the read links' switch.
+    local_server_devices: (): LocalDevice[] => this.devices.map((d) => ({ ...d })),
+    local_server_end_device: (a): null => {
+      const at = this.devices.findIndex((d) => d.id === String(a["id"]));
+      if (at < 0) refuse("that app is not signed in here");
+      this.log("device_ended", this.devices[at]?.device ?? null);
+      this.devices.splice(at, 1);
+      return null;
+    },
+    local_server_read_links: (a): LocalServerStatus => {
+      this.readLinks = a["on"] === true;
+      this.log(this.readLinks ? "read_links_on" : "read_links_off");
+      return this.status();
     },
   };
 

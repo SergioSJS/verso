@@ -982,6 +982,9 @@ macro_rules! commands_for {
                 local_server_invite::<$runtime>,
                 local_server_invitations::<$runtime>,
                 local_server_invitation_revoke::<$runtime>,
+                local_server_devices::<$runtime>,
+                local_server_end_device::<$runtime>,
+                local_server_read_links::<$runtime>,
                 folder_sync::<$runtime>,
                 folder_sync_start::<$runtime>,
                 folder_sync_stop::<$runtime>,
@@ -1431,6 +1434,8 @@ mod tests_live;
 mod tests_live_table;
 #[cfg(test)]
 mod tests_local;
+#[cfg(test)]
+mod tests_local_accounts;
 #[cfg(test)]
 mod tests_local_link;
 #[cfg(test)]

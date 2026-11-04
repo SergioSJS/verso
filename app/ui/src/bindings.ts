@@ -1054,6 +1054,19 @@ export const commands = {
 	localServerInvitations: () => typedError<LocalInvitation[], ContractError>(__TAURI_INVOKE("local_server_invitations")),
 	/**  End an invitation not used yet. */
 	localServerInvitationRevoke: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_invitation_revoke", { id })),
+	/**
+	 *  The desktop apps of other people signed in to this computer's server
+	 *  (ADR 0117 D9, S11), to end one; never the window at the table, never a
+	 *  phone.
+	 */
+	localServerDevices: () => typedError<LocalDevice[], ContractError>(__TAURI_INVOKE("local_server_devices")),
+	/**  *End* a desktop app's session: it syncs nothing until it signs in again. */
+	localServerEndDevice: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_end_device", { id })),
+	/**
+	 *  Read links on or off for this computer's server (ADR 0105 item 3; ADR
+	 *  0117 D9, S12): off at first; off ends every link at once.
+	 */
+	localServerReadLinks: (on: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_read_links", { on })),
 	/**  The window's folder's sync: off, or its state. */
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
@@ -3060,6 +3073,24 @@ export type LocalAudit = {
 	address: string | null,
 };
 
+/**
+ *  Another person's desktop app signed in to this computer's server by an
+ *  invited account (ADR 0117 D9, S11), as the section lists it, with *End*.
+ *  Never the owner's window at the table, never a phone.
+ */
+export type LocalDevice = {
+	/**  The session's id, to end it. */
+	id: string,
+	/**  The device's own name (Settings › Servers on that computer). */
+	device: string,
+	/**  The account's name and e-mail-shaped identifier. */
+	account: string,
+	email: string,
+	/**  Seconds since the epoch. */
+	created: number,
+	last_used: number,
+};
+
 /**  A folder the person may tick to serve. */
 export type LocalFolder = {
 	/**  The folder's opaque key (`FolderInfo.key`). */
@@ -3336,6 +3367,11 @@ export type LocalServerStatus = {
 	 *  Cloudflare credential is where `cloudflared` keeps it (D10 item 2).
 	 */
 	cloudflare_signed_in: boolean,
+	/**
+	 *  Read links are on for this computer's server (ADR 0105 item 3; ADR
+	 *  0117 D9, S12): off at first, the owner's switch in the section.
+	 */
+	read_links: boolean,
 };
 
 /**  One file the loose-files window shows (ADR 0114 item 18). */

@@ -68,6 +68,9 @@ pub struct LocalServerStatus {
     /// `cloudflared tunnel login` was done on this computer: the person's
     /// Cloudflare credential is where `cloudflared` keeps it (D10 item 2).
     pub cloudflare_signed_in: bool,
+    /// Read links are on for this computer's server (ADR 0105 item 3; ADR
+    /// 0117 D9, S12): off at first, the owner's switch in the section.
+    pub read_links: bool,
 }
 
 /// Where the internet link stands (ADR 0117 D3 item 6).
@@ -172,6 +175,23 @@ pub struct LocalInvitation {
     pub state: String,
     /// The name of the account that used it.
     pub used_by: Option<String>,
+}
+
+/// Another person's desktop app signed in to this computer's server by an
+/// invited account (ADR 0117 D9, S11), as the section lists it, with *End*.
+/// Never the owner's window at the table, never a phone.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalDevice {
+    /// The session's id, to end it.
+    pub id: String,
+    /// The device's own name (Settings › Servers on that computer).
+    pub device: String,
+    /// The account's name and e-mail-shaped identifier.
+    pub account: String,
+    pub email: String,
+    /// Seconds since the epoch.
+    pub created: u32,
+    pub last_used: u32,
 }
 
 /// A folder the person may tick to serve.

@@ -27,6 +27,18 @@ impl LocalServer {
         self.with_db(crate::db::Db::read_links_on)
     }
 
+    /// Where this server's links are opened now: the internet link's
+    /// origin while it has one, else the network's address, as an
+    /// invitation's (`invites.rs`); `None` while it does not serve. A read
+    /// link made from the window at the table is said with it, so a link
+    /// turned on after the window sat is the one handed out.
+    #[must_use]
+    pub fn links_base(&self) -> Option<String> {
+        lock(&self.shared.inner)
+            .as_ref()
+            .and_then(super::invites::base)
+    }
+
     /// Read links on or off (ADR 0105 item 3). Off ends every link at once,
     /// open pages included; the links are kept and open again when it is
     /// turned on. In the audit.
