@@ -102,8 +102,15 @@ test("⌘Z takes back the last move, ⌘⇧Z does it again (backlog 2026-11-02)"
   // Redo: they move again; a second undo takes them back again.
   await menuEdit(app, "redo");
   await expect.poll(() => app.files()).toEqual(expect.arrayContaining(["Zona/Destino/Ma.md", "Zona/Destino/Mb.md"]));
+  // Two ⌘Z in a row, the second before the first's move ends: one move
+  // back, never a move forward again.
+  const before = (await app.calls("move_entries")).length;
+  await menuEdit(app, "undo");
   await menuEdit(app, "undo");
   await expect.poll(() => app.files()).toEqual(expect.arrayContaining(["Zona/Ma.md", "Zona/Mb.md"]));
+  await app.page.waitForTimeout(300);
+  expect((await app.calls("move_entries")).length).toBe(before + 1);
+  expect(await app.files()).not.toContain("Zona/Destino/Ma.md");
   // Nothing left to undo: a third ⌘Z moves nothing.
   const calls = (await app.calls("move_entries")).length;
   await menuEdit(app, "undo");

@@ -441,12 +441,21 @@ document.addEventListener("focusin", (e) => {
 export function takeBackMove(command: string): boolean {
   const a = document.activeElement;
   const here = !a || a === document.body || ui.notes.contains(a);
-  const step = command === "undo" ? lastMove : command === "redo" ? undoneMove : null;
-  if (!here || !step) return false;
-  void replay(command === "undo" ? step.map(({ from, to }) => ({ from: to, to: from })) : step, command === "undo");
+  if (!here) return false;
+  // One move back at a time: a ⌘Z pressed while one runs waits for nothing.
+  if (replaying) return command === "undo" || command === "redo";
+  const undo = command === "undo";
+  const step = undo ? lastMove : command === "redo" ? undoneMove : null;
+  if (!step) return false;
+  // Taken now, not when the move ends: a quick second ⌘Z finds it gone
+  // (the C2 run, 2026-11-04: a third ⌘Z moved the files again).
+  [lastMove, undoneMove] = undo ? [null, step] : [step, null];
+  void replay(undo ? step.map(({ from, to }) => ({ from: to, to: from })) : step, undo).then((ok) => {
+    if (!ok) [lastMove, undoneMove] = undo ? [step, null] : [null, step];
+  });
   return true;
 }
-async function replay(moves: Moved, undo: boolean): Promise<void> {
+async function replay(moves: Moved, undo: boolean): Promise<boolean> {
   replaying = true;
   let ok = true;
   try {
@@ -461,10 +470,8 @@ async function replay(moves: Moved, undo: boolean): Promise<void> {
   } finally {
     replaying = false;
   }
-  if (!ok) return;
-  const forward = undo ? lastMove : undoneMove;
-  [lastMove, undoneMove] = undo ? [null, forward] : [forward, null];
-  ui.status.textContent = undo ? t.moveUndone : t.moveRedone;
+  if (ok) ui.status.textContent = undo ? t.moveUndone : t.moveRedone;
+  return ok;
 }
 /** Several entries into `folder` at once — the tree's selection (ADR 0048,
  *  revised 2026-10-07): saved first, moved by the core in one call, and
