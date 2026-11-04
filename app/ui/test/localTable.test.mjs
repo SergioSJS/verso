@@ -98,3 +98,21 @@ test("Escape closes it, and English is whole", () => {
   for (const v of Object.values(en)) assert.ok(v.length > 0);
   document.documentElement.lang = "pt-BR";
 });
+
+test("a read link's visitor at a computer that serves watches for the table offline; elsewhere it does not", async () => {
+  const of = (body) => async () => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  assert.equal(await T.watchIfLocal(of({ local: false })), false, "a UniVerso's read link");
+  assert.equal(await T.watchIfLocal(async () => { throw new Error("no network"); }), false);
+  assert.equal(await T.watchIfLocal(of({ local: true })), true, "this app is a server");
+});
+
+test("the table offline tells the window, so the music panel lets go of the table's track", () => {
+  document.body.innerHTML = "";
+  let told = 0;
+  const count = () => told++;
+  win.addEventListener(T.TABLE_OFFLINE, count);
+  const box = T.showOffline(async () => cloudflare(), () => undefined);
+  assert.equal(told, 1);
+  box.querySelector(".web-secondary").click();
+  win.removeEventListener(T.TABLE_OFFLINE, count);
+});

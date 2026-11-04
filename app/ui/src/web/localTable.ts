@@ -73,6 +73,9 @@ export async function answers(get: typeof fetch = fetch): Promise<boolean> {
 
 const RETRY_MS = 30_000;
 
+/** Told on the window when the table is offline. */
+export const TABLE_OFFLINE = "verso:table-offline";
+
 let shown: HTMLElement | null = null;
 
 /** The offline page over the window: Try again (and every 30 s by
@@ -125,21 +128,43 @@ export function showOffline(get: typeof fetch = fetch, reload: () => void = () =
   timer = window.setInterval(() => void tryNow(), RETRY_MS);
   document.body.append(box);
   shown = box;
+  // What the table played is no longer the table's: the music panel lets
+  // go of it (table/join.ts) instead of showing a paused track.
+  window.dispatchEvent(new window.Event(TABLE_OFFLINE));
   retry.focus();
   return box;
+}
+
+/** A read link's visitor (ADR 0105) on a computer that serves: the same
+ *  offline page as a player's when the table goes away (the test of
+ *  2026-11-04: the visitor got only "the connection was lost"). Says
+ *  whether it watches. */
+export async function watchIfLocal(get: typeof fetch = fetch): Promise<boolean> {
+  try {
+    const r = await get("/api/state", { cache: "no-store", credentials: "same-origin" });
+    const s = (await r.json()) as { local?: boolean } | null;
+    if (!s?.local) return false;
+  } catch {
+    return false;
+  }
+  watchTableOffline(get);
+  return true;
 }
 
 let watching = false;
 
 /** In "this app is a server", once the window runs: a dropped connection
  *  whose server does not answer is the table offline. */
-export function watchTableOffline(): void {
+export function watchTableOffline(get: typeof fetch = fetch): void {
   if (watching) return;
   watching = true;
   void listen<{ what: string }>("server-gone", (e) => {
     if (e.payload.what !== "connection") return;
-    void answers().then((up) => {
-      if (!up) showOffline();
+    void answers(get).then((up) => {
+      if (!up) showOffline(get);
     });
+  }).catch(() => {
+    // No host to listen to (a test's page): nothing to watch.
+    watching = false;
   });
 }

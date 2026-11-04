@@ -189,8 +189,9 @@ export function linkBoxes(ctx: Ctx): Boxes {
 
   const turnOn = async (): Promise<boolean> => {
     hold(link, true);
+    // Said in the panel's own live line alone: the section's line under
+    // the switch does not say it again ("Link no ar." twice, 2026-11-04).
     live.textContent = w.starting;
-    ctx.say(w.starting);
     const r = await commands.localServerLinkOn();
     hold(link, false);
     if (r.status !== "ok") {
@@ -199,11 +200,11 @@ export function linkBoxes(ctx: Ctx): Boxes {
       const said = cancelling ? w.cancelled : whyOf(r.error);
       cancelling = false;
       live.textContent = said;
+      // Why, in the section's line: the redraw says "did not turn on" here.
       ctx.say(said);
       ctx.redraw();
       return false;
     }
-    ctx.say(linkSentence(r.data));
     ctx.redraw();
     return true;
   };

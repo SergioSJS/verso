@@ -45,6 +45,11 @@ test("the link alone serves: its address with Copy and a QR, the hours left with
   // No question about the network: nothing listens on it.
   await expect(page.getByRole("dialog", { name: "Antes de ligar" })).toHaveCount(0);
   await expect(body.locator(".ls-link-state")).toHaveText("Link no ar.");
+  // Said once, in the panel: not again under the switch.
+  await expect(body.getByText("Link no ar.", { exact: true })).toHaveCount(1);
+  // The section's lead and the folders' say the players and the link, not only the phone.
+  await expect(body.getByText(/aos jogadores em qualquer lugar por um link na internet/)).toBeVisible();
+  await expect(body.getByText("Só as pastas marcadas aqui são vistas pelo celular e pelos jogadores.", { exact: false })).toBeVisible();
   // Right under it: a new quick link takes a moment to open everywhere.
   await expect(body.locator(".ls-link-state + p")).toHaveText("Um link novo pode levar até um minuto para abrir.");
   await expect(body.getByText("https://exemplo-de-mesa.trycloudflare.com")).toBeVisible();

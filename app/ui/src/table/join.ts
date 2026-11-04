@@ -233,6 +233,9 @@ export function installServerTable(): void {
   // A web window's connection came back: the server knows it as a new connection, at no table, so it hears no news
   // of the table (its music, its share) until it joins again.
   addEventListener("verso:reconnected", () => void retry());
+  // The game master's computer stopped serving (web/localTable.ts): what
+  // the table played is not shown as paused, the music is this window's.
+  addEventListener("verso:table-offline", () => void joinSound(null, currentFolder));
   addEventListener("verso:dice-look", () => current?.look());
   // The panel follows the table of the active note, and the folder's tables as they come and go.
   document.addEventListener("verso:nav", follow);

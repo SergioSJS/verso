@@ -23,7 +23,7 @@ import { setProver } from "./web/proof";
 import { askProof } from "./web/proveDialog";
 import { holdClicks } from "./earlyClicks";
 import { watchDeskOnPhone } from "./deskOnPhone";
-import { localSignInNotes, watchTableOffline } from "./web/localTable";
+import { localSignInNotes, watchIfLocal, watchTableOffline } from "./web/localTable";
 import { setPasskeysOffered } from "./web/passkeys";
 
 // The folder button is on the page before the window's script, which this
@@ -40,6 +40,9 @@ async function visitor(token: string): Promise<void> {
   const { readLinkGate, endedPage, rw } = await import("./web/readLink");
   const gate = await readLinkGate(token);
   if (!gate) return;
+  // At a computer that serves, its table can go away under the visitor
+  // too: the same offline page as a player's.
+  void watchIfLocal();
   document.documentElement.dataset.host = "server";
   document.documentElement.dataset.visitor = "link";
   startVisitorBridge(token, endedPage);
