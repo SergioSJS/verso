@@ -6,8 +6,10 @@
 # step with the workflow.
 #
 # Needs the Rust toolchain of rust-toolchain.toml, Node 22 for the UI and
-# cargo-deny (`cargo install cargo-deny --locked`); the wasm32 target is added
-# here if missing. The fuzzing and the benchmark are not run (see README.md).
+# cargo-deny (`cargo install cargo-deny --locked`), and cargo-nextest for the
+# tests as CI runs them (`cargo install cargo-nextest --locked`; without it,
+# `cargo test`); the wasm32 target is added here if missing. The fuzzing and
+# the benchmark are not run (see README.md).
 #
 # One step CI does not run: the window's end-to-end tests (ADR 0058), the
 # browser harness's and the server's, local only. They run in Docker, in
@@ -90,8 +92,17 @@ step "UI: type check, bundle and unit tests"
 )
 step "cargo clippy -D warnings"
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-step "cargo test"
-cargo test --workspace --all-features --locked
+# cargo-nextest when it is installed, as CI runs the tests: each test in a
+# process of its own, stopped at the limit of .config/nextest.toml if it
+# hangs; the doctests, which nextest does not run, with `cargo test --doc`.
+if command -v cargo-nextest >/dev/null; then
+  step "cargo nextest, and the doctests"
+  cargo nextest run --workspace --all-features --locked
+  cargo test --doc --workspace --all-features --locked
+else
+  step "cargo test (no time limit per test: cargo install cargo-nextest --locked)"
+  cargo test --workspace --all-features --locked
+fi
 step "the committed bindings are the generated ones (ADR 0026 rule 3)"
 tmp="$(mktemp "${TMPDIR:-/tmp}/verso-bindings.XXXXXX")"
 cargo run -q --locked -p verso-app -- --export-bindings "$tmp"

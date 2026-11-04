@@ -410,8 +410,13 @@ if [ "${1:-}" = "--inside" ]; then
   cargo fmt --all --check
   printf '\n== cargo clippy -D warnings\n'
   cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-  printf '\n== cargo test\n'
-  cargo test --workspace --all-features --locked --no-fail-fast
+  # As CI: each test in a process of its own, stopped at the limit of
+  # .config/nextest.toml if it hangs; the doctests, which nextest does not
+  # run, after it.
+  printf '\n== cargo nextest\n'
+  cargo nextest run --workspace --all-features --locked
+  printf '\n== doctests\n'
+  cargo test --doc --workspace --all-features --locked --no-fail-fast
   printf '\n== the committed bindings are the generated ones\n'
   cargo run -q --locked -p verso-app -- --export-bindings /tmp/bindings.ts
   diff -u app/ui/src/bindings.ts /tmp/bindings.ts
