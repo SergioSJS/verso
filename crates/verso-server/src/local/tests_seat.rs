@@ -228,6 +228,57 @@ fn the_owners_window_is_at_the_table_with_a_player() {
     });
 }
 
+/// The owner renamed for the players while sitting at the table (the
+/// re-test of 2026-11-04: new lines kept the old name until the window
+/// left the table and sat again): the next line on the same connection
+/// carries the new name; a line said before keeps the name it had.
+#[test]
+fn a_new_name_for_the_players_reaches_the_seats_next_lines() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        let seat = lab.local.sit(&campanha(&lab)).unwrap();
+        let mut gm = seated(&seat).await;
+        let made = ask(&mut gm, 2, "campaign_make", json!({ "root": "" })).await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let look = json!({ "color": "#3b82f6", "styles": null });
+        let joined = ask(&mut gm, 3, "table_join", look).await;
+        assert!(joined.get("ok").is_some(), "{joined}");
+        seat.acted("table_say").unwrap();
+        let before = ask(&mut gm, 4, "table_say", json!({ "text": "antes" })).await;
+        let old = before["ok"]["by"].as_str().unwrap_or_default().to_owned();
+        assert!(!old.is_empty() && old != "Mestre Sérgio", "{before}");
+
+        lab.local.set_owner_name("Mestre Sérgio").unwrap();
+        seat.acted("table_say").unwrap();
+        let after = ask(&mut gm, 5, "table_say", json!({ "text": "depois" })).await;
+        assert_eq!(after["ok"]["by"], "Mestre Sérgio", "{after}");
+        seat.acted("table_roll").unwrap();
+        let rolled = ask(
+            &mut gm,
+            6,
+            "table_roll",
+            json!({ "notation": "1d20", "source": null, "path": null, "secret": null, "styles": null }),
+        )
+        .await;
+        assert_eq!(rolled["ok"]["by"], "Mestre Sérgio", "{rolled}");
+        // What was said before keeps the name it was said under.
+        let history = ask(&mut gm, 7, "table_history", json!({})).await;
+        let rows = history["ok"]["entries"]
+            .as_array()
+            .or_else(|| history["ok"].as_array())
+            .cloned()
+            .unwrap_or_default();
+        let said = |text: &str| {
+            rows.iter()
+                .find(|r| r["text"] == text)
+                .map(|r| r["by"].clone())
+        };
+        assert_eq!(said("antes"), Some(Value::String(old)), "{history}");
+        assert_eq!(said("depois"), Some(json!("Mestre Sérgio")), "{history}");
+    });
+}
+
 /// The seat's token opens nothing but through its door: not on the
 /// network's listener, not through the internet link's, not beside a
 /// phone's cookie; a phone runs no `local_server_` command, the seat's

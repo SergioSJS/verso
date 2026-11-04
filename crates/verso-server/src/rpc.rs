@@ -565,6 +565,23 @@ async fn handle(
         },
         _ => who,
     };
+    // The account's name as it stands now: a line said at the table, a
+    // roll, a draw carries the name of when it was said, and the person
+    // may have changed it since the connection opened — the owner of "this
+    // app is a server" in Settings, its window sitting at the table the
+    // whole time (the re-test of 2026-11-04); anyone on a UniVerso in their
+    // account. Only the name: a phone's narrower powers stay as `auth::who`
+    // made them.
+    let renamed;
+    let who = match server.db.account(&who.account.id) {
+        Ok(Some(now)) if now.name != who.account.name => {
+            let mut fresh = (**who).clone();
+            fresh.account.name = now.name;
+            renamed = Arc::new(fresh);
+            &renamed
+        }
+        _ => who,
+    };
     // A paired phone runs the commands on the allowlist and no other (ADR
     // 0096 item 12): default deny, before anything else looks at the
     // command.
