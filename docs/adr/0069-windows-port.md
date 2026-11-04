@@ -80,6 +80,22 @@
   proposed the same day and declined by the maintainer (*"mandar rodar no
   linux é meio merda"*). And a fixture closes and reports what a test
   leaves open (`app/ui/e2e/leaks.mjs`).
+  2026-11-04 — item 8 on the Mac, superseded in its way of running (fix
+  release 0.8.5, item C2, the maintainer's decision of 2026-11-02,
+  recorded after their approval of 2026-11-04): the end-to-end suites no
+  longer run on the Mac's window server at all. `scripts/check-e2e.sh` runs
+  both of them, the UI harness (WebKit, Chromium, phone and tablet sizes)
+  and the server's, in Playwright's Linux Docker image (1.63.0), with 3
+  workers for the harness, so no WebKit window capture reaches the
+  WindowServer: Docker is the answer to the crashes above.
+  `scripts/check.sh` calls it when Docker runs; `--no-e2e` leaves it out.
+  Playwright is never run directly on the Mac. What stays in the code, as
+  the 2026-10-12 revision left it: the macOS settings of the two configs
+  (traces without the screencast, no screenshot on failure, one worker for
+  the harness on a Mac), the pre-flight `app/ui/e2e/preflight.mjs` behind
+  `npm run e2e` and `npm run e2e:server`, and `leaks.mjs`. They guard a run
+  started by hand on a Mac, which `check.sh` no longer starts. The reasons
+  above are kept.
   2026-10-14 — item 3 answered by
   [0095](0095-mac-notarization-and-windows-code-signing.md), accepted by
   the maintainer that night (*"Sim, todas"*): the Windows app signed
@@ -239,7 +255,9 @@ refuses to rename a folder while any file in it is open. (On macOS, since
    runner and no SSH. *(Revised on 2026-10-12, for the maintainer's
    confirmation: on macOS no window captures — traces without the
    screencast, no screenshot on failure — one worker, and a pre-flight and
-   an IOSurface watch around the run; see Revisions.)*
+   an IOSurface watch around the run; see Revisions. `[REVISED 2026-11-04]`
+   The suites now run in Docker through `scripts/check-e2e.sh`, 3 workers,
+   not on the Mac; see Revisions.)*
 9. **What the port brings, each item with a test.**
    - Atomic write: `FlushFileBuffers` on the temporary file (`sync_all`),
      then `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`
