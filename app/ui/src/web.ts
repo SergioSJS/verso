@@ -23,6 +23,7 @@ import { setProver } from "./web/proof";
 import { askProof } from "./web/proveDialog";
 import { holdClicks } from "./earlyClicks";
 import { watchDeskOnPhone } from "./deskOnPhone";
+import { localSignInNotes, watchTableOffline } from "./web/localTable";
 
 // The folder button is on the page before the window's script, which this
 // one imports only after the server said who is signed in: a click on it
@@ -100,10 +101,21 @@ async function start(): Promise<void> {
   if (path.startsWith("/signin-link/")) return signInLinkPage(token("/signin-link/"));
   if (path === "/setup") return setupPage();
   if (path === "/device") return devicePage(s.account);
-  // "This app is a server" (ADR 0096): nobody signs in here, a phone is
-  // paired. Its page is the way in; any other address without a session
-  // is sent to it.
-  if (s.local && !s.account) return pairPage();
+  // "This app is a server" (ADR 0096, ADR 0117 D3 item 2): the owner's
+  // phone is paired (the QR's address, or a code typed at /pair) where
+  // this door pairs; a person invited signs in, on the network as through
+  // the internet link.
+  if (s.local && !s.account) {
+    const pairing = s.pairing !== false;
+    if (path === "/pair" && pairing) return pairPage();
+    if (path !== "/signin") {
+      location.href = `/signin?next=${encodeURIComponent(path === "/pair" ? "/" : path + location.search)}`;
+      return;
+    }
+    signInPage(false);
+    localSignInNotes(pairing);
+    return;
+  }
   if (s.local && path === "/pair") {
     location.replace("/");
     return;
@@ -150,6 +162,9 @@ async function start(): Promise<void> {
   // refusal changes nothing today, when nothing is kept offline.
   void navigator.storage?.persist?.().catch(() => false);
   startBridge(chooseFolder);
+  // A computer that serves: its table can go away under the window (the
+  // computer off, asleep, the link ended), said as the table offline.
+  if (s.local) watchTableOffline();
   plainHttpNotice();
   plainHttpMark();
   // The reader's role is shown by the closed lock beside the folder's name

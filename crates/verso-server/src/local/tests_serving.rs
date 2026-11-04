@@ -25,6 +25,7 @@ fn a_phone_is_paired_asked_about_and_then_reads_its_folder() {
         assert_eq!(state["account"], Value::Null);
         assert_eq!(state["local"], true);
         assert_eq!(state["secure"], true);
+        assert_eq!(state["pairing"], true, "the network's door pairs");
         let (status, _) = lab.get("/api/folders", None).await;
         assert_eq!(status, 401);
         let cookie = lab

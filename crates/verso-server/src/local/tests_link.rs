@@ -69,6 +69,7 @@ fn the_link_answers_its_own_name_alone() {
         let state: Value = res.json().await.unwrap();
         assert_eq!(state["secure"], true, "the tunnel's https: {state}");
         assert_eq!(state["local"], true);
+        assert_eq!(state["pairing"], false, "no pairing through the link");
         for host in [
             format!("127.0.0.1:{port}"),
             format!("127.0.0.1:{}", lab.port),

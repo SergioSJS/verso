@@ -36,6 +36,11 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
         // D3 item 2 a person invited signs in there too ("accounts").
         "local": ctx.server.local.is_some(),
         "accounts": true,
+        // Whether this door offers pairing (ADR 0117 D1): the network's
+        // does; the internet link's, whose requests a trusted proxy alone
+        // forwards, answers pairing as an unknown route, and its page says
+        // nothing of it.
+        "pairing": ctx.server.local.is_some() && !ctx.peer.forwarded,
         // Links by e-mail exist only with a public address to build them
         // from (see [`mail_ready`]); the sign-in page hides them otherwise.
         "mail": mail_ready(&ctx.server),
