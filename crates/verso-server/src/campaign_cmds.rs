@@ -956,27 +956,22 @@ async fn invite(
         } else {
             Some(s.db.make_share(&f, &root).map_err(failed)?)
         };
-        let (token, inv) = s
-            .db
-            .create_invitation(&crate::db::NewLink {
-                kind: "invite",
-                email: None,
-                account: None,
+        let by = crate::admin::acts::By {
+            actor: Some(&w.account.id),
+            address: None,
+        };
+        let (token, inv) = crate::admin::acts::make_invitation(
+            &s.db,
+            &by,
+            Some(&w.account.id),
+            &crate::admin::acts::Invitee {
                 folder: Some(&f),
                 role: Some(Role::Reader),
-                created_by: Some(&w.account.id),
-                life: crate::db::INVITE_LIFE,
                 share: share.as_ref().map(|x| x.id.as_str()),
-            })
-            .map_err(failed)?;
-        let _ = s.db.audit(&crate::db::Audit {
-            actor: Some(&w.account.id),
-            action: "invitation_created",
-            subject: Some(&inv.id),
-            folder: Some(&f),
-            address: None,
-            ok: true,
-        });
+                ..crate::admin::acts::Invitee::default()
+            },
+        )
+        .map_err(|e| failed(e.to_string()))?;
         Ok(CampaignInvite {
             link: crate::window_link(&s, &format!("/invite/{token}")),
             expires: u32::try_from(inv.expires).unwrap_or(u32::MAX),

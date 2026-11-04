@@ -149,7 +149,7 @@ pub(super) async fn invitations<R: tauri::Runtime>(
                 created: seconds(i.created),
                 expires: seconds(i.expires),
                 state: i.state,
-                used_by: i.used_by,
+                used_by: i.used_by_name,
             })
             .collect())
     })

@@ -335,22 +335,7 @@ pub async fn invitations(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Respon
     ctx.admin()?;
     let db = &ctx.server.db;
     let page = db.page_invitations(&list.page(), list.state.as_deref().unwrap_or(""))?;
-    let now = db::now();
-    let mut rows = Vec::new();
-    for i in &page.rows {
-        let used_by = match &i.used_by {
-            Some(id) => db.account(id)?.map(|a| a.email),
-            None => None,
-        };
-        let folder = match &i.folder {
-            Some(id) => db.folder(id)?.map(|f| f.dir),
-            None => None,
-        };
-        rows.push(json!({
-            "id": i.id, "state": i.state(now), "email": i.email, "folder": folder, "role": i.role,
-            "created": i.created, "expires": i.expires, "used": i.used, "usedBy": used_by,
-        }));
-    }
+    let rows = crate::admin::acts::invitation_rows(db, &page.rows, db::now())?;
     Ok(ok(
         json!({ "rows": rows, "total": page.total, "next": page.next }),
     ))

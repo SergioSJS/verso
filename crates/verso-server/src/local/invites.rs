@@ -19,7 +19,9 @@
 use serde::Serialize;
 
 use super::{LocalServer, Running, lock};
-use crate::db::{Audit, Db, INVITE_LIFE, NewLink, Role};
+use crate::admin::acts;
+pub use crate::admin::acts::InvitationRow;
+use crate::db::Role;
 
 /// An invitation just made: its link is said this once.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -30,41 +32,12 @@ pub struct Invite {
     pub expires: i64,
 }
 
-/// One invitation as the section lists it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InvitationRow {
-    pub id: String,
-    /// The served folder it carries, by the name a person is shown.
-    pub folder: Option<String>,
-    pub role: Option<String>,
-    pub created: i64,
-    pub expires: i64,
-    /// `pending`, `used`, `ended` or `expired`.
-    pub state: String,
-    /// The name of the account that used it.
-    pub used_by: Option<String>,
-}
-
 /// Where an invitation is opened: the link's origin while it has one, else
 /// the network's address this server is reached at — the host's own name
 /// with its own certificate files, or the best address (D4 Q8). The same
 /// as the table's invitation (`crate::window_link`): `Policy::links_base`.
 pub(super) fn base(r: &Running) -> Option<String> {
     r.policy.links_base()
-}
-
-fn audit(db: &Db, action: &str, subject: &str, folder: Option<&str>) {
-    if let Err(e) = db.audit(&Audit {
-        actor: None,
-        action,
-        subject: Some(subject),
-        folder,
-        address: None,
-        ok: true,
-    }) {
-        crate::log::error(&format!("audit log: {e}"));
-    }
 }
 
 impl LocalServer {
@@ -100,22 +73,17 @@ impl LocalServer {
             (Some(_), r) => Some(r),
         };
         let owner = db.local_owner()?;
-        let (token, inv) = db.create_invitation(&NewLink {
-            kind: "invite",
-            email: None,
-            account: None,
-            folder: folder.as_ref().map(|f| f.id.as_str()),
-            role,
-            created_by: Some(&owner.id),
-            life: INVITE_LIFE,
-            share: None,
-        })?;
-        audit(
+        let (token, inv) = acts::make_invitation(
             db,
-            "invitation_created",
-            &inv.id,
-            folder.as_ref().map(|f| f.id.as_str()),
-        );
+            &acts::By::default(),
+            Some(&owner.id),
+            &acts::Invitee {
+                folder: folder.as_ref().map(|f| f.id.as_str()),
+                role,
+                ..acts::Invitee::default()
+            },
+        )
+        .map_err(|e| e.to_string())?;
         crate::log::info("an invitation was made at the computer");
         drop(running);
         (self.shared.events)(super::Event::Changed);
@@ -143,44 +111,15 @@ impl LocalServer {
             .map(|(n, _)| n.clone())
     }
 
-    /// Every invitation of this server, freshest first (on or off).
+    /// Every invitation of this server, freshest first (on or off): the
+    /// owner's from here and the table's alike, as the console lists them.
     pub fn invitations(&self) -> Result<Vec<InvitationRow>, String> {
-        self.with_db(|db| {
-            let now = crate::db::now();
-            db.invitations()?
-                .into_iter()
-                .map(|i| {
-                    let folder = match &i.folder {
-                        Some(id) => db.folder(id)?.map(|f| f.dir),
-                        None => None,
-                    };
-                    let used_by = match &i.used_by {
-                        Some(id) => db.account(id)?.map(|a| a.name),
-                        None => None,
-                    };
-                    Ok(InvitationRow {
-                        state: i.state(now).to_owned(),
-                        id: i.id,
-                        folder,
-                        role: i.role,
-                        created: i.created,
-                        expires: i.expires,
-                        used_by,
-                    })
-                })
-                .collect()
-        })
+        self.with_db(|db| acts::invitation_rows(db, &db.invitations()?, crate::db::now()))
     }
 
     /// End an invitation not used yet: its link opens nothing from now.
     pub fn end_invitation(&self, id: &str) -> Result<(), String> {
-        let ended = self.with_db(|db| {
-            let ended = db.end_invitation(id)?;
-            if ended {
-                audit(db, "invitation_ended", id, None);
-            }
-            Ok(ended)
-        })?;
+        let ended = self.with_db(|db| acts::end_invitation(db, &acts::By::default(), id))?;
         if !ended {
             return Err("that invitation is used, ended or not there".to_owned());
         }

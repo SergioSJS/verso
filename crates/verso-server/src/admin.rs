@@ -234,57 +234,27 @@ pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
     if body.folder.is_some() || body.share.is_some() {
         ctx.proved()?;
     }
-    let email = body
-        .email
-        .as_deref()
-        .map(str::trim)
-        .filter(|e| !e.is_empty());
-    if let Some(e) = email {
-        if !db::is_email(e) {
-            return Err(ApiError::bad("not_email", "not an e-mail address"));
-        }
-        if ctx.server.db.account_by_email(e)?.is_some() {
-            return Err(ApiError::new(
-                StatusCode::CONFLICT,
-                "exists",
-                "an account has this e-mail",
-            ));
-        }
-    }
-    let shared = match &body.share {
-        Some(s) => Some(ctx.server.db.share(s)?.ok_or_else(ApiError::not_found)?),
-        None => None,
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&admin),
+        address: Some(&address),
     };
-    let folder = shared
-        .as_ref()
-        .map(|s| s.folder.clone())
-        .or(body.folder.clone());
-    if let Some(f) = &folder {
-        ctx.server.db.folder(f)?.ok_or_else(ApiError::not_found)?;
-    }
-    let role = folder.as_ref().map(|_| {
-        let r = body.role.unwrap_or(Role::Reader);
-        if shared.is_some() {
-            r.min(Role::Editor)
-        } else {
-            r
-        }
-    });
-    let (token, inv) = ctx.server.db.create_invitation(&NewLink {
-        kind: "invite",
-        email,
-        folder: folder.as_deref(),
-        role,
-        created_by: Some(&admin),
-        life: db::INVITE_LIFE,
-        share: shared.as_ref().map(|s| s.id.as_str()),
-        ..NewLink::default()
-    })?;
-    ctx.audit("invitation_created", Some(&inv.id), folder.as_deref(), true);
+    let (token, inv) = acts::make_invitation(
+        &ctx.server.db,
+        &by,
+        Some(&admin),
+        &acts::Invitee {
+            email: body.email.as_deref(),
+            folder: body.folder.as_deref(),
+            role: body.role,
+            share: body.share.as_deref(),
+        },
+    )?;
+    let email = inv.email.clone();
     let address = link(&ctx, "invite", &token);
     // With a mail server, the invitation goes to its address too (ADR 0074
     // item 4); the admin has the link either way.
-    let mailed = match (ctx.server.mail.get(), email) {
+    let mailed = match (ctx.server.mail.get(), email.as_deref()) {
         (Some(mail), Some(to)) => {
             let lang = ctx.admin()?.account.lang.clone();
             let (subject, text) = crate::mail::words(&lang, "invite", &address);
@@ -300,11 +270,15 @@ pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
 
 pub async fn end_invitation(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
-    ctx.admin()?;
-    if !ctx.server.db.end_invitation(&id)? {
+    let admin = ctx.admin()?.account.id.clone();
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&admin),
+        address: Some(&address),
+    };
+    if !acts::end_invitation(&ctx.server.db, &by, &id)? {
         return Err(ApiError::not_found());
     }
-    ctx.audit("invitation_ended", Some(&id), None, true);
     Ok(ok(json!(null)))
 }
 

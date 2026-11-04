@@ -166,7 +166,7 @@ fn a_player_is_invited_once_and_reaches_what_was_given() {
         assert_eq!(
             (
                 row.state.as_str(),
-                row.used_by.as_deref(),
+                row.used_by_name.as_deref(),
                 row.folder.as_deref()
             ),
             ("used", Some("Ana"), Some("Campanha"))
