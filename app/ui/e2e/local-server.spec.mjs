@@ -31,7 +31,7 @@ test("it is off, serves only the ticked folders, and says what the system will a
   // Nothing ticked: it will not start, and says so where the button is.
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
-  await expect(body.getByText("tick at least one folder to serve")).toBeVisible();
+  await expect(body.getByText("Marque ao menos uma pasta para servir.")).toBeVisible();
   await vault.check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false }).first()).toBeVisible();

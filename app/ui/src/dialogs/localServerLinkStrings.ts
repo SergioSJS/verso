@@ -71,7 +71,6 @@ const pt = {
     tunnelTaken: "Já existe um túnel com esse nome nesta conta da Cloudflare (de uma configuração anterior?): apague-o no painel (Zero Trust › Redes › Túneis) ou use outro endereço.",
     signIn: "Entre na Cloudflare primeiro (passo 2).",
     hostname: "Escreva um endereço como mesa.seudominio.com.br: letras minúsculas, números e hífens, com ao menos um ponto.",
-    notServed: "Esta pasta não está sendo servida agora: marque-a e ligue o servidor.",
     needOn: "Ligue o servidor primeiro.",
     // S7c: an app of another person ended meanwhile (it signed out).
     appGone: "Esse app já não está conectado aqui.",
@@ -107,21 +106,8 @@ const pt = {
   ownForgetHere: "Esquecer só neste computador",
   ownForgotten: "Esquecido neste computador. O túnel continua na Cloudflare até você apagá-lo lá.",
   // Invitations (D3 item 2, D4 Q5 and Q8).
-  invTitle: "Convidar pessoas",
-  invLead: "Um convite é um link de uso único, válido por 7 dias. Quem recebe cria uma conta neste computador com um e-mail qualquer dela (nada é enviado), um nome e uma senha. O link sai pelo endereço na internet quando o link está ligado; senão, pelo endereço da sua rede.",
-  invFolder: "Pasta",
-  invNoFolder: "Nenhuma (só a conta)",
-  invRole: "Pode",
-  invReader: "Ler",
-  invEditor: "Editar",
-  invMake: "Criar convite",
-  invNeedsOn: "Ligue o servidor para convidar.",
-  invMade: "Convite criado. Copie e mande para a pessoa — este link aparece só agora.",
-  invLink: "Link do convite",
-  invCopy: "Copiar convite",
-  invCopied: "Convite copiado.",
-  invOnNetwork: "Este convite é pelo endereço da sua rede: só abre quem estiver nela, e o navegador vai avisar do certificado deste computador.",
-  invListTitle: "Convites",
+  invTitle: "Convites",
+  invLead: "Convide pela página da pasta, como num UniVerso: numa mesa, Convidar jogadores; numa pasta sem mesa, Compartilhar, que gera um link de convite para um e-mail que ainda não tem conta. Um convite é um link de uso único, válido por 7 dias: quem recebe cria uma conta neste computador com um e-mail qualquer dela (nada é enviado). Aqui ficam todos os convites deste servidor; um que ainda espera pode ser encerrado.",
   invNone: "Nenhum convite ainda.",
   invWhat: (folder: string | null, role: string | null) => `${folder ?? "Sem pasta"}${role ? ` · ${role === "editor" ? "edita" : "lê"}` : ""}`,
   invState: (state: string, by: string | null) =>
@@ -207,7 +193,6 @@ const en: typeof pt = {
     tunnelTaken: "A tunnel of that name already exists on this Cloudflare account (from an earlier setup?): delete it in the dashboard (Zero Trust › Networks › Tunnels) or use another address.",
     signIn: "Sign in to Cloudflare first (step 2).",
     hostname: "Type an address like table.yourdomain.com: lower-case letters, digits and hyphens, with at least one dot.",
-    notServed: "This folder is not served now: tick it and turn the server on.",
     needOn: "Turn the server on first.",
     appGone: "That app is no longer signed in here.",
     personGone: "That person no longer has an account here.",
@@ -240,21 +225,8 @@ const en: typeof pt = {
   ownRemoveFailed: (why) => `Could not delete it at Cloudflare (${why}). You can forget it on this computer only, and delete the tunnel in Cloudflare's dashboard (Zero Trust › Networks › Tunnels).`,
   ownForgetHere: "Forget on this computer only",
   ownForgotten: "Forgotten on this computer. The tunnel stays at Cloudflare until you delete it there.",
-  invTitle: "Invite people",
-  invLead: "An invitation is a single-use link, good for 7 days. Whoever gets it makes an account on this computer with any e-mail of theirs (nothing is sent), a name and a password. The link goes out with the internet address while the link is on; otherwise with your network's address.",
-  invFolder: "Folder",
-  invNoFolder: "None (the account only)",
-  invRole: "Can",
-  invReader: "Read",
-  invEditor: "Edit",
-  invMake: "Make an invitation",
-  invNeedsOn: "Turn the server on to invite.",
-  invMade: "Invitation made. Copy it and send it to the person — this link shows only now.",
-  invLink: "Invitation link",
-  invCopy: "Copy invitation",
-  invCopied: "Invitation copied.",
-  invOnNetwork: "This invitation uses your network's address: only someone on it can open it, and the browser will warn about this computer's certificate.",
-  invListTitle: "Invitations",
+  invTitle: "Invitations",
+  invLead: "Invite from the folder's page, as on a UniVerso: at a table, Invite players; in a folder with no table, Share, which makes an invitation link for an e-mail that has no account yet. An invitation is a single-use link, good for 7 days: whoever gets it makes an account on this computer with any e-mail of theirs (nothing is sent). Every invitation of this server is listed here; one still waiting can be ended.",
   invNone: "No invitation yet.",
   invWhat: (folder, role) => `${folder ?? "No folder"}${role ? ` · ${role === "editor" ? "edits" : "reads"}` : ""}`,
   invState: (state, by) => (state === "used" ? `accepted${by ? ` by ${by}` : ""}` : state === "ended" ? "ended" : state === "expired" ? "expired" : "waiting"),
@@ -305,7 +277,6 @@ export function linkWhy(message: string, w: LinkWords): string | null {
   if (m.includes("tunnel of that name already exists")) return w.why.tunnelTaken;
   if (m.includes("sign in to Cloudflare first")) return w.why.signIn;
   if (m.includes("like mesa.example.com")) return w.why.hostname;
-  if (m.includes("not served now")) return w.why.notServed;
   if (m.includes("turn serving on first")) return w.why.needOn;
   if (m.includes("that app is not signed in here")) return w.why.appGone;
   if (m.includes("that person has no account here")) return w.why.personGone;

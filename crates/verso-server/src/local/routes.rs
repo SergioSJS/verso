@@ -15,7 +15,8 @@
 //! shared with them (ADR 0117 D9, S11; `devices.rs`). A read link's page
 //! is served to whoever holds it, and the owner makes links from the
 //! window at the table (S12), and shares a folder inside a served one with
-//! a person invited, from the same window (ADR 0081). An account has its tokens and its passkeys,
+//! a person invited, from the same window (ADR 0081), or invites a person
+//! with no account to it by a link (`shares::invite`). An account has its tokens and its passkeys,
 //! a passkey through the internet link alone (S13). A person's new password
 //! is set from a link the owner made in the app (`players.rs`). There is
 //! no setup, no "forgot the password" or sign-in by mail and no admin
@@ -118,6 +119,10 @@ pub fn router(server: Arc<Server>) -> Router {
         .route(
             "/api/folders/{id}/shares/revoke",
             post(crate::shares::revoke),
+        )
+        .route(
+            "/api/folders/{id}/shares/invite",
+            post(crate::shares::invite),
         )
         .route(
             "/api/folders/{id}/shares/attachments",

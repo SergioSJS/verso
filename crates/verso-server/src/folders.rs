@@ -126,15 +126,22 @@ pub async fn set_member(
     Ok(ok(json!(null)))
 }
 
-/// An account named by id or by e-mail.
+/// An account named by id or by e-mail. None: the server's admin is told
+/// they may make an invitation link for it (`shares::invite`; ADR 0081
+/// item 4: only the admin invites a person who has no account).
 pub(crate) fn named(ctx: &Ctx, account: &str) -> ApiResult<crate::db::Account> {
     match ctx.server.db.account(account)? {
         Some(a) => Ok(a),
-        None => {
-            ctx.server.db.account_by_email(account)?.ok_or_else(|| {
+        None => ctx.server.db.account_by_email(account)?.ok_or_else(|| {
+            if ctx.admin().is_ok() {
+                ApiError::bad(
+                    "no_account",
+                    "no account has that e-mail: make an invitation link for them",
+                )
+            } else {
                 ApiError::bad("no_account", "no account has that e-mail: invite them")
-            })
-        }
+            }
+        }),
     }
 }
 

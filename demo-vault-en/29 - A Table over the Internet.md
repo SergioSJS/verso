@@ -52,14 +52,13 @@ The panel gives the reason in words. The usual ones:
 
 First, check **Your name for the players**: it is how the table sees you in the chat, the rolls and the list. It starts as this computer's user name; change it and tap **Save name**.
 
-Under **Invite people**:
+You invite from the **folder's page**, as on a UniVerso, in the window sitting at the table (section 3 below):
 
-1. Under **Folder**, choose a folder served whole (one served only in part does not show) or **None (the account only)**, and under **Can**, **Read** or **Edit**.
-2. **Make an invitation**. The link shows **only once**: **Copy invitation** and send it to the person however you like. It is good for **7 days** and for **one person only**.
-3. The player opens the link, makes the account with **any e-mail of theirs** (**nothing is sent**: the e-mail is only a sign-in name), a name and a password, and then signs in at the table address.
-4. The **Invitations** list shows each one (waiting, accepted by…, ended, expired) and **End** closes one still waiting.
+1. **A table:** in the table's card, **Invite players › Generate link**. **A folder with no table:** **Share…** in the folder's menu, type the person's e-mail and the role (**reads** or **edits**), then **Share**; no account has that e-mail yet, so the dialog offers **Make an invitation link**. Either way the link shows **once**: copy it and send it to the person however you like. It is good for **7 days** and for **one person only**.
+2. The player opens the link, makes the account with **any e-mail of theirs** (**nothing is sent**: the e-mail is only a sign-in name), a name and a password, and then signs in at the table address.
+3. In **Settings › Turn into a server**, the **Invitations** list shows every invitation of this server (waiting, accepted by…, ended, expired) and **End** closes one still waiting.
 
-If the invitation goes out with your **network's** address (the link box unticked), the panel warns: only someone on it can open it, and the browser will complain about the computer's certificate — the same warning as [[28 - Verso on Phone and Tablet#Pair the Phone with Your Computer|pairing a phone]]; accept it only on a network you trust.
+With the link box unticked, an invitation goes out with your **network's** address: only someone on it can open it, and the browser will complain about the computer's certificate — the same warning as [[28 - Verso on Phone and Tablet#Pair the Phone with Your Computer|pairing a phone]]; accept it only on a network you trust.
 
 Whoever comes in sees only what you shared, with the role you gave. How to run the table (releasing notes, players, rights) is in [[26 - Running a Table]].
 

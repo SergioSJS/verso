@@ -165,16 +165,6 @@ pub struct LocalOwnLogin {
     pub why: Option<String>,
 }
 
-/// An invitation just made (ADR 0117 D3 item 2, D4 Q8): its single-use link
-/// is said this once.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
-pub struct LocalInvite {
-    pub id: String,
-    pub link: String,
-    /// Seconds since the epoch.
-    pub expires: u32,
-}
-
 /// One invitation of this computer's server, as the section lists it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct LocalInvitation {

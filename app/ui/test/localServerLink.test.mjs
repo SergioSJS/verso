@@ -45,7 +45,6 @@ const CASES = [
   ["tunnel of that name already exists", "tunnelTaken"],
   ["sign in to Cloudflare first", "signIn"],
   ["like mesa.example.com", "hostname"],
-  ["not served now", "notServed"],
   ["turn serving on first", "needOn"],
   ["that app is not signed in here", "appGone"],
   ["that person has no account here", "personGone"],

@@ -489,7 +489,7 @@ export function localServerBody(_item: Item): HTMLElement {
     const f = await commands.localServerFolders();
     if (f.status === "ok") drawFolders(f.data, s.serving);
     seat.draw(s, f.status === "ok" ? f.data : []);
-    await invites.draw(s, f.status === "ok" ? f.data : []);
+    await invites.draw(s);
     await players.draw(s);
     await accounts.draw(s);
     await drawPhones(s);

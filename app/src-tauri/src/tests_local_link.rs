@@ -30,7 +30,6 @@ const ADDED: &[&str] = &[
     "local_server_own_address_login",
     "local_server_own_address_set_up",
     "local_server_own_address_remove",
-    "local_server_invite",
     "local_server_invitations",
     "local_server_invitation_revoke",
 ];
@@ -39,7 +38,6 @@ struct Served {
     _app: tauri::App<MockRuntime>,
     webview: tauri::WebviewWindow<MockRuntime>,
     local: LocalServer,
-    key: String,
     _dirs: Vec<tempfile::TempDir>,
     _files: Vec<tempfile::NamedTempFile>,
 }
@@ -69,7 +67,6 @@ fn served(serve: bool) -> Served {
         .unwrap();
     let opened = call(&webview, "open_initial", json!({})).unwrap();
     assert!(opened.is_object(), "{opened}");
-    let key = verso_core::folder_key(vault.path());
     let local = LocalServer::new(
         data.path().join("local-server"),
         vec![ui.path().to_path_buf()],
@@ -92,7 +89,6 @@ fn served(serve: bool) -> Served {
         _app: app,
         webview,
         local,
-        key,
         _dirs: vec![vault, ui, data, config],
         _files: files,
     }
@@ -142,35 +138,50 @@ fn the_network_box_is_kept_and_changes_only_while_serving_is_off() {
     assert!(!s.local.settings().unwrap().network);
 }
 
+/// Invitations are made at the folder's page, as on a UniVerso (decided
+/// 2026-11-04): Settings has no command that makes one, and lists every
+/// invitation of the server — the link's origin in none of its rows — with
+/// End once.
 #[test]
-fn an_invitation_carries_the_links_origin_is_listed_and_can_be_ended_once() {
+fn invitations_are_listed_and_ended_once_and_none_is_made_from_settings() {
+    let bindings = include_str!("../../ui/src/bindings.ts");
+    let build = include_str!("../build.rs");
+    assert!(
+        !bindings.contains("\"local_server_invite\""),
+        "a command to make one"
+    );
+    assert!(
+        !build.contains("\"local_server_invite\""),
+        "a command to make one"
+    );
     let s = served(true);
-    let made = call(
-        &s.webview,
-        "local_server_invite",
-        json!({ "key": s.key, "editor": true }),
-    )
-    .unwrap();
-    let link = made["link"].as_str().unwrap();
-    assert!(link.starts_with(&format!("{ORIGIN}/invite/")), "{link}");
-    let id = made["id"].as_str().unwrap().to_owned();
+    let name = s.local.served_name(s._dirs[0].path()).unwrap();
+    let made = s
+        .local
+        .invite(Some(&name), Some(verso_server::db::Role::Editor))
+        .unwrap();
+    assert!(
+        made.link.starts_with(&format!("{ORIGIN}/invite/")),
+        "{}",
+        made.link
+    );
     let rows = call(&s.webview, "local_server_invitations", json!({})).unwrap();
     let row = rows
         .as_array()
         .unwrap()
         .iter()
-        .find(|r| r["id"] == json!(id))
+        .find(|r| r["id"] == json!(made.id))
         .unwrap()
         .clone();
     assert_eq!(row["state"], json!("pending"));
     assert_eq!(row["role"], json!("editor"));
-    assert!(row["folder"].as_str().is_some_and(|f| !f.is_empty()));
+    assert_eq!(row["folder"], json!(name));
     // The list never says the link again.
     assert!(!rows.to_string().contains("/invite/"), "{rows}");
     call(
         &s.webview,
         "local_server_invitation_revoke",
-        json!({ "id": id }),
+        json!({ "id": made.id }),
     )
     .unwrap();
     let rows = call(&s.webview, "local_server_invitations", json!({})).unwrap();
@@ -178,40 +189,13 @@ fn an_invitation_carries_the_links_origin_is_listed_and_can_be_ended_once() {
     let again = call(
         &s.webview,
         "local_server_invitation_revoke",
-        json!({ "id": id }),
+        json!({ "id": made.id }),
     )
     .unwrap_err();
     assert!(
         message(&again).contains("used, ended or not there"),
         "{again}"
     );
-    // To no folder: an account and nothing more; to a folder not known, no.
-    let bare = call(
-        &s.webview,
-        "local_server_invite",
-        json!({ "key": null, "editor": false }),
-    )
-    .unwrap();
-    assert!(bare["link"].as_str().unwrap().starts_with(ORIGIN));
-    let unknown = call(
-        &s.webview,
-        "local_server_invite",
-        json!({ "key": "no-such-folder", "editor": false }),
-    )
-    .unwrap_err();
-    assert!(message(&unknown).contains("does not know"), "{unknown}");
-}
-
-#[test]
-fn an_invitation_needs_serving_on() {
-    let s = served(false);
-    let refused = call(
-        &s.webview,
-        "local_server_invite",
-        json!({ "key": s.key, "editor": false }),
-    )
-    .unwrap_err();
-    assert!(message(&refused).contains("not served now"), "{refused}");
 }
 
 #[test]

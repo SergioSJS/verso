@@ -1336,6 +1336,7 @@ export class Core {
     discover_servers_stop: () => null,
     share_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    share_invite: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_attachments: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     // Read links are a server's (ADR 0105): a test answers them as one; the

@@ -9,7 +9,10 @@
 // (item 18) — and offers the folder of the attachments the notes show
 // when it lies outside (item 11). Only the owner shares (item 4): the
 // window learns it when the server answers the list of shares, and shows
-// nothing of this otherwise.
+// nothing of this otherwise. An e-mail no account has is invited by a
+// link when the owner runs the server (ADR 0081 item 4: only the admin
+// invites a new person) — the way a folder with no table is invited to,
+// on a UniVerso and where this app serves (ADR 0117, decided 2026-11-04).
 
 import { commands, type ContractError, type FolderShare } from "./bindings";
 import { asDialog, closed, opened } from "./dialogs/a11y";
@@ -17,6 +20,8 @@ import { h, ui } from "./dom";
 import { told } from "./errors";
 import { failureText, unreachableAt } from "./reach";
 import { allNotes, folderName } from "./folder";
+import { serverLink } from "./can";
+import { LOCALE } from "./strings";
 import { folderAccess } from "./access";
 import { icon } from "./icons";
 import { dirOf, name } from "./paths";
@@ -88,6 +93,12 @@ function said(e: ContractError): string {
     return failureText(e);
   }
   return /no account has that e-mail/i.test(e.message) ? sh.noAccount : e.message;
+}
+
+/** Whether the server refused an e-mail no account has and said this
+ *  person may invite it: the server's admin. */
+function mayInvite(e: ContractError): boolean {
+  return /no account has that e-mail: make an invitation link/i.test(e.message);
 }
 
 /** A share command the server may want a fresh proof for (ADR 0083 item
@@ -188,13 +199,52 @@ export function openShareDialog(path: string): void {
   form.append(emailLabel, email, roleLabel, role, add);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
+    invite.replaceChildren();
     void proved(() => commands.shareGrant(path, email.value.trim(), role.value)).then((r) => {
-      if (r.status !== "ok") return void (status.textContent = said(r.error));
+      if (r.status !== "ok") {
+        if (mayInvite(r.error)) return offerInvite(email.value.trim(), role.value);
+        return void (status.textContent = said(r.error));
+      }
       status.textContent = sh.added(email.value.trim());
       email.value = "";
       draw(r.data);
     });
   });
+
+  // An e-mail no account has, and the owner runs the server: an invitation
+  // link carrying this folder at this role, shown once with Copy.
+  const invite = h("div", "share-invite");
+  const offerInvite = (to: string, at: string) => {
+    status.textContent = sh.noAccountInvite(to);
+    const make = h("button", "btn", sh.inviteMake);
+    make.type = "button";
+    make.setAttribute("aria-label", sh.inviteMakeNamed(to));
+    make.addEventListener("click", () => {
+      make.disabled = true;
+      void proved(() => commands.shareInvite(path, to, at)).then(async (r) => {
+        make.disabled = false;
+        if (r.status !== "ok") return void (status.textContent = said(r.error));
+        const link = await serverLink(r.data.link);
+        const field = h("input");
+        field.readOnly = true;
+        field.value = link;
+        field.setAttribute("aria-label", sh.inviteField);
+        const copy = h("button", "btn", sh.inviteCopy);
+        copy.type = "button";
+        copy.addEventListener("click", () => {
+          void navigator.clipboard.writeText(link).then(() => (status.textContent = sh.inviteCopied));
+        });
+        const line = h("div", "cd-link");
+        line.append(field, copy);
+        const when = new Date(r.data.expires * 1000).toLocaleDateString(LOCALE, { day: "numeric", month: "long" });
+        invite.replaceChildren(line, h("p", "cd-hint", sh.inviteExpires(when)));
+        email.value = "";
+        field.select();
+      });
+    });
+    invite.replaceChildren(make);
+    make.focus();
+  };
 
   const draw = (s: FolderShare) => {
     missing.hidden = !s.missing;
@@ -294,7 +344,7 @@ export function openShareDialog(path: string): void {
     attachments.replaceChildren(h("p", "", sh.attachmentsOutside(out.count, out.folder)), include);
   };
 
-  dialog.append(title, h("p", "settings-hint", sh.kept), missing, list, form, attachments, status, footer);
+  dialog.append(title, h("p", "settings-hint", sh.kept), missing, list, form, invite, attachments, status, footer);
   document.body.append(overlay);
   opened(overlay);
   email.focus();

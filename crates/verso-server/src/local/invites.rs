@@ -3,13 +3,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 //! Invitations of "this app is a server" (ADR 0117 D3 item 2, D4 Q5 and
-//! Q8): the owner, from the app, makes a single-use link for seven days
-//! (ADR 0074 item 4) — through the internet link's origin while it has
-//! one, else the network's address, with the own certificate — that may
-//! carry a served folder and a role; a person accepts it with an
-//! e-mail-shaped name, a name and a password, and nothing is mailed. The
-//! section lists them, every one of this server: the owner's from here and
-//! the table's (`campaign_invite`) alike, and ends one not used yet.
+//! Q8): a single-use link for seven days (ADR 0074 item 4) — through the
+//! internet link's origin while it has one, else the network's address,
+//! with the own certificate — that may carry a served folder and a role; a
+//! person accepts it with an e-mail-shaped name, a name and a password,
+//! and nothing is mailed. They are made at the folder's page, as on a
+//! UniVerso (decided 2026-11-04): a table's `campaign_invite`, a folder's
+//! `shares::invite` from the share dialog, both through the window at the
+//! table. Settings lists them, every one of this server, and ends one not
+//! used yet. Every act is the console's (`crate::admin::acts`).
 //!
 //! A folder served in part is no player's (D3 item 1): no invitation names
 //! it. An invitation gives reading or editing, never the owner's role
@@ -41,10 +43,13 @@ pub(super) fn base(r: &Running) -> Option<String> {
 }
 
 impl LocalServer {
-    /// A new invitation, from the owner at the app: to `folder` (a served
-    /// folder's name, as a person is shown it) at `role` (reading when
-    /// none is said), or to no folder. Needs serving on, for the address
-    /// the link opens at.
+    /// A new invitation at the computer: to `folder` (a served folder's
+    /// name, as a person is shown it) at `role` (reading when none is
+    /// said), or to no folder. Needs serving on, for the address the link
+    /// opens at. The app's window invites at the folder's page and calls
+    /// none of this; it is how the tests of this crate and the app's host
+    /// make a player.
+    #[doc(hidden)]
     pub fn invite(&self, folder: Option<&str>, role: Option<Role>) -> Result<Invite, String> {
         let running = lock(&self.shared.inner);
         let r = running

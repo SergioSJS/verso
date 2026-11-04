@@ -388,6 +388,10 @@ pub fn router(server: Arc<Server>) -> Router {
             post(crate::shares::revoke),
         )
         .route(
+            "/api/folders/{id}/shares/invite",
+            post(crate::shares::invite),
+        )
+        .route(
             "/api/folders/{id}/shares/attachments",
             axum::routing::put(crate::shares::attachments),
         )

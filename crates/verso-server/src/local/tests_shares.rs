@@ -364,3 +364,58 @@ fn a_share_made_while_whole_ends_when_the_folder_is_served_in_part() {
         assert!(!mine.to_string().contains("Projetos"), "{mine}");
     });
 }
+
+/// A person with no account, invited to a folder from the share dialog of
+/// the window at the table (decided 2026-11-04: as on a UniVerso, the
+/// console's act `admin::acts::make_invitation`): the grant says the owner
+/// may make an invitation link, the click is the proof; the link
+/// opens where the table's invitations do (`Policy::links_base`) and carries
+/// the share at its role, never the owner's; whoever accepts reaches that
+/// folder and nothing beside, and the invitation is in Settings' list.
+#[test]
+fn the_window_at_the_table_invites_a_person_with_no_account_to_a_share() {
+    run(async {
+        let mut lab = lab_in_part(&[]);
+        lab.serve();
+        let seat = lab.local.sit(&campanha(&lab)).unwrap();
+        let invite = format!("{}/invite", shares_of(seat.folder()));
+        let to_rui = json!({ "path": "Projetos", "email": RUI, "role": "editor" });
+        let (status, said) = share(&seat, "Projetos", RUI, "editor");
+        assert_eq!(status, 400, "{said}");
+        assert!(
+            said["message"]
+                .as_str()
+                .unwrap()
+                .contains("make an invitation link"),
+            "{said}"
+        );
+        seat.acted("share_invite").unwrap();
+        let (status, made) = seat_asks(&seat, "POST", &invite, Some(&to_rui));
+        assert_eq!(status, 200, "{made}");
+        let link = made["link"].as_str().unwrap().to_owned();
+        let base = lab.local.links_base().unwrap();
+        assert!(link.starts_with(&format!("{base}/invite/")), "{link}");
+        seat.acted("share_invite").unwrap();
+        let (status, owner) = seat_asks(
+            &seat,
+            "POST",
+            &invite,
+            Some(&json!({ "path": "", "email": "outra@example.org", "role": "owner" })),
+        );
+        assert_eq!(status, 400, "{owner}");
+        let cookie = accept(&lab, &link, RUI, "Rui").await;
+        let shares = shared_with(&lab, &cookie).await;
+        assert_eq!(shares.len(), 1, "{shares:?}");
+        let server = server_of(&lab);
+        let rui = server.db.account_by_email(RUI).unwrap().unwrap();
+        let folder = server.db.folder(seat.folder()).unwrap().unwrap();
+        assert_eq!(server.db.role(&folder.id, &rui.id).unwrap(), None);
+        let projetos = server.db.share_at(&folder.id, "Projetos").unwrap().unwrap();
+        assert_eq!(
+            server.db.share_role(&projetos.id, &rui.id).unwrap(),
+            Some(Role::Editor)
+        );
+        let rows = lab.local.invitations().unwrap();
+        assert!(rows.iter().any(|r| r.state == "used"), "{rows:?}");
+    });
+}

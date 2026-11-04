@@ -909,6 +909,14 @@ export const commands = {
 	 */
 	shareGrant: (path: string, email: string, role: string) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_grant", { path, email, role })),
 	/**
+	 *  An invitation link for `email`, which no account of the server has,
+	 *  carrying the folder at `path` (`""` the whole folder) in `role` (ADR 0081
+	 *  item 4: the server's admin alone; the server refuses anyone else). The
+	 *  way a folder with no table is invited to, on a UniVerso and at this
+	 *  app's own server (ADR 0117, decided 2026-11-04).
+	 */
+	shareInvite: (path: string, email: string, role: string) => typedError<CampaignInvite, ContractError>(__TAURI_INVOKE("share_invite", { path, email, role })),
+	/**
 	 *  Take a person out of the share at `path`, or remove the share when no
 	 *  person is named (item 8).
 	 */
@@ -1049,12 +1057,6 @@ export const commands = {
 	 *  alone with `here_only`.
 	 */
 	localServerOwnAddressRemove: (hereOnly: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_own_address_remove", { hereOnly })),
-	/**
-	 *  Invite a person (ADR 0117 D3 item 2, D4 Q5 and Q8): to the served
-	 *  folder this computer knows by `key`, editing or reading, or to none. The
-	 *  single-use link (seven days) is said this once.
-	 */
-	localServerInvite: (key: string | null, editor: boolean) => typedError<LocalInvite, ContractError>(__TAURI_INVOKE("local_server_invite", { key, editor })),
 	/**  Every invitation of this computer's server. */
 	localServerInvitations: () => typedError<LocalInvitation[], ContractError>(__TAURI_INVOKE("local_server_invitations")),
 	/**  End an invitation not used yet. */
@@ -3164,17 +3166,6 @@ export type LocalInvitation = {
 	state: string,
 	/**  The name of the account that used it. */
 	used_by: string | null,
-};
-
-/**
- *  An invitation just made (ADR 0117 D3 item 2, D4 Q8): its single-use link
- *  is said this once.
- */
-export type LocalInvite = {
-	id: string,
-	link: string,
-	/**  Seconds since the epoch. */
-	expires: number,
 };
 
 /**

@@ -232,6 +232,7 @@ pub const REFUSED: &[&str] = &[
     "server_sign_out",
     "share_attachments",
     "share_grant",
+    "share_invite",
     "share_list",
     "share_revoke",
     // Read links are a server's (ADR 0105): the phone's server has none.
@@ -496,7 +497,6 @@ mod tests {
             "local_server_own_address_login",
             "local_server_own_address_set_up",
             "local_server_own_address_remove",
-            "local_server_invite",
             "local_server_invitations",
             "local_server_invitation_revoke",
             "local_server_sit_at_table",

@@ -12,8 +12,8 @@
 
 use verso_contract::{
     LocalAddressChoice, LocalAsked, LocalAudit, LocalDevice, LocalFolder, LocalInvitation,
-    LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer,
-    LocalReset, LocalServerStatus,
+    LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer, LocalReset,
+    LocalServerStatus,
 };
 
 use super::*;
@@ -337,19 +337,6 @@ pub(crate) async fn local_server_own_address_remove<R: tauri::Runtime>(
     here_only: bool,
 ) -> Result<LocalServerStatus, ContractError> {
     own::remove(app, here_only).await
-}
-
-/// Invite a person (ADR 0117 D3 item 2, D4 Q5 and Q8): to the served
-/// folder this computer knows by `key`, editing or reading, or to none. The
-/// single-use link (seven days) is said this once.
-#[tauri::command]
-#[specta::specta]
-pub(crate) async fn local_server_invite<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
-    key: Option<String>,
-    editor: bool,
-) -> Result<LocalInvite, ContractError> {
-    link::invite(app, key, editor).await
 }
 
 /// Every invitation of this computer's server.

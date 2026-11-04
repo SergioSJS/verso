@@ -570,6 +570,75 @@ pub async fn grant(
     Ok(ok(of_share(&ctx.server, &folder, &share)?))
 }
 
+#[derive(Deserialize)]
+pub struct Invite {
+    path: String,
+    #[serde(default)]
+    email: Option<String>,
+    role: Role,
+}
+
+/// An invitation link for a person who has no account, carrying the
+/// folder at `path` (`""` the whole folder) at a role — asked from the
+/// share dialog when the e-mail given is no account's. Only the server's
+/// admin invites a person who has no account (ADR 0081 item 4), here the
+/// folder's owner too, with a fresh proof (ADR 0083 item 6): the way a
+/// folder with no table is invited to, on a UniVerso and where the app
+/// serves (decided 2026-11-04; a table's is `campaign_invite`). The act is
+/// the console's (`admin::acts::make_invitation`); the link opens where a
+/// window's links do (`crate::window_link`).
+pub async fn invite(
+    ctx: Ctx,
+    Path(id): Path<String>,
+    Json(body): Json<Invite>,
+) -> ApiResult<Response> {
+    ctx.changes()?;
+    ctx.proved()?;
+    let folder = owned(&ctx, &id)?;
+    let admin = ctx.admin()?.account.id.clone();
+    let share = if body.path.is_empty() {
+        // As a grant of the whole folder here (`grant`): reading or
+        // editing, the folder stays this computer's owner's.
+        if ctx.server.local.is_some() && body.role == Role::Owner {
+            return Err(ApiError::bad(
+                "owner",
+                "a person invited here reads or edits: the folder stays yours",
+            ));
+        }
+        None
+    } else {
+        share_path(&body.path)?;
+        if !exists_folder(&ctx.server, &folder, &body.path)? {
+            return Err(ApiError::new(
+                axum::http::StatusCode::NOT_FOUND,
+                "no_folder",
+                "no folder there",
+            ));
+        }
+        Some(ctx.server.db.make_share(&folder.id, &body.path)?)
+    };
+    let address = ctx.address();
+    let by = crate::admin::acts::By {
+        actor: Some(&admin),
+        address: Some(&address),
+    };
+    let (token, inv) = crate::admin::acts::make_invitation(
+        &ctx.server.db,
+        &by,
+        Some(&admin),
+        &crate::admin::acts::Invitee {
+            email: body.email.as_deref(),
+            folder: Some(&folder.id),
+            role: Some(body.role),
+            share: share.as_ref().map(|s| s.id.as_str()),
+        },
+    )?;
+    Ok(ok(json!({
+        "link": crate::window_link(&ctx.server, &format!("/invite/{token}")),
+        "expires": inv.expires,
+    })))
+}
+
 /// A folder given to `account`, which had no access to it before (ADR 0084
 /// item 7): the account's windows and devices hear it at once, with who
 /// gave it — the person acting — so that a window can say it. A role

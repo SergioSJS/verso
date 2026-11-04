@@ -166,7 +166,7 @@ if (params.get("sync") === "reader") {
 // the contract's `unreachable`, carrying the address — whatever the test
 // set its handler to; `serverDown(null)` brings it back. `?server=down`
 // starts with it down at localhost:7351.
-const TO_A_SERVER = new Set(["server_folders", "server_create_folder", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_revoke", "share_attachments", "read_link_list", "read_link_secrets", "read_link_create", "read_link_revoke", "server_prove"]);
+const TO_A_SERVER = new Set(["server_folders", "server_create_folder", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_invite", "share_revoke", "share_attachments", "read_link_list", "read_link_secrets", "read_link_create", "read_link_revoke", "server_prove"]);
 let serverDown: string | null = params.get("server") === "down" ? "localhost:7351" : null;
 const answer = core.invoke.bind(core);
 // The system's notifications (ADR 0084 item 9): the plugin's calls,

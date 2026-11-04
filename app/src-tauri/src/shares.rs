@@ -10,7 +10,7 @@
 
 use serde_json::{Value, json};
 use verso_contract::{
-    FolderShare, ReadLinkInfo, ReadLinkMade, ReadLinks, RecentFolder, SharePerson,
+    CampaignInvite, FolderShare, ReadLinkInfo, ReadLinkMade, ReadLinks, RecentFolder, SharePerson,
 };
 use verso_core::servers::ServerLogin;
 
@@ -178,6 +178,35 @@ pub(crate) async fn share_grant<R: tauri::Runtime>(
     Ok(share_of(
         &ask(door, "PUT", path_of(&folder), Some(body)).await?,
     ))
+}
+
+/// An invitation link for `email`, which no account of the server has,
+/// carrying the folder at `path` (`""` the whole folder) in `role` (ADR 0081
+/// item 4: the server's admin alone; the server refuses anyone else). The
+/// way a folder with no table is invited to, on a UniVerso and at this
+/// app's own server (ADR 0117, decided 2026-11-04).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn share_invite<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    path: String,
+    email: String,
+    role: String,
+) -> Result<CampaignInvite, ContractError> {
+    let (door, folder) = server_folder(&app, &window)?;
+    // The window at its own server's table: the owner's click is the fresh
+    // proof inviting asks (ADR 0117 D4 Q4; ADR 0083 item 6).
+    if let Door::Seat(seat) = &door {
+        seat.acted("share_invite").map_err(|e| refused(&e))?;
+    }
+    let body = json!({ "path": path, "email": email, "role": role });
+    let at = format!("{}/invite", path_of(&folder));
+    let v = ask(door, "POST", at, Some(body)).await?;
+    Ok(CampaignInvite {
+        link: v["link"].as_str().unwrap_or_default().to_owned(),
+        expires: u32::try_from(v["expires"].as_i64().unwrap_or_default()).unwrap_or(u32::MAX),
+    })
 }
 
 /// Take a person out of the share at `path`, or remove the share when no

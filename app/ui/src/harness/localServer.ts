@@ -30,7 +30,7 @@
 // ended and their account removed.
 
 import { emit } from "@tauri-apps/api/event";
-import type { ContractError, FolderAccess, FolderInfo, LocalAudit, LocalDevice, LocalFolder, LocalInvitation, LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer, LocalReset, LocalServerStatus, ReadLinkInfo } from "../bindings";
+import type { ContractError, FolderAccess, FolderInfo, LocalAudit, LocalDevice, LocalFolder, LocalInvitation, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer, LocalReset, LocalServerStatus, ReadLinkInfo } from "../bindings";
 
 type Args = Record<string, unknown>;
 
@@ -495,20 +495,6 @@ export class LocalServerHarness {
       this.linkOwn = false;
       return this.status();
     },
-    local_server_invite: (a): LocalInvite => {
-      if (!this.serving) refuse("turn serving on first");
-      const key = typeof a["key"] === "string" ? a["key"] : null;
-      const folder = key === null ? null : this.folders.find((f) => f.key === key);
-      if (key !== null && (!folder || !this.ticked.has(key))) refuse("this folder is not served now: tick it and turn serving on");
-      if (folder && (this.parts.get(folder.key) ?? []).length > 0) refuse(`${folder.name} is served in part: its folders are your phones' alone`);
-      const id = `i${this.nextInvite++}`;
-      const created = Math.floor(Date.UTC(2026, 10, 4) / 1000);
-      const expires = created + 7 * 24 * 3600;
-      this.invites.unshift({ id, folder: folder?.name ?? null, role: folder ? (a["editor"] === true ? "editor" : "reader") : null, created, expires, state: "pending", used_by: null });
-      this.log("invitation_created", id);
-      const base = this.link.state === "on" && this.link.origin ? this.link.origin : "https://192.168.1.20:51234";
-      return { id, link: `${base}/invite/convite-${id}`, expires };
-    },
     local_server_invitations: (): LocalInvitation[] => this.invites.map((i) => ({ ...i })),
     local_server_invitation_revoke: (a): null => {
       const inv = this.invites.find((i) => i.id === String(a["id"]));
@@ -563,6 +549,16 @@ export class LocalServerHarness {
       return this.status();
     },
   };
+
+  /** An invitation made at the folder's page (a test's): a table's
+   *  `campaign_invite` or a share's, as the server then lists it. */
+  addInvitation(folder: string | null = null, role: "reader" | "editor" | null = null): string {
+    const id = `i${this.nextInvite++}`;
+    const created = Math.floor(Date.UTC(2026, 10, 4) / 1000);
+    this.invites.unshift({ id, folder, role: folder ? role ?? "reader" : null, created, expires: created + 7 * 24 * 3600, state: "pending", used_by: null });
+    this.log("invitation_created", id);
+    return id;
+  }
 
   /** An invitation was accepted by a player (a test's): their account. */
   acceptInvitation(id: string, name = "Bia"): void {

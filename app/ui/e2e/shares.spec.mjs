@@ -7,6 +7,14 @@
 
 import { test, expect } from "./fixtures.mjs";
 
+/** The clipboard kept in the page, as the other specs stub it. */
+async function stubClipboard(page) {
+  await page.addInitScript(() => {
+    window.__copied = null;
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } }, configurable: true });
+  });
+}
+
 /** The first folder of the tree: the one the owner shares. */
 async function aFolder(app) {
   const folders = await app.folders();
@@ -146,6 +154,46 @@ test("the owner shares a folder: mark, people, roles and removal asked first", a
   await expect(dialog.getByRole("list", { name: "Quem tem acesso" })).not.toContainText("ana@casa.lan");
   await dialog.getByRole("button", { name: "Fechar" }).click();
   await expect(dialog).toBeHidden();
+});
+
+test("an e-mail no account has: the admin makes an invitation link from the share dialog; anyone else is told to ask", async ({ app }) => {
+  await stubClipboard(app.page);
+  await app.open();
+  const folder = await aFolder(app);
+  await app.page.evaluate((path) => {
+    const h = window.__harness.core.handlers;
+    window.__admin = true;
+    const it = { id: "s1", path, people: [{ id: "a1", name: "Ana", email: "ana@casa.lan", role: "reader" }], attachments: null, missing: false };
+    h.share_list = () => [{ id: null, path: "", people: [], attachments: null, missing: false }, it];
+    // As the server answers an e-mail no account has: the admin may invite.
+    h.share_grant = () => {
+      throw { kind: "failed", message: window.__admin ? "no account has that e-mail: make an invitation link for them" : "no account has that e-mail: invite them" };
+    };
+    h.share_invite = (a) => ({ link: `https://notas.casa/invite/convite-${a["role"]}`, expires: Math.floor(Date.UTC(2026, 10, 11) / 1000) });
+  }, folder);
+  await app.page.locator("#open").click();
+  await app.page.getByRole("dialog", { name: "Trocar de pasta" }).getByRole("region", { name: "Neste computador" }).locator(".switcher-list button").first().click();
+  await app.page.locator(`summary[data-folder="${folder}"]`).click({ button: "right" });
+  await app.page.getByRole("menuitem", { name: "Compartilhar…" }).click();
+  const dialog = app.page.getByRole("dialog", { name: /Compartilhar/ });
+  await dialog.getByLabel("E-mail").fill("caio@casa.lan");
+  await dialog.getByLabel("Papel", { exact: true }).selectOption("editor");
+  await dialog.getByRole("button", { name: "Compartilhar", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("Nenhuma conta tem o e-mail caio@casa.lan neste servidor.");
+  await dialog.getByRole("button", { name: "Gerar link de convite para caio@casa.lan" }).click();
+  const field = dialog.getByRole("textbox", { name: "Link do convite" });
+  await expect(field).toHaveValue("https://notas.casa/invite/convite-editor");
+  await expect(dialog.getByText("Uso único, vale até", { exact: false })).toBeVisible();
+  expect(await app.calls("share_invite")).toEqual([{ path: folder, email: "caio@casa.lan", role: "editor" }]);
+  await dialog.getByRole("button", { name: "Copiar o link" }).click();
+  await expect(dialog.getByRole("status")).toHaveText("Link copiado.");
+  expect(await app.page.evaluate(() => window.__copied)).toBe("https://notas.casa/invite/convite-editor");
+  // Not the admin: no link to make, the words say whom to ask.
+  await app.page.evaluate(() => (window.__admin = false));
+  await dialog.getByLabel("E-mail").fill("davi@casa.lan");
+  await dialog.getByRole("button", { name: "Compartilhar", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveText("Nenhuma conta tem esse e-mail neste servidor: peça a quem administra um convite para essa pessoa.");
+  await expect(dialog.getByRole("button", { name: /Gerar link de convite/ })).toHaveCount(0);
 });
 
 test("a link out of what was shared says so and makes no note", async ({ app }) => {

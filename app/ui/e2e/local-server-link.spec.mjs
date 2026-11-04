@@ -162,34 +162,23 @@ test("neither box ticked does not start; a link that fails says why in words, an
   await expect(page.locator("#local-mark")).toBeVisible();
 });
 
-test("an invitation is made once with its link, listed, and ended; on the network it says so", async ({ app, page }) => {
-  await stubClipboard(page);
+test("invitations are made from the folder's page; Settings lists them, never with a link, and ends one waiting", async ({ app, page }) => {
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
-  await expect(body.getByText("Ligue o servidor para convidar.")).toBeVisible();
-  await expect(body.getByRole("button", { name: "Criar convite" })).toBeDisabled();
-  await body.getByRole("checkbox", { name: /^Vault/ }).check();
-  await body.getByRole("button", { name: "Ligar o servidor" }).click();
-  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
-  // On the network only: the invitation is the network's address.
-  await body.getByRole("combobox", { name: "Pode" }).selectOption("editor");
-  await body.getByRole("button", { name: "Criar convite" }).click();
-  await expect(body.getByText("https://192.168.1.20:51234/invite/convite-i1")).toBeVisible();
-  await expect(body.getByText("Este convite é pelo endereço da sua rede", { exact: false })).toBeVisible();
-  await body.getByRole("button", { name: "Copiar convite" }).click();
-  await expect(body.getByText("Convite copiado.")).toBeVisible();
-  expect(await page.evaluate(() => window.__copied)).toBe("https://192.168.1.20:51234/invite/convite-i1");
-  // With the link on, the next one is the link's.
-  await body.getByRole("checkbox", { name: "Por um link na internet (Cloudflare, modo de teste)" }).check();
-  await expect(body.locator(".ls-link-state")).toHaveText("Link no ar.");
-  await body.getByRole("combobox", { name: "Pasta" }).selectOption({ label: "Nenhuma (só a conta)" });
-  await expect(body.getByRole("combobox", { name: "Pode" })).toBeDisabled();
-  await body.getByRole("button", { name: "Criar convite" }).click();
-  await expect(body.getByText("https://exemplo-de-mesa.trycloudflare.com/invite/convite-i2")).toBeVisible();
-  await expect(body.getByText("Este convite é pelo endereço da sua rede", { exact: false })).toHaveCount(0);
-  // The list, freshest first, never with a link; End the first one.
-  const list = body.getByRole("list", { name: "Convites" });
+  // No form here: the folder's page invites, as on a UniVerso.
+  await expect(body.getByRole("button", { name: "Criar convite" })).toHaveCount(0);
+  await expect(body.getByText("Convide pela página da pasta, como num UniVerso", { exact: false })).toBeVisible();
+  await expect(body.getByRole("list", { name: "Convites" })).toContainText("Nenhum convite ainda.");
+  // Two made at the folder's page (a table's and a share's), as the server lists them.
+  await page.evaluate(() => {
+    const ls = window.__harness.core.localServer;
+    ls.addInvitation("Vault", "editor");
+    ls.addInvitation("Vault/Mapas", "reader");
+  });
+  await app.key("Escape");
+  await section(app);
+  const list = page.locator(".settings-body").getByRole("list", { name: "Convites" });
   await expect(list.locator("li")).toHaveCount(2);
   await expect(list.locator("li").nth(1)).toContainText("Vault · edita · esperando");
   await expect(list).not.toContainText("/invite/");

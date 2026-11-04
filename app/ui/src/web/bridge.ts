@@ -469,6 +469,7 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     // them with its token.
     case "share_list":
     case "share_grant":
+    case "share_invite":
     case "share_revoke":
     case "share_attachments":
       return done(await shareCall(cmd, a));
@@ -535,6 +536,10 @@ async function shareCall(cmd: string, a: Record<string, unknown>): Promise<unkno
       }
       case "share_grant":
         return await api<Share>("PUT", at, { path: a.path, email: a.email, role: a.role });
+      // An invitation for an e-mail no account has, carrying this folder
+      // (ADR 0081 item 4): the server's admin only, the server says.
+      case "share_invite":
+        return await api<{ link: string; expires: number }>("POST", `${at}/invite`, { path: a.path, email: a.email, role: a.role });
       case "share_revoke":
         return await api<Share>("POST", `${at}/revoke`, { path: a.path, account: a.account ?? null });
       default:

@@ -2,22 +2,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! The two boxes of *Turn into a server* (ADR 0117 D1, D4 Q2) and its
-//! invitations (D3 item 2, D4 Q8): the box *On my network* is a setting,
+//! The two boxes of *Turn into a server* (ADR 0117 D1, D4 Q2) and the
+//! list of its invitations (D3 item 2, D4 Q8; made at the folder's page,
+//! decided 2026-11-04): the box *On my network* is a setting,
 //! kept, changed while serving is off; the box *By an internet link* is
 //! the link itself, turned on and off while serving or to start it, never
 //! kept (D3 item 6). The link's `cloudflared` is `crate::tunnel`'s; the
 //! server's door, accounts and invitations are `verso_server::local`'s.
 //!
-//! What crosses: the contract's `LocalLink`, `LocalInvite` and
-//! `LocalInvitation`. An invitation's link is said once, to the window;
-//! it is never in the log (the words of a failure carry none).
+//! What crosses: the contract's `LocalLink` and `LocalInvitation`; an
+//! invitation's link never (it is said once, at the folder's page).
 
-use verso_contract::{LocalInvitation, LocalInvite, LocalLink};
-use verso_server::db::Role;
+use verso_contract::{LocalInvitation, LocalLink};
 use verso_server::local::LocalSettings;
 
-use super::platform::{blocking, check_not_synced, known_path, server, status_of};
+use super::platform::{blocking, check_not_synced, server, status_of};
 use super::*;
 
 /// Seconds since 1970 as the contract's `u32` (until 2106).
@@ -98,37 +97,6 @@ pub(super) async fn link_mode<R: tauri::Runtime>(
             ..set
         })?;
         status_of(&app, &local)
-    })
-    .await
-}
-
-/// A new invitation (D3 item 2, D4 Q8): to the served folder this computer
-/// knows by `key`, reading or editing, or to no folder; its single-use
-/// link is built from the link's origin while it has one, else the
-/// network's address. Needs serving on.
-pub(super) async fn invite<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
-    key: Option<String>,
-    editor: bool,
-) -> Result<LocalInvite, ContractError> {
-    let local = server(&app)?;
-    blocking(move || {
-        let name = match key {
-            Some(key) => {
-                let path = known_path(&app, &key)?;
-                Some(local.served_name(&path).ok_or_else(|| {
-                    "this folder is not served now: tick it and turn serving on".to_owned()
-                })?)
-            }
-            None => None,
-        };
-        let role = if editor { Role::Editor } else { Role::Reader };
-        let made = local.invite(name.as_deref(), Some(role))?;
-        Ok(LocalInvite {
-            id: made.id,
-            link: made.link,
-            expires: seconds(made.expires),
-        })
     })
     .await
 }

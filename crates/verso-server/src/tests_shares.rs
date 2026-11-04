@@ -1330,3 +1330,92 @@ fn a_join_tells_a_reader_it_is_read_only_and_an_editor_it_is_not() {
         assert_eq!(joined["ok"]["read_only"], false, "{joined}");
     });
 }
+
+/// An e-mail no account has, given in the owner's share dialog (decided
+/// 2026-11-04: a folder with no table is invited to from its page, as a
+/// table is): the server's admin is told they may make an invitation link,
+/// and makes one carrying the share at the role given — the console's act
+/// (`admin::acts::make_invitation`). Whoever accepts reaches the share and
+/// nothing above it. A folder's owner who is not the admin is refused
+/// (ADR 0081 item 4), and so is an e-mail an account has.
+#[test]
+fn an_admin_invites_a_person_with_no_account_to_a_share() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, _w) = furnished(&r, &admin).await;
+        let at = format!("/api/folders/{id}/shares");
+        let to_caio = json!({ "path": "Mesa", "email": "caio@casa.lan", "role": "editor" });
+        let (status, refused) = put(&r, &at, to_caio.clone(), &admin).await;
+        assert_eq!(status, 400, "{refused}");
+        assert!(
+            refused["message"]
+                .as_str()
+                .unwrap()
+                .contains("make an invitation link"),
+            "{refused}"
+        );
+        let (status, made) = post(&r, &format!("{at}/invite"), to_caio, Some(&admin)).await;
+        assert_eq!(status, 200, "{made}");
+        let token = made["link"]
+            .as_str()
+            .unwrap()
+            .rsplit_once("/invite/")
+            .unwrap()
+            .1
+            .to_owned();
+        let (_, log) = get(
+            &r,
+            "/api/admin/audit?action=invitation_created",
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(log["total"], 1, "{log}");
+        // An e-mail an account has: refused, nothing made.
+        ana(&r).await;
+        let (status, exists) = post(
+            &r,
+            &format!("{at}/invite"),
+            json!({ "path": "Mesa", "email": "ana@casa.lan", "role": "reader" }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 409, "{exists}");
+        // Caio accepts: the share, at editing, and nothing above it.
+        let (status, joined) = post(
+            &r,
+            &format!("/api/invite/{token}"),
+            json!({ "email": "caio@casa.lan", "name": "Caio", "password": "a senha do caio aqui", "lang": "pt" }),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200, "{joined}");
+        let caio = r
+            .server
+            .db
+            .account_by_email("caio@casa.lan")
+            .unwrap()
+            .unwrap();
+        assert_eq!(r.server.db.role(&id, &caio.id).unwrap(), None);
+        let share = r.server.db.share_at(&id, "Mesa").unwrap().unwrap();
+        assert_eq!(
+            r.server.db.share_role(&share.id, &caio.id).unwrap(),
+            Some(crate::db::Role::Editor)
+        );
+        // An owner who is not the server's admin invites no one.
+        let caio_b = sign_in(&r, "caio@casa.lan", "a senha do caio aqui").await;
+        let mine = r
+            .server
+            .db
+            .create_folder("Caderno do Caio", &caio.id)
+            .unwrap();
+        let (status, said) = post(
+            &r,
+            &format!("/api/folders/{}/shares/invite", mine.id),
+            json!({ "path": "", "email": "duda@casa.lan", "role": "reader" }),
+            Some(&caio_b),
+        )
+        .await;
+        assert_eq!(status, 403, "{said}");
+    });
+}

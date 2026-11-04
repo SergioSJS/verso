@@ -52,14 +52,13 @@ O painel diz o motivo em palavras. Os mais comuns:
 
 Antes, confira **Seu nome para os jogadores**: é como a mesa vê você no chat, nas rolagens e na lista. Começa com o nome do usuário deste computador; troque e toque em **Salvar nome**.
 
-Em **Convidar pessoas**:
+Você convida pela **página da pasta**, como num UniVerso, na janela sentada à mesa (seção 3 abaixo):
 
-1. Em **Pasta**, escolha uma pasta servida inteira (uma servida só em parte não aparece) ou **Nenhuma (só a conta)**, e em **Pode**, **Ler** ou **Editar**.
-2. **Criar convite**. O link aparece **uma única vez**: **Copiar convite** e mande à pessoa por onde preferir. Vale por **7 dias** e serve para **uma pessoa só**.
-3. A jogadora abre o link, cria a conta com **qualquer e-mail dela** (**nada é enviado**: o e-mail só serve de nome de entrada), um nome e uma senha, e depois entra pelo endereço da mesa.
-4. A lista **Convites** mostra cada um (esperando, aceito por…, encerrado, expirado) e **Encerrar** fecha um que ainda espera.
+1. **Uma mesa:** no cartão da mesa, **Convidar jogadores › Gerar link**. **Uma pasta sem mesa:** **Compartilhar…** no menu da pasta, escreva o e-mail da pessoa e o papel (**lê** ou **edita**) e toque em **Compartilhar**; nenhuma conta tem esse e-mail ainda, então o diálogo oferece **Gerar link de convite**. Nos dois casos o link aparece **uma vez**: copie e mande à pessoa por onde preferir. Vale por **7 dias** e serve para **uma pessoa só**.
+2. A jogadora abre o link, cria a conta com **qualquer e-mail dela** (**nada é enviado**: o e-mail só serve de nome de entrada), um nome e uma senha, e depois entra pelo endereço da mesa.
+3. Em **Ajustes › Transformar em servidor**, a lista **Convites** mostra todos os convites deste servidor (esperando, aceito por…, encerrado, expirado) e **Encerrar** fecha um que ainda espera.
 
-Se o convite sair pelo endereço da **sua rede** (a caixa do link desmarcada), o painel avisa: só abre quem estiver nela, e o navegador vai reclamar do certificado do computador — é o mesmo aviso do [[28 - Verso no Celular e no Tablet#Parear o Celular com o Seu Computador|pareamento do celular]]; aceite só numa rede em que você confia.
+Com a caixa do link desmarcada, o convite sai pelo endereço da **sua rede**: só abre quem estiver nela, e o navegador vai reclamar do certificado do computador — é o mesmo aviso do [[28 - Verso no Celular e no Tablet#Parear o Celular com o Seu Computador|pareamento do celular]]; aceite só numa rede em que você confia.
 
 Quem entra vê só o que você compartilhou, com o papel que você deu. Como mestrar a mesa (liberar notas, jogadoras, direitos) está em [[26 - Rodando uma Mesa]].
 
