@@ -81,6 +81,7 @@ mod terminal;
 mod trash;
 #[cfg(any(target_os = "macos", windows))]
 mod tray;
+pub mod tunnel;
 mod update;
 mod version;
 mod web;

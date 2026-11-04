@@ -39,6 +39,18 @@
   give, the name and the scheme unchanged; and a Verso server **announces
   itself** by mDNS by default when it listens beyond loopback
   (`VERSO_ANNOUNCE=off` stops it). 2026-10-21 — revised by [0104](0104-external-cloud-storage-transports-and-quotas.md): a cloud provider the person connected is polled without a click (a new reach, like 0055's update check, 0073's server, 0096/0097's local server); the core still reaches no network — the adapters live on the desktop host's side (0104 item 3).
+  2026-11-03 — revised by [0117](0117-this-app-is-a-universo-server.md)
+  (accepted by the maintainer that day); the text below is kept as it was
+  decided. Two reaches, both only after the person ticks the internet link
+  of "this app is a server": the desktop host **downloads the pinned
+  `cloudflared`** once, from `github.com/cloudflare/cloudflared/releases`
+  (and the asset store GitHub redirects to), its SHA-256 checked against
+  the value written in Verso's source (0117 D3 item 5); and it **runs
+  `cloudflared`**, which connects out to Cloudflare's network — a quick link
+  on `trycloudflare.com`, or, for the person's own address, their own
+  Cloudflare account, whose login page it opens in the browser (0117 D10).
+  The core still reaches no network: `verso-server` and `verso-service`
+  spawn nothing; the host owns both (`app/src-tauri/src/tunnel/`).
 
 ## Context
 

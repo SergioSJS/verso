@@ -21,6 +21,8 @@ use super::*;
 #[derive(Default)]
 pub(crate) struct LocalSlot {
     server: std::sync::OnceLock<verso_server::local::LocalServer>,
+    /// The internet link's `cloudflared` (ADR 0117 D3, `crate::tunnel`).
+    pub(crate) link: crate::tunnel::Slot,
 }
 
 mod platform;
@@ -251,13 +253,25 @@ pub(crate) fn serving_now<R: tauri::Runtime>(
     platform::serving_now(app)
 }
 
-/// Stop serving now, from the menu-bar mark's *Stop*.
+/// Stop serving now, from the menu-bar mark's *Stop*: the link's tunnel
+/// first.
 #[cfg(any(target_os = "macos", windows))]
 pub(crate) fn stop_now<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    crate::tunnel::stop_with(app, crate::tunnel::LinkEnd::Stopped);
     platform::stop_on_exit(app);
 }
 
-/// At the app's end: stop, so the port closes and the goodbye is sent.
+/// At the app's end: stop, so the port closes and the goodbye is sent; the
+/// link's `cloudflared` is stopped first, so it does not outlive the app
+/// (ADR 0117 D3 item 6).
 pub(crate) fn stop_on_exit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    crate::tunnel::stop_with(app, crate::tunnel::LinkEnd::Quit);
     platform::stop_on_exit(app);
+}
+
+/// The mode's server, for the link's tunnel (`crate::tunnel`).
+pub(crate) fn server_for_link<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<verso_server::local::LocalServer, String> {
+    platform::server(app).map_err(|e| e.message)
 }
