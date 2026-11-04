@@ -238,6 +238,46 @@ fn a_download_with_the_pinned_sum_is_kept_runnable_and_not_fetched_again() {
     assert_eq!(asked.lock().unwrap().len(), 1, "checked, not fetched again");
 }
 
+/// Two `ensure` at once (the link and the own address's login, say): one
+/// download, the second waits and takes the binary the first placed; no
+/// `.part` written by two.
+#[test]
+fn two_at_once_download_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let body = b"#!/bin/sh\necho fake\n".to_vec();
+    let pin = bare_pin(&body);
+    let asked = Arc::new(Mutex::new(Vec::new()));
+    let both = std::sync::Barrier::new(2);
+    let got: Vec<_> = std::thread::scope(|s| {
+        let one = || {
+            let asked = Arc::clone(&asked);
+            let body = body.clone();
+            let (dir, pin, both) = (dir.path(), &pin, &both);
+            s.spawn(move || {
+                // A slow download.
+                let mut source = move |url: &str| {
+                    asked.lock().unwrap().push(url.to_owned());
+                    std::thread::sleep(std::time::Duration::from_millis(300));
+                    Ok(Box::new(Cursor::new(body.clone())) as Box<dyn Read + Send>)
+                };
+                both.wait();
+                fetch::ensure(dir, pin, &mut source)
+            })
+        };
+        let (a, b) = (one(), one());
+        vec![a.join().unwrap(), b.join().unwrap()]
+    });
+    let mut fresh: Vec<bool> = got.iter().map(|g| g.as_ref().unwrap().1).collect();
+    fresh.sort_unstable();
+    assert_eq!(fresh, [false, true], "{got:?}");
+    assert_eq!(asked.lock().unwrap().len(), 1, "downloaded once");
+    assert_eq!(files::read(&fetch::binary_path(dir.path())), body);
+    assert_eq!(
+        files::names_in(dir.path()),
+        [format!("cloudflared-{}", fetch::VERSION)]
+    );
+}
+
 #[test]
 fn a_download_whose_sum_is_not_the_pin_is_refused_and_leaves_nothing() {
     let dir = tempfile::tempdir().unwrap();

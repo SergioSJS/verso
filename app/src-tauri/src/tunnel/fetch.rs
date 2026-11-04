@@ -17,6 +17,7 @@
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use super::files;
@@ -118,6 +119,12 @@ pub fn binary_path(dir: &Path) -> PathBuf {
     dir.join(format!("cloudflared-{VERSION}{ext}"))
 }
 
+/// One download at a time in this process: the link turned on while the
+/// own address's login fetches the binary, say. The second waits for the
+/// first and finds the binary in place, instead of writing the same
+/// `.part` beside it.
+static FETCHING: Mutex<()> = Mutex::new(());
+
 /// Where a download is read from: the real one is [`download`]; the tests
 /// hand bytes.
 pub type Source<'s> = dyn FnMut(&str) -> Result<Box<dyn Read + Send>, String> + 's;
@@ -132,6 +139,9 @@ pub fn ensure(
     pin: &Pin<'_>,
     source: &mut Source<'_>,
 ) -> Result<(PathBuf, bool), String> {
+    let _one = FETCHING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let binary = binary_path(dir);
     match files::sha256_of(&binary)? {
         Some(sum) if sum == pin.binary_sha256 => return Ok((binary, false)),
