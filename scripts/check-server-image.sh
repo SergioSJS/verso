@@ -17,25 +17,14 @@
 # That container is privileged, as systemd inside Docker needs to be; the
 # service inside it is not.
 #
-# Needs Docker (Docker Desktop or Colima), the UI built (`npm run build` in
-# app/ui), and room: the build's volume (verso-musl-target) is removed at
-# the end unless KEEP=1.
+# Needs Docker (Docker Desktop or Colima) with BuildKit and the UI built
+# (`npm run build` in app/ui). The static build runs in the verso-ci image
+# (scripts/ci/musl.Dockerfile), its output in BuildKit cache mounts that the
+# builder keeps between runs, so a second run compiles what changed only
+# (fix release item C2, 2026-11-02; before, a volume removed after every
+# run made each one compile from nothing). `docker builder prune` frees
+# that cache.
 set -euo pipefail
-
-if [ "${1:-}" = "--inside" ]; then
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update -qq >/dev/null
-  apt-get install -y -qq musl-tools perl make >/dev/null
-  arch="$(uname -m)"
-  target="${arch}-unknown-linux-musl"
-  rustup target add "$target" >/dev/null
-  export "CC_${arch}_unknown_linux_musl=musl-gcc"
-  cargo build --release --locked -p verso-cli --target "$target"
-  mkdir -p /out
-  cp "/target/$target/release/verso" /out/verso
-  file /out/verso 2>/dev/null || true
-  exit 0
-fi
 
 cd "$(dirname "$0")/.."
 # The commit checked, so that a kept log names it.
@@ -48,14 +37,10 @@ rsync -a --delete --exclude target --exclude node_modules --exclude .git ./ "$di
 rm -rf "$dir/out" && mkdir -p "$dir/out"
 
 printf '\n== the static verso, in a Linux container\n'
-docker run --rm \
-  -v "$dir/src":/src -w /src \
-  -v "$dir/out":/out \
-  -v verso-musl-target:/target -e CARGO_TARGET_DIR=/target \
-  -e CARGO_INCREMENTAL=0 \
-  -v verso-cargo-registry:/usr/local/cargo/registry \
-  -v verso-rustup:/usr/local/rustup \
-  rust:1-bookworm bash scripts/check-server-image.sh --inside
+image="$(bash scripts/ci/image.sh)"
+docker build -q -f scripts/ci/musl.Dockerfile --build-arg CI_IMAGE="$image" \
+  --output "type=local,dest=$dir/out" "$dir/src"
+file "$dir/out/verso" 2>/dev/null || true
 
 case "$(docker version --format '{{.Server.Arch}}')" in
   arm64 | aarch64) arch=arm64 ;;
@@ -80,7 +65,7 @@ port="${PORT:-17340}"
 name=universo-check
 docker rm -f "$name" >/dev/null 2>&1 || true
 unit=universo-unit-check
-trap 'docker rm -f "$name" "$unit" >/dev/null 2>&1 || true; [ "${KEEP:-}" = 1 ] || docker volume rm verso-musl-target >/dev/null 2>&1 || true' EXIT
+trap 'docker rm -f "$name" "$unit" >/dev/null 2>&1 || true' EXIT
 # What the compose file declares is what runs here (ADR 0083 item 11).
 compose=packaging/server/docker-compose.yml
 docker compose -f "$compose" config -q || { echo "$compose is not a valid compose file"; exit 1; }

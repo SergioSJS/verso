@@ -13,8 +13,9 @@
 #   E2E_WORKERS workers (default 3);
 # - the server's (app/ui/playwright.server.config.mjs): the window against
 #   a real `verso serve`, one worker as its config says (one server, one
-#   database). Its `verso` is a Linux build of verso-cli, made first in a
-#   Rust container and handed over in a volume.
+#   database). Its `verso` is a Linux build of verso-cli, made first in the
+#   verso-ci image (scripts/ci/Dockerfile) into the volume scripts/check-linux.sh
+#   builds in, mounted read-only into the Playwright container.
 #
 # One after the other, not at once: run together on 2026-11-03 (a 4-CPU
 # Docker machine) the two suites took 48 min and starved each other's
@@ -47,14 +48,16 @@ pw="$(node -p 'require("./app/ui/package.json").devDependencies["@playwright/tes
 image="mcr.microsoft.com/playwright:v${pw}-noble"
 
 if [ "$server" = 1 ]; then
-  printf '\n== verso-cli for the server suite, in a Linux container\n'
+  printf '\n== verso-cli for the server suite, in the verso-ci image\n'
+  # The build volumes and settings of scripts/check-linux.sh, so each of the
+  # two reuses what the other built.
+  ci="$(bash scripts/ci/image.sh)"
   docker run --rm \
     -v "$PWD":/src:ro -w /src \
-    -v verso-e2e-target:/target -e CARGO_TARGET_DIR=/target \
-    -e CARGO_PROFILE_DEV_DEBUG=0 -e CARGO_INCREMENTAL=0 -e VERSO_COMMIT=e2e \
-    -v verso-e2e-cargo:/usr/local/cargo/registry \
-    -v verso-e2e-bin:/out \
-    rust:1-bookworm bash -c 'cargo build -q --locked -p verso-cli && mkdir -p /out/debug && cp /target/debug/verso /out/debug/verso'
+    -v verso-linux-target:/target \
+    -e CARGO_PROFILE_DEV_DEBUG=0 -e CARGO_PROFILE_TEST_DEBUG=0 \
+    -v verso-cargo-registry:/usr/local/cargo/registry \
+    "$ci" cargo build -q --locked -p verso-cli
 fi
 
 # Only this run's results come back.
@@ -66,7 +69,7 @@ printf '\n== the end-to-end tests in %s (harness: %s workers)\n' "$image" "$work
 docker run --rm --init --ipc=host \
   -v "$PWD":/src:ro \
   -v verso-e2e-npm:/root/.npm \
-  -v verso-e2e-bin:/verso-bin:ro \
+  -v verso-linux-target:/verso-target:ro \
   -v "$PWD/app/ui/e2e/results":/out/e2e \
   -v "$PWD/app/ui/e2e-server/results":/out/e2e-server \
   -e UI="$ui" -e SERVER="$server" -e WORKERS="$workers" \
@@ -90,7 +93,7 @@ fi
 if [ "$SERVER" = 1 ]; then
   start=$(date +%s)
   printf "\n== the server suite\n"
-  CARGO_TARGET_DIR=/verso-bin npx playwright test -c playwright.server.config.mjs "$@" \
+  CARGO_TARGET_DIR=/verso-target npx playwright test -c playwright.server.config.mjs "$@" \
     || { rc=1; cp -R e2e-server/results/. /out/e2e-server/; }
   printf "\nthe server suite: %s s\n" "$(( $(date +%s) - start ))"
 fi
