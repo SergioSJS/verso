@@ -33,6 +33,7 @@ pub mod pairing;
 mod parts;
 mod policy;
 pub mod qr;
+mod read_links;
 mod routes;
 pub mod seat;
 #[cfg(test)]
@@ -47,6 +48,8 @@ mod tests_link;
 mod tests_parts;
 #[cfg(test)]
 mod tests_parts_bin;
+#[cfg(test)]
+mod tests_read_links;
 #[cfg(test)]
 mod tests_seat;
 #[cfg(test)]

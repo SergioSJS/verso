@@ -68,7 +68,7 @@ pub(super) fn lab_in_part(chosen: &[&str]) -> Lab {
     lab
 }
 
-fn set_chosen(lab: &Lab, chosen: &[&str]) {
+pub(super) fn set_chosen(lab: &Lab, chosen: &[&str]) {
     let mut settings = lab.local.settings().unwrap();
     settings.parts.clear();
     if !chosen.is_empty() {

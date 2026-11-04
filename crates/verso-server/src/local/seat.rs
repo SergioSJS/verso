@@ -64,9 +64,10 @@ pub const SEAT_DEVICE: &str = "This computer's window";
 
 /// The commands whose fresh proof is the owner's click in the app (ADR
 /// 0117 D4 Q4): those of the contract that ask for one — inviting a
-/// person to the table (`campaign_cmds.rs`). A command of an account's
+/// person to the table (`campaign_cmds.rs`), making a read link
+/// (`readlinks::make`, ADR 0117 D9, S12). A command of an account's
 /// own routes (the password, passkeys, tokens) is not the window's.
-pub const PROVED_BY_THE_CLICK: &[&str] = &["campaign_invite"];
+pub const PROVED_BY_THE_CLICK: &[&str] = &["campaign_invite", "read_link_create"];
 
 /// The buffer of one in-memory connection, each way.
 const BUFFER: usize = 256 * 1024;
@@ -195,19 +196,43 @@ impl Seat {
     /// answered in process, through the same router as the door's. It
     /// waits, so it is not called on an asynchronous thread.
     pub fn get(&self, path: &str) -> Result<Answer, String> {
+        self.request("GET", path, None)
+    }
+
+    /// A request of this server's REST routes — the folder's read links
+    /// (ADR 0117 D9, S12), its shares — answered in process as [`Seat::get`]
+    /// is, with a JSON body when there is one. It waits, so it is not
+    /// called on an asynchronous thread. A route that asks a fresh proof
+    /// takes the owner's click ([`Seat::acted`]) first.
+    pub fn request(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<&serde_json::Value>,
+    ) -> Result<Answer, String> {
         let server = self
             .server
             .upgrade()
             .ok_or_else(|| "serving stopped".to_owned())?;
         let app = super::routes::router(server).layer(axum::Extension(BySeat));
-        let mut request = axum::http::Request::get(path)
+        let method =
+            axum::http::Method::from_bytes(method.as_bytes()).map_err(|e| e.to_string())?;
+        let mut request = axum::http::Request::builder()
+            .method(method)
+            .uri(path)
             .header(axum::http::header::HOST, "127.0.0.1")
             .header(
                 axum::http::header::AUTHORIZATION,
                 format!("Bearer {}", self.token),
-            )
-            .body(axum::body::Body::empty())
-            .map_err(|e| e.to_string())?;
+            );
+        let body = match body {
+            Some(json) => {
+                request = request.header(axum::http::header::CONTENT_TYPE, "application/json");
+                axum::body::Body::from(json.to_string())
+            }
+            None => axum::body::Body::empty(),
+        };
+        let mut request = request.body(body).map_err(|e| e.to_string())?;
         request
             .extensions_mut()
             .insert(ConnectInfo(crate::http::Remote(HERE)));
