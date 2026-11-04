@@ -142,7 +142,7 @@
 .ls-boxes > .ls-h { margin-top: .2rem; }
 .ls-box { align-items: baseline; min-height: 32px; }
 .ls-box-help, .ls-testing { padding-inline-start: 1.5rem; }
-.ls-link, .ls-own-body, .ls-invites, .ls-seat { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
+.ls-link, .ls-own-body, .ls-invites, .ls-seat, .ls-accounts { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
 .ls-link { margin: .3rem 0 0 1.5rem; padding: .6rem .8rem; background: var(--paper-2); border: 1px solid var(--hair); border-radius: 10px; }
 .ls-link[hidden], .ls-inv-made[hidden] { display: none; }
 .ls-link .btn, .ls-own-body > .btn, .ls-invites .btn, .ls-seat .btn { align-self: flex-start; }

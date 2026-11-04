@@ -47,6 +47,7 @@ const CASES = [
   ["like mesa.example.com", "hostname"],
   ["not served now", "notServed"],
   ["turn serving on first", "needOn"],
+  ["that app is not signed in here", "appGone"],
 ];
 
 test("each refusal of the link's path is the host's own phrase and is said in words", () => {

@@ -23,6 +23,7 @@ import { failureText, unreachableAt } from "./reach";
 import { rl } from "./readLinkStrings";
 import { withServerProof } from "./serverProof";
 import { askServerProof } from "./serverProver";
+import { isSeated } from "./dialogs/localServerSeat";
 
 /** The live links of the open folder, and whether the server has them on. */
 let links: ReadLinkInfo[] = [];
@@ -281,7 +282,8 @@ export function openReadLinkDialog(kind: "folder" | "note", path: string): void 
   void loadReadLinks().then(() => {
     if (!enabled) {
       form.hidden = true;
-      warn.textContent = rl.off;
+      // At its own server's table, the switch is in this app's Settings.
+      warn.textContent = isSeated() ? rl.offHere : rl.off;
       warn.classList.add("read-link-off");
     } else {
       void commands.readLinkSecrets(kind, path).then((r) => {

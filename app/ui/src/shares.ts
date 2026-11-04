@@ -47,8 +47,10 @@ export async function loadShares(): Promise<void> {
   if (r.status === "ok") for (const s of r.data.slice(1)) if (s.path && s.people.length > 0) shared.set(s.path, s);
   markShared();
   dispatchEvent(new Event("verso:campaign-status"));
-  // The read links are the owner's too (ADR 0105), and mark the tree beside.
-  if (owner) await loadReadLinks();
+  // The read links are the owner's too (ADR 0105), and mark the tree beside:
+  // the game master's at their own server's table too, whose server has no
+  // shares to list (ADR 0117 D4 Q3).
+  if (owner || mayShare()) await loadReadLinks();
 }
 
 /** Whether the folder at `path`, or one inside it, is shared. */
