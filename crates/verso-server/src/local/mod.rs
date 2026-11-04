@@ -31,6 +31,7 @@ pub mod link;
 pub mod net;
 pub mod pairing;
 mod parts;
+mod players;
 mod policy;
 pub mod qr;
 mod read_links;
@@ -48,6 +49,8 @@ mod tests_link;
 mod tests_parts;
 #[cfg(test)]
 mod tests_parts_bin;
+#[cfg(test)]
+mod tests_players;
 #[cfg(test)]
 mod tests_read_links;
 #[cfg(test)]
@@ -120,6 +123,7 @@ type Sink = Arc<dyn Fn(Event) + Send + Sync>;
 
 pub use self::devices::Device;
 pub use self::invites::{InvitationRow, Invite};
+pub use self::players::{Player, Reset};
 pub use self::policy::{PhoneGuard, Policy, refused_command};
 pub use self::seat::Seat;
 

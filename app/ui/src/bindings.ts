@@ -1067,6 +1067,21 @@ export const commands = {
 	 *  0117 D9, S12): off at first; off ends every link at once.
 	 */
 	localServerReadLinks: (on: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_read_links", { on })),
+	/**
+	 *  The people invited to this computer's server (ADR 0117 D9), for
+	 *  *Pessoas convidadas*; never this computer's own accounts.
+	 */
+	localServerAccounts: () => typedError<LocalPlayer[], ContractError>(__TAURI_INVOKE("local_server_accounts")),
+	/**
+	 *  *Nova senha*: a single-use link for a day that sets a person's new
+	 *  password (ADR 0117 D9; ADR 0074 item 5), said this once; their sessions
+	 *  end now.
+	 */
+	localServerAccountReset: (id: string) => typedError<LocalReset, ContractError>(__TAURI_INVOKE("local_server_account_reset", { id })),
+	/**  *Encerrar sessões*: every session of a person ends, their tokens too. */
+	localServerAccountEndSessions: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_account_end_sessions", { id })),
+	/**  *Remover*: a person's account and everything it held. */
+	localServerAccountRemove: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_account_remove", { id })),
 	/**  The window's folder's sync: off, or its state. */
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
@@ -3287,6 +3302,42 @@ export type LocalPhone = {
 	paired: number,
 	last_seen: number,
 	address: string,
+};
+
+/**
+ *  A person invited to this computer's server, as the section *Pessoas
+ *  convidadas* lists them (ADR 0117 D9): never this computer's own
+ *  accounts (the owner, its window's seat, the holder of the parts).
+ */
+export type LocalPlayer = {
+	/**  The account's id, to act on it. */
+	id: string,
+	name: string,
+	/**  The e-mail-shaped identifier they accepted with (D4 Q5). */
+	email: string,
+	/**  Seconds since the epoch. */
+	created: number,
+	/**  The latest use of any of their sessions; none with no session. */
+	last_seen: number | null,
+	/**  The folders and shares they reach, with their role in each. */
+	reaches: LocalPlayerReach[],
+};
+
+/**  A folder (`Campanha`) or a share (`Campanha/Mapas`) a person reaches. */
+export type LocalPlayerReach = {
+	name: string,
+	/**  `reader`, `editor` or `owner`. */
+	role: string,
+};
+
+/**
+ *  A new password's link for a person (ADR 0117 D9; ADR 0074 item 5): a
+ *  single use for a day, said this once to the owner, who hands it over.
+ */
+export type LocalReset = {
+	link: string,
+	/**  Seconds since the epoch. */
+	expires: number,
 };
 
 /**  Where "this app is a server" stands. */

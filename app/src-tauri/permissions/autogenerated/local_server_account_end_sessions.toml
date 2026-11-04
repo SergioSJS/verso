@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-server-account-end-sessions"
+description = "Enables the local_server_account_end_sessions command without any pre-configured scope."
+commands.allow = ["local_server_account_end_sessions"]
+
+[[permission]]
+identifier = "deny-local-server-account-end-sessions"
+description = "Denies the local_server_account_end_sessions command without any pre-configured scope."
+commands.deny = ["local_server_account_end_sessions"]

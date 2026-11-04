@@ -194,6 +194,41 @@ pub struct LocalDevice {
     pub last_used: u32,
 }
 
+/// A person invited to this computer's server, as the section *Pessoas
+/// convidadas* lists them (ADR 0117 D9): never this computer's own
+/// accounts (the owner, its window's seat, the holder of the parts).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalPlayer {
+    /// The account's id, to act on it.
+    pub id: String,
+    pub name: String,
+    /// The e-mail-shaped identifier they accepted with (D4 Q5).
+    pub email: String,
+    /// Seconds since the epoch.
+    pub created: u32,
+    /// The latest use of any of their sessions; none with no session.
+    pub last_seen: Option<u32>,
+    /// The folders and shares they reach, with their role in each.
+    pub reaches: Vec<LocalPlayerReach>,
+}
+
+/// A folder (`Campanha`) or a share (`Campanha/Mapas`) a person reaches.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalPlayerReach {
+    pub name: String,
+    /// `reader`, `editor` or `owner`.
+    pub role: String,
+}
+
+/// A new password's link for a person (ADR 0117 D9; ADR 0074 item 5): a
+/// single use for a day, said this once to the owner, who hands it over.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalReset {
+    pub link: String,
+    /// Seconds since the epoch.
+    pub expires: u32,
+}
+
 /// A folder the person may tick to serve.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct LocalFolder {

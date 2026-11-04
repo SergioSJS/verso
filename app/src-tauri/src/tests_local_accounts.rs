@@ -19,12 +19,17 @@ use super::*;
 const NAME: &str = "tidy-otter-quiet-lamp.trycloudflare.com";
 const ORIGIN: &str = "https://tidy-otter-quiet-lamp.trycloudflare.com";
 
-/// Every command S7c added: each is in the window's capability, in
-/// `build.rs` and in the generated bindings, and a phone is refused it.
+/// Every command S7c added, and the people invited's (D9): each is in the
+/// window's capability, in `build.rs` and in the generated bindings, and a
+/// phone is refused it.
 const ADDED: &[&str] = &[
     "local_server_devices",
     "local_server_end_device",
     "local_server_read_links",
+    "local_server_accounts",
+    "local_server_account_reset",
+    "local_server_account_end_sessions",
+    "local_server_account_remove",
 ];
 
 struct Served {
@@ -239,6 +244,89 @@ fn the_section_lists_the_desktop_apps_signed_in_and_ends_one() {
     let again = call(&s.webview, "local_server_end_device", json!({ "id": id })).unwrap_err();
     assert_eq!(again["kind"], "refused", "{again}");
     assert!(message(&again).contains("not signed in here"), "{again}");
+}
+
+/// The people invited, from the section (ADR 0117 D9): listed by name and
+/// e-mail, never this computer's own accounts; *Nova senha* gives a link
+/// of the internet link's origin, said once, that sets the new password
+/// through the link — the old session out at once; *Encerrar sessões* signs
+/// the person out; *Remover* takes the account, and a second time is said.
+#[test]
+fn the_section_manages_the_people_invited() {
+    let s = served();
+    assert_eq!(
+        call(&s.webview, "local_server_accounts", json!({})).unwrap(),
+        json!([])
+    );
+    // The owner's window sits: its seat is no one's account to list.
+    call(&s.webview, "local_server_sit_at_table", json!({})).unwrap();
+    let cookie = s.invited("ana@example.org");
+    let listed = call(&s.webview, "local_server_accounts", json!({})).unwrap();
+    let list = listed.as_array().unwrap();
+    assert_eq!(list.len(), 1, "{listed}");
+    assert_eq!(list[0]["name"], "Ana", "{listed}");
+    assert_eq!(list[0]["email"], "ana@example.org", "{listed}");
+    assert!(list[0]["last_seen"].as_u64().is_some(), "{listed}");
+    let id = list[0]["id"].as_str().unwrap().to_owned();
+    let me = |cookie: &str| {
+        s.through(reqwest::Method::GET, "/api/me")
+            .header("cookie", cookie)
+            .send()
+            .unwrap()
+            .status()
+            .as_u16()
+    };
+    assert_eq!(me(&cookie), 200);
+    let reset = call(
+        &s.webview,
+        "local_server_account_reset",
+        json!({ "id": id }),
+    )
+    .unwrap();
+    let link = reset["link"].as_str().unwrap();
+    assert!(link.starts_with(&format!("{ORIGIN}/reset/")), "{reset}");
+    assert_eq!(me(&cookie), 401, "the old session after a reset");
+    let token = link.rsplit_once("/reset/").unwrap().1;
+    let set = s
+        .through(reqwest::Method::POST, &format!("/api/reset/{token}"))
+        .header("origin", ORIGIN)
+        .json(&json!({ "password": "outra senha longa da mesa 2027" }))
+        .send()
+        .unwrap();
+    assert_eq!(set.status().as_u16(), 200);
+    let fresh = set
+        .headers()
+        .get("set-cookie")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(';').next())
+        .unwrap()
+        .to_owned();
+    assert_eq!(me(&fresh), 200);
+    call(
+        &s.webview,
+        "local_server_account_end_sessions",
+        json!({ "id": id }),
+    )
+    .unwrap();
+    assert_eq!(me(&fresh), 401, "signed out by the owner");
+    call(
+        &s.webview,
+        "local_server_account_remove",
+        json!({ "id": id }),
+    )
+    .unwrap();
+    assert_eq!(
+        call(&s.webview, "local_server_accounts", json!({})).unwrap(),
+        json!([])
+    );
+    let again = call(
+        &s.webview,
+        "local_server_account_remove",
+        json!({ "id": id }),
+    )
+    .unwrap_err();
+    assert_eq!(again["kind"], "refused", "{again}");
+    assert!(message(&again).contains("no account here"), "{again}");
 }
 
 /// The read links' switch: off at first, in the status; on and off from the

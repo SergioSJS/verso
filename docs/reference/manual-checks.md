@@ -48,6 +48,7 @@ D9, one line per row (A, with the link on and a real player in a browser, unless
 - [ ] **The web window on a phone**: cold load through the link on mobile data, at 390 x 844: every panel reachable, no sideways scroll, within Cloudflare's 200 requests at once.
 - [ ] **Read links**: turn **Ligar os links de leitura** on, make a link from the seated window, open it in a private window through the link with no account; turn it off and reload: it closes. A link made on a folder served in part opens nothing.
 - [ ] **Passkeys and tokens**: on the network the password only and no passkey button; through the quick link a passkey is made and signs in, and is gone at the next link; a personal token made in the browser lists a folder and writes nothing when it reads only.
+- [ ] **Sign-in by mail and "forgot the password"**: no mail is sent; in **Pessoas convidadas**, **Nova senha** for a real player gives a link; sent by hand and opened on their phone through the link, it sets the new password once (a second open says it is used), the old password is refused after, and their open window was signed out when the link was made. **Encerrar sessões** drops their open browser and their desktop app at once; **Remover** (after the question) leaves them unable to sign in, and their desktop app and token open nothing.
 - [ ] **Out on purpose**: there is no admin console and no sign-in by mail on this server (nothing to look for; the lesson does not promise either).
 
 ### The embedded terminal (ADR 0115, 2026-10-31)

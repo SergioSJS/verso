@@ -23,6 +23,7 @@ import { linkBoxes, linkSentence } from "./localServerLink";
 import { linkStrings } from "./localServerLinkStrings";
 import { invitations } from "./localServerInvites";
 import { accountsBlock } from "./localServerAccounts";
+import { playersBlock } from "./localServerPlayers";
 import { hearSeat, onSeatChange, seatBlock, seatOnMark, setOpener } from "./localServerSeat";
 import type { openFolderBy } from "../open";
 import { drawQr } from "./qr";
@@ -164,6 +165,8 @@ export function localServerBody(_item: Item): HTMLElement {
   const boxes = linkBoxes({ say, redraw: () => void redraw() });
   // Invitations (ADR 0117 D3 item 2).
   const invites = invitations(say);
+  // The people invited: a new password, sessions, remove (ADR 0117 D9).
+  const players = playersBlock(say);
   // Other people's desktop apps, read links, passkeys (ADR 0117 D9).
   const accounts = accountsBlock(say);
   // The window at its own table (ADR 0117 D4 Q3).
@@ -453,7 +456,7 @@ export function localServerBody(_item: Item): HTMLElement {
     const s = r.data;
     void refreshMark();
     unsupported.hidden = s.supported;
-    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, invites.el, accounts.el, seat.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
+    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, invites.el, players.el, accounts.el, seat.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
     if (!s.supported) return;
     keep.checked = s.keep_on;
     most.value = String(s.max_connected);
@@ -477,6 +480,7 @@ export function localServerBody(_item: Item): HTMLElement {
     if (f.status === "ok") drawFolders(f.data, s.serving);
     seat.draw(s, f.status === "ok" ? f.data : []);
     await invites.draw(s, f.status === "ok" ? f.data : []);
+    await players.draw(s);
     await accounts.draw(s);
     await drawPhones(s);
     drawCert(s);
@@ -566,6 +570,7 @@ export function localServerBody(_item: Item): HTMLElement {
     block(foldersHead, foldersLead, folders),
     block(seat.el),
     block(invites.el),
+    block(players.el),
     block(accounts.el),
     block(phonesHead, pair, pairHelp, phones, mostLabel, mostHelp),
     block(cert, danger, log),

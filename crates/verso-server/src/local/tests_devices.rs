@@ -50,7 +50,7 @@ pub(super) async fn as_page(lab: &Lab, path: &str, body: Value, cookie: &str) ->
 /// The desktop app `device` signs in as the person whose browser holds
 /// `cookie`, the way `verso serve`'s device flow goes (ADR 0074 item 8):
 /// the device's token.
-async fn device_token(lab: &Lab, cookie: &str, device: &str) -> String {
+pub(super) async fn device_token(lab: &Lab, cookie: &str, device: &str) -> String {
     let (status, started) = lab
         .post("/api/device/start", json!({ "device": device }), None)
         .await;

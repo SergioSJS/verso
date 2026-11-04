@@ -156,6 +156,8 @@
 .ls-inv-form .ls-pick { margin: 0; width: auto; flex: 1 1 10rem; min-width: 0; }
 .ls-inv-made { display: flex; flex-direction: column; gap: .35rem; padding: .6rem .8rem; border: 1px solid var(--hair); border-radius: 10px; }
 .ls-inv-list .ls-phone-who strong { overflow-wrap: anywhere; }
+.ls-player-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.ls-players-list .ls-phone-who strong { overflow-wrap: anywhere; }
 @media (pointer: coarse) { .ls-box { min-height: 44px; } .ls-box input { width: 22px; height: 22px; } }
 /* The table offline, over the player's window (web/localTable.ts). */
 .web-offline { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: color-mix(in srgb, var(--paper) 82%, transparent); overflow: auto; }
