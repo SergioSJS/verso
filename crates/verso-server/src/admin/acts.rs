@@ -228,6 +228,11 @@ fn told(server: Option<&Server>, account: &str, keep: Option<&str>) {
     }
 }
 
+/// A new password's link made by an admin, in the console or the app.
+pub const RESET_LINK: &str = "reset_link";
+/// A new password's link made on the server's machine.
+pub const RESET_ON_MACHINE: &str = "reset_on_machine";
+
 /// A new password for account `id` (ADR 0074 item 5): a single-use link
 /// for a day, made by `created_by`, which replaces an earlier one. As `verso
 /// serve admin reset` does on the machine (decided 2026-11-04 for the
@@ -236,6 +241,8 @@ fn told(server: Option<&Server>, account: &str, keep: Option<&str>) {
 /// its tokens are revoked, each in the audit; its open connections close
 /// at once (`server`, while one runs). The old password works until the
 /// new one is set from the link. The token is said once, to the caller.
+/// `action` names the act in the audit: [`RESET_LINK`] from the console and
+/// the app, [`RESET_ON_MACHINE`] from `verso serve admin reset`.
 pub fn reset_link(
     db: &Db,
     server: Option<&Server>,
@@ -243,6 +250,7 @@ pub fn reset_link(
     created_by: Option<&str>,
     id: &str,
     keep: Option<&str>,
+    action: &str,
 ) -> Result<(String, Invitation), Refused> {
     db.account(id)?.ok_or(Refused::NotFound)?;
     db.end_links_of(id, "reset")?;
@@ -258,7 +266,7 @@ pub fn reset_link(
         life: db::RESET_LIFE,
         ..NewLink::default()
     })?;
-    by.audit(db, "reset_link", Some(id), None);
+    by.audit(db, action, Some(id), None);
     Ok(made)
 }
 

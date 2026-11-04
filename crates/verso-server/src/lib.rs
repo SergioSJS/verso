@@ -408,32 +408,23 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
     let account = db
         .account_by_email(email)?
         .ok_or_else(|| format!("no account has the e-mail {email}"))?;
-    db.end_sessions(&account.id, None)?;
-    for id in db.revoke_tokens_of(&account.id)? {
-        db.audit(&db::Audit {
-            actor: None,
-            action: "token_revoked",
-            subject: Some(&id),
-            folder: None,
-            address: Some("machine"),
-            ok: true,
-        })?;
-    }
-    db.end_links_of(&account.id, "reset")?;
-    let (token, _) = db.create_invitation(&NewLink {
-        kind: "reset",
-        account: Some(&account.id),
-        life: db::RESET_LIFE,
-        ..NewLink::default()
-    })?;
-    db.audit(&db::Audit {
+    // The console's and the app's act (`admin::acts::reset_link`), from the
+    // machine: no running server to tell (the sessions it ends are refused
+    // at their next request), no one signed in to keep.
+    let by = admin::acts::By {
         actor: None,
-        action: "reset_on_machine",
-        subject: Some(&account.id),
-        folder: None,
         address: Some("machine"),
-        ok: true,
-    })?;
+    };
+    let (token, _) = admin::acts::reset_link(
+        &db,
+        None,
+        &by,
+        None,
+        &account.id,
+        None,
+        admin::acts::RESET_ON_MACHINE,
+    )
+    .map_err(|e| e.to_string())?;
     Ok(format!("{}/reset/{token}", base_url(config)))
 }
 

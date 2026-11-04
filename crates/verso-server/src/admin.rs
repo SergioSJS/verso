@@ -189,6 +189,7 @@ pub async fn reset_link(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response>
         Some(&admin),
         &id,
         keep.as_deref(),
+        acts::RESET_LINK,
     )?;
     let address = link(&ctx, "reset", &token);
     let mut mailed = false;

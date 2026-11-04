@@ -159,6 +159,7 @@ impl LocalServer {
             Some(&owner.id),
             &account.id,
             None,
+            acts::RESET_LINK,
         )
         .map_err(|e| e.to_string())?;
         crate::log::info("a new password's link was made at the computer");
