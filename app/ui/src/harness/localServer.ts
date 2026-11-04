@@ -442,8 +442,10 @@ export class LocalServerHarness {
       this.linkOwn = true;
       return this.status();
     },
-    local_server_own_address_remove: (): LocalServerStatus => {
+    local_server_own_address_remove: (a): LocalServerStatus => {
       if (this.link.own && this.link.state === "on") this.linkOff("stopped");
+      // Forgotten on this computer alone, or deleted at Cloudflare too.
+      this.log(a["hereOnly"] === true ? "own_address_forgotten" : "own_address_removed", this.own?.hostname ?? null);
       this.own = null;
       this.linkOwn = false;
       return this.status();
