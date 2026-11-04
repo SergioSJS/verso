@@ -46,7 +46,7 @@ for (const [title, brackets, word, commit, keyboardHeight] of steps) {
       return;
     }
     expect(await page.evaluate(() => navigator.userAgent)).toContain("Android");
-    await app.quickOpen("11 - Escrevendo");
+    await app.quickOpen("04 - Escrevendo");
     await app.key("Mod+e");
     const editor = page.locator(".pane.focused .cm-content").first();
     await editor.click();

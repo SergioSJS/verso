@@ -263,7 +263,7 @@ test("the kanban by touch: a swipe scrolls, a long press opens the card's menu w
 
 test("the keyboard's bar: shown while the editor has the focus on a touch screen, its keys act on the text @layout", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("11 - Escrevendo");
+  await app.quickOpen("04 - Escrevendo");
   await app.key("Mod+e");
   const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   const editor = page.locator(".pane.focused .cm-content").first();
@@ -351,7 +351,7 @@ test("the tree by touch: Select turns it into a selection with a bar; Keep open 
   await tree(app);
   await menuOf(row("15 - Visualização de Grafo e Conexões.md"));
   await menu.getByRole("menuitem", { name: "Abrir", exact: true }).click();
-  await expect(page.locator(".tab", { hasText: "05 - Visualização" })).toHaveCount(1);
+  await expect(page.locator(".tab", { hasText: "15 - Visualização" })).toHaveCount(1);
   await expect(page.locator(".tab.preview")).toHaveCount(0);
 });
 
@@ -516,7 +516,7 @@ for (const [title, steps] of [
       test.info().annotations.push({ type: "skip", description: "the input method is driven through the DevTools protocol" });
       return;
     }
-    await app.quickOpen("11 - Escrevendo");
+    await app.quickOpen("04 - Escrevendo");
     await app.key("Mod+e");
     const editor = page.locator(".pane.focused .cm-content").first();
     await editor.click();

@@ -201,7 +201,7 @@ test("the tutorial's note 22 rolls its dice and its tables, and stays as it was 
   await app.open();
   const path = "22 - Dados e Tabelas Sorteadas.md";
   const before = await app.file(path);
-  await app.quickOpen("25 - Dados e Tabelas");
+  await app.quickOpen("22 - Dados e Tabelas");
   const preview = page.locator(".preview:visible");
   await preview.getByRole("button", { name: "Rolar 1d20+5" }).click();
   await expect(preview.locator('.dice[data-dice="1d20+5"] .dice-total')).toHaveText(/^\d+$/);

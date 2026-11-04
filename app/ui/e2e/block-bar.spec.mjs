@@ -112,7 +112,7 @@ test("a touch screen: the keys' bar moves, turns and deletes the block @layout",
 
 test("a jump to the end of a long note draws its marks at once, not raw until the parser lands @layout", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("11 - Escrevendo");
+  await app.quickOpen("04 - Escrevendo");
   await app.key("Mod+e");
   // A big window shows the note's code samples, which hold `---` themselves.
   if (!(await coarse(page))) return;
