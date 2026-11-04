@@ -264,6 +264,9 @@ pub struct PairState {
     pub asked: Option<PendingView>,
 }
 
+/// The words of a link asked for before a stop (ADR 0117 D3 item 6).
+const STOPPED_SINCE: &str = "serving was turned off after the internet link was asked for";
+
 /// One running instance of the mode.
 struct Running {
     id: u64,
@@ -313,6 +316,10 @@ struct Shared {
     inner: Mutex<Option<Running>>,
     last_stop: Mutex<Option<String>>,
     next: AtomicU64,
+    /// The stops asked so far, whether or not anything was serving: the
+    /// internet link asked for before a stop does not start serving after
+    /// it ([`Self::link_open_after`], ADR 0117 D3 item 6).
+    stops: AtomicU64,
     /// Loopback let in as a private address: for the tests only, which
     /// cannot count on a private address on the machine they run on.
     #[cfg(test)]
@@ -352,6 +359,7 @@ impl LocalServer {
                 inner: Mutex::new(None),
                 last_stop: Mutex::new(None),
                 next: AtomicU64::new(1),
+                stops: AtomicU64::new(0),
                 #[cfg(test)]
                 loopback: false,
             }),
@@ -389,6 +397,7 @@ impl LocalServer {
                 inner: Mutex::new(None),
                 last_stop: Mutex::new(None),
                 next: AtomicU64::new(1),
+                stops: AtomicU64::new(0),
                 loopback,
             }),
         }
@@ -482,15 +491,21 @@ impl LocalServer {
     /// *On my network*; the link opens with [`Self::link_open`]). `Err`
     /// says why it did not start, in words the person reads.
     pub fn start(&self) -> Result<Status, String> {
-        self.start_with(false)
+        self.start_with(false, None)
     }
 
     /// Serving on: on the network when its box is ticked, and on the
     /// link's loopback listener when `link` (ADR 0117 D1, D4 Q2) — either,
-    /// or both; neither is no start.
-    fn start_with(&self, link: bool) -> Result<Status, String> {
+    /// or both; neither is no start. With `asked` (the stops counted when
+    /// the link was asked for), a stop since then is no start: the person
+    /// turned serving off after asking.
+    fn start_with(&self, link: bool, asked: Option<u64>) -> Result<Status, String> {
+        let stopped_since = || asked.is_some_and(|a| self.shared.stops.load(Ordering::SeqCst) != a);
         if lock(&self.shared.inner).is_some() {
             return self.status();
+        }
+        if stopped_since() {
+            return Err(STOPPED_SINCE.to_owned());
         }
         let settings = self.settings()?;
         if settings.folders.is_empty() {
@@ -679,7 +694,7 @@ impl LocalServer {
             Some(&format!("{} address(es), port {port}", nets.len())),
             None,
         );
-        *lock(&self.shared.inner) = Some(Running {
+        let running = Running {
             id,
             runtime: Some(runtime),
             server,
@@ -693,7 +708,19 @@ impl LocalServer {
             reach: Arc::new(std::sync::atomic::AtomicU8::new(0)),
             link,
             seat: None,
-        });
+        };
+        {
+            // Under the lock a stop counts under: a stop is either seen
+            // here, or takes what is put here.
+            let mut inner = lock(&self.shared.inner);
+            if stopped_since() {
+                drop(inner);
+                drop(running);
+                crate::log::info("serving was stopped while the internet link started it");
+                return Err(STOPPED_SINCE.to_owned());
+            }
+            *inner = Some(running);
+        }
         *lock(&self.shared.last_stop) = None;
         self.spawn_watcher(id);
         (self.shared.events)(Event::Changed);
@@ -822,7 +849,10 @@ impl LocalServer {
     }
 
     fn stop_inner(&self) -> bool {
-        let running = lock(&self.shared.inner).take();
+        let mut inner = lock(&self.shared.inner);
+        self.shared.stops.fetch_add(1, Ordering::SeqCst);
+        let running = inner.take();
+        drop(inner);
         let Some(r) = running else { return false };
         r.policy.pairing().close();
         r.policy.stop_announcing();

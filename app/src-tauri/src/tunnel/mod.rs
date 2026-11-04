@@ -56,15 +56,23 @@ pub trait Door: Send + Sync {
     fn close(&self);
 }
 
-impl Door for verso_server::local::LocalServer {
+/// The local server's door for a link asked for when its stops were
+/// `asked`: a stop of serving since then opens nothing
+/// (`LocalServer::link_open_after`).
+pub struct Serving {
+    pub local: verso_server::local::LocalServer,
+    pub asked: u64,
+}
+
+impl Door for Serving {
     fn open(&self) -> Result<u16, String> {
-        self.link_open()
+        self.local.link_open_after(self.asked)
     }
     fn set_origin(&self, origin: Option<&str>) -> Result<(), String> {
-        self.set_link_origin(origin)
+        self.local.set_link_origin(origin)
     }
     fn close(&self) {
-        self.link_close();
+        self.local.link_close();
     }
 }
 
@@ -252,12 +260,27 @@ impl Manager {
 
     /// Start the link through `door` with `program` (the checked binary)
     /// and return once a connection is registered and the server knows the
-    /// origin. One at a time: refused while one is starting or on.
+    /// origin. One at a time: refused while one is starting or on. (The
+    /// app goes through [`Self::start_after`].)
+    #[cfg(test)]
     pub fn start(
         &self,
         door: Box<dyn Door>,
         program: &Path,
         mode: Mode,
+    ) -> Result<LinkView, String> {
+        let program = program.to_path_buf();
+        self.start_after(mode, move || Ok((door, program)))
+    }
+
+    /// [`Self::start`] once `prepare` said the door and the program — the
+    /// download of `cloudflared` on first use. The link is starting from
+    /// before `prepare`: a stop while it runs is heard, and nothing opens
+    /// after it.
+    pub fn start_after(
+        &self,
+        mode: Mode,
+        prepare: impl FnOnce() -> Result<(Box<dyn Door>, PathBuf), String>,
     ) -> Result<LinkView, String> {
         let shared = &self.shared;
         let own = matches!(mode, Mode::Own { .. });
@@ -276,7 +299,9 @@ impl Manager {
             generation
         };
         shared.emit();
-        match self.bring_up(door, program, &mode, generation, &cancel) {
+        let up = prepare()
+            .and_then(|(door, program)| self.bring_up(door, &program, &mode, generation, &cancel));
+        match up {
             Ok(view) => Ok(view),
             Err(why) => {
                 {
@@ -307,7 +332,12 @@ impl Manager {
     ) -> Result<LinkView, String> {
         let shared = &self.shared;
         let port = {
+            // A stop sets `cancel` holding this lock: stopped before here,
+            // the door is never opened.
             let _ops = lock(&shared.door_ops);
+            if cancel.load(Ordering::SeqCst) {
+                return Err("the link was stopped".to_owned());
+            }
             door.open()?
         };
         // The door is this start's to touch only while no newer start
@@ -685,10 +715,16 @@ pub fn binary<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, S
     Ok(path)
 }
 
+/// The link is starting from the person's click: a *Stop* during the
+/// first download is heard, and a stop of serving since the click starts
+/// nothing ([`Serving`]).
 fn start<R: tauri::Runtime>(app: &tauri::AppHandle<R>, mode: Mode) -> Result<LinkView, String> {
-    let program = binary(app)?;
     let local = crate::local_server::server_for_link(app)?;
-    manager(app).start(Box::new(local), &program, mode)
+    let asked = local.stops();
+    manager(app).start_after(mode, || {
+        let program = binary(app)?;
+        Ok((Box::new(Serving { local, asked }) as Box<dyn Door>, program))
+    })
 }
 
 /// Turn the quick link on (blocking, up to the download and the waits).

@@ -186,8 +186,27 @@ impl LocalServer {
     /// starts if it was off — with the network's listeners too when the
     /// network box is ticked; already open, the same port is said.
     pub fn link_open(&self) -> Result<u16, String> {
+        self.link_open_after(self.stops())
+    }
+
+    /// The stops counted so far: what the host reads when the person asks
+    /// for the link, before `cloudflared` is downloaded and run.
+    #[must_use]
+    pub fn stops(&self) -> u64 {
+        self.shared.stops.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// [`Self::link_open`] for a link asked for when [`Self::stops`] said
+    /// `asked`: after a stop since then nothing opens and serving does not
+    /// start — the person turned it off while the link was still coming
+    /// (the first download of `cloudflared` can take minutes).
+    pub fn link_open_after(&self, asked: u64) -> Result<u16, String> {
         {
+            // Under the lock a stop counts under (`stop_inner`).
             let mut running = lock(&self.shared.inner);
+            if self.stops() != asked {
+                return Err(super::STOPPED_SINCE.to_owned());
+            }
             if let Some(r) = running.as_mut() {
                 if let Some(l) = &r.link {
                     return Ok(l.port);
@@ -210,7 +229,7 @@ impl LocalServer {
                 return Ok(port);
             }
         }
-        self.start_with(true)?;
+        self.start_with(true, Some(asked))?;
         lock(&self.shared.inner)
             .as_ref()
             .and_then(|r| r.link.as_ref().map(|l| l.port))

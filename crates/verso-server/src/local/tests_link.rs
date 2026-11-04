@@ -232,6 +232,45 @@ fn the_link_serves_alone_when_the_network_box_is_unticked() {
     });
 }
 
+/// A stop of serving after the link was asked for — while `cloudflared`
+/// still downloads — starts nothing when the link's door is reached at
+/// last: no listener, no serving (ADR 0117 D3 item 6). Asked again, it
+/// opens.
+#[test]
+fn a_stop_after_the_link_was_asked_for_starts_nothing() {
+    run(async {
+        let lab = lab();
+        let settings = lab.local.settings().unwrap();
+        lab.local
+            .set_settings(&LocalSettings {
+                network: false,
+                ..settings
+            })
+            .unwrap();
+        let asked = lab.local.stops();
+        // The person turns serving off while the link was coming; nothing
+        // was serving yet.
+        lab.local.stop();
+        let refused = lab.local.link_open_after(asked).unwrap_err();
+        assert!(refused.contains("turned off"), "{refused}");
+        let status = lab.local.status().unwrap();
+        assert!(!status.serving);
+        assert_eq!(status.link_port, None);
+        // While serving, too: the link asked before a stop opens nothing.
+        let port = lab.local.link_open_after(lab.local.stops()).unwrap();
+        lab.local.link_close();
+        assert!(!lab.local.status().unwrap().serving);
+        let asked = lab.local.stops();
+        lab.local.link_open().unwrap();
+        lab.local.link_close();
+        assert!(lab.local.link_open_after(asked).is_err());
+        assert!(!lab.local.status().unwrap().serving);
+        assert!(lab.local.link_open_after(lab.local.stops()).unwrap() > 0);
+        assert_ne!(port, 0);
+        lab.local.link_close();
+    });
+}
+
 /// The link opened beside the network takes nothing from it: a phone
 /// paired before reads on, and pairing is never answered through the link.
 #[test]

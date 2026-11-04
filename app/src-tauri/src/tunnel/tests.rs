@@ -572,6 +572,54 @@ fn stop_kills_cloudflared_and_forgets_the_origin_before_closing() {
     );
 }
 
+/// *Stop* while `cloudflared` is still downloading the first time: the
+/// link is starting from the click, so the stop is heard; when the slow
+/// download ends, the door is never opened — nothing serves, no link.
+#[cfg(unix)]
+#[test]
+fn stop_during_the_first_download_opens_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let program = unix::sleeping(dir.path(), "https://a.trycloudflare.com", "0");
+    let (m, _) = manager_with(CEILING);
+    let door = FakeDoor::default();
+    let (downloading, heard) = std::sync::mpsc::channel();
+    let (done, finish) = std::sync::mpsc::channel::<()>();
+    let started = std::thread::scope(|s| {
+        let (m, door, program) = (&m, &door, &program);
+        let start = s.spawn(move || {
+            m.start_after(Mode::Quick, move || {
+                // A slow download: it ends when the test says.
+                downloading.send(()).unwrap();
+                finish.recv().unwrap();
+                Ok((Box::new(door.clone()) as Box<dyn Door>, program.clone()))
+            })
+        });
+        heard.recv().unwrap();
+        let during = m.view().state;
+        let stopped = m.stop(LinkEnd::Stopped);
+        done.send(()).unwrap();
+        (during, stopped, start.join().unwrap())
+    });
+    let (during, stopped, started) = started;
+    assert_eq!(during, LinkState::Starting, "the download is a start");
+    assert_eq!(
+        (stopped.state, stopped.ended),
+        (LinkState::Off, Some(LinkEnd::Stopped))
+    );
+    assert!(started.is_err(), "{started:?}");
+    assert!(
+        door.calls().is_empty(),
+        "the door was touched: {:?}",
+        door.calls()
+    );
+    let view = m.view();
+    assert_eq!(
+        (view.state, view.origin, view.ended),
+        (LinkState::Off, None, Some(LinkEnd::Stopped))
+    );
+    assert_eq!(m.pid(), None);
+}
+
 #[cfg(unix)]
 #[test]
 fn dropping_the_manager_kills_cloudflared() {
