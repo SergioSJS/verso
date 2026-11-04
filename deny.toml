@@ -86,6 +86,12 @@ allow = [
   # Added when upgrading reqwest to v0.13 for the in-app update system
   # (2026-09-27). Ratified by the maintainer in the 0.3.0-beta.1 PR.
   "CDLA-Permissive-2.0",
+  # Boost Software License 1.0: permissive, OSI and FSF approved, no notice
+  # required in a binary — as permissive as MIT. First pulled by xxhash-rust
+  # (its xxh3), a required dependency of notify 9 (the poll watcher's
+  # hashes), taken for the Windows watcher fix (C5, 2026-11-03). Ratified
+  # by the maintainer on 2026-11-04 as an accepted licence.
+  "BSL-1.0",
 ]
 confidence-threshold = 0.9
 # The allowlist is written before the dependencies exist; an unused entry is
@@ -93,12 +99,6 @@ confidence-threshold = 0.9
 unused-allowed-license = "allow"
 exceptions = [
   # { allow = ["..."], crate = "..." }  # only with a justification in the PR
-  # Boost Software License 1.0: permissive, OSI and FSF approved, no notice
-  # required in a binary — as permissive as MIT. xxhash-rust (its xxh3), a
-  # required dependency of notify 9 (the poll watcher's hashes), taken for
-  # the Windows watcher fix (C5, the maintainer, 2026-11-03: "atualiza").
-  # Only this crate; to be ratified by the maintainer.
-  { allow = ["BSL-1.0"], crate = "xxhash-rust" },
 ]
 
 [bans]
