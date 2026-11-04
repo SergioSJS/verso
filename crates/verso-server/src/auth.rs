@@ -390,11 +390,19 @@ fn bearer(headers: &HeaderMap) -> Option<String> {
 
 /// Who a request is from: a bearer token first (a program), then the
 /// session cookie (a browser); `None` when neither opens anything.
-pub fn who(server: &Server, headers: &HeaderMap, https: bool) -> Result<Option<Who>, String> {
+/// `by_seat`: the request came in by the door of the owner's own window
+/// ([`crate::local::seat`]), which nothing a client sends can say.
+pub fn who(
+    server: &Server,
+    headers: &HeaderMap,
+    https: bool,
+    by_seat: bool,
+) -> Result<Option<Who>, String> {
     // "This app is a server" has no tokens and no device sign-in: a bearer
-    // credential opens nothing (ADR 0096 items 2 and 12).
-    if server.local.is_some() && bearer(headers).is_some() {
-        return Ok(None);
+    // credential opens nothing (ADR 0096 items 2 and 12) — but the owner's
+    // window's seat, through its own door alone (ADR 0117 D4 Q3).
+    if let (Some(local), Some(secret)) = (&server.local, bearer(headers)) {
+        return local.seat_who(server, &secret, by_seat);
     }
     if let Some(secret) = bearer(headers) {
         if secret.starts_with("verso_pat_") {

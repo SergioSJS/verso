@@ -219,6 +219,7 @@ fn main() {
         "local_server_forget",
         "local_server_replace_identity",
         "local_server_audit",
+        "local_server_sit_at_table",
         "folder_sync",
         "folder_sync_start",
         "folder_sync_stop",

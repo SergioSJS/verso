@@ -1001,6 +1001,14 @@ export const commands = {
 	 */
 	localServerReplaceIdentity: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_replace_identity")),
 	localServerAudit: () => typedError<LocalAudit[], ContractError>(__TAURI_INVOKE("local_server_audit")),
+	/**
+	 *  Sit this window at the table of its folder, which this app serves (ADR
+	 *  0117 D4 Q3, *Sit at the table*): the window becomes a client of its own
+	 *  server, as the owner, and has the table, the campaign and the
+	 *  invitation as on a UniVerso. Refused for a folder this app does not
+	 *  serve, and while it serves none.
+	 */
+	localServerSitAtTable: () => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("local_server_sit_at_table")),
 	/**  The window's folder's sync: off, or its state. */
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**

@@ -228,6 +228,7 @@
     "allow-local-server-forget",
     "allow-local-server-replace-identity",
     "allow-local-server-audit",
+    "allow-local-server-sit-at-table",
     "allow-folder-sync",
     "allow-folder-sync-start",
     "allow-folder-sync-stop",

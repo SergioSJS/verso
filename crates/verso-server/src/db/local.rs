@@ -140,6 +140,18 @@ impl Db {
         Ok((token, csrf, id))
     }
 
+    /// End the sessions of the owner's window's seat (`device`, a device
+    /// session of `owner`) that a run before left — a crash: no seat
+    /// outlives serving (ADR 0117 D4 Q3).
+    pub fn end_seats(&self, owner: &str, device: &str) -> R<usize> {
+        self.conn()
+            .execute(
+                "DELETE FROM sessions WHERE account = ?1 AND kind = 'device' AND device = ?2",
+                params![owner, device],
+            )
+            .map_err(e)
+    }
+
     /// The role session `id` was paired with; `None` when it is no
     /// phone's — a session without a row opens nothing in this mode.
     pub fn phone_role(&self, id: &str) -> R<Option<Role>> {

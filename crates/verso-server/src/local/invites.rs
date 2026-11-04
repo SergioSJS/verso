@@ -49,7 +49,7 @@ pub struct InvitationRow {
 /// Where an invitation is opened: the link's origin while it has one, else
 /// the network's address this server is reached at — the host's own name
 /// with its own certificate files, or the best address (D4 Q8).
-fn base(r: &Running) -> Option<String> {
+pub(super) fn base(r: &Running) -> Option<String> {
     if let Some(origin) = r.policy.link_origin() {
         return Some(origin);
     }

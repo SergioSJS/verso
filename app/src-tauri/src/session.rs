@@ -54,7 +54,13 @@ fn shown<R: tauri::Runtime>(app: &tauri::AppHandle<R>, except: Option<&str>) -> 
     labels
         .iter()
         .filter_map(|label| match remote::of(app, label) {
-            Some(r) => Some(server_key(&r.url, &r.folder)),
+            // The owner's window at its own server's table comes back on
+            // this computer's folder it sat from (ADR 0117 D4 Q3).
+            Some(r) => Some(
+                r.seat
+                    .as_ref()
+                    .map_or_else(|| server_key(&r.url, &r.folder), |(_, key)| key.clone()),
+            ),
             None => state
                 .service
                 .folder_of(label)

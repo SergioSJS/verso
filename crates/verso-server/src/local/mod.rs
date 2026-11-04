@@ -33,6 +33,7 @@ mod parts;
 mod policy;
 pub mod qr;
 mod routes;
+pub mod seat;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -43,6 +44,8 @@ mod tests_link;
 mod tests_parts;
 #[cfg(test)]
 mod tests_parts_bin;
+#[cfg(test)]
+mod tests_seat;
 #[cfg(test)]
 mod tests_serving;
 
@@ -107,6 +110,7 @@ type Sink = Arc<dyn Fn(Event) + Send + Sync>;
 
 pub use self::invites::{InvitationRow, Invite};
 pub use self::policy::{PhoneGuard, Policy, refused_command};
+pub use self::seat::Seat;
 
 /// The settings of the mode that outlast a start.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -252,6 +256,9 @@ struct Running {
     /// The internet link's listener, while the link box is ticked; `nets`
     /// is empty when it serves alone.
     link: Option<link::Listener>,
+    /// The owner's window's door, from its first sitting at a table until
+    /// serving stops (ADR 0117 D4 Q3).
+    seat: Option<seat::Door>,
 }
 
 impl Drop for Running {
@@ -493,6 +500,8 @@ impl LocalServer {
         let db = self.open_db()?;
         let owner = db.local_owner()?;
         db.purge_phones()?;
+        // No seat outlives serving: one a crash left is swept.
+        db.end_seats(&owner.id, seat::SEAT_DEVICE)?;
         // The folders ticked, by the name each is given; the registry in the
         // database follows them.
         let folders = names_for(&settings.folders);
@@ -654,6 +663,7 @@ impl LocalServer {
             tailscale,
             reach: Arc::new(std::sync::atomic::AtomicU8::new(0)),
             link,
+            seat: None,
         });
         *lock(&self.shared.last_stop) = None;
         self.spawn_watcher(id);
@@ -788,6 +798,7 @@ impl LocalServer {
         r.policy.pairing().close();
         r.policy.stop_announcing();
         r.policy.audit(&r.server, "local_off", None, None);
+        seat::close(&r);
         crate::log::info("local server stopped");
         // Dropping it ends the listeners and the runtime ([`Running`]).
         drop(r);
@@ -1096,7 +1107,8 @@ impl LocalServer {
         let n = if let Some(r) = running.as_ref() {
             let owner = owner_of(&r.server);
             let ids = r.server.db.forget_phones()?;
-            r.server.sessions_ended(&owner, None, None);
+            // The owner's own window at the table is no device to forget.
+            r.server.sessions_ended(&owner, None, seat::session_of(r));
             r.policy.audit(
                 &r.server,
                 "phones_forgotten",

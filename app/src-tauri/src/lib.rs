@@ -969,6 +969,7 @@ macro_rules! commands_for {
                 local_server_forget::<$runtime>,
                 local_server_replace_identity::<$runtime>,
                 local_server_audit::<$runtime>,
+                local_server_sit_at_table::<$runtime>,
                 folder_sync::<$runtime>,
                 folder_sync_start::<$runtime>,
                 folder_sync_stop::<$runtime>,
@@ -1417,6 +1418,8 @@ mod tests_live;
 mod tests_live_table;
 #[cfg(test)]
 mod tests_local;
+#[cfg(test)]
+mod tests_local_seat;
 #[cfg(test)]
 mod tests_loose;
 #[cfg(test)]

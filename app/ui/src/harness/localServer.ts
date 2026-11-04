@@ -259,6 +259,14 @@ export class LocalServerHarness {
       return this.status();
     },
     local_server_audit: (): LocalAudit[] => this.audit.map((e) => ({ ...e })),
+    // The window at its own table (ADR 0117 D4 Q3): refused as the app
+    // refuses it while the folder is not served; the harness has no server
+    // a window sits at — the Rust tests drive the real seat.
+    local_server_sit_at_table: (): never => {
+      if (!this.serving) refuse("turn serving on first, with this folder ticked");
+      if (!this.ticked.has("harness")) refuse("this folder is not served: tick it to serve it");
+      refuse("the harness has no server to sit at");
+    },
   };
 }
 

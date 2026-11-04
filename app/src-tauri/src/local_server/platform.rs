@@ -9,7 +9,9 @@ use super::*;
 /// the configuration directory (ADR 0096 item 16), the window's files from
 /// the app's resources (and, in a debug build, the build next to the
 /// source).
-fn server<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<LocalServer, ContractError> {
+pub(super) fn server<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<LocalServer, ContractError> {
     let state = app.state::<App>();
     if let Some(s) = state.local_server.server.get() {
         return Ok(s.clone());
@@ -37,7 +39,7 @@ fn server<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<LocalServer, C
 
 /// `f` off the async threads (it opens a database and may start a
 /// runtime), its words of failure as the contract's.
-async fn blocking<T: Send + 'static>(
+pub(super) async fn blocking<T: Send + 'static>(
     f: impl FnOnce() -> Result<T, String> + Send + 'static,
 ) -> Result<T, ContractError> {
     tauri::async_runtime::spawn_blocking(f)
@@ -196,7 +198,10 @@ pub(super) async fn tick<R: tauri::Runtime>(
 }
 
 /// The directory of the folder this computer knows by `key`.
-fn known_path<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) -> Result<PathBuf, String> {
+pub(super) fn known_path<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    key: &str,
+) -> Result<PathBuf, String> {
     let state = app.state::<App>();
     verso_core::recent_folders(state.service.config())
         .into_iter()

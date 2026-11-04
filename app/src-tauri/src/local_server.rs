@@ -24,6 +24,16 @@ pub(crate) struct LocalSlot {
 }
 
 mod platform;
+pub(crate) mod seat;
+
+#[cfg(test)]
+impl LocalSlot {
+    /// The mode's server made by a test (its window's files, its
+    /// directory), before the app makes its own.
+    pub(crate) fn set_for_tests(&self, server: verso_server::local::LocalServer) {
+        let _ = self.server.set(server);
+    }
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -210,6 +220,20 @@ pub(crate) async fn local_server_audit<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<Vec<LocalAudit>, ContractError> {
     platform::audit(app).await
+}
+
+/// Sit this window at the table of its folder, which this app serves (ADR
+/// 0117 D4 Q3, *Sit at the table*): the window becomes a client of its own
+/// server, as the owner, and has the table, the campaign and the
+/// invitation as on a UniVerso. Refused for a folder this app does not
+/// serve, and while it serves none.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_sit_at_table<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<FolderInfo, ContractError> {
+    seat::sit(app, window).await
 }
 
 /// At the app's start: serve again when the person asked it to keep on

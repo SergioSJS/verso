@@ -201,6 +201,11 @@ pub(crate) struct Remote {
     /// The server's release, as its hello says it: what a command it does
     /// not know yet is told with.
     version: String,
+    /// The owner's own window at a folder this computer serves (ADR 0117
+    /// D4 Q3): the connection is in memory, the files are asked of the
+    /// server in process, and the key of this computer's folder it sat
+    /// from is what a start brings back (`crate::local_server::seat`).
+    pub(crate) seat: Option<(Arc<verso_server::local::Seat>, String)>,
 }
 
 impl Remote {
@@ -392,6 +397,12 @@ impl Remote {
             headers: vec![("Content-Type", "text/plain; charset=utf-8".to_owned())],
             body: why.into_bytes(),
         };
+        if let Some((seat, _)) = &self.seat {
+            return match seat.get(&format!("/f/{}/{path}", self.folder)) {
+                Ok(a) => crate::local_server::seat::served(a),
+                Err(e) => refuse(502, e),
+            };
+        }
         // The same total time as before the resolver (30 s), not the 20 s
         // of a JSON answer.
         let client = match http_within(std::time::Duration::from_secs(30)) {
@@ -930,29 +941,7 @@ pub(crate) async fn dial_hello(
     login: &ServerLogin,
     folder: String,
 ) -> Result<(Arc<Remote>, mpsc::UnboundedReceiver<Heard>, Value), ContractError> {
-    let ws_url = format!(
-        "{}/api/ws",
-        login
-            .url
-            .replacen("https://", "wss://", 1)
-            .replacen("http://", "ws://", 1)
-    );
-    let mut request = ws_url
-        .into_client_request()
-        .map_err(|e| failed(e.to_string()))?;
-    let bearer = format!("Bearer {}", login.token)
-        .parse()
-        .map_err(|_| failed("a token that is no header"))?;
-    request.headers_mut().insert("authorization", bearer);
-    // The sync this app speaks (ADR 0079 item 5): the server answers its
-    // own in the hello, and whether it follows this one.
-    let sync = verso_core::sync::PROTOCOL
-        .to_string()
-        .parse()
-        .map_err(|_| failed("a sync version that is no header"))?;
-    request
-        .headers_mut()
-        .insert(verso_core::sync::PROTOCOL_HEADER, sync);
+    let request = ws_request(&login.url, &login.token)?;
     // The connection is made here, not by the library, so the name is
     // resolved by the same rule as every other request (dns.rs, ADR 0097):
     // the TLS handshake still verifies the certificate for the URL's name.
@@ -969,6 +958,51 @@ pub(crate) async fn dial_hello(
             80
         });
     let socket = ws_open(&login.url, &host, port, request, None).await?;
+    attach(socket, &login.url, &login.token, folder, None).await
+}
+
+/// The contract's WebSocket request to the server at `url` with `token`.
+pub(crate) fn ws_request(
+    url: &str,
+    token: &str,
+) -> Result<tokio_tungstenite::tungstenite::handshake::client::Request, ContractError> {
+    let ws_url = format!(
+        "{}/api/ws",
+        url.replacen("https://", "wss://", 1)
+            .replacen("http://", "ws://", 1)
+    );
+    let mut request = ws_url
+        .into_client_request()
+        .map_err(|e| failed(e.to_string()))?;
+    let bearer = format!("Bearer {token}")
+        .parse()
+        .map_err(|_| failed("a token that is no header"))?;
+    request.headers_mut().insert("authorization", bearer);
+    // The sync this app speaks (ADR 0079 item 5): the server answers its
+    // own in the hello, and whether it follows this one.
+    let sync = verso_core::sync::PROTOCOL
+        .to_string()
+        .parse()
+        .map_err(|_| failed("a sync version that is no header"))?;
+    request
+        .headers_mut()
+        .insert(verso_core::sync::PROTOCOL_HEADER, sync);
+    Ok(request)
+}
+
+/// A connection over `socket`, open to the server at `url`: the tasks that
+/// write and read it, its hello waited for. A socket over the network
+/// ([`dial_hello`]) or one in memory (the owner's own window, `seat`).
+pub(crate) async fn attach<S>(
+    socket: tokio_tungstenite::WebSocketStream<S>,
+    url: &str,
+    token: &str,
+    folder: String,
+    seat: Option<(Arc<verso_server::local::Seat>, String)>,
+) -> Result<(Arc<Remote>, mpsc::UnboundedReceiver<Heard>, Value), ContractError>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
     let (mut write, mut read) = socket.split();
     let (tx, mut rx) = mpsc::channel::<Message>(QUEUE);
     let (heard_tx, heard_rx) = mpsc::unbounded_channel::<Heard>();
@@ -980,7 +1014,8 @@ pub(crate) async fn dial_hello(
     let writing = Arc::clone(&pending);
     let heard_w = heard_tx.clone();
     let (dead_w, unanswered_w) = (Arc::clone(&dead), Arc::clone(&unanswered));
-    let url = login.url.clone();
+    let server_url = url.to_owned();
+    let url = server_url.clone();
     tauri::async_runtime::spawn(async move {
         let mut ping =
             tokio::time::interval_at(tokio::time::Instant::now() + PING_EVERY, PING_EVERY);
@@ -1107,7 +1142,7 @@ pub(crate) async fn dial_hello(
         .await
         .map_err(|_| failed("the server did not answer"))?
         .map_err(|_| failed("the server closed the connection"))?;
-    crate::compat::note(&login.url, &hello);
+    crate::compat::note(&server_url, &hello);
     // Pieces as binary messages when both sides speak a sync that takes
     // them; a server that says no sync speaks the one before the first.
     let theirs = hello["sync"]
@@ -1115,9 +1150,9 @@ pub(crate) async fn dial_hello(
         .map_or(0, |v| u32::try_from(v).unwrap_or(u32::MAX));
     let binary = verso_core::sync::binary_pieces(theirs.min(verso_core::sync::PROTOCOL));
     let remote = Arc::new(Remote {
-        url: login.url.clone(),
+        url: server_url,
         folder,
-        token: login.token.clone(),
+        token: token.to_owned(),
         next: AtomicU64::new(1),
         latency: std::sync::atomic::AtomicU32::new(0),
         pending,
@@ -1125,6 +1160,7 @@ pub(crate) async fn dial_hello(
         dead,
         binary,
         version: hello["version"].as_str().unwrap_or("?").to_owned(),
+        seat,
     });
     Ok((remote, heard_rx, hello))
 }
@@ -1137,12 +1173,27 @@ async fn connect<R: tauri::Runtime>(
     login: ServerLogin,
     folder: String,
 ) -> Result<Arc<Remote>, ContractError> {
-    let (remote, mut heard) = dial(&login, folder).await?;
+    let (remote, heard) = dial(&login, folder).await?;
+    hear(app, label, &remote, heard);
+    Ok(remote)
+}
+
+/// What the window's connection `remote` hears goes to the window; once it
+/// closes, while it is still the window's, it is tried again — or, for the
+/// owner's own window at the table (`seat`), whose server stopped, the
+/// window is let go of it and told its session ended.
+pub(crate) fn hear<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+    remote: &Arc<Remote>,
+    mut heard: mpsc::UnboundedReceiver<Heard>,
+) {
     // This connection, to tell it from the one that may replace it.
-    let this = Arc::downgrade(&remote);
+    let this = Arc::downgrade(remote);
+    let seated = remote.seat.is_some();
     let app_r = app.clone();
     let label_r = label.to_owned();
-    let url_r = login.url;
+    let url_r = remote.url.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(h) = heard.recv().await {
             match h {
@@ -1174,7 +1225,14 @@ async fn connect<R: tauri::Runtime>(
             .get(&label_r)
             .filter(|r| std::ptr::eq(Arc::as_ptr(r), this.as_ptr()))
             .map(|r| r.folder.clone());
-        if let Some(folder) = still {
+        if still.is_some() && seated {
+            release(&app_r, &label_r);
+            let _ = app_r.emit_to(
+                label_r.as_str(),
+                "server-gone",
+                gone(&url_r, "session", None, None),
+            );
+        } else if let Some(folder) = still {
             let _ = app_r.emit_to(
                 label_r.as_str(),
                 "server-gone",
@@ -1191,7 +1249,6 @@ async fn connect<R: tauri::Runtime>(
             ));
         }
     });
-    Ok(remote)
 }
 
 /// What a window on a server's folder hears when the server, or what it
@@ -1386,6 +1443,13 @@ pub(crate) fn forward<R: tauri::Runtime>(
         tauri::ipc::InvokeBody::Json(v) => v.clone(),
         tauri::ipc::InvokeBody::Raw(_) => Value::Null,
     };
+    // The owner acting from the window at its own server's table: the
+    // click is the fresh proof (ADR 0117 D4 Q4).
+    if let Some((seat, _)) = &remote.seat
+        && let Err(e) = seat.acted(&cmd)
+    {
+        log::write("WARN", "host", &format!("the window's proof: {e}"));
+    }
     let resolver = invoke.resolver;
     // Put on the connection here, in the order the window asked: a task's
     // first turn comes in any order, and the server takes a window's room

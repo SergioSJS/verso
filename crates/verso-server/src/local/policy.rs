@@ -70,6 +70,10 @@ pub struct Policy {
     pub(super) link: RwLock<Option<super::link::Origin>>,
     /// The named proxies of the link's loopback listener.
     pub(super) link_proxies: crate::proxy::Proxies,
+    /// The session of the owner's window's seat, while there is one (ADR
+    /// 0117 D4 Q3): the one bearer credential this server takes, and only
+    /// through the seat's door (`seat.rs`).
+    pub(super) seat: RwLock<Option<String>>,
     /// Loopback let in as a peer, for the tests only.
     #[cfg(test)]
     pub(super) test_loopback: std::sync::atomic::AtomicBool,
@@ -93,6 +97,7 @@ impl Policy {
             parts: parts::Parts::default(),
             link: RwLock::new(None),
             link_proxies: crate::proxy::Proxies::loopback(),
+            seat: RwLock::new(None),
             #[cfg(test)]
             test_loopback: std::sync::atomic::AtomicBool::new(false),
         })

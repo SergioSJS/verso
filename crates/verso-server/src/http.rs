@@ -132,7 +132,8 @@ impl FromRequestParts<Arc<Server>> for Ctx {
         let peer = auth::peer(server, &parts.headers, remote, link);
         // Over plain HTTP the session cookie is the plain-named one
         // (ADR 0073 item 6, amended 2026-10-16).
-        let who = auth::who(server, &parts.headers, peer.https)?;
+        let seat = crate::local::seat::by_seat(&parts.extensions);
+        let who = auth::who(server, &parts.headers, peer.https, seat)?;
         Ok(Self {
             server: Arc::clone(server),
             peer,
@@ -672,7 +673,7 @@ const SERVICE_WORKER: &str = "/sw.js";
 /// anything else — a space, a quote, a semicolon, a wildcard, a path —
 /// would change the policy it is written into, and is left out.
 fn tile_origins(server: &Server, headers: &HeaderMap, https: bool) -> Vec<String> {
-    let Ok(Some(who)) = auth::who(server, headers, https) else {
+    let Ok(Some(who)) = auth::who(server, headers, https, false) else {
         return Vec::new();
     };
     if matches!(who.via, auth::Via::Token { .. }) {
