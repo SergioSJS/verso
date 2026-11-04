@@ -114,6 +114,14 @@
   empty folder…* is a small second action; an account that may not make
   folders keeps the invitation text. The host's `server_create_folder`
   asks the server's `POST /api/folders` with the device's session. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) makes a cloud folder another remote of this sync (its item 4 maps which items hold, adapt, or do not apply).
+  2026-11-02 — item 5, amended with [0073](0073-self-hosted-server-first.md)
+  item 2 (the maintainer: *"Versão + janela N/N-1"*; built on 2026-11-03
+  for 0.8.5): a synced folder is decided **only by the sync protocol
+  version** — the current and the previous, as item 5 already says. The
+  contract's hash, which the app used to compare before the sync's
+  version and which stopped the Mac's sync with VM 107 when only a
+  comment of the bindings differed, no longer refuses a sync; it goes to
+  the app's log. Item 5's words are kept.
 
 ## Context
 

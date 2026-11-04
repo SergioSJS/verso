@@ -718,7 +718,7 @@ written.
 amendment is now *Send files*.
 
 Accepted (2026-10-28); was Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
-maintainer on 2026-10-21 (`~/Projects/person/apps/verso-decisoes-0107-mesa-2026-10-21.md`,
+maintainer on 2026-10-21 (`~/Projects/person/apps/verso-archive/decisoes-2026-10/verso-decisoes-0107-mesa-2026-10-21.md`,
 outside the repository); the three questions those answers opened —
 where an image goes (item 3), where the log is saved (item 5), deleting
 one entry (item 6) — decided the same day as recommended. Items marked

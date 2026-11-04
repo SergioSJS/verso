@@ -283,7 +283,7 @@ and items 1–6, 8–14 in substance; open then: what "closed" means (item 3), t
 default visibility (item 4), the players' boards (item 6), the link rendering
 (item 7); those were answered next. Not built then.
 
-Answered 2026-10-22 (`~/Projects/person/apps/verso-decisoes-0110-mesa-campanha-2026-10-22.md`):
+Answered 2026-10-22 (`~/Projects/person/apps/verso-archive/decisoes-2026-10/verso-decisoes-0110-mesa-campanha-2026-10-22.md`):
 MC.1 = A, MC.2 = A (hidden until released), MC.3 = A, MC.4 = B. On the table
 log's ceiling of [0107](0107-the-table-a-shared-roll-and-chat-log.md) (MS.1):
 *"pode ser, mas talvez faça sentido ser configurável e limite por mesa"* — the

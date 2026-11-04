@@ -136,6 +136,16 @@ impl<'a> Author<'a> {
             ..Self::default()
         }
     }
+
+    /// Whether the change names someone: a change of nobody's is the
+    /// watcher's, from outside Verso.
+    #[must_use]
+    pub fn names_someone(&self) -> bool {
+        self.account.is_some()
+            || self.device.is_some()
+            || self.token.is_some()
+            || self.room.is_some()
+    }
 }
 
 /// The folder's files as the index lists them, and the folder's settings
@@ -307,6 +317,9 @@ fn reconcile_held(
     let mut present: HashSet<String> = HashSet::new();
     let mut created: Vec<(String, String, i64, String)> = Vec::new();
     let mut quick_only: Vec<(String, String)> = Vec::new();
+    // A path the caller wrote whose bytes the log holds already: the
+    // watcher's walk took the change first, with no author.
+    let mut same: Vec<crate::db::Recorded> = Vec::new();
     let mut too_large: Vec<(String, u64)> = Vec::new();
     for (path, listed) in candidates {
         let old = known.get(&path);
@@ -362,6 +375,9 @@ fn reconcile_held(
             .or(listed_quick)
             .unwrap_or_else(|| format!("{}:0", read.len));
         if old.is_some_and(|k| k.hash == hash) {
+            if forced.contains(path.as_str()) {
+                same.push((path.clone(), Some((hash, size, quick.clone())), None));
+            }
             quick_only.push((path, quick));
         } else {
             created.push((path, hash, size, quick));
@@ -373,14 +389,20 @@ fn reconcile_held(
         .filter(|(p, _)| !present.contains(p.as_str()))
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
-    record_changes(
+    let head = record_changes(
         server,
         (folder, key),
         by,
         (&known, &gone),
         (created, moved),
         &quick_only,
-    )
+    )?;
+    // A window's write the watcher recorded first (C3, seen on Windows):
+    // offered to the history with its author, as `reconcile_paths` does.
+    if by.names_someone() {
+        crate::history::recorded(server, (folder, key), by, &same, false);
+    }
+    Ok(head)
 }
 
 /// The hash of the file at `path`, its length and the revision it was read

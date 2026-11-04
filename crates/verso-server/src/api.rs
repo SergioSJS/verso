@@ -29,6 +29,7 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
     Ok(ok(json!({
         "version": known.then_some(env!("CARGO_PKG_VERSION")),
         "contract": known.then_some(&ctx.server.contract),
+        "contractVersion": known.then_some(verso_contract::compat::VERSION),
         "secure": ctx.peer.https,
         "web": ctx.server.config.web,
         // "This app is a server" (ADR 0096): there is no sign-in here, only

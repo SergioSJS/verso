@@ -13,7 +13,7 @@ import { flash } from "./notify";
 import { isTableClosed } from "./errorKinds";
 import { fail } from "./errors";
 import { showTableClosed } from "./tableClosed";
-import { forgetFiles } from "./files";
+import { forgetFiles, forgetMoves } from "./files";
 import { loadFolderLayer } from "./folderLayer";
 import { loadFocuses } from "./focuses";
 import { currentFolder, LAST_FOLDER, nameFolderButton, secondary, setCurrentFolder, setFolderName } from "./folder";
@@ -121,6 +121,7 @@ function tellVolume(info: FolderInfo): void {
   flash("info", info.name, t.lateOutsideChanges(fs));
 }
 export async function showFolder(info: FolderInfo): Promise<void> {
+  forgetMoves();
   setCurrentFolder(info.key);
   enterFolderTheme();
   setFolderName(info.name);

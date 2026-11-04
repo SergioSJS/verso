@@ -348,6 +348,7 @@ async fn run(server: Arc<Server>, token: String, live: Live, scope: Scope, mut s
         "version": env!("CARGO_PKG_VERSION"),
         "commit": server.commit,
         "contract": server.contract,
+        "contractVersion": verso_contract::compat::VERSION,
         "sync": server.sync(),
         "account": Value::Null,
         "link": true,

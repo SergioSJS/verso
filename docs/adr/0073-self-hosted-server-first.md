@@ -219,6 +219,31 @@
   2026-10-21 — six `[OPEN]` of the Status answered by the maintainer's marks
   in the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all as
   recommended; each is written under the Status. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) brings the desktop's sync with WebDAV and a bucket into V1; item 4(b), the server's bucket, unchanged and after V1.
+  2026-11-02 — item 2's contract version, amended (Architecture Path,
+  built on 2026-11-03 for 0.8.5). The Mac's beta stopped syncing with VM
+  107 because the two builds' binding hashes differed, and the maintainer
+  observed *"não temos controle disso quando lançado"* — after a release
+  apps update themselves and self-hosted servers do not — and chose
+  *"Versão + janela N/N-1"*: the contract gains an **integer version**
+  (`verso_contract::compat::VERSION`, 1 first), sent as `contractVersion`
+  in the WebSocket hello beside the hash (and in `/api/state` to someone
+  signed in); the contract changes **only by adding** (a new optional
+  field, a new command), and a change that breaks one side bumps the
+  number; the desktop app takes a server of its own number and of one
+  apart, either way, and refuses only beyond that, naming each side's
+  version, build and number. A server of a release before 0.8.5 says no
+  number and is taken as 0, the one before the first. The **hash never
+  refuses** a desktop app: when it differs it is written to the app's
+  log. A command the older side does not know yet is answered "the
+  server runs Verso X, which does not do this yet: update the server"
+  instead of "no such command"; a feature that needs one is shown off
+  with the same words when it is built, through `capabilities`
+  ([0027](0027-runtime-capabilities.md)). A browser page this server
+  served still reloads on the hash ([0096](0096-this-app-is-a-server.md)
+  item 18): it is the server's own build. Item 2's words above are kept.
+  A synced folder is judged by the sync's version alone:
+  [0079](0079-sync-a-local-folder-with-a-server.md) item 5, revised the
+  same day.
 
 ## Context
 

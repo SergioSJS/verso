@@ -16,7 +16,7 @@ export type Strings = Record<
   | "frameMenu" | "frameMenuHint" | "frameControls" | "frameMinimize" | "frameMaximize" | "frameRestore" | "frameClose"
   | "maximize" | "restore" | "newNote" | "newNoteName" | "rename" | "deleteNote" | "openTab" | "openPane" | "newHere" | "newWorld" | "oracle"
   | "planApply" | "planSkip" | "exists" | "unlinkableName" | "unportableName" | "caseTwinName" | "collapseAll" | "expandAll" | "newSpace" | "space" | "closeSpace" | "untitled"
-  | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysSplit" | "keysSpace" | "moveTo" | "moved"
+  | "folderView" | "asList" | "asGrid" | "readOnly" | "keysNew" | "keysSplit" | "keysSpace" | "moveTo" | "moved" | "moveUndone" | "moveRedone"
   | "bold" | "italic" | "strike" | "highlight" | "heading" | "link" | "wikilink" | "bullets" | "numbers" | "task" | "quote" | "code" | "rule" | "pasteHint" | "pasted"
   | "closeOthers" | "closeAll" | "closeRight" | "allTabs" | "verticalTabs" | "horizontalTabs" | "newFolder" | "newFolderName" | "folderCreated" | "graph" | "graphOf" | "reopen" | "recent" | "sidebarResize" | "openSplit"
   | "scopeFolder" | "scopeMachine" | "scopeFolderTip" | "scopeMachineTip" | "bookmarksSettingDesc"
@@ -172,7 +172,7 @@ export const pt: Strings = {
   openTab: "Abrir em aba nova", openPane: "Abrir ao lado", newHere: "Nova nota nesta pasta", planApply: "Atualizar links", planSkip: "Deixar como está",
   exists: "Já existe um arquivo com esse nome.", unlinkableName: "Um link não alcança um nome com [ ] | # ^ — escolha outro.", unportableName: "O Windows não guarda esse nome (CON, NUL, COM1…, ponto ou espaço no fim, ou : * \" < > ? | \\) — escolha outro, para a pasta sincronizar em qualquer sistema.", caseTwinName: "Esta pasta já tem um nome que só difere desse em maiúsculas e minúsculas, ou na forma em que os acentos foram gravados — num Mac ou no Windows os dois seriam um arquivo só. Escolha outro.", collapseAll: "Recolher tudo", expandAll: "Expandir tudo", newSpace: "Nova área", space: "Área",
   closeSpace: "Fechar espaço de trabalho", untitled: "Sem título", folderView: "Pasta", asList: "Lista", asGrid: "Miniaturas", readOnly: "Só leitura: não é uma nota Markdown.",
-  keysNew: "nova nota", keysSplit: "dividir", keysSpace: "novo espaço de trabalho", moveTo: "Mover para", moved: "Movido.",
+  keysNew: "nova nota", keysSplit: "dividir", keysSpace: "novo espaço de trabalho", moveTo: "Mover para", moved: "Movido.", moveUndone: "Movimento desfeito.", moveRedone: "Movimento refeito.",
   bold: "Negrito", italic: "Itálico", strike: "Riscado", highlight: "Destaque", heading: "Título", link: "Link", wikilink: "Link interno [[ ]]",
   bullets: "Lista", numbers: "Lista numerada", task: "Tarefa", quote: "Citação", code: "Código", rule: "Separador", pasteHint: "Cole ou arraste uma imagem para anexar", pasted: "Imagem anexada em assets/.",
   closeOthers: "Fechar as outras", closeAll: "Fechar todas", closeRight: "Fechar as da direita", allTabs: "Todas as abas", verticalTabs: "Abas na vertical", horizontalTabs: "Abas na horizontal",
@@ -361,7 +361,7 @@ export const en: Strings = {
   openTab: "Open in new tab", openPane: "Open to the side", newHere: "New note in this folder", planApply: "Update links", planSkip: "Leave them",
   exists: "A file with that name already exists.", unlinkableName: "A link cannot reach a name with [ ] | # ^ — choose another.", unportableName: "Windows cannot keep that name (CON, NUL, COM1…, a trailing dot or space, or : * \" < > ? | \\) — choose another, so the folder syncs on any system.", caseTwinName: "This folder already has a name that differs from that one only in upper and lower case, or in how its accents were stored — on a Mac or Windows the two would be one file. Choose another.", collapseAll: "Collapse all", expandAll: "Expand all", newSpace: "New workspace", space: "Workspace",
   closeSpace: "Close workspace", untitled: "Untitled", folderView: "Folder", asList: "List", asGrid: "Thumbnails", readOnly: "Read-only: not a Markdown note.",
-  keysNew: "new note", keysSplit: "split", keysSpace: "new workspace", moveTo: "Move to", moved: "Moved.",
+  keysNew: "new note", keysSplit: "split", keysSpace: "new workspace", moveTo: "Move to", moved: "Moved.", moveUndone: "Move undone.", moveRedone: "Move redone.",
   bold: "Bold", italic: "Italic", strike: "Strikethrough", highlight: "Highlight", heading: "Heading", link: "Link", wikilink: "Internal link [[ ]]",
   bullets: "Bullet list", numbers: "Numbered list", task: "Task", quote: "Quote", code: "Code", rule: "Rule", pasteHint: "Paste or drop an image to attach it", pasted: "Image attached in assets/.",
   closeOthers: "Close others", closeAll: "Close all", closeRight: "Close to the right", allTabs: "All tabs", verticalTabs: "Vertical tabs", horizontalTabs: "Horizontal tabs",

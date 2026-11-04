@@ -94,12 +94,14 @@ use std::sync::Arc;
 use config::Config;
 use db::{Db, NewLink};
 
-/// The generated bindings the window was built with: their hash is the
-/// contract's version, which client and server agree on before anything
-/// else (the maintainer's answer D of 2026-10-09).
+/// The generated bindings the window was built with: their hash names the
+/// build of the contract (the maintainer's answer D of 2026-10-09). A page
+/// this server served reloads when it differs; a desktop app compares
+/// [`verso_contract::compat::VERSION`] instead, and logs the hash (ADR
+/// 0073 item 2, revised 2026-11-02).
 const BINDINGS: &str = include_str!("../../../app/ui/src/bindings.ts");
 
-/// The contract's version: the first 16 hex digits of the SHA-256 of the
+/// The contract's hash: the first 16 hex digits of the SHA-256 of the
 /// generated bindings. The window's build computes the same
 /// (`app/ui/build-web.mjs`).
 #[must_use]

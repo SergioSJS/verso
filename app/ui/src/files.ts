@@ -380,6 +380,7 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
     return false;
   }
   followMoved([{ from, to: r.data.path }], r.data.also);
+  remember([{ from, to: r.data.path }]);
   if (fromTree) {
     setTreeLandOn(`${allFolders.includes(from) ? "folder" : "file"}:${r.data.path}`);
     const parts = r.data.path.split("/");
@@ -412,6 +413,59 @@ export function followMoved(moved: { from: string; to: string }[], alsoMoved: { 
   }
   for (const [a, b] of also) for (const l of leavesUnder(a)) if (l.path === a) l.moved(b);
 }
+/* ⌘Z after a move (backlog, the maintainer, 2026-11-02: "Ctrl/⌘+Z does
+ * not undo a file move"): the window's last move or rename is taken back,
+ * and ⌘⇧Z does it again, while the focus is in the file tree or nowhere —
+ * once an editor or a box has had the focus, ⌘Z is theirs again. The move
+ * back is a move like any other: saved first, its links planned. */
+type Moved = { from: string; to: string }[];
+let lastMove: Moved | null = null;
+let undoneMove: Moved | null = null;
+let replaying = false;
+function remember(moved: Moved): void {
+  if (replaying || moved.length === 0) return;
+  lastMove = moved;
+  undoneMove = null;
+}
+/** Another folder in the window: its paths are not the moves'. */
+export function forgetMoves(): void {
+  lastMove = undoneMove = null;
+}
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLElement) || ui.notes.contains(el)) return;
+  if (el.isContentEditable || el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.closest(".cm-editor, .excalidraw")) forgetMoves();
+});
+/** ⌘Z or ⌘⇧Z on the window's last move, when it is the move's to take:
+ *  answers whether it took it. */
+export function takeBackMove(command: string): boolean {
+  const a = document.activeElement;
+  const here = !a || a === document.body || ui.notes.contains(a);
+  const step = command === "undo" ? lastMove : command === "redo" ? undoneMove : null;
+  if (!here || !step) return false;
+  void replay(command === "undo" ? step.map(({ from, to }) => ({ from: to, to: from })) : step, command === "undo");
+  return true;
+}
+async function replay(moves: Moved, undo: boolean): Promise<void> {
+  replaying = true;
+  let ok = true;
+  try {
+    // One call per folder they go to: a rename on its own, a move of
+    // several together, as they were moved.
+    const into = new Map<string, Moved>();
+    for (const m of moves) into.set(dirOf(m.to), [...(into.get(dirOf(m.to)) ?? []), m]);
+    for (const [folder, group] of into) {
+      const renamed = group.length === 1 && name(group[0]!.from) !== name(group[0]!.to);
+      ok = (renamed ? await renameTo(group[0]!.from, group[0]!.to) : await moveEntries(group.map((m) => m.from), folder)) && ok;
+    }
+  } finally {
+    replaying = false;
+  }
+  if (!ok) return;
+  const forward = undo ? lastMove : undoneMove;
+  [lastMove, undoneMove] = undo ? [null, forward] : [forward, null];
+  ui.status.textContent = undo ? t.moveUndone : t.moveRedone;
+}
 /** Several entries into `folder` at once — the tree's selection (ADR 0048,
  *  revised 2026-10-07): saved first, moved by the core in one call, and
  *  one plan of link rewrites for all of them. One the disk refuses is
@@ -429,6 +483,7 @@ export async function moveEntries(paths: string[], folder: string): Promise<bool
     return false;
   }
   followMoved(r.data.moved, r.data.also);
+  remember(r.data.moved);
   if (folder) openFolders.add(folder);
   await afterFileChange();
   const why = { unavailable: t.skipUnavailable, not_text: t.skipNotText, failed: t.skipFailed };

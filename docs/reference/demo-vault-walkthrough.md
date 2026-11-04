@@ -472,6 +472,11 @@ point 13).
    scrolls it and moves nothing; a finger held on a row and lifted opens
    its menu; held and then moved, it drags the row into a folder. Level: H
    (touch moves only in Chromium); E: `touch.spec.mjs`.
+   Drag a note, then a selection of two, into a folder, and press ⌘Z
+   (or Edit › Undo) with the focus still in the tree: they go back where
+   they were, together, and the status bar says *Movimento desfeito*;
+   ⌘⇧Z moves them again. Click into a note's text and ⌘Z: the note's text
+   is undone, the move stays. Level: H; E: `tree-selection.spec.mjs`.
 11. Note 14, "A Lixeira" ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
    delete a note, make another with its name, and open the trash from the
    palette ("Abrir a lixeira"), from the tree's right-click on empty space,

@@ -188,6 +188,14 @@ jobs:
         run: |
           cargo run -q --locked -p verso-app -- --export-bindings /tmp/bindings.ts
           diff -u app/ui/src/bindings.ts /tmp/bindings.ts
+      # The fuzz harnesses are packages outside the workspace, so clippy and
+      # the tests never build them; checked here on every pull request (as
+      # scripts/check.sh does), run on nightly only in the fuzz job.
+      - name: the fuzz harnesses compile (ADR 0029, ADR 0083 item 14)
+        run: |
+          for fuzz in crates/verso-dialect/fuzz crates/verso-server/fuzz; do
+            cargo check -q --locked --manifest-path "$fuzz/Cargo.toml" --target-dir target --all-targets
+          done
       # Feature guardrail of Phase 1, feature 1: the parser keeps compiling to
       # WASM (ADR 0029). The target is the same from any host, so Linux alone.
       - name: verso-dialect compiles to wasm32 (ADR 0029)

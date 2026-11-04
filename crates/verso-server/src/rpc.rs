@@ -237,6 +237,7 @@ async fn run(
         "version": env!("CARGO_PKG_VERSION"),
         "commit": server.commit,
         "contract": server.contract,
+        "contractVersion": verso_contract::compat::VERSION,
         "sync": server.sync(),
         "account": crate::api::account_json(&who.account),
     }});

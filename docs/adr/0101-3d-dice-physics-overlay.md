@@ -167,7 +167,7 @@ later answer of the same day recorded in it.
    maintainer named A and B.
 
    **Decided on 2026-10-21 by the maintainer (0101.1c, option A), after the
-   evaluation he asked for** (`~/Projects/person/apps/verso-dice3d-avaliacao-2026-10-21.md`,
+   evaluation he asked for** (`~/Projects/person/apps/verso-archive/decisoes-2026-10/verso-dice3d-avaliacao-2026-10-21.md`,
    measured with Verso's `esbuild`: option A 621 KB minified / 158 KB gzip,
    option B 550 KB / 143 KB, both loaded only when 3D is on; option B is
    unmaintained since 2022, Rolai needed about 400 lines of patches for it, it
@@ -234,7 +234,7 @@ later answer of the same day recorded in it.
   service worker lists the chunk; the strings in pt-BR and EN; the switch
   and its description in Settings › App › Features.
 - The evaluation of item 3 was a report outside the repository
-  (`~/Projects/person/apps/verso-dice3d-avaliacao-2026-10-21.md`); the
+  (`~/Projects/person/apps/verso-archive/decisoes-2026-10/verso-dice3d-avaliacao-2026-10-21.md`); the
   dependencies it names (`three`, `cannon-es`, both MIT) enter with the code,
   justified in the PR and checked by the npm licence allowlist.
 - A user-visible change: the changelog and the demo vault

@@ -116,6 +116,14 @@ tmp="$(mktemp "${TMPDIR:-/tmp}/verso-bindings.XXXXXX")"
 cargo run -q --locked -p verso-app -- --export-bindings "$tmp"
 diff -u app/ui/src/bindings.ts "$tmp"
 rm -f "$tmp"
+step "the fuzz harnesses compile (ADR 0029, ADR 0083 item 14)"
+# Packages of their own, outside the workspace, so neither clippy nor the
+# tests above build them: on 2026-11-02 a field added to the server's host
+# check broke one on main's CI after this machine had passed. Checked here,
+# into the workspace's target; run only in CI's fuzz job, on nightly.
+for fuzz in crates/verso-dialect/fuzz crates/verso-server/fuzz; do
+  cargo check -q --locked --manifest-path "$fuzz/Cargo.toml" --target-dir target --all-targets
+done
 step "verso-dialect compiles to wasm32 (ADR 0029)"
 rustup target list --installed | grep -qx wasm32-unknown-unknown || rustup target add wasm32-unknown-unknown
 cargo check --target wasm32-unknown-unknown -p verso-dialect --locked
