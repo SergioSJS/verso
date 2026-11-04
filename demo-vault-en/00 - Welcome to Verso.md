@@ -87,6 +87,7 @@ Explore the modules below to see each feature in detail:
 36. [[36 - Sound and Music at the Table]] — The game master plays a sound file and everyone at the table hears it at the same point, each with their own volume; a note of sound links becomes the soundboard, and whoever does not see the file does not hear it.
 37. [[37 - Compatibility with Obsidian]] — For anyone coming from Obsidian or using both: the same folder, nothing rewritten on open, what works the same, what Verso adds, what does not exist and how to try it.
 38. [[38 - Installing the server on a NAS or a VPS]] — The server on a NAS (CasaOS, ZimaOS, others with Docker) or on a VPS: the compose file or the installer, HTTPS, the public address, backups and the trash's limits.
+39. [[39 - A Table over the Internet]] — Verso on your computer turns into a server: a Cloudflare link (testing mode) or your own address, invitations, sitting at the table, read links and who gets in how.
 
 ---
 

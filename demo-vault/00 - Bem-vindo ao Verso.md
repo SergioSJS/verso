@@ -87,6 +87,7 @@ Explore os módulos organizados abaixo para conferir cada funcionalidade em deta
 36. [[36 - Som e Música na Mesa]] — A mestra toca um arquivo de som e todos da mesa ouvem no mesmo ponto, cada um com o seu volume; uma nota com links de som vira a mesa de som, e quem não vê o arquivo não o ouve.
 37. [[37 - Compatibilidade com o Obsidian]] — Para quem vem do Obsidian ou usa os dois: a mesma pasta, nada reescrito ao abrir, o que funciona igual, o que o Verso acrescenta, o que não existe e como experimentar.
 38. [[38 - Instalar o servidor num NAS ou VPS]] — O servidor num NAS (CasaOS, ZimaOS, outros com Docker) ou num VPS: o compose ou o instalador, o HTTPS, o endereço público, backups e os limites da lixeira.
+39. [[39 - Mesa pela Internet]] — O Verso do seu computador vira um servidor: um link da Cloudflare (modo de teste) ou o seu próprio endereço, convites, sentar à mesa, links de leitura e quem entra como.
 
 ---
 

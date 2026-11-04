@@ -363,6 +363,7 @@ const STOPS = [
       ["n-instalar", "24 - Instalar o seu UniVerso, Passo a Passo.md", 420],
       ["n-oracle", "34 - UniVerso num Servidor Grátis da Oracle.md", 420],
       ["n-nas", "38 - Instalar o servidor num NAS ou VPS.md", 420],
+      ["n-mesanet", "39 - Mesa pela Internet.md", 420],
       ["n-nuvem", "29 - Sincronizar com uma Nuvem.md", 420],
       ["n-rodar", "32 - Rodando uma Mesa.md", 420],
     ],
@@ -372,7 +373,7 @@ const STOPS = [
       "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo. " +
       "Botão direito numa pasta › Tornar esta pasta uma mesa: convida as jogadoras só para ela, cada nota fica oculta até você liberar, e um link para o que ainda não apareceu chega com um cadeado. " +
       "Para montar o seu, a nota 24 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup; a nota 34 é o roteiro para quem nunca montou um servidor, numa máquina grátis da Oracle, com o menu do instalador (sh universo.sh); a nota 38 escolhe o caminho pela máquina que você tem — um NAS (CasaOS, ZimaOS, outros com Docker) ou um VPS — e traz o HTTPS, o endereço público, os backups e os limites da lixeira. " +
-      "Sem servidor: Ajustes › Sincronizar › Sincronizar com… liga a pasta a um Nextcloud (WebDAV) ou a um bucket S3 que você já tem — a nota 29 mostra os passos e como limitar a chave a uma pasta; a senha fica no chaveiro do sistema, e o celular continua precisando de um UniVerso.",
+      "Sem servidor montado: Ajustes › Transformar em servidor liga o seu próprio computador como servidor — na rede de casa para parear celulares, e/ou por um link da Cloudflare (modo de teste) para jogar com quem está longe; a nota 39 traz os passos, os convites, sentar à mesa e o endereço próprio. Sem servidor: Ajustes › Sincronizar › Sincronizar com… liga a pasta a um Nextcloud (WebDAV) ou a um bucket S3 que você já tem — a nota 29 mostra os passos e como limitar a chave a uma pasta; a senha fica no chaveiro do sistema, e o celular continua precisando de um UniVerso.",
   },
   {
     id: "dados",
