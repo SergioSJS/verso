@@ -60,10 +60,12 @@ export function localSignInNotes(pairing: boolean, passkeys = true): void {
   if (pairing) card.append(el("p", { class: "web-note" }, `${s.ownPhone} `, el("a", { href: "/pair" }, s.pairInstead)));
 }
 
-/** Whether this computer's server answers now. */
-export async function answers(get: typeof fetch = fetch): Promise<boolean> {
+/** Whether this computer's server answers now, asked at `at`: the
+ *  window's state for a player, the link's own gate for a read link's
+ *  visitor (who never asks /api/). */
+export async function answers(get: typeof fetch = fetch, at = "/api/state"): Promise<boolean> {
   try {
-    const r = await get("/api/state", { cache: "no-store", credentials: "same-origin" });
+    const r = await get(at, { cache: "no-store", credentials: "same-origin" });
     // Cloudflare answers for a link that ended, with its own page.
     return r.ok && (r.headers.get("content-type") ?? "").includes("json");
   } catch {
@@ -81,7 +83,7 @@ let shown: HTMLElement | null = null;
 /** The offline page over the window: Try again (and every 30 s by
  *  itself), and Close for a person who goes on with what the browser
  *  kept. When the server answers again, the page loads anew. */
-export function showOffline(get: typeof fetch = fetch, reload: () => void = () => location.reload()): HTMLElement {
+export function showOffline(get: typeof fetch = fetch, reload: () => void = () => location.reload(), at = "/api/state"): HTMLElement {
   if (shown) return shown;
   const s = tableWords();
   const before = document.activeElement as HTMLElement | null;
@@ -110,7 +112,7 @@ export function showOffline(get: typeof fetch = fetch, reload: () => void = () =
   const tryNow = async () => {
     retry.disabled = true;
     live.textContent = s.trying;
-    const up = await answers(get);
+    const up = await answers(get, at);
     retry.disabled = false;
     if (up) {
       live.textContent = s.back;
@@ -135,19 +137,15 @@ export function showOffline(get: typeof fetch = fetch, reload: () => void = () =
   return box;
 }
 
-/** A read link's visitor (ADR 0105) on a computer that serves: the same
- *  offline page as a player's when the table goes away (the test of
- *  2026-11-04: the visitor got only "the connection was lost"). Says
- *  whether it watches. */
-export async function watchIfLocal(get: typeof fetch = fetch): Promise<boolean> {
-  try {
-    const r = await get("/api/state", { cache: "no-store", credentials: "same-origin" });
-    const s = (await r.json()) as { local?: boolean } | null;
-    if (!s?.local) return false;
-  } catch {
-    return false;
-  }
-  watchTableOffline(get);
+/** A read link's visitor (ADR 0105) on a computer that serves — the
+ *  link's gate said `local` — gets the same offline page as a player's
+ *  when the table goes away (the test of 2026-11-04: the visitor got only
+ *  "the connection was lost"), asking the link's own gate whether it
+ *  answers: a visitor never asks /api/ (ADR 0105). Says whether it
+ *  watches. */
+export function watchIfLocal(local: boolean, token: string, get: typeof fetch = fetch): boolean {
+  if (!local) return false;
+  watchTableOffline(get, `/r/${encodeURIComponent(token)}/state`);
   return true;
 }
 
@@ -155,13 +153,13 @@ let watching = false;
 
 /** In "this app is a server", once the window runs: a dropped connection
  *  whose server does not answer is the table offline. */
-export function watchTableOffline(get: typeof fetch = fetch): void {
+export function watchTableOffline(get: typeof fetch = fetch, at = "/api/state"): void {
   if (watching) return;
   watching = true;
   void listen<{ what: string }>("server-gone", (e) => {
     if (e.payload.what !== "connection") return;
-    void answers(get).then((up) => {
-      if (!up) showOffline(get);
+    void answers(get, at).then((up) => {
+      if (!up) showOffline(get, undefined, at);
     });
   }).catch(() => {
     // No host to listen to (a test's page): nothing to watch.

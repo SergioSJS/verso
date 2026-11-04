@@ -99,11 +99,26 @@ test("Escape closes it, and English is whole", () => {
   document.documentElement.lang = "pt-BR";
 });
 
-test("a read link's visitor at a computer that serves watches for the table offline; elsewhere it does not", async () => {
-  const of = (body) => async () => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
-  assert.equal(await T.watchIfLocal(of({ local: false })), false, "a UniVerso's read link");
-  assert.equal(await T.watchIfLocal(async () => { throw new Error("no network"); }), false);
-  assert.equal(await T.watchIfLocal(of({ local: true })), true, "this app is a server");
+test("a read link's visitor at a computer that serves watches for the table offline from the gate's answer, never /api/", async () => {
+  const asked = [];
+  const get = async (url) => {
+    asked.push(String(url));
+    return new Response("<html>cloudflare</html>", { status: 502, headers: { "content-type": "text/html" } });
+  };
+  // A UniVerso's link (the gate said `local: false`): nothing to watch, nothing asked.
+  assert.equal(T.watchIfLocal(false, "tok", get), false, "a UniVerso's read link");
+  assert.deepEqual(asked, []);
+  // This app is a server: it watches, and whether the table answers is
+  // asked of the link's own gate.
+  assert.equal(T.watchIfLocal(true, "tok", get), true, "this app is a server");
+  document.body.innerHTML = "";
+  const box = T.showOffline(get, () => undefined, "/r/tok/state");
+  box.querySelector(".web-primary").click();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(asked.length > 0, "the table was asked");
+  assert.ok(asked.every((u) => u === "/r/tok/state"), asked.join(", "));
+  assert.ok(!asked.some((u) => u.includes("/api/")), asked.join(", "));
+  box.querySelector(".web-secondary").click();
 });
 
 test("the table offline tells the window, so the music panel lets go of the table's track", () => {

@@ -147,6 +147,11 @@ pub async fn state(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
         "locked": !open,
         "name": open.then_some(scope.name),
         "open": note,
+        // "This app is a server" (ADR 0117): the visitor's page watches for
+        // the table offline when the computer stops, asking this address —
+        // never /api/, which a visitor has no business with. Said once the
+        // link is open, as the folder's name is.
+        "local": open.then_some(ctx.server.local.is_some()),
     })))
 }
 

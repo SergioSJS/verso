@@ -171,6 +171,10 @@ fn the_owner_makes_a_link_and_it_opens_only_what_it_names() {
         // A link to a folder: its files, by its own paths; nothing beside.
         let (status, state) = visit(&lab, &format!("/r/{folder}/state")).await;
         assert_eq!(status, 200, "{state}");
+        // The gate says the link is this app's: the visitor's page watches
+        // for the table offline from it, never asking /api/.
+        let gate: serde_json::Value = serde_json::from_str(&state).unwrap();
+        assert_eq!(gate["local"], true, "{state}");
         // The visitor's page opens its window first, as it does.
         let mut seen = reader(&lab, &folder).await;
         let listed = call(&mut seen, 2, "list_notes", json!({})).await;

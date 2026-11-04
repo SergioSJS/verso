@@ -189,7 +189,10 @@ fn the_switch_starts_off_and_off_ends_open_pages() {
         on(&r, &admin).await;
         let link = made(&r, &admin, &id, body).await;
         let token = token_of(&link);
-        assert_eq!(get_at(&r, &format!("/r/{token}/state")).await.0, 200);
+        let (status, state) = get_at(&r, &format!("/r/{token}/state")).await;
+        assert_eq!(status, 200);
+        let gate: Value = serde_json::from_str(&state).unwrap();
+        assert_eq!(gate["local"], false, "a UniVerso's link: {state}");
         let (mut ws, _) = reader(&r, &token).await;
         // Off: the open page is told and closed at once; the address
         // answers 404 as if it had never been.
@@ -854,7 +857,7 @@ fn a_passphrase_is_a_sign_in_that_can_be_refused() {
         let (_, state) = crate::tests::get(&r, &format!("/r/{token}/state"), None).await;
         assert_eq!(
             state,
-            json!({ "kind": "folder", "password": true, "locked": true, "name": null, "open": null })
+            json!({ "kind": "folder", "password": true, "locked": true, "name": null, "open": null, "local": null })
         );
         assert_eq!(visit(&r, &token, None).await.err(), Some(401));
         assert_eq!(

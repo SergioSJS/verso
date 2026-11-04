@@ -40,9 +40,10 @@ async function visitor(token: string): Promise<void> {
   const { readLinkGate, endedPage, rw } = await import("./web/readLink");
   const gate = await readLinkGate(token);
   if (!gate) return;
-  // At a computer that serves, its table can go away under the visitor
-  // too: the same offline page as a player's.
-  void watchIfLocal();
+  // At a computer that serves (the gate says so), its table can go away
+  // under the visitor too: the same offline page as a player's, asked of
+  // the link's own gate.
+  watchIfLocal(gate.local, token);
   document.documentElement.dataset.host = "server";
   document.documentElement.dataset.visitor = "link";
   startVisitorBridge(token, endedPage);
