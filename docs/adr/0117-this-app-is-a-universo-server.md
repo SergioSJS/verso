@@ -314,8 +314,8 @@ not on the network even with the host's own certificate files
 boxes on, a change of network stops both (`780e2cadc`); the seat's address
 `https://this-computer.invalid` before any address exists (`32bacc553`);
 the admin's reset link ending sessions here and not on a UniVerso
-(`27eece626`); the `std::fs` exception for `tunnel/files.rs` awaiting
-ratification ([0029](0029-guardrails-in-ci.md); `8453abd86`).
+(`27eece626`); the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
+2026-11-04 ([0029](0029-guardrails-in-ci.md); `8453abd86`).
 
 ### D15. What is built on `feat/app-server`: stays, changes, goes
 

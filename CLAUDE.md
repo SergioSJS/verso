@@ -53,7 +53,7 @@ Violating an invariant is **BLOCKING** by definition, with no discussion of meri
    availability come from capabilities ([ADR 0027](docs/adr/0027-runtime-capabilities.md)).
 3. The contract is defined first; TypeScript types (`app/ui/src/bindings.ts`) are generated from Rust via `specta`, never written by hand.
 4. The contract filesystem API separates access from identity: access capability is an opaque handle (or authenticated session + folder role on a server); notes are named by path relative to the open folder. Absolute paths or paths with `..` never cross the contract.
-5. Access to the **files of the open folder** happens only inside `crates/verso-fs`. (Exceptions: index database in `verso-index`, sidecar config in `verso-core`, server database in `verso-server`, app logs/updates/resolv_conf in `app/src-tauri`). `verso-dialect` has no IO or async at all.
+5. Access to the **files of the open folder** happens only inside `crates/verso-fs`. (Exceptions: index database in `verso-index`, sidecar config in `verso-core`, server database in `verso-server`, app logs/updates/resolv_conf and the downloaded `cloudflared` (`tunnel/files.rs`, ADR 0117) in `app/src-tauri`). `verso-dialect` has no IO or async at all.
 6. Plugins never access disk directly.
 
 ### 2.2 Data — [ADR 0012](docs/adr/0012-files-are-source-of-truth.md), [ADR 0043](docs/adr/0043-placeholder-guard.md)
@@ -85,7 +85,7 @@ Two groups ([ADR 0029](docs/adr/0029-guardrails-in-ci.md), [ADR 0067](docs/adr/0
 | Formatting | No formatting diffs hiding logic | `cargo fmt --all --check` |
 | Memory safety | `unsafe_code = "forbid"` workspace-wide (exceptions: native clipping in `app/src-tauri/src/web_clip/{macos,windows}.rs`, and OS audio capture in `app/src-tauri/src/audio_share/{macos,windows,linux}.rs` (ADR 0116, Q9), all with `SAFETY:` comments) | `node scripts/check-unsafe.mjs` |
 | No panics in prod | Clippy `-D warnings`; `unwrap_used` and `expect_used` denied outside tests | `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings` |
-| Folder confinement | `std::fs` denied outside `verso-fs` (declared exceptions: sidecar, data, update, log, resolv_conf) | Enforced in `scripts/check.sh` |
+| Folder confinement | `std::fs` denied outside `verso-fs` (declared exceptions: sidecar, data, update, log, resolv_conf, tunnel/files) | Enforced in `scripts/check.sh` |
 | Source file size limit | Every source file (`.rs`, `.ts`, `.tsx`, `.js`, `.mjs`, `.css`) under **1500 lines** ([ADR 0067](docs/adr/0067-source-files-stay-small.md)) | `node scripts/check-sizes.mjs` |
 | Dependency & license safety | Licenses allowlisted; security advisories denied (an exception in `deny.toml` or `app/ui/audit-exceptions.json` requires justification, link and expiry) | `cargo deny check`, `node scripts/check-npm-licenses.mjs`, `node scripts/check-npm-audit.mjs` |
 | Public docs mirror & links | Public documents mirrored in `docs/pt-BR/` with same headings; all relative links across `.md` files resolve ([ADR 0008](docs/adr/0008-documentation-language.md)) | `bash scripts/check-docs-mirror.sh` |
