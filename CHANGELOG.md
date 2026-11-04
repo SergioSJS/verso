@@ -38,6 +38,8 @@ test release.
 
 - **A note written in a server's window keeps its author in the history, also on Windows** ([ADR 0091](docs/adr/0091-version-history.md) item 4). When the server's watcher saw the write before the write's own bookkeeping did, the version stayed *made outside Verso*, with no author; the take-over added on 2026-10-31 covered only a room's save, not a window's or an agent's write. Now every write that names its author takes it.
 
+- **Closing a folder on Windows while one of its files changes no longer can freeze the folder's watcher until the app quits.** The file-watching library (notify) is now 9.0.0-rc.7: its 8.2 Windows watcher, closing, could re-arm its read on a handle Windows had already handed to someone else, and both waited for ever — the folder could then not be deleted until Verso quit.
+
 - **A YAML file nested hundreds of levels deep no longer can take the window down on Windows.** The data diagram measures how deep a YAML nests before reading it, and past 256 levels says "The YAML nests too deeply to draw" ([ADR 0106](docs/adr/0106-structured-data-as-a-diagram.md)). The YAML library recurses on each level; when its stack ran out while the engine compiled one of its regular expressions, V8 (the engine of Windows' WebView2) aborted the whole page instead of reporting the error.
 
 ## 0.8.4-beta.1 — 2026-11-03

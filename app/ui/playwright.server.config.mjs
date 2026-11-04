@@ -2,7 +2,7 @@
 // served by a real `verso serve` (e2e-server/serve.mjs) — signing in, the
 // folders, the contract over the WebSocket, invitations and roles. In
 // Chromium and WebKit, as the harness's. `npm run e2e:server`, after
-// `cargo build -p verso-cli` and `npm run build`; scripts/check.sh runs it.
+// `cargo build -p verso-cli` and `npm run build`; scripts/check-e2e.sh runs it.
 // On macOS, no screenshot and no trace screencast, as the harness's
 // (playwright.config.mjs; ADR 0069 item 8, revised on 2026-10-12).
 

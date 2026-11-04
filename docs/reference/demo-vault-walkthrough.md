@@ -20,11 +20,12 @@ pull request; the last line of a step names the bug it caught the first time.
 
 ## How to run it
 
-By machine first: `npm run e2e` in `app/ui` builds the window and runs every
-step marked E, in WebKit, headless, in about twenty seconds;
-`scripts/check.sh` runs them too. One file: `npx playwright test
-e2e/notes.spec.mjs`; to watch: `--headed`; to step through: `--debug`. A
-failure leaves a screenshot and a trace in `app/ui/e2e/results/`
+By machine first: `scripts/check-e2e.sh --ui` builds the window and runs
+every step marked E, headless, in Playwright's Linux image in Docker
+(`scripts/check.sh` runs it with the server's suite; on a Mac never
+`npx playwright test` outside Docker, ADR 0069 item 8). One file:
+`scripts/check-e2e.sh --ui e2e/notes.spec.mjs`. A failure leaves a
+screenshot and a trace in `app/ui/e2e/results/`
 (`npx playwright show-trace <trace.zip>`).
 
 Then by hand, in the app, the steps with no E:
@@ -1066,8 +1067,8 @@ hand, on a phone and an iPad, the server's window in the browser.
 From the tour's stop "Num servidor" and note 23 ([ADR
 0073](../adr/0073-self-hosted-server-first.md), [0074](../adr/0074-accounts-and-access-on-the-server.md),
 [0075](../adr/0075-server-packaging-and-storage.md)). By machine, the
-server's end-to-end tests drive a real `verso serve` (`npm run e2e:server`,
-in `scripts/check.sh`), the server's Rust tests drive its API and
+server's end-to-end tests drive a real `verso serve` (`scripts/check-e2e.sh
+--server`, in Docker), the server's Rust tests drive its API and
 WebSocket, the host's test drives a desktop window on a server's folder,
 and `scripts/check-server-image.sh` builds and runs the image; by hand, the
 rest below and in `manual-checks.md`.

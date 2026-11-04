@@ -22,7 +22,12 @@ test-util = []
 # ReadDirectoryChangesW on Windows, one API over the three. std has no file
 # watching; the alternative, walking the folder on a timer, costs a walk per
 # tick whether anything changed or not (docs/reference/watcher-decision.md).
-notify = "8.2"
+# Pinned to 9.0.0-rc.7 (the maintainer, 2026-11-03: "atualiza"): 8.2's
+# Windows watcher re-armed its read on a closed handle another opener
+# could reuse, and both waited for ever (notify-rs/notify#958, in 9.0.0-rc.5
+# and later; no 8.x release has it). Exact, as a release candidate is
+# never taken by a range; move to 9.0 when it is out.
+notify = "=9.0.0-rc.7"
 # The `.gitignore` semantics the walk honors (ADR 0044, revised
 # 2026-09-29): negation, `**`, anchoring, dir-only patterns — ripgrep's
 # own engine, instead of a partial matcher of ours that got `!` wrong.
