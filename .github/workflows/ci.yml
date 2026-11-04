@@ -151,10 +151,15 @@ jobs:
         run: cargo fmt --all --check
       # all-features is set in deny.toml ([graph] all-features = true); with
       # no `targets` there, the graph covers every platform's dependencies, so
-      # one run on Linux answers for macOS and Windows too.
+      # one run on Linux answers for macOS and Windows too. cargo-nextest
+      # runs the tests below (fix release item C2, 2026-11-02): each test in
+      # a process of its own, with the limit of .config/nextest.toml, so a
+      # test that hangs fails the job in minutes. Apache-2.0 OR MIT; a
+      # release binary checked against the action's manifest, the latest
+      # version that manifest knows at the pinned commit.
       - uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2, resolved 2026-09-21
         with:
-          tool: cargo-deny@0.20.2
+          tool: cargo-deny@0.20.2,cargo-nextest@0.9.145
       - name: cargo deny (ADR 0029)
         run: cargo deny check
 
@@ -177,8 +182,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
       - name: cargo clippy -D warnings
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-      - name: cargo test
-        run: cargo test --workspace --all-features --locked
+      # nextest does not run doctests; `cargo test --doc` does, after it.
+      - name: cargo nextest
+        run: cargo nextest run --workspace --all-features --locked
+      - name: doctests
+        run: cargo test --doc --workspace --all-features --locked
       # Phase 2 guardrail: the TypeScript bindings committed in
       # app/ui/src/bindings.ts must be exactly what the Rust contract and
       # commands generate; otherwise rule 3 (ADR 0026) is a convention. The
@@ -222,17 +230,23 @@ jobs:
       # empty folder here for the same reason.
       - name: a stand-in for the UI bundle
         run: mkdir -p app/ui/dist app/ui/dist-web && printf '<!doctype html><title>Verso</title>\n' > app/ui/dist/index.html
+      - uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2, resolved 2026-09-21
+        with:
+          tool: cargo-nextest@0.9.145
       - name: cargo clippy -D warnings
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-      - name: cargo test
-        run: cargo test --workspace --all-features --locked
+      - name: cargo nextest
+        run: cargo nextest run --workspace --all-features --locked
+      - name: doctests
+        run: cargo test --doc --workspace --all-features --locked
 
   windows:
     name: clippy and tests on Windows (main)
     # The Windows port (ADR 0069, item 6): the same platform checks as
     # macOS's, on Windows, after a merge only — a Windows minute bills as
     # about 1.7 Linux ones. The image is pinned, as the Linux ones are.
-    # scripts/check-windows.sh runs the same two steps before a push.
+    # scripts/check-windows.sh runs clippy and the tests before a push
+    # (with `cargo test`: the VM has no cargo-nextest yet).
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 100
     runs-on: windows-2025
@@ -266,10 +280,17 @@ jobs:
           test -x "$perl_exe" || { echo "::error::no Strawberry Perl on this image: install it (choco install strawberryperl)"; exit 1; }
           "$perl_exe" -v | sed -n 2p
           echo "OPENSSL_SRC_PERL=C:\\Strawberry\\perl\\bin\\perl.exe" >> "$GITHUB_ENV"
+      # The hangs of 2026-10-31 and 2026-11-02 were here: with nextest a
+      # test that never ends fails at the limit of .config/nextest.toml.
+      - uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2, resolved 2026-09-21
+        with:
+          tool: cargo-nextest@0.9.145
       - name: cargo clippy -D warnings
         run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-      - name: cargo test
-        run: cargo test --workspace --all-features --locked
+      - name: cargo nextest
+        run: cargo nextest run --workspace --all-features --locked
+      - name: doctests
+        run: cargo test --doc --workspace --all-features --locked
 
   fuzz:
     # Feature guardrail of Phase 1, feature 1 (ADR 0029). After each merge,

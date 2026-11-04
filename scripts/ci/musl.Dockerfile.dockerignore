@@ -1,0 +1,12 @@
+# The context of scripts/ci/musl.Dockerfile: the sources, without what the
+# server's binary never reads at build time (the window's build is served
+# from VERSO_UI_DIR, the docs' pictures are the docs').
+target
+**/node_modules
+.git
+app/ui/dist
+app/ui/dist-web
+app/ui/e2e/.site
+app/ui/e2e/results
+app/ui/e2e-server/results
+docs/media

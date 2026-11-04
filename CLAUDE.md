@@ -152,8 +152,9 @@ app/
 - **Rebuild demo vault boards & embed:**
   `node scripts/demo-vault.mjs build && node scripts/demo-vault.mjs check`
 - **Full pre-push verification:**
-  `scripts/check.sh` (Note: macOS preflight requires closing open browsers/Verso app before running E2E tests)
-  `scripts/check-linux.sh` (Runs build and checks in Linux container via Docker)
+  `scripts/check.sh` (native guardrails; then the E2E suites through `scripts/check-e2e.sh` when Docker runs, `--no-e2e` to leave them out)
+  `scripts/check-e2e.sh` (UI harness + server E2E in Playwright's Linux image, 3 workers; never run Playwright directly on the Mac)
+  `scripts/check-linux.sh` (Runs build and checks in the prebuilt `verso-ci` image, `scripts/ci/Dockerfile`, via Docker)
   `scripts/check-windows.sh` (When platform code changes, runs over SSH on `verso-win`)
 
 ---

@@ -6,8 +6,9 @@
   Consequences). The first Windows build, on 2026-10-07 and 08, needed every
   fix below; each was a habit that works on macOS and fails on Windows. This
   is what to do instead, so the next change does not repeat them.
-- How to check: `scripts/check.sh` runs the end-to-end tests in Chromium
-  (WebView2's engine) beside WebKit; `scripts/check-windows.sh` runs clippy
+- How to check: `scripts/check-e2e.sh` (in Docker; `scripts/check.sh`
+  calls it) runs the end-to-end tests in Chromium (WebView2's engine)
+  beside WebKit; `scripts/check-windows.sh` runs clippy
   and the tests on a Windows machine. A change that touches files, paths,
   processes, configuration or the window's focus and keys reads this first.
 
