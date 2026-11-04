@@ -84,6 +84,29 @@ async fn reader(lab: &Lab, token: &str) -> Ws {
     ws
 }
 
+/// A read link's WebSockets are a few in "this app is a server" (64 in
+/// all, shared by the network, the link and the owner's window): past
+/// them the next is refused with 429, and the owner's window is still
+/// answered.
+#[test]
+fn a_read_link_holds_a_few_connections() {
+    run(async {
+        let mut lab = lab_in_part(&[]);
+        lab.serve();
+        lab.local.set_read_links(true).unwrap();
+        let seat = lab.local.sit(&campanha(&lab)).unwrap();
+        let token = make(&seat, "folder", "Projetos");
+        let mut held = Vec::new();
+        for _ in 0..crate::fair::LOCAL_PER_ACCOUNT {
+            held.push(visitor_ws(&lab, &token).await.unwrap());
+        }
+        assert_eq!(visitor_ws(&lab, &token).await.err(), Some(429));
+        let state = seat.request("GET", "/api/state", None).unwrap();
+        assert_eq!(state.status, 200);
+        drop(held);
+    });
+}
+
 /// The owner turns links on and makes one to a note and one to a folder
 /// from the window at the table — refused until the click proves it —
 /// and a visitor with no account reads what each names and nothing else,

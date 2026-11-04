@@ -43,6 +43,19 @@ pub const LOCAL_CONNECTIONS: usize = 64;
 /// …and 16 from one address.
 pub const LOCAL_PER_ADDRESS: u32 = 16;
 
+/// Of the 64, the most the internet link's listener holds (ADR 0117 D3
+/// item 3). Its connections all come from `cloudflared` on this machine,
+/// so no address bounds them here (the players' addresses bound their
+/// WebSockets, `crate::fair`): a share of its own keeps the link from
+/// taking the network's places. `[OPEN]` for the maintainer: 32.
+pub const LOCAL_LINK: usize = 32;
+
+/// Of the 64, the places the network and the link together leave to the
+/// owner's window at the table (the seat, ADR 0117 D4 Q3), which counts
+/// against the 64 alone: the owner still sits down with every other place
+/// taken. `[OPEN]` for the maintainer: 8.
+pub const LOCAL_SEAT_KEPT: usize = 8;
+
 /// How long a request's headers may take to arrive, the wait for the next
 /// request on a kept-alive connection included: hyper's own default, which
 /// it applies only with a timer. A client that sends a byte at a time
@@ -66,6 +79,11 @@ pub const HEAD_MOST: usize = 64 * 1024;
 pub struct Slots {
     all: Arc<Semaphore>,
     most: usize,
+    /// Further bounds a connection of this listener counts against too,
+    /// each with its words for the log: on a laptop, the places the network
+    /// and the link share (all but [`LOCAL_SEAT_KEPT`]) and the link's own
+    /// [`LOCAL_LINK`]. None on a server.
+    shares: Vec<Share>,
     by_address: Mutex<HashMap<String, u32>>,
     per_address: u32,
     trusted: crate::proxy::Proxies,
@@ -80,10 +98,26 @@ pub struct Slots {
 /// The test of a peer's address, answered true to let it in.
 pub type Admit = Arc<dyn Fn(IpAddr) -> bool + Send + Sync>;
 
+/// A bound beside the server's: its places, and what it is in the log.
+#[derive(Clone)]
+struct Share {
+    places: Arc<Semaphore>,
+    what: String,
+}
+
+impl Share {
+    fn new(most: usize, what: &str) -> Self {
+        Self {
+            places: Arc::new(Semaphore::new(most)),
+            what: format!("{what} hold {most} connections"),
+        }
+    }
+}
+
 /// A connection's place, given back when its socket closes — after a
 /// WebSocket's end, since it travels with the socket ([`Counted`]).
 pub struct Slot {
-    _all: OwnedSemaphorePermit,
+    _all: Vec<OwnedSemaphorePermit>,
     address: Option<(Arc<Slots>, String)>,
 }
 
@@ -113,6 +147,7 @@ impl Slots {
         Arc::new(Self {
             all: Arc::new(Semaphore::new(most)),
             most,
+            shares: Vec::new(),
             by_address: Mutex::new(HashMap::new()),
             per_address,
             trusted,
@@ -124,12 +159,17 @@ impl Slots {
     /// The bounds of a laptop that serves, and who may connect (ADR 0096
     /// items 3 and 13): 64 connections in all, 16 per address, and only
     /// the peers `admit` lets in — refused before a place is taken or a
-    /// byte is read.
+    /// byte is read. The network's listener, with the link's beside it
+    /// ([`Self::beside`]), leaves [`LOCAL_SEAT_KEPT`] to the seat.
     #[must_use]
     pub fn for_local(admit: Admit) -> Arc<Self> {
         Arc::new(Self {
             all: Arc::new(Semaphore::new(LOCAL_CONNECTIONS)),
             most: LOCAL_CONNECTIONS,
+            shares: vec![Share::new(
+                LOCAL_CONNECTIONS - LOCAL_SEAT_KEPT,
+                "the network and the internet link",
+            )],
             by_address: Mutex::new(HashMap::new()),
             per_address: LOCAL_PER_ADDRESS,
             trusted: crate::proxy::Proxies::default(),
@@ -140,14 +180,29 @@ impl Slots {
 
     /// Another listener's places beside these: the same connections in all
     /// (the 64 of ADR 0096 item 13 are the one server's, whichever listener
-    /// a connection came in by), with its own test of who may connect —
-    /// the internet link's loopback listener admits loopback alone, the
-    /// network's never (ADR 0117 D3 item 3).
+    /// a connection came in by) and the same shares, at most `own` of them
+    /// its own, with its own test of who may connect — the internet link's
+    /// loopback listener admits loopback alone, the network's never (ADR
+    /// 0117 D3 item 3).
     #[must_use]
-    pub fn beside(self: &Arc<Self>, admit: Admit) -> Arc<Self> {
+    pub fn beside(self: &Arc<Self>, admit: Admit, own: usize) -> Arc<Self> {
+        let mut shares = self.shares.clone();
+        shares.push(Share::new(own, "the internet link's listener and its"));
+        self.with(admit, shares)
+    }
+
+    /// The owner's window's door beside these (ADR 0117 D4 Q3): the 64
+    /// alone, so it has the places the other listeners leave it.
+    #[must_use]
+    pub fn for_seat(self: &Arc<Self>, admit: Admit) -> Arc<Self> {
+        self.with(admit, Vec::new())
+    }
+
+    fn with(self: &Arc<Self>, admit: Admit, shares: Vec<Share>) -> Arc<Self> {
         Arc::new(Self {
             all: Arc::clone(&self.all),
             most: self.most,
+            shares,
             by_address: Mutex::new(HashMap::new()),
             per_address: self.per_address,
             trusted: self.trusted.clone(),
@@ -168,10 +223,18 @@ impl Slots {
             ));
             return None;
         }
-        let Ok(all) = Arc::clone(&self.all).try_acquire_owned() else {
+        let Ok(first) = Arc::clone(&self.all).try_acquire_owned() else {
             self.refused(&format!("the server holds {} connections", self.most));
             return None;
         };
+        let mut all = vec![first];
+        for share in &self.shares {
+            let Ok(place) = Arc::clone(&share.places).try_acquire_owned() else {
+                self.refused(&share.what);
+                return None;
+            };
+            all.push(place);
+        }
         if ip.is_loopback() || self.trusted.trusts(ip) {
             return Some(Slot {
                 _all: all,
@@ -428,5 +491,47 @@ mod tests {
         );
         let held: Vec<_> = (0..4).filter_map(|_| trusted.take(a)).collect();
         assert_eq!(held.len(), 4, "the trusted proxy speaks for everyone");
+    }
+
+    /// On a laptop (ADR 0117 D3 item 3, D4 Q3): the link's listener, whose
+    /// connections all come from `cloudflared` on loopback, takes its share
+    /// and no more; a phone on the network still connects, and the owner's
+    /// window still sits down with the network and the link both full.
+    #[test]
+    fn the_link_takes_its_share_and_leaves_the_network_and_the_seat_theirs() {
+        let network = Slots::for_local(Arc::new(|ip: IpAddr| !ip.is_loopback()));
+        let link = network.beside(Arc::new(|ip: IpAddr| ip.is_loopback()), LOCAL_LINK);
+        let seat = network.for_seat(Arc::new(|ip: IpAddr| ip.is_loopback()));
+        let here = IpAddr::from([127, 0, 0, 1]);
+        let by_link: Vec<_> = (0..LOCAL_CONNECTIONS)
+            .filter_map(|_| link.take(here))
+            .collect();
+        assert_eq!(by_link.len(), LOCAL_LINK, "the link's share and no more");
+        let phone = network.take("192.168.1.77".parse().unwrap());
+        assert!(phone.is_some(), "a phone on the network, the link full");
+        assert!(seat.take(here).is_some(), "the seat, the link full");
+        // The network fills what the link left of their share…
+        let by_network: Vec<_> = (2..=60)
+            .flat_map(|n| {
+                let ip: IpAddr = format!("192.168.1.{n}").parse().unwrap();
+                (0..4).filter_map(|_| network.take(ip)).collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(
+            by_link.len() + 1 + by_network.len(),
+            LOCAL_CONNECTIONS - LOCAL_SEAT_KEPT
+        );
+        // …and the seat still has its places, the last of the 64.
+        let sat: Vec<_> = (0..LOCAL_CONNECTIONS)
+            .filter_map(|_| seat.take(here))
+            .collect();
+        assert_eq!(sat.len(), LOCAL_SEAT_KEPT);
+        assert!(network.take("192.168.1.99".parse().unwrap()).is_none());
+        drop(by_link);
+        assert!(
+            link.take(here).is_some(),
+            "a place given back is taken again"
+        );
+        drop((phone, by_network, sat));
     }
 }

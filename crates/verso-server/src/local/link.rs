@@ -167,7 +167,9 @@ pub(super) fn open(
     let port = std_listener.local_addr().map_err(|e| e.to_string())?.port();
     let _enter = runtime.enter();
     let tcp = tokio::net::TcpListener::from_std(std_listener).map_err(|e| e.to_string())?;
-    let slots = server.slots.beside(Arc::new(admits));
+    let slots = server
+        .slots
+        .beside(Arc::new(admits), crate::listen::LOCAL_LINK);
     let plain = crate::listen::Plain::new(tcp, slots);
     let app = super::routes::router(Arc::clone(server)).layer(axum::Extension(ByLink));
     let (stop, mut stopped) = tokio::sync::watch::channel(false);

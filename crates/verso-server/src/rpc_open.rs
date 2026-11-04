@@ -239,29 +239,40 @@ pub(crate) fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
             )
         }
     };
-    let account = format!("account:{}", who.account.id);
+    let (per_account, per_address) = crate::fair::connections_most(&ctx.server);
+    // "This app is a server" (ADR 0117): every phone is a session of the
+    // owner's account, so each phone is bounded by its session; the
+    // owner's window in process (the seat) by the server's 64 and the
+    // UniVerso's bound.
+    let (key, what, most) = match (&ctx.server.local, who.session()) {
+        (Some(local), Some(session)) if local.is_seat(session) => (
+            format!("seat:{session}"),
+            "the owner's window".to_owned(),
+            crate::fair::PER_ACCOUNT,
+        ),
+        (Some(_), Some(session)) if who.phone.is_some() => (
+            format!("phone:{session}"),
+            "a phone".to_owned(),
+            per_account,
+        ),
+        _ => (
+            format!("account:{}", who.account.id),
+            format!("account {}", who.account.id),
+            per_account,
+        ),
+    };
     let mut held = vec![
         counts
-            .take(&account, crate::fair::PER_ACCOUNT)
-            .ok_or_else(|| {
-                too_many(
-                    &format!("account {}", who.account.id),
-                    crate::fair::PER_ACCOUNT,
-                )
-            })?,
+            .take(&key, most)
+            .ok_or_else(|| too_many(&what, most))?,
     ];
     // This machine is the proxy in front, speaking for everyone.
     if !ctx.peer.local {
         let address = format!("address:{}", ctx.peer.key());
         held.push(
             counts
-                .take(&address, crate::fair::PER_ADDRESS)
-                .ok_or_else(|| {
-                    too_many(
-                        &format!("address {}", ctx.peer.key()),
-                        crate::fair::PER_ADDRESS,
-                    )
-                })?,
+                .take(&address, per_address)
+                .ok_or_else(|| too_many(&format!("address {}", ctx.peer.key()), per_address))?,
         );
     }
     // "This app is a server": at most two phones connected at once (ADR

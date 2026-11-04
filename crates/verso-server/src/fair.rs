@@ -30,6 +30,31 @@ pub const PER_ACCOUNT: u32 = 32;
 /// proxy in front (`tailscale serve`, Caddy) speaking for everyone.
 pub const PER_ADDRESS: u32 = 64;
 
+/// "This app is a server" holds 64 connections in all (ADR 0096 item 13,
+/// `crate::listen::LOCAL_CONNECTIONS`), shared by the network, the
+/// internet link and the owner's window: the WebSockets of one player's
+/// account, of one phone and of one read link are bounded to a few. A
+/// player's window in a browser holds one or two (its window's and the
+/// copy kept on the device), so a few tabs and a board fit. `[OPEN]` for
+/// the maintainer: 8.
+pub const LOCAL_PER_ACCOUNT: u32 = 8;
+
+/// …and one address's, an address behind which a household may play: the
+/// connections the listener lets one address hold
+/// (`crate::listen::LOCAL_PER_ADDRESS`). `[OPEN]` for the maintainer: 16.
+pub const LOCAL_PER_ADDRESS: u32 = 16;
+
+/// The bounds of WebSockets for this server: per account (a read link's
+/// and a phone's too), per address.
+#[must_use]
+pub fn connections_most(server: &crate::state::Server) -> (u32, u32) {
+    if server.local.is_some() {
+        (LOCAL_PER_ACCOUNT, LOCAL_PER_ADDRESS)
+    } else {
+        (PER_ACCOUNT, PER_ADDRESS)
+    }
+}
+
 /// The commands one account may send a second, sustained, and at once.
 /// A window opening a folder asks a few dozen things together; a device
 /// catching up sends one command per file or piece. 100 a second is a

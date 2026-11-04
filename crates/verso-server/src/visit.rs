@@ -286,18 +286,16 @@ pub async fn ws(
             "too many connections at once",
         )
     };
+    let (per_link, per_address) = crate::fair::connections_most(&ctx.server);
     let mut held = vec![
         counts
-            .take(&format!("link:{}", live.link.id), crate::fair::PER_ACCOUNT)
+            .take(&format!("link:{}", live.link.id), per_link)
             .ok_or_else(too_many)?,
     ];
     if !ctx.peer.local {
         held.push(
             counts
-                .take(
-                    &format!("address:{}", ctx.peer.key()),
-                    crate::fair::PER_ADDRESS,
-                )
+                .take(&format!("address:{}", ctx.peer.key()), per_address)
                 .ok_or_else(too_many)?,
         );
     }

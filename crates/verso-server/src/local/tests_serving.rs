@@ -672,7 +672,9 @@ fn a_peer_off_the_subnet_is_refused_at_the_door() {
     }
 }
 
-/// Item 13: 64 connections in all and 16 from one address on a laptop.
+/// Item 13: 64 connections in all and 16 from one address on a laptop;
+/// the network leaves the last places to the owner's window (ADR 0117 D4
+/// Q3, `listen::LOCAL_SEAT_KEPT`).
 #[test]
 fn a_laptop_holds_fewer_connections_than_a_host() {
     let events: super::Sink = std::sync::Arc::new(|_| {});
@@ -688,7 +690,10 @@ fn a_laptop_holds_fewer_connections_than_a_host() {
     let others: Vec<_> = (2..=60)
         .filter_map(|n| slots.take(format!("192.168.1.{n}").parse().unwrap()))
         .collect();
-    assert_eq!(held.len() + others.len().min(48), 64);
+    assert_eq!(
+        held.len() + others.len(),
+        crate::listen::LOCAL_CONNECTIONS - crate::listen::LOCAL_SEAT_KEPT
+    );
     drop(others);
     drop(held);
 }

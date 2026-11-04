@@ -354,7 +354,7 @@ fn open(r: &Running) -> Result<Door, String> {
     let slots = r
         .server
         .slots
-        .beside(Arc::new(|ip: IpAddr| ip.is_loopback()));
+        .for_seat(Arc::new(|ip: IpAddr| ip.is_loopback()));
     let app = super::routes::router(Arc::clone(&r.server)).layer(axum::Extension(BySeat));
     let mut stopped = r.stop.subscribe();
     runtime.spawn(crate::listen::serve(
