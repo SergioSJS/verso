@@ -53,7 +53,7 @@ fn an_invited_account_makes_a_token_a_program_reads_with() {
         lab.local.set_link_origin(Some(ORIGIN)).unwrap();
         let made = lab
             .local
-            .invite(Some("Campanha"), Some(Role::Editor))
+            .invite_for_tests(Some("Campanha"), Some(Role::Editor))
             .unwrap();
         let cookie = accept(&lab, &made.link, "lia@example.org", "Lia").await;
         let id = first_folder(&lab, &cookie).await;
@@ -156,7 +156,7 @@ fn a_passkey_through_the_link_alone() {
         lab.serve();
         let port = lab.local.link_open().unwrap();
         lab.local.set_link_origin(Some(ORIGIN)).unwrap();
-        let made = lab.local.invite(None, None).unwrap();
+        let made = lab.local.invite_for_tests(None, None).unwrap();
         let cookie = accept(&lab, &made.link, "teo@example.org", "Teo").await;
         // On the network: refused in words, before anything is counted.
         let (_, state) = lab.get("/api/state", Some(&cookie)).await;

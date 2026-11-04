@@ -134,7 +134,7 @@ fn an_invited_accounts_desktop_app_syncs_its_folder() {
         lab.serve();
         let made = lab
             .local
-            .invite(Some("Campanha"), Some(Role::Editor))
+            .invite_for_tests(Some("Campanha"), Some(Role::Editor))
             .unwrap();
         let cookie = accept(&lab, &made.link, "ana@example.org", "Ana").await;
         let token = device_token(&lab, &cookie, "Verso · Mac da Ana").await;
@@ -260,7 +260,7 @@ fn the_seat_is_no_device_and_its_token_opens_nothing_elsewhere() {
         let seat = lab.local.sit(&lab.notes.path().join("Campanha")).unwrap();
         let made = lab
             .local
-            .invite(Some("Campanha"), Some(Role::Reader))
+            .invite_for_tests(Some("Campanha"), Some(Role::Reader))
             .unwrap();
         let cookie = accept(&lab, &made.link, "bia@example.org", "Bia").await;
         let token = device_token(&lab, &cookie, "Verso · Windows da Bia").await;
@@ -312,7 +312,7 @@ fn a_device_never_reaches_a_folder_served_in_part() {
         let server = server_of(&lab);
         let vault = server.db.folder_by_dir("Campanha").unwrap().unwrap();
         let share = server.db.shares_of(&vault.id).unwrap().remove(0);
-        let made = lab.local.invite(None, None).unwrap();
+        let made = lab.local.invite_for_tests(None, None).unwrap();
         let cookie = accept(&lab, &made.link, "caio@example.org", "Caio").await;
         let caio = server
             .db

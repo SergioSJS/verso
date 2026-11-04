@@ -26,7 +26,7 @@ const NEW: &str = "outra senha longa da mesa 2027";
 async fn ana(lab: &Lab) -> (String, String) {
     let made = lab
         .local
-        .invite(Some("Campanha"), Some(Role::Editor))
+        .invite_for_tests(Some("Campanha"), Some(Role::Editor))
         .unwrap();
     let cookie = accept(lab, &made.link, ANA, "Ana").await;
     let id = lab.local.accounts().unwrap()[0].id.clone();
@@ -281,7 +281,7 @@ fn removing_an_account_takes_everything_it_held() {
         let again = lab.local.remove_account(&id).unwrap_err();
         assert!(again.contains("no account here"), "{again}");
         // Invited again: a new account, with nothing of the old one's.
-        let made = lab.local.invite(None, None).unwrap();
+        let made = lab.local.invite_for_tests(None, None).unwrap();
         let back = accept(&lab, &made.link, ANA, "Ana").await;
         let (_, folders) = lab.get("/api/folders", Some(&back)).await;
         assert_eq!(folders["folders"], json!([]), "{folders}");

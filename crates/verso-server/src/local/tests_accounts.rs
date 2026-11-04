@@ -101,7 +101,7 @@ fn a_player_is_invited_once_and_reaches_what_was_given() {
         lab.serve();
         let made = lab
             .local
-            .invite(Some("Campanha"), Some(Role::Reader))
+            .invite_for_tests(Some("Campanha"), Some(Role::Reader))
             .unwrap();
         assert_eq!(
             made.link,
@@ -172,20 +172,16 @@ fn a_player_is_invited_once_and_reaches_what_was_given() {
             ("used", Some("Ana"), Some("Campanha"))
         );
         // Ended before use: gone.
-        let other = lab.local.invite(None, None).unwrap();
+        let other = lab.local.invite_for_tests(None, None).unwrap();
         lab.local.end_invitation(&other.id).unwrap();
         let (gone, _) = lab
             .get(&format!("/api/invite/{}", token_of(&other.link)), None)
             .await;
         assert_eq!(gone, 404);
         assert!(lab.local.end_invitation(&other.id).is_err(), "ended once");
-        // No owner's role is handed out by an invitation.
-        assert!(
-            lab.local
-                .invite(Some("Campanha"), Some(Role::Owner))
-                .is_err()
-        );
-        assert!(lab.local.invite(Some("Nowhere"), None).is_err());
+        // No owner's role is handed out by an invitation: the folder's
+        // page refuses it (local::tests_shares, the share dialog's), and the
+        // table's gives reading.
         // The audit log has it; the log has no link.
         let actions: Vec<String> = lab
             .local
@@ -214,7 +210,7 @@ fn sign_in_through_the_link_is_limited_by_the_forwarded_address() {
         lab.serve();
         let port = lab.local.link_open().unwrap();
         lab.local.set_link_origin(Some(ORIGIN)).unwrap();
-        let made = lab.local.invite(None, None).unwrap();
+        let made = lab.local.invite_for_tests(None, None).unwrap();
         assert!(
             made.link.starts_with(&format!("{ORIGIN}/invite/")),
             "{}",
@@ -281,7 +277,7 @@ fn sign_in_through_the_link_is_limited_by_the_forwarded_address() {
         // the folders through the link with it.
         let made = lab
             .local
-            .invite(Some("Campanha"), Some(Role::Editor))
+            .invite_for_tests(Some("Campanha"), Some(Role::Editor))
             .unwrap();
         let path = format!("/api/invite/{}", token_of(&made.link));
         let res = through(port, &path, "x", "203.0.113.91")
@@ -331,8 +327,10 @@ fn a_player_never_reaches_a_folder_served_in_part() {
         let server = Arc::clone(&lock(&lab.local.shared.inner).as_ref().unwrap().server);
         let vault = server.db.folder_by_dir("Campanha").unwrap().unwrap();
         let share = server.db.shares_of(&vault.id).unwrap().remove(0);
-        assert!(lab.local.invite(Some("Campanha"), None).is_err());
-        let made = lab.local.invite(None, None).unwrap();
+        // No invitation names it: its page has no table to sit at and no
+        // share to make (local::tests_shares, tests_seat); the lock below
+        // holds whatever a grant says.
+        let made = lab.local.invite_for_tests(None, None).unwrap();
         let cookie = accept(&lab, &made.link, "eva@example.org", "Eva").await;
         let eva = server
             .db
@@ -391,7 +389,7 @@ fn a_phone_has_none_of_the_routes_of_an_account() {
         let cookie = lab.pair("iPhone", true, Role::Editor).await.unwrap();
         let made = lab
             .local
-            .invite(Some("Campanha"), Some(Role::Reader))
+            .invite_for_tests(Some("Campanha"), Some(Role::Reader))
             .unwrap();
         for (method, path) in [
             ("GET", "/api/me/sessions".to_owned()),
@@ -433,7 +431,7 @@ fn this_computers_accounts_are_no_ones() {
             crate::db::VAULT_HOLDER,
             "x@this-computer.verso",
         ] {
-            let made = lab.local.invite(None, None).unwrap();
+            let made = lab.local.invite_for_tests(None, None).unwrap();
             let (status, body) = lab
                 .post(
                     &format!("/api/invite/{}", token_of(&made.link)),
@@ -486,7 +484,7 @@ fn players_see_the_owner_by_name_and_never_its_inner_address() {
         lab.serve();
         let made = lab
             .local
-            .invite(Some("Campanha"), Some(Role::Reader))
+            .invite_for_tests(Some("Campanha"), Some(Role::Reader))
             .unwrap();
         let cookie = accept(&lab, &made.link, "ana@example.org", "Ana").await;
         let (_, folders) = lab.get("/api/folders", Some(&cookie)).await;

@@ -38,6 +38,8 @@ pub mod qr;
 mod read_links;
 mod routes;
 pub mod seat;
+#[cfg(any(test, feature = "test-support"))]
+mod test_support;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -125,10 +127,12 @@ pub enum Event {
 type Sink = Arc<dyn Fn(Event) + Send + Sync>;
 
 pub use self::devices::Device;
-pub use self::invites::{InvitationRow, Invite};
+pub use self::invites::InvitationRow;
 pub use self::players::{Player, Reset};
 pub use self::policy::{PhoneGuard, Policy, refused_command};
 pub use self::seat::Seat;
+#[cfg(any(test, feature = "test-support"))]
+pub use self::test_support::Invite;
 
 /// The settings of the mode that outlast a start.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

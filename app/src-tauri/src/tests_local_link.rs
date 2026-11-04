@@ -155,10 +155,10 @@ fn invitations_are_listed_and_ended_once_and_none_is_made_from_settings() {
         "a command to make one"
     );
     let s = served(true);
-    let name = s.local.served_name(s._dirs[0].path()).unwrap();
+    let name = s.local.served_name_for_tests(s._dirs[0].path()).unwrap();
     let made = s
         .local
-        .invite(Some(&name), Some(verso_server::db::Role::Editor))
+        .invite_for_tests(Some(&name), Some(verso_server::db::Role::Editor))
         .unwrap();
     assert!(
         made.link.starts_with(&format!("{ORIGIN}/invite/")),

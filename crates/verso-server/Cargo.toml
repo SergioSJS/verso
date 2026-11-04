@@ -125,6 +125,11 @@ regex = "1"
 # that ships turns it on.
 [features]
 fuzzing = []
+# A player made at the computer, for the tests of this crate and of the
+# app's host (`LocalServer::invite_for_tests`): the app invites at the
+# folder's page and ships without it. The app turns it on in its
+# dev-dependencies only.
+test-support = []
 
 [lints]
 workspace = true

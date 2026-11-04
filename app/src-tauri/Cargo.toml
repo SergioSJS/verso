@@ -225,6 +225,10 @@ verso-fs = { path = "../../crates/verso-fs" }
 # The fakes of a WebDAV server and an S3 service the sync tests run against
 # (ADR 0104, Consequences: no test reaches a real provider).
 verso-cloud = { path = "../../crates/verso-cloud", features = ["fake"] }
+# A player made at the computer through the server's own act, for the host's
+# tests of "this app is a server" (`LocalServer::invite_for_tests`); the
+# app invites at the folder's page and ships without it.
+verso-server = { path = "../../crates/verso-server", features = ["test-support"] }
 # A synced folder's live notes (ADR 0082 item 16): the tests' tabs are Yjs
 # documents, as the window's, and the feature's guardrail is a property
 # test. Both already in the tree, at these versions, through verso-server

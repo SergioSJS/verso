@@ -228,7 +228,7 @@ fn the_owner_makes_a_link_and_it_opens_only_what_it_names() {
         // A player and a phone make none.
         let made = lab
             .local
-            .invite(Some("Campanha"), Some(Role::Editor))
+            .invite_for_tests(Some("Campanha"), Some(Role::Editor))
             .unwrap();
         let player = accept(&lab, &made.link, "rui@example.org", "Rui").await;
         // Even owning the folder by a grant made by mistake.

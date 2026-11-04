@@ -130,7 +130,7 @@ impl Served {
     /// A person invited by the owner makes an account through the link:
     /// their browser's cookie.
     fn invited(&self, email: &str) -> String {
-        let made = self.local.invite(None, None).unwrap();
+        let made = self.local.invite_for_tests(None, None).unwrap();
         let token = made.link.rsplit_once("/invite/").unwrap().1.to_owned();
         let accepted = self
             .through(reqwest::Method::POST, &format!("/api/invite/{token}"))

@@ -88,7 +88,7 @@ async fn shared_with(lab: &Lab, cookie: &str) -> Vec<Value> {
 
 /// A person invited with no folder: their cookie.
 async fn invited(lab: &Lab, email: &str) -> String {
-    let made = lab.local.invite(None, None).unwrap();
+    let made = lab.local.invite_for_tests(None, None).unwrap();
     accept(lab, &made.link, email, "Rui").await
 }
 
@@ -196,7 +196,7 @@ fn a_player_and_a_phone_share_nothing() {
         );
         let made = lab
             .local
-            .invite(Some("Campanha"), Some(Role::Editor))
+            .invite_for_tests(Some("Campanha"), Some(Role::Editor))
             .unwrap();
         let editor = accept(&lab, &made.link, "ana@example.org", "Ana").await;
         let body = json!({ "path": "Diario", "email": "ana@example.org", "role": "editor" });
