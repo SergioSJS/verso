@@ -24,7 +24,7 @@ The board uses Excalidraw (MIT) as a free annotation layer.
 
 - The semantic layer is proposed, not decided: nodes are notes, edges are typed
   relations, and a free arrow can be promoted to a typed relation.
-- Board persistence is `[OPEN]` ([0040](0040-board-persistence.md)).
+- Board persistence is `[OPEN]` ([0040](archive/0040-board-persistence.md)).
   *(Decided: 0040 accepted on 2026-09-30, by ADR 0057.)*
 - The board needs an equivalent accessible view — a list or table of the same
   notes and relations ([0035](0035-cross-cutting-requirements.md), `PROPOSED`).

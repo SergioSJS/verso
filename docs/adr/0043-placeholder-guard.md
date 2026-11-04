@@ -26,7 +26,7 @@ in §16.1 as a real cause of data loss, and the guard appears in §10.3 as a
 mitigation for the "Data loss" risk.
 
 The rule was `PROPOSED` in §8 and in
-[0021](0021-sync-automerge-layered-config.md), but `CLAUDE.md` already treated
+[0021](archive/0021-sync-automerge-layered-config.md), but `CLAUDE.md` already treated
 it as an invariant. The Phase 0 review pointed out the contradiction (C1); the
 maintainer resolved it by promoting the rule.
 

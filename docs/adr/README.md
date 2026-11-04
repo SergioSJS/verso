@@ -28,7 +28,6 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0004](0004-project-name-verso.md) | Project name: Verso | Accepted; the domain `versomd.com` (2026-09-24); the package, crate and npm name `versomd`, on the availability check of 2026-10-12 |
 | [0005](0005-license.md) | Project license: MPL-2.0 in the core and app, MIT in the plugin SDK | Accepted |
 | [0006](0006-contribution-dco-no-cla.md) | Contribution through DCO, without CLA; AI-written code comes in through the same DCO, under the responsibility of whoever signs | Accepted |
-| [0007](0007-private-repo-until-license.md) | Repository private until the license is decided | Accepted |
 | [0008](0008-documentation-language.md) | Documentation language: English source, pt-BR mirror | Accepted |
 | [0009](0009-external-constraints.md) | External constraints assumed as given | Constraint; revised 2026-10-14: the public source of an open-source plugin Obsidian publishes is an admissible source |
 
@@ -78,7 +77,6 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | # | Title | Status |
 |---|---|---|
 | [0020](0020-sync-merge-in-core-transports-as-plugins.md) | Sync: merge engine in the core, transports as plugins, out of scope until Phase 2 | Accepted; revised by 0073 |
-| [0021](0021-sync-automerge-layered-config.md) | Sync: Automerge and layered config | Proposed; revised by 0073 (Yjs) |
 | [0043](0043-placeholder-guard.md) | An on-demand storage placeholder file is never a deletion | Accepted (2026-09-22) |
 
 ### Platforms and architecture
@@ -136,7 +134,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0114](0114-opening-one-markdown-file-without-a-folder.md) | Opening one Markdown file: Verso as a handler for `.md`, and a window with no folder | Accepted (2026-10-30), the 13 questions as recommended; built on `feat/single-file` (As built notes in Status); amended 2026-10-31: JSON, YAML, TOML, XML and CSV open in the diagram, also from the command line and File › Open file… (item 34) |
 | [0115](0115-an-embedded-terminal-in-the-desktop-app.md) | An embedded terminal in the desktop app: the person's shell in a pane, for AI command-line tools | Accepted (2026-10-31); into V1 (Q9); Q4 decided as "the app on this computer" |
 | [0116](0116-music-and-sound-at-the-table-heard-by-everyone.md) | Music and sound at the table, heard by everyone: files as a shared playback state, and "share audio" — live capture of any application or page, relayed by the server; only the game master controls, each person their own volume | Accepted (2026-10-31); Q1–Q9 decided as recommended; not built |
-| [0117](0117-this-app-is-a-universo-server.md) | This app is a UniVerso server: one feature, on the network and by an internet link (Cloudflare Quick Tunnel); accounts and invitations in the local server; the game master at the table as a client of their own server | Accepted (2026-11-03), written by Fable from the plan and the maintainer's answers, awaiting his reading; supersedes 0096 (built) and 0111 (never built); a fixed address of the person's own is in scope (D6), its mechanism `[OPEN]` D10; first step the spike |
+| [0117](0117-this-app-is-a-universo-server.md) | This app is a UniVerso server: one feature, on the network and by an internet link (Cloudflare Quick Tunnel); accounts and invitations in the local server; the game master at the table as a client of their own server | Accepted (2026-11-03), written by Fable from the plan and the maintainer's answers, awaiting his reading; supersedes 0096 (built) and 0111 (never built); a fixed address of the person's own by a named Cloudflare Tunnel (D6, D10); the device sign-in, read links, passkeys and tokens in the feature, the console and mail sign-in out (D9, all decided 2026-11-03); first step the spike |
 
 ### Dialect, engineering and roadmap
 
@@ -161,7 +159,6 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0037](0037-base-parser.md) | Base parser for `verso-dialect`: `pulldown-cmark`, `comrak` as the fallback | Accepted |
 | [0038](0038-ts-type-generation.md) | TypeScript type generation from Rust: `specta` with `tauri-specta` | Accepted |
 | [0039](0039-performance-targets.md) | Performance targets | After the first baseline |
-| [0040](0040-board-persistence.md) | Board persistence | Accepted (2026-09-30, in 0057) |
 
 ### Open questions raised in the Phase 0 review
 
@@ -187,6 +184,11 @@ history cites them at their new path.
 |---|---|---|
 | [0096](archive/0096-this-app-is-a-server.md) | This app is a server: the desktop serving its folder on the local network | Superseded by [0117](0117-this-app-is-a-universo-server.md) (2026-11-03); built, its rules carried over there |
 | [0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Superseded by [0117](0117-this-app-is-a-universo-server.md) (2026-11-03); never built |
+| [0007](archive/0007-private-repo-until-license.md) | Repository private until the license is decided | Archived 2026-11-03: condition spent ([0005](0005-license.md)); the repository stays private by the decision of 2026-10-29 |
+| [0021](archive/0021-sync-automerge-layered-config.md) | Sync: Automerge and layered config | Superseded by [0073](0073-self-hosted-server-first.md) (Yjs); archived 2026-11-03 |
+| [0040](archive/0040-board-persistence.md) | Board persistence | Superseded by [0057](0057-board-json-canvas.md); archived 2026-11-03 |
+
+Superseded **in part** and left in place — [0025](0025-own-server-and-mobile-pwa.md) (item 3 by 0073), [0020](0020-sync-merge-in-core-transports-as-plugins.md) (by 0073), [0110](0110-a-table-is-a-campaign-folder.md) and [0107](0107-the-table-a-shared-roll-and-chat-log.md) (by 0113), [0024](0024-board-excalidraw.md) (persistence by 0057), [0014](0014-primitives-catalog.md) (a catalogue across 0052, 0053, 0057, 0093) — keep their pointer lines and will each be consolidated into a new ADR when their area is next changed (the maintainer, 2026-11-03: *"Sim para todas"*).
 
 ## Open items that did not become ADRs
 

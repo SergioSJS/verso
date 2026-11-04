@@ -38,10 +38,10 @@ The three BLOCKING ones have a short resolution and are all the maintainer's: an
 
 - `CLAUDE.md` §2.2, invariant 10: "A placeholder file from on-demand storage is never interpreted as a deletion." An invariant is "BLOCKING by definition".
 - `docs/BRIEFING.md` §8: the same item is `PROPOSED`.
-- [ADR 0021](../adr/0021-sync-automerge-layered-config.md): status Proposed.
+- [ADR 0021](../adr/archive/0021-sync-automerge-layered-config.md): status Proposed.
 - `CLAUDE.md` opens by saying "This page creates no new rule" and Rule zero (§1, item 2) forbids promoting `PROPOSED` to `DECIDED`.
 
-The document that states the rule is the first to violate it. The guard is good and probably should be decided, but the one who decides is the maintainer. Aggravating factor: [ADR 0021](../adr/0021-sync-automerge-layered-config.md), still Proposed, already imposes a requirement on Phase 1 ("the folder scan of Phase 1 already needs to distinguish a placeholder from a missing file").
+The document that states the rule is the first to violate it. The guard is good and probably should be decided, but the one who decides is the maintainer. Aggravating factor: [ADR 0021](../adr/archive/0021-sync-automerge-layered-config.md), still Proposed, already imposes a requirement on Phase 1 ("the folder scan of Phase 1 already needs to distinguish a placeholder from a missing file").
 
 **Needs the maintainer:** explicitly promote item 3 of ADR 0021 (with its own ADR or a status note), or remove invariant 10 from `CLAUDE.md` and the requirement about Phase 1 in ADR 0021.
 
@@ -133,7 +133,7 @@ Two properties that the architecture depends on remain a promise, not a guardrai
 ### C11 — Alternatives "implicitly discarded" violate the recording rule — MINOR
 
 - `CLAUDE.md` §1 item 4 and `docs/adr/README.md`: only record an alternative that someone actually considered.
-- [ADR 0007](../adr/0007-private-repo-until-license.md) and [ADR 0028](../adr/0028-crate-structure.md): "implicitly discarded". Implicit is the opposite of "actually considered".
+- [ADR 0007](../adr/archive/0007-private-repo-until-license.md) and [ADR 0028](../adr/0028-crate-structure.md): "implicitly discarded". Implicit is the opposite of "actually considered".
 
 ### C12 — Spec §7 D7 labels as `DECIDED` an effect that is `PROPOSED` — MINOR
 
@@ -149,7 +149,7 @@ Two properties that the architecture depends on remain a promise, not a guardrai
 
 ### C15 — Degradation to Markdown ([ADR 0013](../adr/0013-degrades-to-markdown.md)) versus `.canvas` in the base dialect — MINOR
 
-- "All structured data degrades to readable Markdown" (Proposed) and "`.canvas` (JSON Canvas)" in the base dialect (Accepted, [ADR 0030](../adr/0030-base-dialect-obsidian-compatible.md)). JSON is not Markdown. [ADR 0040](../adr/0040-board-persistence.md) touches the subject without resolving it: "binary JSON does not do", but JSON Canvas is text. It is worth saying what "degrades to Markdown" means for data that is already born in another text format.
+- "All structured data degrades to readable Markdown" (Proposed) and "`.canvas` (JSON Canvas)" in the base dialect (Accepted, [ADR 0030](../adr/0030-base-dialect-obsidian-compatible.md)). JSON is not Markdown. [ADR 0040](../adr/archive/0040-board-persistence.md) touches the subject without resolving it: "binary JSON does not do", but JSON Canvas is text. It is worth saying what "degrades to Markdown" means for data that is already born in another text format.
 
 ### C16 — Closing an `[OPEN]`: edit the ADR or write another one? — MINOR
 
@@ -166,7 +166,7 @@ Two properties that the architecture depends on remain a promise, not a guardrai
 - `fsync` of the **directory** after the `rename`; without it, the rename may not survive a power loss on ext4/APFS.
 - **Metadata** lost in the rename: permissions, owner, xattrs (Finder tags, quarantine), creation dates. The new file is born with the process's default mode.
 - **Hard links** and **aliases** break: the rename replaces the inode.
-- **Sync clients** (iCloud Drive, Dropbox, OneDrive, Syncthing) see "deleted and created", not "edited". Some generate a conflict copy; others, in on-demand folders, react badly to a temporary file appearing and disappearing. This is ironic in the face of the placeholder guard ([ADR 0021](../adr/0021-sync-automerge-layered-config.md)).
+- **Sync clients** (iCloud Drive, Dropbox, OneDrive, Syncthing) see "deleted and created", not "edited". Some generate a conflict copy; others, in on-demand folders, react badly to a temporary file appearing and disappearing. This is ironic in the face of the placeholder guard ([ADR 0021](../adr/archive/0021-sync-automerge-layered-config.md)).
 - **Network filesystems** (SMB, NFS) where rename is not atomic.
 - **Windows** (a target platform): replacing an existing file requires `MoveFileEx` with `REPLACE_EXISTING`, and handles opened by antivirus or OneDrive make the rename fail.
 

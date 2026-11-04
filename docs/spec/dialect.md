@@ -483,7 +483,7 @@ Q7). Case sensitivity: `DECIDED` on 2026-10-21 (section 9, Q8).
 The format is third-party and is not redefined here.
 
 How Verso extends JSON Canvas and persists the board: `DECIDED` on
-2026-09-30 ([ADR 0057](../adr/0057-board-json-canvas.md), closing [ADR 0040](../adr/0040-board-persistence.md)).
+2026-09-30 ([ADR 0057](../adr/0057-board-json-canvas.md), closing [ADR 0040](../adr/archive/0040-board-persistence.md)).
 
 1. A board is a `.canvas`. Verso's free drawing lives in the same file under
    the top-level key `verso`: `{"version": 1, "drawing": [ … ]}`, whose
@@ -912,7 +912,7 @@ behavior is implemented. None of them has an answer in the briefing.
      identity is the `type` inside it, not the note's name or place. This is
      the maintainer's choice between briefing §5.3 — "a text file in the
      folder", with ADR 0014 and section 6 after it — and briefing §8 with
-     [ADR 0021](../adr/0021-sync-automerge-layered-config.md), both
+     [ADR 0021](../adr/archive/0021-sync-automerge-layered-config.md), both
      `PROPOSED`, which put schemas in the shared layer of the configuration,
      outside the tree: §5.3's. A schema is content, as packs are, so the
      tension with D2 does not arise; ADR 0021 is left as written, Proposed,

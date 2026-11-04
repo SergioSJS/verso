@@ -39,7 +39,7 @@ and be rebuildable.
 
 - A folder synced between machines does not carry its configuration along, which
   pushes shared config toward layered sync
-  ([0021](0021-sync-automerge-layered-config.md)).
+  ([0021](archive/0021-sync-automerge-layered-config.md)).
 - Moving or renaming the folder dissociates the config, since the key is the
   path. How reassociation happens, the briefing does not say.
 - Because the index is a cache, it can never be the only copy of a piece of data

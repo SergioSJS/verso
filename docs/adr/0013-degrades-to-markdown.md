@@ -45,7 +45,7 @@ typed notes and schemas now, relations and views when they come.
   only in the index or in a database. `.canvas` (JSON Canvas) is already in the
   base dialect ([0030](0030-base-dialect-obsidian-compatible.md)) and is text:
   it does not contradict the proposal, and
-  [0040](0040-board-persistence.md) builds on that.
+  [0040](archive/0040-board-persistence.md) builds on that.
 - **Two words delimited on acceptance, 2026-09-24** (memo §4.3, and §10,
   item 3):
   - **"Views"**, in the second consequence, means the structured-views

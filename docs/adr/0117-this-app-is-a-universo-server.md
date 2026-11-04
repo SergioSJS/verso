@@ -279,7 +279,11 @@ relacionado ao UniVerso, certo? edição conjunta, permissões, chat comum,
 rolagens, música, etc"*. The goal is **parity with a UniVerso**: the same
 server code serves, so what differs is only what the laptop's posture
 imposes. Verified against the code on 2026-11-03; the rows marked *spike*
-are measured in D5 and tried in the manual checks (S8).
+are measured in D5 and tried in the manual checks (S8). The four rows
+that said "not in this mode" were put to the maintainer on 2026-11-03 and
+answered *"Sim para todas"*: another desktop app connecting and syncing,
+read links, passkeys and tokens are **in** the feature; the console and
+sign-in by mail are **out**.
 
 How it works, in every row and not counted against parity: the game
 master's machine is on and awake while the table runs, as with Foundry (a
@@ -294,7 +298,7 @@ Cloudflare a real HTTPS one.
 | UniVerso feature | Here | Where it is decided by the code |
 |---|---|---|
 | Live co-editing of a note in the browser (0073 item 7, 0082's rooms; presence: cursors and names) | **Works as on a UniVerso** for accounts (the UniVerso dispatch) and for phones (`collab_join`, `collab_awareness`, `collab_present` for any phone; `collab_update`, `collab_save` for an editor). Through the tunnel: *spike* (WebSocket) | `local/allow.rs:79-80, 101-102, 133-134`; `presence.rs:5-12` |
-| Live co-editing of a **synced desktop folder** (0082 proper) and **sync of a local folder** (0079) from another person's desktop app | **Not in this mode**: it needs the desktop's "connect to a server" device sign-in, whose routes the local table does not have, and `sync_*` is refused to phones. A player uses the browser; the owner's window joins by Q3 | `local/routes.rs:32-54`; `allow.rs:281-286`; `app/src-tauri/src/remote.rs:1-10` |
+| Live co-editing of a **synced desktop folder** (0082 proper) and **sync of a local folder** (0079) from another person's desktop app | **In this feature, needs S11** `[DECIDED 2026-11-03]`: the desktop's "connect to a server" device sign-in (0074 item 8), whose routes the local table lacks today, is added for accounts; `sync_*` stays refused to phones. Until S11 a player uses the browser; the owner's window joins by Q3 | `local/routes.rs:32-54`; `allow.rs:281-286`; `app/src-tauri/src/remote.rs:1-10`; `device.rs` |
 | Accounts, roles, invitations (0074), shares (0081) | **Needs S3** (accounts, invitations, `who()`); then as on a UniVerso, the owner sharing from their window (Q3). **Limit:** an account creates no folder on the laptop — the owner's folders only (`folders_dir` is a dead path) | `config.rs:315`; `allow.rs:233-236` (phones never share) |
 | One access model, per-path access, hides (0113) | **Works**: `may()` judges every answer for accounts and phones alike. **Needs S3** for the hide of a folder served in part, today phone-only (G8) | `access.rs:28`; `table_sound.rs:335` (one `may()` call among many) |
 | Campaign folder: tables, released notes, players' rights (0110 phase 1) | **Works** once the owner's window is at the table (Q3); phones never make or change a table. The dashboard, sessions and notices (0110 phase 2) are not built on a UniVerso either (roadmap V.43) | `allow.rs:261-269`; `app/src-tauri/src/campaign.rs:17-19` |
@@ -304,12 +308,13 @@ Cloudflare a real HTTPS one.
 | Notifications in the window (0084) | In-window: **works**. The system's notifications need a secure context: **not on the network's certificate**, **yes through Cloudflare** (0073 item 6 (d)) | `app/ui/src/web/plainHttp.ts:6-12` |
 | The phone offline (0092) | **Works with a limit**: the service worker needs a secure context — not on the network's certificate (D2 item 5), yes through Cloudflare, but the cached origin dies with the link at the next run | `app/ui/src/web/offline/manager.ts:480` |
 | Trash (0080) and version history (0091) | **Works**: `trash_list/restore/delete`, `history_*` for an editor; the daily expiry runs; `trash_empty` and the days are the owner's | `allow.rs:141-147, 278-280`; `local/mod.rs:909-911` |
-| Admin console and quotas (0077) | **Not in this mode**: no console routes, no quota; Settings › *Turn into a server* is the console (phones, invitations, audit) | `local/routes.rs:5-11`; `config.rs:322` |
+| Admin console and quotas (0077) | **Not in this feature** `[DECIDED 2026-11-03]`: the owner administers from the app — Settings › *Turn into a server* is the console (phones, accounts, invitations, audit); no quota on a laptop | `local/routes.rs:5-11`; `config.rs:322` |
 | The web window on a phone (0076) | **Works**; the cold load against 200 in-flight requests is *spike* | `local/routes.rs:33-36, 53` |
-| Read links without an account (0105) | **Not in this mode**, as decided for the laptop | `readlinks.rs:148, 414, 529` |
-| Sign-in by mail, "forgot the password", passkeys, tokens for programs | **Not in this mode**: no mail server on a laptop, and the routes stay out of the local table (S3) | `api.rs:759`; `local/routes.rs` |
+| Read links without an account (0105) | **In this feature, needs S12** `[DECIDED 2026-11-03]`: the refusal in local mode is lifted for the owner; a link's page is served on the network and through the link | `readlinks.rs:148, 414, 529` |
+| Sign-in by mail and "forgot the password" | **Not in this feature** `[DECIDED 2026-11-03]`: no mail server on a laptop; a player's password is reset by the owner, as 0074 item 5's admin does | `api.rs:759`; `mail.rs:5-10` |
+| Passkeys and tokens for programs (0074 items 3 and 8) | **In this feature, needs S13** `[DECIDED 2026-11-03]`: the passkey and token routes join the local table for accounts; a passkey needs a secure context, so it is registered through the link or the own address, not on the network's certificate; a `verso_pat_` token of an account is accepted (the refusal of every bearer in local mode is narrowed to phones) | `auth.rs:343-345`; `passkeys.rs`; `api.rs:624-690` |
 
-### D10. `[OPEN]` "My own address": which mechanism, and what the person does by hand
+### D10. "My own address" `[DECIDED 2026-11-03]`: a named Cloudflare Tunnel, and what the person does by hand
 
 Read on 2026-11-03 from Cloudflare's "Create a locally-managed tunnel" page
 and the `cloudflared` source (`cmd/cloudflared/tunnel/{login,subcommands,cmd}.go`,
@@ -355,24 +360,23 @@ and the `cloudflared` source (`cmd/cloudflared/tunnel/{login,subcommands,cmd}.go
   `tailscale` (it already does, D2 item 5 (d)) and run the command; the
   person installs Tailscale and approves the policy.
 - **(c) The UniVerso on a host**: exists ([0073](0073-self-hosted-server-first.md)); outside this feature.
-- **Recommendation: (a)**, with (b) offered only as the "if you already
-  have Tailscale" line the section shows today. (a) uses the binary and
+- **Decided 2026-11-03: (a)** (*"Sim para todas"*); (b) is discarded, see
+  below. (a) uses the binary and
   the code the quick link already has; the person's own domain is the
   address they wanted; the steps by hand are the ones no program can do for
   them. A test checks that the app never reads or writes outside
   `~/.cloudflared/cert.pem` and its own data directory.
-- **The twelve hours.** `[OPEN]` (a) The own address has no twelve-hour
-  stop and follows *Keep on at start* (it is the person's account and
-  domain; a stable link is meant to stay up, as Foundry does); the quick
-  link keeps 12 hours and is never kept on. (b) Both behave alike.
-  **Recommendation: (a)**.
-- **Build** (added to D8): S5b the named tunnel in the manager (login,
+- **The twelve hours** `[DECIDED 2026-11-03]`: the own address has no
+  twelve-hour stop and follows *Keep on at start* (it is the person's
+  account and domain; a stable link is meant to stay up, as Foundry does);
+  the quick link keeps 12 hours and is never kept on.
+- **Build** (in D8): S5b the named tunnel in the manager (login,
   create, route dns, run, delete; the hostname and the tunnel's uuid in
   `LocalSettings`); S6b `local_server_link_mode` (`quick` | `own`) and
   `local_server_own_address`; S7b *Use my own address* under the link box,
   with the hostname field, the three by-hand steps written where the person
   reads them, and the state of the DNS record; S8b the lesson's section.
-- **Spike** (added to D5): from the maintainer's Mac, the login from a
+- **Spike** (in D5): from the maintainer's Mac, the login from a
   spawned process lands `cert.pem` where expected and the browser flow
   completes; create, route dns and run with `--credentials-file` in a
   chosen directory; how long until the hostname resolves; the WebSocket and
@@ -388,8 +392,10 @@ Gatekeeper on the downloaded binary; the exact stderr line that carries the
 URL; from a phone on mobile data, sign-in, a note, the table, a roll, an
 image, co-editing one note from two phones with cursors seen, a secret
 roll, a ten-minute shared-audio stream and a music track, and a WebSocket
-held idle for 30 minutes (the rows of D9 marked *spike*); which forwarded
-header a client cannot forge; the first upload size that fails; `429` on a cold load
+held idle for 30 minutes (the rows of D9 marked *spike*); from a second
+desktop app, the device sign-in through the link and a shared folder
+synced and co-edited; a passkey registered and used through the link;
+which forwarded header a client cannot forge; the first upload size that fails; `429` on a cold load
 of the window; whether the child outlives a killed parent. **If the
 WebSocket fails through a Quick Tunnel, nothing is built on it** and D6 is
 brought forward.
@@ -429,7 +435,7 @@ and commands (`local_server_link_on/off`, `local_server_invite`,
 `local_server_sit_at_table`; `build.rs` and `capabilities/default.json`;
 bindings regenerated; harness); S7 the UI, the web sign-in beside pairing,
 the offline page, the tray words; S8 changelog, the lesson, the walkthrough,
-manual checks per OS with one line per row of D9; S5b, S6b, S7b and S8b the own address (D10) once its `[OPEN]` is answered; S9 the guardrails seen failing; S10 the closing checks
+manual checks per OS with one line per row of D9; S5b, S6b, S7b and S8b the own address (D10); S11 the device sign-in routes and page in the local table for accounts, so a desktop app connects and syncs a shared folder (0074 item 8, 0079, 0082; phones still refused `sync_*`; tests: a device token of an account opens its share, a phone's cannot, the owner's in-process token of S4 is not listed as a device); S12 read links in the local server (`readlinks.rs` refusals lifted for the owner; the hide lock of G8 judged for a link's reader; test: a link never opens a part's folder); S13 passkeys and tokens for accounts (routes added; the bearer refusal narrowed to phones; passkeys only on a secure origin, said in words on the network); S9 the guardrails seen failing; S10 the closing checks
 on the three systems and the beta installed on the maintainer's OK.
 
 ## Consequences
@@ -485,6 +491,12 @@ Only alternatives actually considered:
 - **The system's `tar`** or **bundling the binary in the installers** (Q7
   (b), (c); the latter is 0111 item 5 (b), about 35 MB per platform).
 - **Invitations only while the link is on** (Q8 (b)).
+- **Tailscale Funnel for the own address** (D10 (b)): it needs Tailscale
+  installed and signed in (the open-source client on macOS), a policy
+  approval with admin rights, three fixed ports, is in beta with
+  non-configurable bandwidth limits and does not state WebSocket support;
+  the named Cloudflare Tunnel uses the binary and code the quick link
+  already has. Discarded 2026-11-03.
 - From 0111: port forwarding or UPnP (fails behind carrier-grade NAT); a
   secret token in the URL instead of accounts (leaks through screenshots,
   history, previews); downloading "latest" (an unpinned binary with no
@@ -498,9 +510,8 @@ Only alternatives actually considered:
 maintainer's words; Q2 to Q9 as the plan recommended (*"gosto de todas
 sugestões"*); D2 as 0096 decided and built; D3 as 0111 decided on
 2026-10-23, read inside one feature; D6 (the fixed address inside this
-feature) in the maintainer's words of the same day. **D10 is `[OPEN]`**
-(the mechanism of the own address and its twelve hours), with a
-recommendation. Written by Fable 5.1 on 2026-11-03
+feature) in the maintainer's words of the same day; D10 and the four rows
+of D9 decided the same evening (*"Sim para todas"*). Written by Fable 5.1 on 2026-11-03
 from the plan and the maintainer's answers, on `docs/app-server`; **the text
 awaits the maintainer's reading**, and the other model's reading goes with
 the build pull request ([0032](0032-author-and-reviewer-roles.md)). The

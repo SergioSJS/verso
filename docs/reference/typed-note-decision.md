@@ -55,7 +55,7 @@
   where it leaves, spec **Q24** (wikilinks inside values; the YAML version),
   **Q10** (typed relation, left open), the schema i18n proposal of briefing
   §11.3, [ADR 0015](../adr/0015-schema-packs.md) (packs),
-  [ADR 0021](../adr/0021-sync-automerge-layered-config.md) (layered
+  [ADR 0021](../adr/archive/0021-sync-automerge-layered-config.md) (layered
   configuration) and [ADR 0018](../adr/0018-llm-native-mcp-in-core.md) (query
   by type).
 - Sources read: `docs/BRIEFING.md` and its pt-BR original, which prevails
@@ -379,7 +379,7 @@ The reasoning:
   mandatory** ([ADR 0011](../adr/0011-config-outside-tree-index-as-cache.md),
   decided; spec D2). Q11 records the tension: the schema inside the folder, the
   configuration outside it.
-- **Briefing §8 and [ADR 0021](../adr/0021-sync-automerge-layered-config.md)**
+- **Briefing §8 and [ADR 0021](../adr/archive/0021-sync-automerge-layered-config.md)**
   (both `PROPOSED`) list schemas in the **shared layer of the configuration**,
   beside the plugin list. That is a second place the documents put schemas;
   section 10 records it.
@@ -700,7 +700,7 @@ the schema block alone.
   here. Where a pack comes from, how its integrity is checked and how an update
   shows its diff stay open ([ADR 0047](../adr/0047-plugin-api-open-questions.md)).
 - **Layered configuration**
-  ([ADR 0021](../adr/0021-sync-automerge-layered-config.md), Proposed) and
+  ([ADR 0021](../adr/archive/0021-sync-automerge-layered-config.md), Proposed) and
   sync: out of scope until Phase 2 ends
   ([ADR 0034](../adr/0034-roadmap-in-phases.md)).
 - **Write provenance and periodic notes** (ADR 0014): still Proposed.
@@ -830,7 +830,7 @@ Answered on 2026-09-24: all seven as recommended (the header).
 | `fixtures/` | the `schema/` cases, approved in that PR, each listed in `crates/verso-dialect/tests/fixtures.rs`; the new key in `scripts/check-fixtures.sh` |
 | [Roadmap](../roadmap.md) | the two Phase 2 rows struck through; item 2.6 "decided, not built" |
 | `docs/BRIEFING.md` and its pt-BR original | status changes only, in its History: §5.3's typed-note row, §11.3's line on schema format and location, §17 item 7 |
-| [ADR 0021](../adr/0021-sync-automerge-layered-config.md) | the contradiction of section 10, item 1, as the maintainer words it |
+| [ADR 0021](../adr/archive/0021-sync-automerge-layered-config.md) | the contradiction of section 10, item 1, as the maintainer words it |
 
 **What stays open**, so that deciding seven lines does not look like deciding
 more: Q10, Q9, Q24 (the link part first), the views primitive, packs, layered

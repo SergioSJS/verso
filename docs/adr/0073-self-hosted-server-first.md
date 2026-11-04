@@ -22,7 +22,7 @@
   accepted.
 - Related: [0020](0020-sync-merge-in-core-transports-as-plugins.md) (sync:
   this ADR proposes to revise its order and two of its items),
-  [0021](0021-sync-automerge-layered-config.md) (Automerge: proposed to be
+  [0021](archive/0021-sync-automerge-layered-config.md) (Automerge: proposed to be
   revised), [0025](0025-own-server-and-mobile-pwa.md) (`verso serve`, PWA:
   proposed again here, its item 3 proposed as superseded),
   [0026](0026-core-ui-contract-inviolable-rules.md) (rule 2: the UI does not
@@ -55,7 +55,7 @@
   briefing gets a new version (the pt-BR original prevails,
   [0008](0008-documentation-language.md)), and
   [0020](0020-sync-merge-in-core-transports-as-plugins.md),
-  [0021](0021-sync-automerge-layered-config.md),
+  [0021](archive/0021-sync-automerge-layered-config.md),
   [0025](0025-own-server-and-mobile-pwa.md), [0034](0034-roadmap-in-phases.md)
   (the roadmap gains a Phase 3), [0044](0044-verso-fs-semantics.md) (the
   handles and the symlinks on a server), [0045](0045-server-and-mcp-security.md)
@@ -86,7 +86,7 @@
   open; item 12's order as first recorded is kept beside the revised one.
   The revisions the paragraph above names were made the same day: the
   briefing's version 0.13, [0020](0020-sync-merge-in-core-transports-as-plugins.md),
-  [0021](0021-sync-automerge-layered-config.md),
+  [0021](archive/0021-sync-automerge-layered-config.md),
   [0025](0025-own-server-and-mobile-pwa.md), [0034](0034-roadmap-in-phases.md),
   [0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md),
   [0050](0050-outbound-network-access.md),
@@ -447,7 +447,7 @@ the date; what stays `[OPEN]` is listed in the Status.
    over a relay, not Yjs; the reconciliation is exported by the package, the
    relay lives in its app — and a
    `.canvas` holds typed relations ([0057](0057-board-json-canvas.md)): the
-   board's co-editing was `[OPEN]` (decided and built 2026-10-12, item 7 Revisions). [0021](0021-sync-automerge-layered-config.md)
+   board's co-editing was `[OPEN]` (decided and built 2026-10-12, item 7 Revisions). [0021](archive/0021-sync-automerge-layered-config.md)
    is proposed to be revised in two ways: Yjs in place of Automerge, and a
    CRDT as the mechanism of a live session, never the stored form of a
    note; the file is. *(Revised so on 2026-10-09, a Revisions line there.)*
@@ -633,7 +633,7 @@ them: the one-service shape, the storage modes, the identity model, the
 live editing, the browser first on mobile, the order inside Phase 3 as
 revised (item 12), and the revisions of
 [0020](0020-sync-merge-in-core-transports-as-plugins.md),
-[0021](0021-sync-automerge-layered-config.md),
+[0021](archive/0021-sync-automerge-layered-config.md),
 [0025](0025-own-server-and-mobile-pwa.md), [0034](0034-roadmap-in-phases.md),
 [0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md),
 [0050](0050-outbound-network-access.md) and

@@ -73,7 +73,7 @@ State of the three analyses on the decision date:
 | Analysis | State |
 |---|---|
 | iOS and the App Store | Favors A: MPL does not have the known conflict of (A)GPL with the store's terms, and does not depend on the maintainer holding all the copyright. It was the decisive weight |
-| AI-written code and copyleft | Answered by the maintainer in [0006](0006-contribution-dco-no-cla.md), item 2: AI-written code comes in through the ordinary DCO, and is accepted as long as whoever signs has command of the code and takes responsibility for it. It affects A and B equally, so it does not change the choice. The recommendation to consult someone in intellectual property before opening the repository ([0007](0007-private-repo-until-license.md)) stands, as caution, not as a blocker |
+| AI-written code and copyleft | Answered by the maintainer in [0006](0006-contribution-dco-no-cla.md), item 2: AI-written code comes in through the ordinary DCO, and is accepted as long as whoever signs has command of the code and takes responsibility for it. It affects A and B equally, so it does not change the choice. The recommendation to consult someone in intellectual property before opening the repository ([0007](archive/0007-private-repo-until-license.md)) stands, as caution, not as a blocker |
 | `cargo-deny` allowlist | Settled in the workspace PR (item 0.10): MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, MPL-2.0, Unicode-3.0 and CC0-1.0 are compatible; GPL, LGPL and AGPL are left out, and any other one enters only with justification in the PR |
 
 ## Consequences
@@ -81,7 +81,7 @@ State of the three analyses on the decision date:
 - The repository can come out of private when the documentation migration
   ([0008](0008-documentation-language.md), roadmap 0.12) is finished and the
   availability of the name ([0004](0004-project-name-verso.md)) has been
-  verified ([0007](0007-private-repo-until-license.md)).
+  verified ([0007](archive/0007-private-repo-until-license.md)).
 - The `cargo-deny` allowlist stops being provisional in the PR for item 0.10
   ([0029](0029-guardrails-in-ci.md)).
 - Exit criterion 2 of Phase 0 (`LICENSE` present) is satisfied

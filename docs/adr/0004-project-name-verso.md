@@ -38,7 +38,7 @@ an image metadata editor in Perl.
   on 2026-10-12: `versomd`, below.)*
 - Availability on crates.io, npm and the GitHub org is `[OPEN]` and has to be
   verified before making the repository public
-  ([0007](0007-private-repo-until-license.md)). *(Checked on 2026-10-12:
+  ([0007](archive/0007-private-repo-until-license.md)). *(Checked on 2026-10-12:
   below.)*
 - **Availability, checked on 2026-10-12.** crates.io: `verso` taken;
   `versomd`, `verso-md`, `verso-cli` and `universo` free. npm: `verso`

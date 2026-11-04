@@ -17,7 +17,7 @@
   (the release key and the signed checksums list), [0022](0022-target-platforms-macos-first.md),
   [0071](0071-linux-port.md), [0054](0054-terminal-and-agents-from-the-app.md)
   (the command line inside the app), [0001](0001-open-tool-no-company.md)
-  (no company; donations only), [0007](0007-private-repo-until-license.md)
+  (no company; donations only), [0007](archive/0007-private-repo-until-license.md)
   (the repository private until the licence; roadmap V.12),
   [0029](0029-guardrails-in-ci.md) (CI's cost), [0005](0005-license.md).
 - Status in the briefing: not present.
