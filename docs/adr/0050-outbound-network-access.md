@@ -114,7 +114,7 @@ and [0056](0056-embedded-web-pages.md) (embedded web pages). Revised on
 2026-10-09 by [0073](0073-self-hosted-server-first.md) and
 [0075](0075-server-packaging-and-storage.md) item 7 (a server's traffic,
 and its update check). Revised on 2026-10-15 by
-[0096](0096-this-app-is-a-server.md) item 8 (a correction of scope, not a
+[0096](archive/0096-this-app-is-a-server.md) item 8 (a correction of scope, not a
 change of decision): the "mDNS on the local network" of the 2026-10-09
 revision is multicast, which is not "an address the user wrote in a
 configuration". "This app is a server" may announce itself by mDNS

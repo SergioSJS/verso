@@ -32,7 +32,7 @@
   [0035](0035-cross-cutting-requirements.md) (two languages, accessibility),
   [0058](0058-demo-vault-as-tutorial.md) (the tutorial),
   [0101](0101-3d-dice-physics-overlay.md) item 1 (a lazy chunk),
-  [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) item 6
+  [0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md) item 6
   (a child process killed on quit; a Job Object on Windows), roadmap
   After-V1 item 7, and
   [the cross-platform checklist](../reference/cross-platform-checklist.md).
@@ -200,7 +200,7 @@ one — not consulted, and nothing of Obsidian's internals is claimed
     on Unix a signal to the process group the PTY made (`setsid` in the
     child), `SIGHUP` then `SIGKILL` after a grace; on Windows the pseudo
     console is closed and the process tree is in a **Job Object** with
-    kill-on-close ([0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md)
+    kill-on-close ([0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md)
     item 6's rule), so a crash of the host leaves no orphan `node`
     running an agent. Quitting the app with a terminal whose foreground
     process is not the shell itself asks first, as it asks for unsaved

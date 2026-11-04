@@ -1286,7 +1286,7 @@ rest below and in `manual-checks.md`.
     check` (links and headings of the vault).
 
 15. This app is a server (note 22, *Parear o Celular com o Seu Computador*;
-    [ADR 0096](../adr/0096-this-app-is-a-server.md)): *Ajustes* › *Este app é
+    [ADR 0096](../adr/archive/0096-this-app-is-a-server.md)): *Ajustes* › *Este app é
     um servidor* offers the folders opened on this computer, none ticked; the
     one that also syncs with a server cannot be ticked. Nothing ticked,
     *Ligar o servidor* refuses and says so; ticked, the first turn-on

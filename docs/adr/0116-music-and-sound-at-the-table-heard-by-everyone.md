@@ -41,9 +41,10 @@
   game master and players; files hidden until released),
   [0113](0113-one-access-model-for-a-table.md) (one `may()`, per-path access,
   per-player rights, `FileAccess` in every answer),
-  [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) (the
-  desktop as the shared server through a Cloudflare Quick Tunnel),
-  [0096](0096-this-app-is-a-server.md), [0073](0073-self-hosted-server-first.md),
+  [0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md) (the
+  desktop as the shared server through a Cloudflare Quick Tunnel; since
+  2026-11-03 [0117](0117-this-app-is-a-universo-server.md)),
+  [0096](archive/0096-this-app-is-a-server.md), [0073](0073-self-hosted-server-first.md),
   [0076](0076-the-window-on-every-screen.md) (the phone and the web window),
   [0027](0027-runtime-capabilities.md), [0103](0103-feature-presets-and-capability-flags.md)
   (one switch per feature), [0101](0101-3d-dice-physics-overlay.md) (the

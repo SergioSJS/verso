@@ -24,7 +24,7 @@
 - Revisions: 2026-10-21 — the maintainer marked the options of the decisions
   questionnaire of 2026-10-20 (answered 2026-10-21): item 11 cites a third
   read-only read, the attachments folder's name that
-  [0096](0096-this-app-is-a-server.md) reads (0096.2, option A); and the
+  [0096](archive/0096-this-app-is-a-server.md) reads (0096.2, option A); and the
   contradiction recorded at the end of the Status is resolved the way the
   maintainer chose (0093, option A): spec §7 now points here, not to §9.
 
@@ -183,7 +183,7 @@ recommended and is marked `[DECIDED 2026-10-14]`.
     attachments folder's setting, `attachmentFolderPath` in
     `.obsidian/app.json`, that a server reads at each start to serve a
     subfolder with its attachments, never written
-    ([0096](0096-this-app-is-a-server.md) item 2); a renamed configuration
+    ([0096](archive/0096-this-app-is-a-server.md) item 2); a renamed configuration
     folder is not looked for. The names and keys come from community
     code, not from Obsidian's documentation (Context), and are observed
     on the Sandbox vault before the PR ([0009](0009-external-constraints.md)).

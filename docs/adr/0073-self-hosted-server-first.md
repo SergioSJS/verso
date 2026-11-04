@@ -151,7 +151,7 @@
   the network come after V1 (the maintainer, the same night). The
   Status's wording is kept.
   2026-10-15 — "this app is a server" is decided in full by
-  [0096](0096-this-app-is-a-server.md) (its Status: every item as
+  [0096](archive/0096-this-app-is-a-server.md) (its Status: every item as
   recommended). Two sentences of this record are revised by it: the
   Consequences' "runs on macOS and Windows as well" is **macOS and Linux
   first, Windows after** (0096 item 17, option (a): `verso-server` is not
@@ -163,7 +163,7 @@
   Later the same day (2026-10-15) the first of those two was revised again:
   the maintainer decided *"OpenSSL embutido no Windows"*, so `verso-server`
   builds on Windows and "runs on macOS and Windows as well" is true as
-  written ([0096](0096-this-app-is-a-server.md) item 17 and
+  written ([0096](archive/0096-this-app-is-a-server.md) item 17 and
   [0075](0075-server-packaging-and-storage.md) item 2, both revised).
   2026-10-16 — item 6 amended, and with it [0083](0083-security-hardening-of-universo.md)
   item 5: **plain HTTP works**, without what a secure context is for. The

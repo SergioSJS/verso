@@ -1,34 +1,35 @@
 # ADR 0096 — This app is a server: the desktop serving its folder on the local network
 
+- Superseded by [0117](../0117-this-app-is-a-universo-server.md) (2026-11-03): one feature with an internet link; every rule here is carried over there and stays built. This file is not edited further.
 - Date: 2026-10-15
 - Source: the maintainer's decision of 2026-10-14 that "this app is a
   server" (roadmap V.20) is in V1, in wave C, beside the phone offline
-  ([0092](0092-the-phone-offline.md)); [0073](0073-self-hosted-server-first.md)
+  ([0092](../0092-the-phone-offline.md)); [0073](../0073-self-hosted-server-first.md)
   item 2 (decided 2026-10-09), which names the feature in one sentence.
   The reading of 2026-10-15 found that the sentence decides the
   shape and none of the security, so the questions below were written
   down before anyone builds. Written by Sonnet 5.5 (not the author
-  [0032](0032-author-and-reviewer-roles.md) names for documents; recorded
+  [0032](../0032-author-and-reviewer-roles.md) names for documents; recorded
   here); to be read by another model before it is accepted.
-- Related: [0073](0073-self-hosted-server-first.md) (items 2, 6, 8, 12 and
-  the Consequences), [0074](0074-accounts-and-access-on-the-server.md)
+- Related: [0073](../0073-self-hosted-server-first.md) (items 2, 6, 8, 12 and
+  the Consequences), [0074](../0074-accounts-and-access-on-the-server.md)
   (items 4, 8, 9, 11: invitations, the device session, the audit log, the
-  contract), [0075](0075-server-packaging-and-storage.md) (item 2: the
-  platforms), [0076](0076-the-window-on-every-screen.md) (the window on a
-  phone), [0079](0079-sync-a-local-folder-with-a-server.md) and
-  [0082](0082-live-co-editing-of-a-synced-folder.md) (a folder that
-  syncs), [0083](0083-security-hardening-of-universo.md) (the bounds, the
-  proof, the device approval page), [0045](0045-server-and-mcp-security.md)
-  (the implicit owner; `Host` and `Origin`), [0050](0050-outbound-network-access.md)
-  (inbound and mDNS), [0056](0056-embedded-web-pages.md) (the host fetching
-  for a note), [0092](0092-the-phone-offline.md) (a service worker needs a
-  secure context), [0055](0055-in-app-updater.md), [0069](0069-windows-port.md),
-  [0011](0011-config-outside-tree-index-as-cache.md),
-  [0027](0027-runtime-capabilities.md), `docs/reference/threat-model.md`.
+  contract), [0075](../0075-server-packaging-and-storage.md) (item 2: the
+  platforms), [0076](../0076-the-window-on-every-screen.md) (the window on a
+  phone), [0079](../0079-sync-a-local-folder-with-a-server.md) and
+  [0082](../0082-live-co-editing-of-a-synced-folder.md) (a folder that
+  syncs), [0083](../0083-security-hardening-of-universo.md) (the bounds, the
+  proof, the device approval page), [0045](../0045-server-and-mcp-security.md)
+  (the implicit owner; `Host` and `Origin`), [0050](../0050-outbound-network-access.md)
+  (inbound and mDNS), [0056](../0056-embedded-web-pages.md) (the host fetching
+  for a note), [0092](../0092-the-phone-offline.md) (a service worker needs a
+  secure context), [0055](../0055-in-app-updater.md), [0069](../0069-windows-port.md),
+  [0011](../0011-config-outside-tree-index-as-cache.md),
+  [0027](../0027-runtime-capabilities.md), `docs/reference/threat-model.md`.
 - Status in the briefing: not present; on acceptance.
 - Revisions: 2026-10-21 — the maintainer marked the options of the decisions
   questionnaire of 2026-10-20 (answered 2026-10-21), all as recommended:
-  0096.2 (the attachments folder's widening of [0093](0093-periodic-notes.md)
+  0096.2 (the attachments folder's widening of [0093](../0093-periodic-notes.md)
   item 11 is approved, and 0093 now cites the case), 0096.5c (the
   certificate under the project's domain is left for after V1, with no
   commitment) and 0096.as-built (the "As built" details accepted as built).
@@ -48,10 +49,10 @@ first (item 8); TLS everywhere, the local network included (item 6): the
 server refuses to serve a login without TLS, except on loopback or behind
 a configured proxy, and accepts its own certificate and key
 (`VERSO_TLS_CERT_FILE`, `VERSO_TLS_KEY_FILE`); the Tailscale recipe is the
-documented path for a phone; ACME built in comes later. [0050](0050-outbound-network-access.md)
+documented path for a phone; ACME built in comes later. [0050](../0050-outbound-network-access.md)
 (revised 2026-10-09) allows "this app is a server" to take inbound
 connections and to use mDNS. 0073 lists one thing about it as `[OPEN]`:
-the app updating through [0055](0055-in-app-updater.md) while phones are
+the app updating through [0055](../0055-in-app-updater.md) while phones are
 connected. Its Consequences say it "runs on macOS and Windows as well".
 
 **What it does not decide, and what the code shows.** Not decided: whether
@@ -85,13 +86,13 @@ phone and the laptop (a rogue access point, ARP spoofing) while a
 password-less pairing happens, to use a paired phone's session after the
 phone is lost, to make the laptop do something it should not (read a
 folder that was not offered, fetch a URL on the internal network on
-behalf of a note — the web-embed proxy of [0056](0056-embedded-web-pages.md)
+behalf of a note — the web-embed proxy of [0056](../0056-embedded-web-pages.md)
 reaches the network from the host — or reach the desktop-only commands:
 open a file in the system, reveal in the Finder, the updater), to exhaust
 the laptop (connections, memory — the very bounds of
-[0083](0083-security-hardening-of-universo.md), which this reuses), and to
+[0083](../0083-security-hardening-of-universo.md), which this reuses), and to
 come back later through a name the browser remembered. A VPN-less laptop
-also gains the rebinding risk of [0045](0045-server-and-mcp-security.md)
+also gains the rebinding risk of [0045](../0045-server-and-mcp-security.md)
 for a page opened on the same machine. On the other side of the ledger,
 three things already built carry over unchanged: the session and role
 check before `verso-fs` acts, the bounds on connections and headers, the
@@ -122,8 +123,8 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      — so that nothing listens without being visible.
 
 2. **`[DECIDED 2026-10-15]` What is served, and which accounts exist.** The desktop has
-   an implicit owner and no accounts ([0045](0045-server-and-mcp-security.md),
-   [0074](0074-accounts-and-access-on-the-server.md) item 11); the service
+   an implicit owner and no accounts ([0045](../0045-server-and-mcp-security.md),
+   [0074](../0074-accounts-and-access-on-the-server.md) item 11); the service
    it would start checks a session and a role on every command.
    - (a) Only the folders the person ticks in Settings, none by default;
      one local owner account created by the app, with no password and no
@@ -155,10 +156,10 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      directory's name and made unique (`Notas`, `Notas (2)`) among
      everything served; **(3)** the folder's attachments go along,
      read-only, as a share's attachments folder does
-     ([0081](0081-sharing-between-people-on-one-universo.md) item 11).
+     ([0081](../0081-sharing-between-people-on-one-universo.md) item 11).
      All paired phones see the same choice: it is not per phone.
      - *Mechanism: the confinement of a share, not a new scope*
-       ([0081](0081-sharing-between-people-on-one-universo.md) items 1, 2
+       ([0081](../0081-sharing-between-people-on-one-universo.md) items 1, 2
        and 11). A folder served in part is registered in the local
        database (a share needs a folder to belong to) but **held by an
        account that is not the phones'** — the local owner, whose sessions
@@ -197,7 +198,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
        folder**, never one found from what the notes say: the folder
        Obsidian's settings name (`attachmentFolderPath` in
        `.obsidian/app.json`), read at each start through `verso-fs` — which
-       widens the narrow exception of [0093](0093-periodic-notes.md)
+       widens the narrow exception of [0093](../0093-periodic-notes.md)
        item 11 by that one path, read by name and never written (**this
        widening is approved, `[DECIDED 2026-10-21]`, 0096.2, option A: a
        read by name, never written, through `verso-fs`; 0093 item 11 now
@@ -230,7 +231,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
        (`[DECIDED 2026-10-16]`, asked: "Um celular renomeia uma nota numa
        pasta servida… o servidor reescreve os links delas?" — answer:
        "Reescreve"): as on the desktop and in a share
-       ([0081](0081-sharing-between-people-on-one-universo.md) item 11), the
+       ([0081](../0081-sharing-between-people-on-one-universo.md) item 11), the
        server rewrites the links to the renamed note in the notes of the
        vault outside the chosen folder, by the rules of a window's rewrite.
        The phone is never told which notes: its answer carries only the
@@ -292,12 +293,12 @@ it changes an Accepted ADR; where one needs a line, the item says so.
    can pin nothing from a QR code. The options:
    - (a) **A certificate of the app's own**, self-signed, generated on
      the first time it is turned on (key kept `0600` in the app's
-     configuration directory, [0011](0011-config-outside-tree-index-as-cache.md)),
+     configuration directory, [0011](../0011-config-outside-tree-index-as-cache.md)),
      naming the laptop's private addresses. The QR also carries the
      certificate's fingerprint, which a native Verso client pins. A phone's
      browser shows its warning once; the person accepts it. Costs: the
      browser does not treat the origin as a trustworthy secure context
-     (a service worker, so the phone offline of [0092](0092-the-phone-offline.md);
+     (a service worker, so the phone offline of [0092](../0092-the-phone-offline.md);
      passkeys; `crypto.subtle` may be refused — to verify per browser), and
      the first connection is trust-on-first-use: **a person in the middle
      at the moment of pairing, offering their own certificate, is
@@ -313,7 +314,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      of the project (the model of Plex or Tailscale's names): a valid
      certificate and a secure context on the phone, nothing installed.
      It needs a service the project runs and pays for, the app reaching the
-     network outbound (a change to [0050](0050-outbound-network-access.md)),
+     network outbound (a change to [0050](../0050-outbound-network-access.md)),
      and the name appears in public certificate logs. A decision of its own
      about cost and operation, in the spirit of 0073 item 4(c).
    - (d) **The host's own certificate and key** (`VERSO_TLS_CERT_FILE`),
@@ -332,7 +333,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
    - The address is a second question inside this one. The phone's
      origin is the laptop's current private address, which changes with
      DHCP, and the session cookie and the `Host` check are bound to that
-     origin ([0045](0045-server-and-mcp-security.md), the threat model):
+     origin ([0045](../0045-server-and-mcp-security.md), the threat model):
      **a new address means a new origin, and a phone must be paired
      again.** Options: (i) accept it and say so; (ii) a `.local` name
      announced by mDNS (stable, but a phone's browser resolving `.local`
@@ -342,9 +343,9 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      maintainer owns (an Android phone and an iPad).
 
 6. **`[DECIDED 2026-10-15]` Pairing: how a phone gets in.** Reusing what exists: the
-   **invitation** of [0074](0074-accounts-and-access-on-the-server.md)
+   **invitation** of [0074](../0074-accounts-and-access-on-the-server.md)
    item 4 (single use, 256 bits, an expiry) and the **approval page** of
-   0074 item 8 and [0083](0083-security-hardening-of-universo.md) item 17
+   0074 item 8 and [0083](../0083-security-hardening-of-universo.md) item 17
    (name, address and time of the request, *Was it you?*, never a code
    taken from a link). Here the trusted side is the laptop, so the
    direction is the invitation's, with the approval page's confirmation:
@@ -380,7 +381,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      invitation's seven days are for a person far away; this is a person
      holding the phone), and approval by a code read aloud on the phone
      alone (nothing on the laptop to see).
-   - A fresh proof ([0083](0083-security-hardening-of-universo.md) item
+   - A fresh proof ([0083](../0083-security-hardening-of-universo.md) item
      6) for allowing a device: the person at the laptop is the OS user
      who unlocked it; recommend **no password prompt**, the click on the
      raised dialog being the proof. The alternative (the OS's own
@@ -390,7 +391,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
 7. **`[DECIDED 2026-10-15]` What the QR carries, and nothing else.** The address and
    port, the one-time token in the fragment, the app's certificate
    fingerprint (for a native client; a browser ignores it), the contract
-   version's hash ([0073](0073-self-hosted-server-first.md) item 2). It
+   version's hash ([0073](../0073-self-hosted-server-first.md) item 2). It
    carries **no** folder path, no account, no name of the person, no
    long-lived secret. Recommendation: exactly this; a reviewer's
    guardrail is a test that decodes a QR and asserts the field list.
@@ -410,7 +411,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
      the port. No folder name, no account. A goodbye record is sent on
      stopping, on sleep and on quit. A second desktop that found it pairs
      by the same QR or typed code — discovery lists, it never trusts.
-   - [0050](0050-outbound-network-access.md) allows mDNS "only to addresses
+   - [0050](../0050-outbound-network-access.md) allows mDNS "only to addresses
      the user wrote in a configuration", which multicast is not: it needs
      a one-line revision (a correction of scope, to be made on acceptance,
      not a change of decision).
@@ -424,7 +425,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
    browses on it (the usage description and the `NSBonjourServices` keys
    in the app's `Info.plist`), and its application firewall may ask
    *Allow incoming connections?* for a build that is not signed or
-   notarized ([0095](0095-mac-notarization-and-windows-code-signing.md));
+   notarized ([0095](../0095-mac-notarization-and-windows-code-signing.md));
    Windows Defender Firewall asks the same on the first bind, with a
    choice of Private and Public networks. Options: (a) let the system's
    prompt appear unexplained; (b) **explain first**, then trigger it: a
@@ -441,8 +442,8 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     - (a) Do nothing special: on waking, recompute the addresses; if they
       are the same, resume and re-announce; otherwise stop and ask (item
       3). The phone sees the server unavailable through the
-      capabilities ([0027](0027-runtime-capabilities.md)) and, with the
-      phone offline of [0092](0092-the-phone-offline.md), keeps working.
+      capabilities ([0027](../0027-runtime-capabilities.md)) and, with the
+      phone offline of [0092](../0092-the-phone-offline.md), keeps working.
     - (b) Hold the laptop awake while serving (a power assertion).
     - Recommendation: **(a)**. Holding a laptop awake in a bag is a
       battery and heat risk and keeps a server alive nobody is looking at.
@@ -450,8 +451,8 @@ it changes an Accepted ADR; where one needs a line, the item says so.
       is left for later.
 
 11. **`[DECIDED 2026-10-15]` A folder the laptop also syncs with a UniVerso.**
-    [0079](0079-sync-a-local-folder-with-a-server.md) and
-    [0082](0082-live-co-editing-of-a-synced-folder.md) make the local
+    [0079](../0079-sync-a-local-folder-with-a-server.md) and
+    [0082](../0082-live-co-editing-of-a-synced-folder.md) make the local
     file a copy kept by sync, with **one writer in Verso** while a note is
     live: the server's room. A phone writing through the laptop's own
     service would be a second room and a second writer, away from the
@@ -472,7 +473,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     **default deny, by role, the UniVerso's own dispatch and nothing
     more.** The phone's role is chosen on the laptop at pairing.
     - Roles: **reader** (the secret-blocks projection of
-      [0087](0087-secret-blocks-hidden-from-readers.md) applies), **editor**.
+      [0087](../0087-secret-blocks-hidden-from-readers.md) applies), **editor**.
       Never owner, never admin; no account, token, share or invitation
       commands, no console, no MCP, no `sync_*`, no folder opening or
       creating, no deletion of the folder, no trash emptying.
@@ -480,7 +481,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
       commands that act on the laptop outside the folder — open or
       reveal in the system, the updater, the settings of the app, the
       pairing dialog's own commands, the web-embed proxy and the
-      reachability probe of [0056](0056-embedded-web-pages.md) (a note
+      reachability probe of [0056](../0056-embedded-web-pages.md) (a note
       must not make the laptop fetch an address on the internal network
       for the phone), the log, the bug report.
     - Default role: (a) editor; (b) **reader, with "can edit" one tap on
@@ -489,11 +490,11 @@ it changes an Accepted ADR; where one needs a line, the item says so.
       then holds only what was given.
     - The list is an allowlist in the code with a test that every command
       of the contract is either on it or refused, so a new command is
-      refused until someone adds it ([0074](0074-accounts-and-access-on-the-server.md)
+      refused until someone adds it ([0074](../0074-accounts-and-access-on-the-server.md)
       item 11's refusal, in both languages).
 
 13. **`[DECIDED 2026-10-15]` Limits.** Reuse the bounds of
-    [0083](0083-security-hardening-of-universo.md) unchanged — 512
+    [0083](../0083-security-hardening-of-universo.md) unchanged — 512
     connections and 128 per address, 64 KiB heads, 30 seconds for headers,
     the 20 requests a second pace, the delays, the WebSocket limits — and
     add: the pairing window's own (item 6); **at most 4 phones** paired at
@@ -522,7 +523,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
       the network changing. **Never** a token, the QR's contents, the
       fragment, a password or a note's content; the device's name made safe
       as in 0083.
-    - The server's audit log ([0074](0074-accounts-and-access-on-the-server.md)
+    - The server's audit log ([0074](../0074-accounts-and-access-on-the-server.md)
       item 9), in the app's configuration directory, kept 365 days as
       `VERSO_AUDIT_DAYS`, visible in Settings beside the device list.
     - Recommendation: as written; and a notification (the app's own, not
@@ -532,7 +533,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     the paired phones — name, role, when paired, last seen, address —
     each with **Revoke** (the session ends and its open connections close
     at once, as 0074 item 8 and the console of
-    [0077](0077-the-server-administration-console-and-folder-quotas.md)
+    [0077](../0077-the-server-administration-console-and-folder-quotas.md)
     do), **Stop serving** (closes everything and the port), and **Forget
     all devices**. Options for turning it off: (a) paired devices stay
     for the next time; (b) turning off forgets them. Recommendation:
@@ -545,37 +546,37 @@ it changes an Accepted ADR; where one needs a line, the item says so.
     (the owner account, device sessions, the audit log) and the
     certificate key, outside the folders and outside the notes' index,
     in the app's configuration directory
-    ([0011](0011-config-outside-tree-index-as-cache.md)), `0600`;
+    ([0011](../0011-config-outside-tree-index-as-cache.md)), `0600`;
     on macOS the key in the Keychain is an option for later. Nothing of
     it is in the folder served, so it never syncs. Recommendation: the
     files, as the device token in `servers.json` is kept today.
 
-17. **`[DECIDED 2026-10-15]` Windows, and the contradiction.** [0073](0073-self-hosted-server-first.md)
-    says the feature runs on macOS and Windows; [0075](0075-server-packaging-and-storage.md)
+17. **`[DECIDED 2026-10-15]` Windows, and the contradiction.** [0073](../0073-self-hosted-server-first.md)
+    says the feature runs on macOS and Windows; [0075](../0075-server-packaging-and-storage.md)
     item 2 and the manifests say `verso-server` is not built for Windows
     (passkeys need OpenSSL there). Not resolved here. Options: (a) V.20
     ships on macOS and Linux and Windows follows; (b) the passkey code is
     a feature the local mode does not compile, and the service builds on
-    Windows ([0069](0069-windows-port.md)); (c) V.20 waits for Windows.
+    Windows ([0069](../0069-windows-port.md)); (c) V.20 waits for Windows.
     Recommendation: **(b)** if the cost is small (the local mode has no
     passkeys — it has no sign-in page), otherwise (a); a decision of the
     maintainer either way, and 0073's sentence gets a Revisions line.
     **Revised 2026-10-15:** the maintainer decided *"OpenSSL embutido no
     Windows"* — a fourth way, none of (a) to (c): `verso-server` builds on
     Windows whole, OpenSSL compiled in as on Unix
-    ([0075](0075-server-packaging-and-storage.md) item 2, revised), and the
+    ([0075](../0075-server-packaging-and-storage.md) item 2, revised), and the
     local mode serves on Windows with the same code. 0073's sentence "runs
     on macOS and Windows as well" stands as written.
 
 18. **`[DECIDED 2026-10-15]` The app updating while phones are connected** (the `[OPEN]` of
-    0073's Consequences). Recommendation: the updater ([0055](0055-in-app-updater.md))
+    0073's Consequences). Recommendation: the updater ([0055](../0055-in-app-updater.md))
     behaves as today — the person is asked to restart; the restart ends
     the connections; the phones see the server unavailable, and when it
     returns at a new contract version the page reloads (0073 item 2's
     hash). It says "N phones are connected" in the restart dialog. Nothing
     is held back for a phone.
 
-19. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)).
+19. **Accessibility and languages** ([0035](../0035-cross-cutting-requirements.md)).
     The toggle, the pairing dialog (the QR has the typed address and code
     beside it, as text, for a person who cannot scan), the countdown, the
     prompts' explanation and the device list are keyboard-operable and
@@ -595,8 +596,8 @@ it changes an Accepted ADR; where one needs a line, the item says so.
   Network keys in the macOS bundle. Nothing in `verso-dialect`, nothing
   in `verso-fs`: the service reaches the folder only through
   `verso-core` and `verso-fs` as `verso serve` does (invariant 5).
-- [0050](0050-outbound-network-access.md) gets a one-line correction on
-  mDNS (item 8); [0073](0073-self-hosted-server-first.md) gets a
+- [0050](../0050-outbound-network-access.md) gets a one-line correction on
+  mDNS (item 8); [0073](../0073-self-hosted-server-first.md) gets a
   Revisions line (the Windows sentence, item 17; the updating `[OPEN]`,
   item 18); the roadmap's V.20 row points here.
 - Tests: the guardrails are written with the feature and seen to fail
@@ -618,7 +619,7 @@ it changes an Accepted ADR; where one needs a line, the item says so.
 ## Discarded alternatives
 
 None recorded. (Plain HTTP on the local network was ruled out by
-[0073](0073-self-hosted-server-first.md) item 6 before this ADR; the
+[0073](../0073-self-hosted-server-first.md) item 6 before this ADR; the
 options listed under each `[OPEN]` are for the maintainer to choose from,
 not alternatives already considered and discarded.)
 
@@ -787,7 +788,7 @@ numbered item as its recommendation, each marked `[DECIDED 2026-10-15]`
 in place; the lines of the Consequences apply from now (the Revisions
 lines of 0050 and 0073 are written with the feature). **Not built:** the
 feature stays in V1, wave C, for its own pull request.
-The roadmap's V.20 row ([`docs/roadmap.md`](../roadmap.md)) is "decided
+The roadmap's V.20 row ([`docs/roadmap.md`](../../roadmap.md)) is "decided
 2026-10-09; not built" and stays in V1, wave C
 (`[DECIDED 2026-10-14]`). To be read by the other model before it is
 accepted. Nothing was built or run to write it.

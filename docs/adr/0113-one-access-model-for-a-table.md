@@ -25,7 +25,7 @@
   sees the secret blocks), [0082](0082-live-co-editing-of-a-synced-folder.md)
   (item 12: a board's room merges by element),
   [0090](0090-maps-on-the-board.md) (secret pins),
-  [0096](0096-this-app-is-a-server.md) (a phone paired as reader or editor),
+  [0096](archive/0096-this-app-is-a-server.md) (a phone paired as reader or editor),
   [0105](0105-read-links-without-an-account.md) (read links),
   [0079](0079-sync-a-local-folder-with-a-server.md) (a synced folder),
   [0092](0092-the-phone-offline.md) (shared test vectors),
@@ -330,7 +330,7 @@ unchanged.
      was already asked as `Delete`: it is now the owner's too, outside a
      table. An editor still writes over one; renaming a layout (write the
      new, remove the old) leaves the old one and says why.
-  2. **A contradiction with [0096](0096-this-app-is-a-server.md) item 12**,
+  2. **A contradiction with [0096](archive/0096-this-app-is-a-server.md) item 12**,
      not settled here: a phone paired to "This app is a server" is an
      *editor*, never an owner. On a folder served whole it sits as the
      owner's session (the game master's seat) and still deletes; on a folder

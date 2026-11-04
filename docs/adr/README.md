@@ -117,7 +117,6 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0091](0091-version-history.md) | Version history: who changed a file, when, and bringing a version back | Accepted (2026-10-14) |
 | [0092](0092-the-phone-offline.md) | The phone offline: the window served by a UniVerso keeps chosen folders and syncs them | Accepted (2026-10-14) |
 | [0095](0095-mac-notarization-and-windows-code-signing.md) | Mac notarization and Windows code signing, and the Mac Intel build | Accepted (2026-10-14) |
-| [0096](0096-this-app-is-a-server.md) | This app is a server: the desktop serving its folder on the local network | Accepted (2026-10-15) |
 | [0097](0097-universo-found-on-the-network-and-a-bad-dns-survived.md) | UniVerso found on the home network, and a bad DNS survived | Accepted (2026-10-16); details decided as built 2026-10-21 |
 | [0098](0098-world-and-campaign-wizard-template-bundles.md) | The project wizard: a folder tree from a bundle, shown and edited before it is written | Accepted (2026-10-20) |
 | [0099](0099-visual-markdown-statblocks-and-cards.md) | Statblocks: a card from a `statblock` block, layouts as files of the folder, rolls by system | Accepted (2026-10-20) |
@@ -132,12 +131,12 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0108](0108-colour-swatches-for-colour-codes.md) | Colour swatches: a colour code in a note shows its colour, and a click adjusts it | Accepted (2026-10-28) |
 | [0109](0109-themes-v2-more-tokens-and-a-catalogue.md) | Themes, second step: more tokens, a richer builder, and a catalogue behind "More themes…" | Accepted (2026-10-28) |
 | [0110](0110-a-table-is-a-campaign-folder.md) | A table is a campaign folder: invited players, notes released bit by bit, a table dashboard | Accepted (2026-10-28) for phase 1; phase 2 scheduled for V1, not built; superseded in part by 0113 |
-| [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Accepted (2026-10-23) |
 | [0112](0112-confirming-it-is-you-on-a-linked-device.md) | Confirming it is you on a linked device | Accepted in part (2026-10-28): items 1–3; not built |
 | [0113](0113-one-access-model-for-a-table.md) | One access model for a table: a seat, per-path access, per-player rights | Accepted (2026-10-24); the author's readings and K.3 decided 2026-10-31; outside a table only the owner deletes (amended 2026-10-31) |
 | [0114](0114-opening-one-markdown-file-without-a-folder.md) | Opening one Markdown file: Verso as a handler for `.md`, and a window with no folder | Accepted (2026-10-30), the 13 questions as recommended; built on `feat/single-file` (As built notes in Status); amended 2026-10-31: JSON, YAML, TOML, XML and CSV open in the diagram, also from the command line and File › Open file… (item 34) |
 | [0115](0115-an-embedded-terminal-in-the-desktop-app.md) | An embedded terminal in the desktop app: the person's shell in a pane, for AI command-line tools | Accepted (2026-10-31); into V1 (Q9); Q4 decided as "the app on this computer" |
 | [0116](0116-music-and-sound-at-the-table-heard-by-everyone.md) | Music and sound at the table, heard by everyone: files as a shared playback state, and "share audio" — live capture of any application or page, relayed by the server; only the game master controls, each person their own volume | Accepted (2026-10-31); Q1–Q9 decided as recommended; not built |
+| [0117](0117-this-app-is-a-universo-server.md) | This app is a UniVerso server: one feature, on the network and by an internet link (Cloudflare Quick Tunnel); accounts and invitations in the local server; the game master at the table as a client of their own server | Accepted (2026-11-03), written by Fable from the plan and the maintainer's answers, awaiting his reading; supersedes 0096 (built) and 0111 (never built); a fixed address of the person's own is in scope (D6), its mechanism `[OPEN]` D10; first step the spike |
 
 ### Dialect, engineering and roadmap
 
@@ -174,6 +173,21 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0047](0047-plugin-api-open-questions.md) | Open questions on the plugin API | After V1 |
 | [0048](0048-file-operations-in-ui.md) | File operations in the UI: rename, create, delete, move | Accepted (2026-09-23) |
 
+### Archived
+
+Superseded or discontinued ADRs, moved to [`archive/`](archive/) so that a
+reader — a person or an LLM — meets only rules in force (the maintainer,
+2026-11-03: *"deve ser movido e links de índice serem atualizados, apesar de
+não fazer mais sentido ser lido por llm já que a regra mudou. Isso deveria
+ser feito com todas adrs que foram descontinuadas ou modificadas"*). Each
+keeps a pointer line to the ADR that replaced it and is not edited further;
+history cites them at their new path.
+
+| # | Title | Status |
+|---|---|---|
+| [0096](archive/0096-this-app-is-a-server.md) | This app is a server: the desktop serving its folder on the local network | Superseded by [0117](0117-this-app-is-a-universo-server.md) (2026-11-03); built, its rules carried over there |
+| [0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Superseded by [0117](0117-this-app-is-a-universo-server.md) (2026-11-03); never built |
+
 ## Open items that did not become ADRs
 
 Three dialect items from §17 live in [`../spec/dialect.md`](../spec/dialect.md),
@@ -194,7 +208,7 @@ The check for the availability of the name (item 2) is recorded in
 3. Cite the source in the header (`docs/BRIEFING.md` §X, a PR, an issue, or the review that originated it).
 4. In "Discarded alternatives", record only alternatives that were actually considered. With none: write "None recorded".
 5. **Length and style:** Keep ADRs concise (< 200 lines ideally). Use direct bullet points and clear tables. Avoid pasting raw conversational session logs or minute-by-minute chat transcripts.
-6. An ADR is not edited to change one's mind. A new ADR supersedes the previous one, and the previous one gets a line pointing to the new one.
+6. An ADR is not edited to change one's mind. A new ADR supersedes the previous one; the previous one gets a line pointing to the new one at its top and is **moved to `archive/`** with `git mv`, every link to it updated and its row moved to the index's "Archived" section — so that people and LLMs read only rules in force (the maintainer, 2026-11-03: *"deve ser movido e links de índice serem atualizados ... Isso deveria ser feito com todas adrs que foram descontinuadas ou modificadas"*). The same goes for a discontinued ADR. An ADR superseded only in part stays in place with its pointer line until a new ADR carries over what still holds.
 
 ## How to change an existing ADR
 
@@ -203,7 +217,7 @@ Three cases, with different treatments:
 | Case | What to do |
 |---|---|
 | Correction or delimitation that **does not change the decision** (citation error, scope that was missing, consequence discovered later) | Edit in place and add a concise `Revisions:` line in the header (1–2 lines with date and PR/review origin) |
-| **Change** an Accepted decision | A new ADR that supersedes it; the old one gets the line pointing to the new one and is not edited beyond that |
+| **Change** an Accepted decision | A new ADR that supersedes it, carrying over what still holds so that nobody needs the old one; the old one gets the line pointing to the new one, is not edited beyond that, and is moved to `archive/` with its links and its index row updated (rule 6) |
 | **Close** an `[OPEN]` or promote a Proposed | Edit the Decision section and the Status in place, citing the commit or PR in which the maintainer decided. An `[OPEN]` has no decision to supersede; promoting a Proposed is the confirmation of the text that was already there |
 
 Only the maintainer does the second and the third case. The first can be done by

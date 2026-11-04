@@ -1,5 +1,6 @@
 # ADR 0111 — Online mode: a table from this app, through a tunnel
 
+- Superseded by [0117](../0117-this-app-is-a-universo-server.md) (2026-11-03): not a second mode beside 0096 but a box inside one feature; every rule here is carried over there, read inside it. Never built. This file is not edited further.
 - Date: 2026-10-23
 - Source: the maintainer, 2026-10-23. Asked whether a person who turns their
   app into a server could run a table from it: *"se a pessoa habilita o
@@ -32,22 +33,22 @@
   before it is accepted. Nothing is built.
 - Related: [0096](0096-this-app-is-a-server.md) (this ADR is a second mode
   beside it; it changes items 2, 3 and 5 for that mode only),
-  [0073](0073-self-hosted-server-first.md) (item 6, TLS),
-  [0074](0074-accounts-and-access-on-the-server.md) (accounts),
-  [0075](0075-server-packaging-and-storage.md) (storage),
-  [0081](0081-sharing-between-people-on-one-universo.md) (invitations, shares),
-  [0083](0083-security-hardening-of-universo.md) (the security round),
-  [0045](0045-server-and-mcp-security.md) (`Host`, DNS rebinding),
-  [0050](0050-outbound-network-access.md) (outbound access),
-  [0055](0055-in-app-updater.md) (releases),
-  [0029](0029-guardrails-in-ci.md) (guardrails),
-  [0005](0005-license.md) (licences),
-  [0107](0107-the-table-a-shared-roll-and-chat-log.md) (the Table),
-  [0110](0110-a-table-is-a-campaign-folder.md) (a table is a campaign folder),
-  [0058](0058-demo-vault-as-tutorial.md) (the tutorial),
-  [0035](0035-cross-cutting-requirements.md) (languages, accessibility),
-  [0069](0069-windows-port.md) and
-  [the cross-platform checklist](../reference/cross-platform-checklist.md).
+  [0073](../0073-self-hosted-server-first.md) (item 6, TLS),
+  [0074](../0074-accounts-and-access-on-the-server.md) (accounts),
+  [0075](../0075-server-packaging-and-storage.md) (storage),
+  [0081](../0081-sharing-between-people-on-one-universo.md) (invitations, shares),
+  [0083](../0083-security-hardening-of-universo.md) (the security round),
+  [0045](../0045-server-and-mcp-security.md) (`Host`, DNS rebinding),
+  [0050](../0050-outbound-network-access.md) (outbound access),
+  [0055](../0055-in-app-updater.md) (releases),
+  [0029](../0029-guardrails-in-ci.md) (guardrails),
+  [0005](../0005-license.md) (licences),
+  [0107](../0107-the-table-a-shared-roll-and-chat-log.md) (the Table),
+  [0110](../0110-a-table-is-a-campaign-folder.md) (a table is a campaign folder),
+  [0058](../0058-demo-vault-as-tutorial.md) (the tutorial),
+  [0035](../0035-cross-cutting-requirements.md) (languages, accessibility),
+  [0069](../0069-windows-port.md) and
+  [the cross-platform checklist](../../reference/cross-platform-checklist.md).
 - Status in the briefing: not present.
 
 ## Context
@@ -59,12 +60,12 @@ private addresses with its own certificate, no accounts but one implicit
 local owner, phones paired by a QR code and a "Was it you?" approval, off
 again at the next start, always visible (status mark, tray with "Stop" on
 macOS and Windows). The web window runs in a phone's browser
-([0076](0076-the-window-on-every-screen.md)). The full UniVerso has accounts,
+([0076](../0076-the-window-on-every-screen.md)). The full UniVerso has accounts,
 invitations, roles per folder, campaign folders and the Table
-([0074](0074-accounts-and-access-on-the-server.md),
-[0081](0081-sharing-between-people-on-one-universo.md),
-[0110](0110-a-table-is-a-campaign-folder.md),
-[0107](0107-the-table-a-shared-roll-and-chat-log.md)). Its rooms and sync use
+([0074](../0074-accounts-and-access-on-the-server.md),
+[0081](../0081-sharing-between-people-on-one-universo.md),
+[0110](../0110-a-table-is-a-campaign-folder.md),
+[0107](../0107-the-table-a-shared-roll-and-chat-log.md)). Its rooms and sync use
 WebSockets (the window's code uses `WebSocket`; the search found no
 `EventSource` or `text/event-stream` in `crates` or `app/ui/src`; to confirm
 in the build PR).
@@ -96,7 +97,7 @@ internet, guessable by nobody but readable by anyone who is sent the link,
 forwarded or leaked, reaches a server running on a person's personal laptop.
 Anyone holding the link can try to sign in, flood, or attack the HTTP stack.
 The defences exist (accounts, roles, the bounds of
-[0083](0083-security-hardening-of-universo.md)); what is new is who the
+[0083](../0083-security-hardening-of-universo.md)); what is new is who the
 proxy is, where TLS ends, which origin the server believes it has, and a
 third-party binary launched and kept running by the app.
 
@@ -123,7 +124,7 @@ says so.
 
 1. **`[DECIDED 2026-10-23]` What the online mode serves.**
    - (a) Only the folders the owner explicitly turns into tables
-     ([0110](0110-a-table-is-a-campaign-folder.md)) or shares; nothing by
+     ([0110](../0110-a-table-is-a-campaign-folder.md)) or shares; nothing by
      default.
    - (b) The full UniVerso model for any folder the owner ticks, like 0096
      item 2.
@@ -136,8 +137,8 @@ says so.
      que a pessoa compartilhar. Ele não vai compartilhar tudo, exceto se a
      pessoa quiser compartilhar tudo. É o que ela compartilhar que é o que
      vai ser servido."* The online mode serves what the person shares, by
-     the UniVerso's own rules ([0074](0074-accounts-and-access-on-the-server.md),
-     [0110](0110-a-table-is-a-campaign-folder.md)): a folder shared with an
+     the UniVerso's own rules ([0074](../0074-accounts-and-access-on-the-server.md),
+     [0110](../0110-a-table-is-a-campaign-folder.md)): a folder shared with an
      account, or made a table and joined by invitation, is reachable by
      that account at its role; nothing is shared by default; sharing every
      folder is the person's choice, never the app's. This is option (a)
@@ -146,12 +147,12 @@ says so.
 
 2. **`[DECIDED 2026-10-23]` Accounts and how a player gets in.**
    - (a) Accounts in the local server's database (the 0096 state directory,
-     [0075](0075-server-packaging-and-storage.md)); players invited by link
-     ([0110](0110-a-table-is-a-campaign-folder.md) item 2,
-     [0081](0081-sharing-between-people-on-one-universo.md)) and signing in
+     [0075](../0075-server-packaging-and-storage.md)); players invited by link
+     ([0110](../0110-a-table-is-a-campaign-folder.md) item 2,
+     [0081](../0081-sharing-between-people-on-one-universo.md)) and signing in
      with a password under
-     [0074](0074-accounts-and-access-on-the-server.md) and
-     [0083](0083-security-hardening-of-universo.md): the password list, the
+     [0074](../0074-accounts-and-access-on-the-server.md) and
+     [0083](../0083-security-hardening-of-universo.md): the password list, the
      limits per address and per account, the refused-sign-in log line. The
      owner is the app's person, signed in implicitly on the desktop.
    - (b) A secret token in the URL, no accounts (the pasted spec's idea).
@@ -172,15 +173,15 @@ says so.
 4. **`[DECIDED 2026-10-23]` TLS, the proxy and the origin.**
    - Facts: Cloudflare ends HTTPS; the hop from `cloudflared` to the server
      is plain HTTP on loopback, which
-     [0073](0073-self-hosted-server-first.md) item 6 allows ("except on
+     [0073](../0073-self-hosted-server-first.md) item 6 allows ("except on
      loopback or behind a configured proxy"). This changes 0096 item 5 (its
      own certificate) for this mode only.
    - (a) The server learns its public origin at runtime from the captured
      `https://<name>.trycloudflare.com` and uses it for the `Secure`
      cookies, the `Origin` check, the invitation and share links; it checks
      the `Host` header against that one hostname (DNS rebinding,
-     [0045](0045-server-and-mcp-security.md)) and answers nothing else. The
-     only trusted proxy is loopback ([0083](0083-security-hardening-of-universo.md)
+     [0045](../0045-server-and-mcp-security.md)) and answers nothing else. The
+     only trusted proxy is loopback ([0083](../0083-security-hardening-of-universo.md)
      item 5, `proxy.rs`), and the client address is read from
      `CF-Connecting-IP` or the `X-Forwarded-For` walk, so rate limits and the
      fail2ban line see the player, not `127.0.0.1`.
@@ -201,7 +202,7 @@ says so.
    - (c) Use one already on `PATH`.
    - Recommendation: **(a)**, with (c) only if the person points to a path in
      Settings. The pinned version moves with Verso's releases
-     ([0055](0055-in-app-updater.md)). Facts and unknowns:
+     ([0055](../0055-in-app-updater.md)). Facts and unknowns:
      - Release 2026.10.3 (read 2026-10-23) lists, among others,
        `cloudflared-darwin-amd64.tgz`, `cloudflared-darwin-arm64.tgz`,
        `cloudflared-windows-amd64.exe`, `cloudflared-linux-amd64` and
@@ -220,18 +221,18 @@ says so.
        rights are needed. Linux: `chmod +x`. All four to be tried on the real
        systems in the build.
      - Outbound use: downloading a binary is a new outbound use for
-       [0050](0050-outbound-network-access.md), which lists the allowed ones;
+       [0050](../0050-outbound-network-access.md), which lists the allowed ones;
        this needs a line there (the person's switch, one host, a pinned
        file). The tunnel itself is a new outbound connection to Cloudflare.
      - Where the code lives: launching a subprocess is not covered by the
-       `std::fs` list, but [0029](0029-guardrails-in-ci.md) says a subprocess
+       `std::fs` list, but [0029](../0029-guardrails-in-ci.md) says a subprocess
        that does denied work is the same violation. `cloudflared` touches
        no file of the open folder; it receives a loopback URL. Recommended
        owner: the Tauri host (`app/src-tauri`), which already owns the tray
        and the local server's start; `verso-server` and `verso-service` stay
        free of process spawning. The download and the checksum write one file
        in the app's data directory, which is outside the open folder
-       (configuration is outside the tree, [0011](0011-config-outside-tree-index-as-cache.md))
+       (configuration is outside the tree, [0011](../0011-config-outside-tree-index-as-cache.md))
        but is a disk write, so it goes through whichever module owns the
        configuration directory, never `verso-fs`. The exact crate is for the
        reader to confirm.
@@ -259,7 +260,7 @@ says so.
    them, and for how long a connection lives); a table of a handful of
    players is far below 200 in-flight requests, but the build must measure
    the window's first load (many files at once) against the cap and ship the
-   static files cached ([0092](0092-the-phone-offline.md)); any upload body
+   static files cached ([0092](../0092-the-phone-offline.md)); any upload body
    limit is unknown, so uploads of images and attachments must be tried
    through the tunnel. Terms-of-use risk: the service is offered for
    testing, and Cloudflare may change or end it; the official mode of item
@@ -268,28 +269,28 @@ says so.
      record the measured numbers in "As built".
 
 8. **`[DECIDED 2026-10-23]` Security review for the build PR.** Recommendation: a
-   checklist, not a design. Everything [0083](0083-security-hardening-of-universo.md)
+   checklist, not a design. Everything [0083](../0083-security-hardening-of-universo.md)
    lists applies to this server too (limits, pacing, bounds, the full set of
    headers, the audit log, the password list, the token revocation); the
    laptop's other folders are never reachable (item 1); the desktop-only
    commands (agents, terminal, reveal in the system, local paths, the
    updater, the web-embed proxy of
-   [0056](0056-embedded-web-pages.md)) are not served, on the model of the
+   [0056](../0056-embedded-web-pages.md)) are not served, on the model of the
    phones' allowlist of 0096 item 12, with a test that fails when a command
    is added without a verdict; logs hold no link of invitation, no cookie, no
    password. A test for each guardrail is seen failing before merge, as
-   [0029](0029-guardrails-in-ci.md) asks. Cross-platform work reads
-   [the checklist](../reference/cross-platform-checklist.md) and
-   [0069](0069-windows-port.md).
+   [0029](../0029-guardrails-in-ci.md) asks. Cross-platform work reads
+   [the checklist](../../reference/cross-platform-checklist.md) and
+   [0069](../0069-windows-port.md).
 
 9. **`[DECIDED 2026-10-23]` Accessibility, languages and phones.** Recommendation: the
    served window is the existing web window; the online mode's screen, its
    messages and the "table offline" page are written in pt-BR and EN
-   ([0035](0035-cross-cutting-requirements.md)), keyboard-reachable, with the
+   ([0035](../0035-cross-cutting-requirements.md)), keyboard-reachable, with the
    link, the QR and the state readable by a screen reader; players on a phone
    at 390x844 reach every panel and every hide has a way back.
 
-10. **`[DECIDED 2026-10-23]` The tutorial** ([0058](0058-demo-vault-as-tutorial.md)).
+10. **`[DECIDED 2026-10-23]` The tutorial** ([0058](../0058-demo-vault-as-tutorial.md)).
     Recommendation: when built, a demo-vault note "Mesa online" (and its pt-BR
     twin) with the real steps: turn it on, copy the link, invite, what players
     see, stop. Followed in the app before the PR.
@@ -329,7 +330,7 @@ says so.
   accounts and 0083's limits; the residual risk is a bug in the HTTP stack
   reachable by anyone with the link.
 - The app downloads and runs a third-party binary: pinned version, checksum,
-  data directory. A new line in [0050](0050-outbound-network-access.md) and
+  data directory. A new line in [0050](../0050-outbound-network-access.md) and
   one of notices in the licence screen.
 - The app depends on a free testing service with no guarantee. When it
   changes, the mode stops working until the official mode exists.
@@ -337,7 +338,7 @@ says so.
   second mode and changes nothing there.
 - Cost: S for the process and the link, M for the origin and proxy handling,
   M for the account flow without a mail server, plus the spike. Phase 3,
-  within the server's scope ([0073](0073-self-hosted-server-first.md)).
+  within the server's scope ([0073](../0073-self-hosted-server-first.md)).
 
 ## Discarded alternatives
 

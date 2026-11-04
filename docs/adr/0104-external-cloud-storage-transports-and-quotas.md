@@ -200,7 +200,7 @@ creates the developer accounts later.
 6. **Each provider's narrowest place.** `[DECIDED 2026-10-21]`
    - **WebDAV**: an address and a folder the person gives, with user and
      password (or an app password); HTTPS only, except an address on the
-     local network the person confirms (as [0096](0096-this-app-is-a-server.md)
+     local network the person confirms (as [0096](archive/0096-this-app-is-a-server.md)
      does for plain HTTP) *(this sub-rule: accepted with the ADR, not asked)*.
    - **S3**: endpoint, bucket, prefix, access key and secret; the how-to in
      the demo vault tells the person to scope the key to that bucket and
