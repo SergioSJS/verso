@@ -24,6 +24,7 @@ import { pickFiles } from "./pickFiles";
 import { readLinkCall } from "./readLinkOwner";
 import { FULL_RETRY, phonesFullMost } from "./phonesFull";
 import { saidOnClose } from "./openingRefused";
+import { bridgeReady } from "./localTable";
 import { w } from "./strings";
 import { sortMessage } from "../table/sound/frameHeader";
 
@@ -644,6 +645,8 @@ export function startBridge(choose: () => Promise<string | null>): void {
   const internals = (window as unknown as { __TAURI_INTERNALS__: { convertFileSrc: (path: string, protocol?: string) => string } }).__TAURI_INTERNALS__;
   internals.convertFileSrc = (path: string) =>
     visitor ? `/r/${encodeURIComponent(visitor)}/f/${encodePath(path)}` : `/f/${encodeURIComponent(folderId ?? "-")}/${encodePath(path)}`;
+  // What asked to hear the window's events before now hears them.
+  bridgeReady();
   connect();
 }
 

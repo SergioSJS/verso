@@ -41,13 +41,13 @@ async function visitor(token: string): Promise<void> {
   const { readLinkGate, endedPage, rw } = await import("./web/readLink");
   const gate = await readLinkGate(token);
   if (!gate) return;
-  // At a computer that serves (the gate says so), its table can go away
-  // under the visitor too: the same offline page as a player's, asked of
-  // the link's own gate.
-  watchIfLocal(gate.local, token);
   document.documentElement.dataset.host = "server";
   document.documentElement.dataset.visitor = "link";
   startVisitorBridge(token, endedPage);
+  // At a computer that serves (the gate says so), its table can go away
+  // under the visitor too: the same offline page as a player's, asked of
+  // the link's own gate — heard once the bridge is there, as a player's.
+  watchIfLocal(gate.local, token);
   addEventListener("verso:role", (e) => (document.documentElement.dataset.role = (e as CustomEvent<string | null>).detail ?? ""));
   // A link to one note opens that note: there is nothing else to choose.
   // Heard before the window starts, which shows the folder as it does.

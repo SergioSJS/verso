@@ -151,18 +151,39 @@ export function watchIfLocal(local: boolean, token: string, get: typeof fetch = 
 
 let watching = false;
 
+/** Told on the window once the bridge carries the window's events
+ *  (`web/bridge.ts`'s `startBridge`). */
+export const BRIDGE_READY = "verso:bridge-ready";
+
+/** Said by the bridge once installed. */
+export function bridgeReady(): void {
+  window.dispatchEvent(new window.Event(BRIDGE_READY));
+}
+
 /** In "this app is a server", once the window runs: a dropped connection
- *  whose server does not answer is the table offline. */
+ *  whose server does not answer is the table offline. Asked before the
+ *  bridge is installed (the re-test of 2026-11-04: a read link's visitor
+ *  asked first, Tauri's `listen` had nothing to speak to, and the watch
+ *  died in silence), it listens once the bridge says it is there. */
 export function watchTableOffline(get: typeof fetch = fetch, at = "/api/state"): void {
   if (watching) return;
   watching = true;
-  void listen<{ what: string }>("server-gone", (e) => {
-    if (e.payload.what !== "connection") return;
-    void answers(get, at).then((up) => {
-      if (!up) showOffline(get, undefined, at);
+  const hear = () =>
+    listen<{ what: string }>("server-gone", (e) => {
+      if (e.payload.what !== "connection") return;
+      void answers(get, at).then((up) => {
+        if (!up) showOffline(get, undefined, at);
+      });
     });
-  }).catch(() => {
-    // No host to listen to (a test's page): nothing to watch.
-    watching = false;
+  void hear().catch(() => {
+    window.addEventListener(
+      BRIDGE_READY,
+      () =>
+        void hear().catch(() => {
+          // No host to listen to even then (a test's page): nothing to watch.
+          watching = false;
+        }),
+      { once: true },
+    );
   });
 }
