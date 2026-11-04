@@ -238,22 +238,30 @@ pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
             share: body.share.as_deref(),
         },
     )?;
-    let email = inv.email.clone();
     let address = link(&ctx, "invite", &token);
-    // With a mail server, the invitation goes to its address too (ADR 0074
-    // item 4); the admin has the link either way.
-    let mailed = match (ctx.server.mail.get(), email.as_deref()) {
-        (Some(mail), Some(to)) => {
-            let lang = ctx.admin()?.account.lang.clone();
-            let (subject, text) = crate::mail::words(&lang, "invite", &address);
-            mail.send(to, &subject, &text).await;
-            true
-        }
-        _ => false,
-    };
+    let mailed = mail_invitation(&ctx, inv.email.as_deref(), &token).await?;
     Ok(ok(
         json!({ "id": inv.id, "link": address, "expires": inv.expires, "mailed": mailed }),
     ))
+}
+
+/// With a mail server, an invitation made for an e-mail goes to it too (ADR
+/// 0074 item 4), in the admin's language, its link the console's
+/// ([`link`]); the admin has the link either way. Whether it was mailed.
+/// The console's invitation and the share dialog's (`shares::invite`) alike;
+/// "this app is a server" has no mail server, so it never mails.
+pub(crate) async fn mail_invitation(
+    ctx: &Ctx,
+    email: Option<&str>,
+    token: &str,
+) -> ApiResult<bool> {
+    let (Some(mail), Some(to)) = (ctx.server.mail.get(), email) else {
+        return Ok(false);
+    };
+    let lang = ctx.admin()?.account.lang.clone();
+    let (subject, text) = crate::mail::words(&lang, "invite", &link(ctx, "invite", token));
+    mail.send(to, &subject, &text).await;
+    Ok(true)
 }
 
 pub async fn end_invitation(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {

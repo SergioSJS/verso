@@ -1419,3 +1419,56 @@ fn an_admin_invites_a_person_with_no_account_to_a_share() {
         assert_eq!(status, 403, "{said}");
     });
 }
+
+/// With a mail server, the share dialog's invitation goes to its address
+/// too, as the console's does (ADR 0074 item 4; the same path,
+/// `admin::mail_invitation`); the admin has the link either way. Without
+/// one, nothing is mailed and the link is all there is.
+#[test]
+fn the_share_dialogs_invitation_is_mailed_when_the_server_mails() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let (id, _w) = furnished(&r, &admin).await;
+        let at = format!("/api/folders/{id}/shares/invite");
+        let (status, plain) = post(
+            &r,
+            &at,
+            json!({ "path": "Mesa", "email": "caio@casa.lan", "role": "reader" }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200, "{plain}");
+        assert_eq!(plain["mailed"], false, "{plain}");
+        let _ = r
+            .server
+            .mail
+            .set(crate::mail::Mail::Memory(std::sync::Mutex::new(Vec::new())));
+        let (status, made) = post(
+            &r,
+            &at,
+            json!({ "path": "Mesa", "email": "duda@casa.lan", "role": "reader" }),
+            Some(&admin),
+        )
+        .await;
+        assert_eq!(status, 200, "{made}");
+        assert_eq!(made["mailed"], true, "{made}");
+        let sent = match r.server.mail.get() {
+            Some(crate::mail::Mail::Memory(m)) => verso_service::lock(m).clone(),
+            _ => Vec::new(),
+        };
+        assert_eq!(sent.len(), 1, "{sent:?}");
+        assert_eq!(sent[0].0, "duda@casa.lan");
+        let token = made["link"]
+            .as_str()
+            .unwrap()
+            .rsplit_once("/invite/")
+            .unwrap()
+            .1;
+        assert!(
+            sent[0].2.contains(&format!("/invite/{token}")),
+            "{}",
+            sent[0].2
+        );
+    });
+}

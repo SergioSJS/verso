@@ -586,7 +586,8 @@ pub struct Invite {
 /// folder with no table is invited to, on a UniVerso and where the app
 /// serves (decided 2026-11-04; a table's is `campaign_invite`). The act is
 /// the console's (`admin::acts::make_invitation`); the link opens where a
-/// window's links do (`crate::window_link`).
+/// window's links do (`crate::window_link`), and with a mail server it is
+/// mailed as the console's is (`admin::mail_invitation`).
 pub async fn invite(
     ctx: Ctx,
     Path(id): Path<String>,
@@ -633,9 +634,11 @@ pub async fn invite(
             share: share.as_ref().map(|s| s.id.as_str()),
         },
     )?;
+    let mailed = crate::admin::mail_invitation(&ctx, inv.email.as_deref(), &token).await?;
     Ok(ok(json!({
         "link": crate::window_link(&ctx.server, &format!("/invite/{token}")),
         "expires": inv.expires,
+        "mailed": mailed,
     })))
 }
 

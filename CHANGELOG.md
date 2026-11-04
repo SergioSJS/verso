@@ -32,7 +32,7 @@ test release.
 
 - **A new lesson in both demo vaults:** note 29, *Mesa pela Internet* / *A Table over the Internet* (turning the link on, the failures, inviting, sitting at the table, read links, your own address, passkeys and other people's apps), with note 28's section on pairing a phone and note 32 now pointing to it.
 
-- **Invite a person with no account from the share dialog** (UniVerso; the maintainer, 2026-11-04). In a folder's **Share…**, an e-mail no account of the server has used to end with "ask whoever runs it for an invitation"; for the server's admin it now offers **Make an invitation link**, a single-use link for 7 days carrying that folder at the role chosen (reads or edits), shown with **Copy the link** — the console's invitation, made where the folder is. Anyone else is still told to ask the admin. A table's players are invited as before, with *Invite players*.
+- **Invite a person with no account from the share dialog** (UniVerso; the maintainer, 2026-11-04). In a folder's **Share…**, an e-mail no account of the server has used to end with "ask whoever runs it for an invitation"; for the server's admin it now offers **Make an invitation link**, a single-use link for 7 days carrying that folder at the role chosen (reads or edits), shown with **Copy the link** — the console's invitation, made where the folder is; with a mail server (`VERSO_SMTP_URL`) it is also mailed to that address, as the console's is (the app, which has no mail server, never mails). Anyone else is still told to ask the admin. A table's players are invited as before, with *Invite players*.
 
 ### Changed
 
