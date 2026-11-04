@@ -20,6 +20,13 @@ in the real app.
 
 ## Not yet checked
 
+### Sound files in the Linux app (fix/linux-audio, 2026-11-04)
+
+On Linux the table's music and a note's audio player now get their file as a blob (`app/ui/src/audio/source.ts`). VM 104 has no sound card (only PipeWire's Dummy Output): there it was seen playing (`currentTime` advancing, no error), not heard.
+
+- [ ] **Heard on a Linux machine with speakers** (A, Linux): in the installed .deb, a note with `![[Musica/taverna.mp3]]` plays when ▶ is pressed, its time runs and the length appears; seeking on the bar jumps there; the table's music (**Tocar para a mesa**) is heard, and its volume slider changes it.
+- [ ] **Nothing changed on the Mac and Windows** (A, macOS and Windows): the same note's player shows the file's length before it is played (the file's own address, no blob), and the table's music plays as before.
+
 ### The embedded terminal (ADR 0115, 2026-10-31)
 
 The harness has no pseudo-terminal (its shell is scripted); the host tests run a real shell on macOS, Linux (the container) and Windows (VM 103). What a real app, a real person's startup files, a screen reader and the AI tools themselves do is listed here, per system — macOS, Windows (VM 103), Linux (VM 104) — with Ajustes › Recursos › Terminal on:

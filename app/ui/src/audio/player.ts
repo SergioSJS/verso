@@ -11,7 +11,8 @@
 // table's sound (src/table/sound/), release question included.
 //
 // It plays for this person only, from the file's own address (`/f/` on a
-// server, `verso://` on the desktop): the server's access rules decide the
+// server, `verso://` on the desktop; in Linux's web view a blob fetched
+// from it when first played, `source.ts`): the server's access rules decide the
 // bytes, and a player at a table never receives the embed of a file they do
 // not see (the server veils it to the locked placeholder, campaign_text.rs).
 //
@@ -26,7 +27,8 @@ import { icon } from "../icons";
 import { h, ui } from "../dom";
 import { canPlay } from "../table/sound/formats";
 import { audioContext, unlockAudio } from "../dice3d/audio";
-import { mediaNode, prepareMedia, retryPlain, routeMedia } from "../dice3d/ownOutput";
+import { mediaNode, retryPlain, routeMedia } from "../dice3d/ownOutput";
+import { ensureSource, releaseSource, setSource, sourceReady } from "./source";
 import { control, onSound, reportLength, setDuck, sound, soundAlone, tableAudible } from "../table/sound/run";
 import { playForTable, soundButtons, type SoundHost } from "../table/sound/links";
 import { clockText, expectedMs, lengthOf } from "../table/sound/sync";
@@ -223,8 +225,8 @@ class AudioEmbed {
     const a = h("audio", "audio-embed-audio");
     a.preload = "metadata";
     a.hidden = true;
-    prepareMedia(a, this.o.src);
-    a.src = this.o.src;
+    // Lazy: in Linux's web view the file is fetched whole only when it is played (`start`).
+    void setSource(a, this.o.src, true);
     this.bind(a);
     return a;
   }
@@ -258,9 +260,17 @@ class AudioEmbed {
   private start(): void {
     this.fresh = false;
     unlockAudio();
-    this.route();
-    this.applyGain();
-    void this.audio.play().catch(() => this.drawState());
+    const a = this.audio;
+    const go = (): void => {
+      this.route();
+      this.applyGain();
+      void a.play().catch(() => this.drawState());
+    };
+    if (sourceReady(a)) return go();
+    // Linux: the file is fetched first (`audio/source.ts`); it plays when it has come.
+    void ensureSource(a).then((ok) => {
+      if (ok && this.audio === a) go();
+    });
   }
 
   /** Whether the table's music is this embed's track and the embed drives it. */
@@ -468,7 +478,13 @@ function duck(): void {
 
 /** Let go of the players gone for good (a note or a card drawn anew). */
 function prune(): void {
-  for (const p of live) if (p.gone()) live.delete(p);
+  for (const p of live) if (p.gone()) letGo(p);
+}
+
+/** A player let go: the blob it may hold (Linux) goes too. */
+function letGo(p: AudioEmbed): void {
+  live.delete(p);
+  releaseSource(p.audio);
 }
 
 let heard: Heard | null = null;
@@ -530,7 +546,7 @@ function sweep(): void {
     p.missed++;
     if (orphanStops(p.missed)) {
       p.audio.pause();
-      live.delete(p);
+      letGo(p);
     }
   }
   prune();

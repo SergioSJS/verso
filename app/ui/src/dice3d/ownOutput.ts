@@ -120,7 +120,8 @@ function tryDo(fn: () => void): void {
 // A sound file in an <audio> element (the table's music, an audio player in a note) joins the same output, so a
 // Mac's share does not carry it. An element can enter Web Audio only if the page may read its bytes: a file of the
 // page's own origin (the web build and a server's `/f/`), or a `verso://` file of the desktop, which the host
-// answers with the window's origin allowed (`protocol.rs`) when the element asks with `crossorigin`.
+// answers with the window's origin allowed (`protocol.rs`) when the element asks with `crossorigin`, or a blob the
+// page made of such a file (Linux, `audio/source.ts`).
 
 const sameOrigin = (u: URL): boolean => u.origin === location.origin;
 const isVerso = (u: URL): boolean => u.protocol === "verso:" || u.hostname === "verso.localhost";
@@ -169,9 +170,11 @@ export function routeMedia(el: HTMLMediaElement, ctx: AudioContext): GainNode | 
   const had = nodes.get(el);
   if (had) return had;
   if (ctx.state !== "running") return null;
-  const u = parse(el.currentSrc || el.src);
+  const src = el.currentSrc || el.src;
+  const u = src ? parse(src) : null;
   if (!u) return null;
-  const readable = sameOrigin(u) || (isVerso(u) && el.getAttribute("crossorigin") === "anonymous");
+  // A blob is always the page's own making (`audio/source.ts`, Linux), so its bytes are readable.
+  const readable = sameOrigin(u) || u.protocol === "blob:" || (isVerso(u) && el.getAttribute("crossorigin") === "anonymous");
   if (!readable) return null;
   try {
     const gain = ctx.createGain();

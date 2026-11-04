@@ -4,8 +4,9 @@
 
 // The element that plays the table's music in this window (ADR 0116 items
 // 11, 12, 25): one `<audio>` for the music channel, its bytes the file's
-// own address (`/f/` on a server, `verso://` on the desktop), never decoded
-// whole. Loaded only when a track first plays (item 30: a lazy chunk).
+// own address (`/f/` on a server, `verso://` on the desktop; a blob of it in
+// Linux's web view, `audio/source.ts`), never decoded whole. Loaded only
+// when a track first plays (item 30: a lazy chunk).
 //
 // The volume goes through a GainNode on the dice's audio context when the
 // file is of the page's own origin — iOS keeps `HTMLMediaElement.volume`
@@ -15,7 +16,8 @@
 // track is: a nudge of the rate, or a seek.
 
 import { audioContext, unlockAudio } from "../../dice3d/audio";
-import { prepareMedia, retryPlain, routeMedia } from "../../dice3d/ownOutput";
+import { retryPlain, routeMedia } from "../../dice3d/ownOutput";
+import { clearSource, setSource, sourceReady } from "../../audio/source";
 import type { Music } from "./source";
 import { expectedMs, fix } from "./sync";
 
@@ -85,15 +87,21 @@ export class Player {
       this.el.pause();
       if (this.src) {
         this.src = "";
-        this.el.removeAttribute("src");
-        this.el.load();
+        clearSource(this.el);
       }
       return;
     }
     if (url !== this.src) {
       this.src = url;
-      prepareMedia(this.el, url);
-      this.el.src = url;
+      const given = setSource(this.el, url);
+      // On Linux the file comes as a blob, a moment later: routed and started then.
+      if (!sourceReady(this.el))
+        void given.then((ok) => {
+          if (!ok || this.src !== url) return;
+          this.route();
+          this.setGain(this.want.gain);
+          this.correct(true);
+        });
     }
     this.route();
     this.setGain(want.gain);
@@ -174,6 +182,7 @@ export class Player {
   destroy(): void {
     clearInterval(this.timer);
     this.el.pause();
+    clearSource(this.el);
     this.el.remove();
   }
 }
