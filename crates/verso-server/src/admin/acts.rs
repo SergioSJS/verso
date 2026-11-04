@@ -13,9 +13,11 @@
 
 use axum::http::StatusCode;
 use serde::Serialize;
+use serde_json::json;
 
 use crate::db::{self, Audit, Db, Invitation, NewLink, Role};
 use crate::http::ApiError;
+use crate::state::Server;
 
 /// Who acts, as the audit log names them: the account and the address, or
 /// none (the app, at the computer).
@@ -213,4 +215,94 @@ pub fn invitation_rows(
             })
         })
         .collect()
+}
+
+/// The account's open connections told `gone: session` and closed at once
+/// — its tokens' too; all but the session `keep` (the asker's own, when an
+/// admin acts on their own account).
+fn told(server: Option<&Server>, account: &str, keep: Option<&str>) {
+    match (server, keep) {
+        (Some(s), None) => s.push_account(account, &json!({ "gone": "session" })),
+        (Some(s), Some(keep)) => s.sessions_ended(account, None, Some(keep)),
+        (None, _) => {}
+    }
+}
+
+/// A new password for account `id` (ADR 0074 item 5): a single-use link
+/// for a day, made by `created_by`, which replaces an earlier one. As `verso
+/// serve admin reset` does on the machine (decided 2026-11-04 for the
+/// console and the app alike), every session of the account ends now but
+/// `keep` — the asker's own, when an admin resets their own account — and
+/// its tokens are revoked, each in the audit; its open connections close
+/// at once (`server`, while one runs). The old password works until the
+/// new one is set from the link. The token is said once, to the caller.
+pub fn reset_link(
+    db: &Db,
+    server: Option<&Server>,
+    by: &By<'_>,
+    created_by: Option<&str>,
+    id: &str,
+    keep: Option<&str>,
+) -> Result<(String, Invitation), Refused> {
+    db.account(id)?.ok_or(Refused::NotFound)?;
+    db.end_links_of(id, "reset")?;
+    db.end_sessions(id, keep)?;
+    for token in db.revoke_tokens_of(id)? {
+        by.audit(db, "token_revoked", Some(&token), None);
+    }
+    told(server, id, keep);
+    let made = db.create_invitation(&NewLink {
+        kind: "reset",
+        account: Some(id),
+        created_by,
+        life: db::RESET_LIFE,
+        ..NewLink::default()
+    })?;
+    by.audit(db, "reset_link", Some(id), None);
+    Ok(made)
+}
+
+/// End every session of account `id` — browsers and devices — and revoke
+/// its personal access tokens (ADR 0077 item 3): its open connections are
+/// told `gone: session` and closed at once (`server`, while one runs). How
+/// many of each. In the audit.
+pub fn end_sessions(
+    db: &Db,
+    server: Option<&Server>,
+    by: &By<'_>,
+    id: &str,
+) -> Result<(usize, usize), Refused> {
+    db.account(id)?.ok_or(Refused::NotFound)?;
+    let ended = db.end_all_of(id)?;
+    told(server, id, None);
+    by.audit(db, "account_sessions_ended", Some(id), None);
+    Ok(ended)
+}
+
+/// Remove account `id`: its sessions, devices, tokens, passkeys, grants
+/// and shares go with it (the database's cascade), its connections closed
+/// first (`server`, while one runs). A folder whose only owner it is
+/// refuses it: the folder keeps an owner, given another first. In the
+/// audit by its e-mail, which is all that is left to name it by.
+pub fn remove_account(
+    db: &Db,
+    server: Option<&Server>,
+    by: &By<'_>,
+    id: &str,
+) -> Result<(), Refused> {
+    let target = db.account(id)?.ok_or(Refused::NotFound)?;
+    for (f, role) in db.folders_of(id)? {
+        if role == Role::Owner
+            && !db
+                .members(&f.id)?
+                .iter()
+                .any(|(a, r)| *r == Role::Owner && a.id != id)
+        {
+            return Err(Refused::LastOwner(f.dir));
+        }
+    }
+    told(server, id, None);
+    db.delete_account(id)?;
+    by.audit(db, "account_deleted", Some(&target.email), None);
+    Ok(())
 }

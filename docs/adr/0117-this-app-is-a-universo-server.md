@@ -313,9 +313,23 @@ not on the network even with the host's own certificate files
 (`cd5bc9289`); the tunnel named `verso-<hostname>` (`2efa3056b`); with both
 boxes on, a change of network stops both (`780e2cadc`); the seat's address
 `https://this-computer.invalid` before any address exists (`32bacc553`);
-the admin's reset link ending sessions here and not on a UniVerso
-(`27eece626`); the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
+the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 2026-11-04 ([0029](0029-guardrails-in-ci.md); `8453abd86`).
+
+Decided by the maintainer on 2026-11-04, on the audit of what the build
+duplicated of the UniVerso: the administrator's acts are one function each
+on the server (`verso-server`'s `admin::acts`: an invitation made and
+ended, the invitations listed, a new password's link, an account's
+sessions ended, an account removed; `readlinks::turn` for the read links'
+switch), called by the console's routes and by this app's Settings, which
+add only their own rules on top (never this computer's own accounts, never
+the owner's role, serving on, no mail, the lock on what is not served) —
+not the console's routes, which stay off this computer (D9). A new
+password's link ends every session of the account and revokes its tokens
+on both sides, as `verso serve admin reset` did (it was `[OPEN]`: here and
+not on a UniVerso, `27eece626`); removing an account is refused on both
+while a folder would be left with no owner. The audit names an account by
+its id on both (its e-mail once removed); Settings shows the e-mail.
 
 ### D15. What is built on `feat/app-server`: stays, changes, goes
 

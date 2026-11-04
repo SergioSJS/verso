@@ -1233,8 +1233,22 @@ impl LocalServer {
     }
 
     /// The audit log, freshest first, for Settings (kept 365 days).
+    ///
+    /// A line about an account names it by its id, as on a UniVerso
+    /// (`crate::admin::acts`); the section shows its e-mail instead, as the
+    /// console does beside the id, while the account is there.
     pub fn audit(&self) -> Result<Vec<crate::db::AuditEntry>, String> {
-        self.with_db(|db| db.audit_log(None, 200))
+        self.with_db(|db| {
+            let mut log = db.audit_log(None, 200)?;
+            for line in &mut log {
+                if let Some(id) = line.subject.as_deref()
+                    && let Some(account) = db.account(id)?
+                {
+                    line.subject = Some(account.email);
+                }
+            }
+            Ok(log)
+        })
     }
 }
 

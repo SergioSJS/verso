@@ -128,31 +128,12 @@ pub async fn delete_account(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respo
     if id == me {
         return Err(ApiError::bad("last_admin", "another admin removes you"));
     }
-    let target = ctx
-        .server
-        .db
-        .account(&id)?
-        .ok_or_else(ApiError::not_found)?;
-    // A folder whose only owner goes would be left with no one to share
-    // it: the admin gives it another owner first.
-    for (f, role) in ctx.server.db.folders_of(&id)? {
-        if role == Role::Owner
-            && !ctx
-                .server
-                .db
-                .members(&f.id)?
-                .iter()
-                .any(|(a, r)| *r == Role::Owner && a.id != id)
-        {
-            return Err(ApiError::bad(
-                "last_owner",
-                format!("{} keeps an owner: give it another first", f.dir),
-            ));
-        }
-    }
-    ctx.server.push_account(&id, &json!({ "gone": "session" }));
-    ctx.server.db.delete_account(&id)?;
-    ctx.audit("account_deleted", Some(&target.email), None, true);
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&me),
+        address: Some(&address),
+    };
+    acts::remove_account(&ctx.server.db, Some(&ctx.server), &by, &id)?;
     Ok(ok(json!(null)))
 }
 
@@ -172,37 +153,43 @@ pub async fn end_sessions(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respons
             "your own sessions end in your account's page",
         ));
     }
-    ctx.server
-        .db
-        .account(&id)?
-        .ok_or_else(ApiError::not_found)?;
-    let (sessions, tokens) = ctx.server.db.end_all_of(&id)?;
-    ctx.server.push_account(&id, &json!({ "gone": "session" }));
-    ctx.audit("account_sessions_ended", Some(&id), None, true);
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&me),
+        address: Some(&address),
+    };
+    let (sessions, tokens) = acts::end_sessions(&ctx.server.db, Some(&ctx.server), &by, &id)?;
     Ok(ok(json!({ "sessions": sessions, "tokens": tokens })))
 }
 
 /// A reset link for a member who lost their password (ADR 0074 item 5): it
-/// replaces any earlier one; the admin sends it however they like.
+/// replaces any earlier one; the admin sends it however they like. Making
+/// it ends the account's sessions and revokes its tokens, as `verso serve
+/// admin reset` does (decided 2026-11-04); an admin resetting their own
+/// account keeps the session asking.
 pub async fn reset_link(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
-    let admin = ctx.admin()?.account.id.clone();
+    let who = ctx.admin()?;
+    let admin = who.account.id.clone();
+    let keep = (id == admin)
+        .then(|| who.session().map(str::to_owned))
+        .flatten();
     // A fresh proof first (ADR 0083 item 6): a link that sets another
     // account's password is the way to take it over.
     ctx.proved()?;
-    ctx.server
-        .db
-        .account(&id)?
-        .ok_or_else(ApiError::not_found)?;
-    ctx.server.db.end_links_of(&id, "reset")?;
-    let (token, _) = ctx.server.db.create_invitation(&NewLink {
-        kind: "reset",
-        account: Some(&id),
-        created_by: Some(&admin),
-        life: db::RESET_LIFE,
-        ..NewLink::default()
-    })?;
-    ctx.audit("reset_link", Some(&id), None, true);
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&admin),
+        address: Some(&address),
+    };
+    let (token, _) = acts::reset_link(
+        &ctx.server.db,
+        Some(&ctx.server),
+        &by,
+        Some(&admin),
+        &id,
+        keep.as_deref(),
+    )?;
     let address = link(&ctx, "reset", &token);
     let mut mailed = false;
     if let (Some(mail), Some(account)) = (ctx.server.mail.get(), ctx.server.db.account(&id)?) {

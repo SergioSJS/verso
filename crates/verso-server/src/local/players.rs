@@ -7,23 +7,23 @@
 //! a laptop, "a player's password is reset by the owner, as 0074 item 5's
 //! admin does"). The owner is this server's admin (D3 item 2) and the
 //! section of Settings its console, so the admin's acts on an account are
-//! here, as on a UniVerso (`crate::admin`):
+//! here, as on a UniVerso: the same acts (`crate::admin::acts`), with
+//! this computer's rules on top:
 //!
 //! - the list: each person's name, e-mail-shaped identifier (D4 Q5), the
 //!   folders and shares they reach with their role, and when they were last
 //!   seen;
 //! - a new password: a single-use link for a day, the reset link of ADR
 //!   0074 item 5, shown once to the owner, who hands it over (nothing is
-//!   mailed). As `verso serve admin reset` does on a UniVerso's machine
-//!   (`crate::admin_reset`: the owner here is at the machine), the
-//!   account's sessions end and its tokens are revoked at once, and an
-//!   earlier link stops working; the old password opens nothing once the
-//!   new one is set from the link;
+//!   mailed). As on a UniVerso's console and its machine (`verso serve
+//!   admin reset`), the account's sessions end and its tokens are revoked
+//!   at once, and an earlier link stops working; the old password opens
+//!   nothing once the new one is set from the link;
 //! - ending every session — browsers and desktop apps — and revoking the
 //!   tokens (ADR 0077 item 3), the connections closed at once;
 //! - removing the account: its sessions, devices, tokens, passkeys, grants
 //!   and shares go with it (the database's cascade), its connections closed
-//!   first.
+//!   first; refused while a folder would be left with no owner.
 //!
 //! Never this computer's own accounts — the owner, whose sessions are its
 //! phones and its window's seat, and the holder of the folders served in
@@ -33,10 +33,10 @@
 //! to whom.
 
 use serde::Serialize;
-use serde_json::json;
 
 use super::{LocalServer, invites, lock};
-use crate::db::{Account, Audit, Db, NewLink, RESET_LIFE, Role, is_this_computer};
+use crate::admin::acts;
+use crate::db::{Account, Db, PageQuery, Role, is_this_computer};
 use crate::state::Server;
 
 /// A person invited to this server, as the section lists them.
@@ -75,54 +75,42 @@ fn player(db: &Db, id: &str) -> Result<Account, String> {
     Ok(account)
 }
 
-fn audit(db: &Db, action: &str, subject: &str) -> Result<(), String> {
-    db.audit(&Audit {
-        actor: None,
-        action,
-        subject: Some(subject),
-        folder: None,
-        address: None,
-        ok: true,
-    })
-}
-
+/// The accounts, as the console's list finds them (`Db::page_accounts`),
+/// with what each reaches; never this computer's own.
 fn players_of(db: &Db) -> Result<Vec<Player>, String> {
     let mut out = Vec::new();
-    for account in db.accounts()? {
-        if is_this_computer(&account.email) {
-            continue;
+    let mut at = Some(0);
+    while let Some(offset) = at {
+        let page = db.page_accounts(&PageQuery {
+            sort: "email".to_owned(),
+            offset,
+            limit: 200,
+            ..PageQuery::default()
+        })?;
+        at = page.next;
+        for account in page.rows {
+            if is_this_computer(&account.email) {
+                continue;
+            }
+            let mut reaches: Vec<(String, Role)> = db
+                .folders_of(&account.id)?
+                .into_iter()
+                .map(|(f, role)| (f.dir, role))
+                .collect();
+            for (share, folder, role) in db.shares_with(&account.id)? {
+                reaches.push((format!("{}/{}", folder.dir, share.path), role));
+            }
+            out.push(Player {
+                id: account.id,
+                name: account.name,
+                email: account.email,
+                created: account.created,
+                last_seen: account.last_seen,
+                reaches,
+            });
         }
-        let last_seen = db
-            .sessions_of(&account.id)?
-            .iter()
-            .map(|s| s.last_used)
-            .max();
-        let mut reaches: Vec<(String, Role)> = db
-            .folders_of(&account.id)?
-            .into_iter()
-            .map(|(f, role)| (f.dir, role))
-            .collect();
-        for (share, folder, role) in db.shares_with(&account.id)? {
-            reaches.push((format!("{}/{}", folder.dir, share.path), role));
-        }
-        out.push(Player {
-            id: account.id,
-            name: account.name,
-            email: account.email,
-            created: account.created,
-            last_seen,
-            reaches,
-        });
     }
     Ok(out)
-}
-
-/// The account's open connections, told `gone: session` and closed at once
-/// — its tokens' too.
-fn told(server: Option<&Server>, account: &str) {
-    if let Some(s) = server {
-        s.push_account(account, &json!({ "gone": "session" }));
-    }
 }
 
 impl LocalServer {
@@ -164,20 +152,15 @@ impl LocalServer {
         let db = &r.server.db;
         let account = player(db, id)?;
         let owner = db.local_owner()?;
-        db.end_links_of(&account.id, "reset")?;
-        db.end_sessions(&account.id, None)?;
-        for token in db.revoke_tokens_of(&account.id)? {
-            audit(db, "token_revoked", &token)?;
-        }
-        told(Some(&r.server), &account.id);
-        let (token, link) = db.create_invitation(&NewLink {
-            kind: "reset",
-            account: Some(&account.id),
-            created_by: Some(&owner.id),
-            life: RESET_LIFE,
-            ..NewLink::default()
-        })?;
-        audit(db, "reset_link", &account.email)?;
+        let (token, link) = acts::reset_link(
+            db,
+            Some(&r.server),
+            &acts::By::default(),
+            Some(&owner.id),
+            &account.id,
+            None,
+        )
+        .map_err(|e| e.to_string())?;
         crate::log::info("a new password's link was made at the computer");
         drop(running);
         (self.shared.events)(super::Event::Changed);
@@ -193,10 +176,8 @@ impl LocalServer {
     pub fn end_sessions(&self, id: &str) -> Result<(usize, usize), String> {
         let ended = self.acting(|db, server| {
             let account = player(db, id)?;
-            let ended = db.end_all_of(&account.id)?;
-            told(server, &account.id);
-            audit(db, "account_sessions_ended", &account.email)?;
-            Ok(ended)
+            acts::end_sessions(db, server, &acts::By::default(), &account.id)
+                .map_err(|e| e.to_string())
         })?;
         crate::log::info("a person's sessions were ended at the computer");
         Ok(ended)
@@ -208,9 +189,8 @@ impl LocalServer {
     pub fn remove_account(&self, id: &str) -> Result<(), String> {
         self.acting(|db, server| {
             let account = player(db, id)?;
-            told(server, &account.id);
-            db.delete_account(&account.id)?;
-            audit(db, "account_deleted", &account.email)
+            acts::remove_account(db, server, &acts::By::default(), &account.id)
+                .map_err(|e| e.to_string())
         })?;
         crate::log::info("a person's account was removed at the computer");
         Ok(())

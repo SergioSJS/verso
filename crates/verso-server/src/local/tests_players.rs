@@ -216,6 +216,20 @@ fn ending_the_sessions_signs_the_player_out_at_once() {
         assert!(lab.local.devices().unwrap().is_empty());
         assert_eq!(sign_in(&lab, PASSWORD).await.0, 200, "the password stays");
         assert!(audit_text(&lab).contains("account_sessions_ended"));
+        // Kept by the account's id, as on a UniVerso; shown by its e-mail.
+        let server = server_of(&lab);
+        let kept = server.db.audit_log(None, 50).unwrap();
+        let line = kept
+            .iter()
+            .find(|l| l.action == "account_sessions_ended")
+            .unwrap();
+        assert_eq!(line.subject.as_deref(), Some(id.as_str()));
+        let shown = lab.local.audit().unwrap();
+        let line = shown
+            .iter()
+            .find(|l| l.action == "account_sessions_ended")
+            .unwrap();
+        assert_eq!(line.subject.as_deref(), Some(ANA));
     });
 }
 
@@ -322,5 +336,25 @@ fn this_computers_accounts_are_never_acted_on() {
             !audit_text(&lab).contains("account_"),
             "an act refused is no act"
         );
+    });
+}
+
+/// Removing a person refuses while a folder would be left with no owner,
+/// as the console's removal does (decided 2026-11-04: one act for both):
+/// the folder keeps an owner, given another first. Nothing goes, and
+/// nothing is in the audit.
+#[test]
+fn removing_the_only_owner_of_a_folder_is_refused() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        let (_, id) = ana(&lab).await;
+        let server = server_of(&lab);
+        server.db.create_folder("Diário da Ana", &id).unwrap();
+        let words = lab.local.remove_account(&id).unwrap_err();
+        assert!(words.contains("Diário da Ana keeps an owner"), "{words}");
+        assert!(server.db.account(&id).unwrap().is_some());
+        assert!(server.db.folder_by_dir("Diário da Ana").unwrap().is_some());
+        assert!(!audit_text(&lab).contains("account_deleted"));
     });
 }
