@@ -59,6 +59,10 @@ it. The two groups are separated below.
 
 CI on macOS and Linux: `cargo fmt --check`, `cargo clippy`, `cargo test`,
 `cargo deny check`, plus the commands of the feature guardrails as they come in.
+*(`[REVISED 2026-11-04]` The tests run under `cargo nextest run`, with the
+time limit per test of `.config/nextest.toml`, and the doctests under
+`cargo test --doc`, which nextest does not run. Nothing the guardrail covers
+changed; a hung test now fails in five minutes instead of holding the job.)*
 
 A pull request runs the guardrails on Linux only; macOS runs on `main`, after
 each merge. Both operating systems are therefore checked where the code lands.
@@ -82,7 +86,9 @@ the billing page showed for the cycle, in a quota that counts each as ten.
   --check`, `cargo deny check`, clippy, the tests, the generated types, the
   UI's type check, bundle and unit tests, the WASM check. The window's
   end-to-end tests run on the author's machine only
-  ([0058](0058-demo-vault-as-tutorial.md), point 13).
+  ([0058](0058-demo-vault-as-tutorial.md), point 13). *(`[REVISED
+  2026-11-04]` Still not in CI. On the author's machine they run through
+  `scripts/check-e2e.sh`, in Docker; see the local scripts below.)*
 - **`main`**, after each merge, runs that job again, and three more: **clippy
   and the tests on macOS** — the checks whose answer can depend on the
   platform (the file system, extended attributes, WebKit); fmt, `cargo deny`
@@ -110,10 +116,19 @@ README. Two scripts run the guardrails before a push; CI confirms, it is not
 where a failure is first seen:
 
 - `scripts/check.sh` — every guardrail of the Linux job, natively and in the
-  same order; on a Mac, the macOS check.
+  same order; on a Mac, the macOS check. *(`[REVISED 2026-11-04]` The Rust
+  tests run under cargo-nextest when it is installed. When Docker runs, it
+  ends by calling `scripts/check-e2e.sh`; `--no-e2e` leaves that out.)*
+- `scripts/check-e2e.sh` — *(`[REVISED 2026-11-04]`, added)* the window's
+  end-to-end tests, both suites (the UI harness and the server's), in
+  Playwright's Linux Docker image (the version of `app/ui/package.json`,
+  1.63.0 today), with 3 workers for the harness. Never Playwright directly on
+  the Mac: see [0069](0069-windows-port.md), item 8.
 - `scripts/check-linux.sh` — fmt, clippy, the tests and the generated
   bindings in a Linux container, as an ordinary user, over a copy of the
-  sources and named volumes. Its first real run found the UI bundle missing
+  sources and named volumes. *(`[REVISED 2026-11-04]` The container is the
+  prebuilt `verso-ci` image, `scripts/ci/Dockerfile`: the toolchain and
+  WebKitGTK are in it, so a run installs nothing.)* Its first real run found the UI bundle missing
   before the shell compiled, which CI would have hit next (`64b378c`).
 - `scripts/check-windows.sh` — clippy and the tests on a Windows machine
   reached over SSH as `verso-win`, over a byte-for-byte copy of the working
