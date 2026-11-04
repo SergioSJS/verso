@@ -58,6 +58,12 @@ test("each refusal of the link's path is the host's own phrase and is said in wo
     assert.ok(rust.includes(phrase), `the host no longer says “${phrase}”`);
     assert.equal(L.linkWhy(`something: ${phrase} (detail)`, w), w.why[key], phrase);
   }
+  // A folder that also syncs with a server, as the start and the tick say it.
+  assert.ok(rust.includes("also syncs with {}: open that address on the phone instead"), "the host no longer refuses a synced folder that way");
+  assert.equal(L.linkWhy("verso-vault-test also syncs with 192.168.3.150:7340: open that address on the phone instead, or untick it", w), w.synced("verso-vault-test", "192.168.3.150:7340"));
+  assert.match(L.linkWhy("this folder also syncs with 192.168.3.150:7340: open that address on the phone instead", w), /192\.168\.3\.150:7340/);
+  assert.ok(rust.includes("turn serving off to change which folders are served"));
+  assert.equal(L.linkWhy("turn serving off to change which folders are served", w), w.why.servingLocks);
   // Anything else is errorSentence's.
   assert.equal(L.linkWhy("a refusal of another kind", w), null);
 });

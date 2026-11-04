@@ -19,7 +19,7 @@ import { busy } from "../reach";
 import { asDialog, closed, opened } from "./a11y";
 import { servedFolders } from "./servedFolders";
 import { localStrings } from "./localServerStrings";
-import { linkBoxes, linkSentence } from "./localServerLink";
+import { linkBoxes, linkSentence, whyOf } from "./localServerLink";
 import { linkStrings } from "./localServerLinkStrings";
 import { invitations } from "./localServerInvites";
 import { accountsBlock } from "./localServerAccounts";
@@ -158,7 +158,8 @@ export function localServerBody(_item: Item): HTMLElement {
   const say = (text: string): void => {
     said.textContent = text;
   };
-  const failed = (e: ContractError | unknown) => say(errorSentence(e) || w.failed);
+  // The host's refusals of serving in words (a synced folder, serving on); the rest as everywhere.
+  const failed = (e: ContractError | unknown) => say(whyOf(e) || w.failed);
 
   const lead = h("p", "ls-lead", w.lead);
   // The two boxes under the switch, and the link (ADR 0117 D1).

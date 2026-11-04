@@ -49,6 +49,9 @@ const pt = {
   newEachRun: "Um link rápido muda a cada vez que liga: mande o novo às pessoas. Os convites feitos antes apontam para o link antigo.",
   credits: "O cloudflared é da Cloudflare, licença Apache-2.0: veja Ajustes › Créditos.",
   // The host's refusals on this path, said in words.
+  /** A folder that also syncs with a server (ADR 0096 item 11): its table is there. */
+  synced: (name: string, host: string) =>
+    `${name ? `“${name}”` : "Esta pasta"} já sincroniza com o servidor ${host}, e a mesa dela fica lá: abra ${host} no celular ou no navegador. Para ligar este app como servidor, desmarque essa pasta na lista.`,
   why: {
     checksum: "O cloudflared baixado não confere com a soma que o Verso fixa: foi recusado e apagado. Tente de novo mais tarde; se repetir, a cópia no GitHub pode ter mudado.",
     download: "Não foi possível baixar o cloudflared do GitHub: sem conexão, ou o GitHub não respondeu. Confira a internet e tente de novo.",
@@ -68,6 +71,7 @@ const pt = {
     // S7c: an app of another person ended meanwhile (it signed out).
     appGone: "Esse app já não está conectado aqui.",
     personGone: "Essa pessoa já não tem conta aqui.",
+    servingLocks: "Desligue o servidor para mudar quais pastas ele serve.",
   },
   // *Usar meu endereço* (D10).
   ownTitle: "Usar meu endereço",
@@ -175,6 +179,8 @@ const en: typeof pt = {
   noCeiling: "Your address does not close by itself; with “Keep on when the app starts”, it comes back at start.",
   newEachRun: "A quick link changes each time it turns on: send the new one to people. Invitations made before point to the old link.",
   credits: "cloudflared is Cloudflare's, Apache-2.0: see Settings › Credits.",
+  synced: (name: string, host: string) =>
+    `${name ? `“${name}”` : "This folder"} already syncs with the server ${host}, and its table is there: open ${host} on the phone or in a browser. To turn this app into a server, untick that folder in the list.`,
   why: {
     checksum: "The downloaded cloudflared does not match the sum Verso pins: it was refused and deleted. Try again later; if it repeats, the copy on GitHub may have changed.",
     download: "Could not download cloudflared from GitHub: no connection, or GitHub did not answer. Check the internet and try again.",
@@ -193,6 +199,7 @@ const en: typeof pt = {
     needOn: "Turn the server on first.",
     appGone: "That app is no longer signed in here.",
     personGone: "That person no longer has an account here.",
+    servingLocks: "Turn serving off to change which folders are served.",
   },
   ownTitle: "Use my own address",
   ownLead: "A fixed address of your own, like table.yourdomain.com, instead of the link that changes. It needs a domain of yours on Cloudflare (the free plan will do); Verso does the rest through cloudflared.",
@@ -267,6 +274,10 @@ export type LinkWords = typeof pt;
  *  it is none of these (then `errorSentence` says it). */
 export function linkWhy(message: string, w: LinkWords): string | null {
   const m = message;
+  // "<name> also syncs with <host>: …" (start) or "this folder also syncs with <host>: …" (tick).
+  const synced = /(?:^|: )(?:this folder|(.+?)) also syncs with (.+?): /.exec(m);
+  if (synced) return w.synced(synced[1] ?? "", synced[2] ?? "");
+  if (m.includes("turn serving off to change which folders")) return w.why.servingLocks;
   if (m.includes("is not the one Verso pins")) return w.why.checksum;
   if (m.includes("the download of cloudflared") || m.includes("downloaded from its GitHub releases")) return w.why.download;
   if (m.includes("no cloudflared is published")) return w.why.system;
