@@ -24,7 +24,7 @@ O Verso reconhece metadados escritos em formato YAML no início do arquivo (o ch
 Observe a tabela de propriedades no topo desta nota:
 
 1. **Recolher e expandir**: clique em **Propriedades**, no topo do painel, para recolher ou expandir a lista. O Verso lembra a sua escolha.
-2. **Edição no local**: clique num valor para mudar um texto ou um número, marque e desmarque uma caixa, e acrescente ou tire itens de uma lista (como as tags). Uma data é escrita como texto, no formato `AAAA-MM-DD` (numa nota tipada, cujo schema declara a data, o campo é um seletor de data — veja [[21 - Notas Tipadas]]).
+2. **Edição no local**: clique num valor para mudar um texto ou um número, marque e desmarque uma caixa, e acrescente ou tire itens de uma lista (como as tags). Uma data é escrita como texto, no formato `AAAA-MM-DD` (numa nota tipada, cujo schema declara a data, o campo é um seletor de data — veja [[13 - Notas Tipadas]]).
 3. **Propriedade nova**: o botão **Adicionar propriedade** cria uma linha nova no painel.
 4. **Persistência limpa**: o que muda no painel é gravado no bloco YAML da nota, sem mexer no resto do texto. Para editar o YAML direto, use o modo **Fonte**.
 
@@ -46,10 +46,10 @@ Observe a tabela de propriedades no topo desta nota:
 
 ## Integração com Bases
 
-As propriedades definidas aqui são lidas automaticamente pelas **Bases do Verso** (`.base`), permitindo que você filtre, ordene e agrupe suas notas em tabelas dinâmicas e quadros Kanban, conforme demonstrado em [[04 - Visualização de Bases e Dados]].
+As propriedades definidas aqui são lidas automaticamente pelas **Bases do Verso** (`.base`), permitindo que você filtre, ordene e agrupe suas notas em tabelas dinâmicas e quadros Kanban, conforme demonstrado em [[14 - Visualização de Bases e Dados]].
 
-Uma propriedade cujo valor é um wikilink **entre aspas** (ou uma lista deles) liga as duas notas: é a **relação tipada**, que um board também cria — veja [[09 - Board e Relações]].
+Uma propriedade cujo valor é um wikilink **entre aspas** (ou uma lista deles) liga as duas notas: é a **relação tipada**, que um board também cria — veja [[20 - Board e Relações]].
 
-Com `type:` e um **schema** do tipo, as propriedades viram um formulário: as declaradas primeiro, com rótulo e campo certos — veja [[21 - Notas Tipadas]].
+Com `type:` e um **schema** do tipo, as propriedades viram um formulário: as declaradas primeiro, com rótulo e campo certos — veja [[13 - Notas Tipadas]].
 
-Voltar para [[00 - Bem-vindo ao Verso|Início]] ou seguir para [[04 - Visualização de Bases e Dados]].
+Anterior: [[02 - Links, Âncoras e Notas Incorporadas]] · Próxima: [[04 - Escrevendo no Editor]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

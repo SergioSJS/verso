@@ -20,9 +20,9 @@ in the real app.
 
 ## Not yet checked
 
-### This app is a server: the internet link, invitations and the table (ADR 0117, note 39, 2026-11-04)
+### This app is a server: the internet link, invitations and the table (ADR 0117, note 29, 2026-11-04)
 
-The harness answers the link, the own address, the invitations and the seat in memory, and the Rust tests run the real server on a loopback listener; nothing downloaded, ran or talked to `cloudflared` or Cloudflare. Per system, then one line per row of ADR 0117 D9. Follow note 39 as a layperson would.
+The harness answers the link, the own address, the invitations and the seat in memory, and the Rust tests run the real server on a loopback listener; nothing downloaded, ran or talked to `cloudflared` or Cloudflare. Per system, then one line per row of ADR 0117 D9. Follow note 29 as a layperson would.
 
 - [ ] **The download of `cloudflared` on each system** (A, macOS, Windows, Linux): with the link box ticked the first time, the panel says it is downloading (about 40 MB), the checksum passes and **Link no ar.** shows. On macOS the downloaded binary runs with no Gatekeeper prompt; on Windows no SmartScreen or firewall prompt blocks it; on Linux it runs from the data directory. Turn the link off and on again: no second download.
 - [ ] **The child dies with the app** (A, each system): with the link on, quit Verso; no `cloudflared` stays in `ps` / Activity Monitor / Task Manager. On Windows also end the app from Task Manager: the Job Object takes `cloudflared` with it. On macOS/Linux kill the app with `kill -9`: the child exits by itself once it sees the app gone.
@@ -505,7 +505,7 @@ in a note long enough to scroll.
   Guia de Sintaxe" for half a second shows the card, its heading marked
   at the top; the pointer into the card scrolls it; away, it goes; in the
   dark theme the card reads as the note does. A note with a picture of the
-  folder in it (note 06): the picture shows in the card (the `verso:`
+  folder in it (note 18): the picture shows in the card (the `verso:`
   protocol, which the harness stands in for). `verso.log`: no ERROR.
 - [ ] **⌘ in Edit mode on the Mac, Ctrl on Windows** (A): note 02 in
   Editar, the pointer resting on a link: nothing; ⌘ pressed (Ctrl in
@@ -711,7 +711,7 @@ in a note long enough to scroll.
 
 - [ ] **Each dice hit is heard as the die hits** (A, the Mac app, ADR 0101): sound on, the Mac idle for a few minutes (headphones on, Bluetooth too), roll 4d6 from the Table's box with Enter: each hit sounds as its die touches the felt or another die, and nothing sounds after the dice rest. The log's `dice sound:` line says `late=` and `clockRate=` if it did not.
 - [ ] **A die in a note rolls and writes nothing** (A): in the installed
-  app, note 24 of the demo vault in Leitura, then in Editar: each `dice:`
+  app, note 22 of the demo vault in Leitura, then in Editar: each `dice:`
   code is a die; a click and Enter roll it, the card shows the total and
   each die, VoiceOver says *1d20+5: …* once per roll. The table's roll
   gives a row whose link opens Capitão Ruy. Close the note and look at the
@@ -732,7 +732,7 @@ in a note long enough to scroll.
 ### The rest of bases (ADR 0094, feat/bases-rest, 2026-10-14)
 
 - [ ] **The map draws in the real web views** (A): in the installed app on
-  macOS (WKWebView), Windows (WebView2) and Linux (WebKitGTK), note 04 of
+  macOS (WKWebView), Windows (WebView2) and Linux (WebKitGTK), note 14 of
   the demo vault, *Projetos.base › Mapa*: the world outline in the
   window's colours, three pins (São Paulo, Lisbon, Recife); a click on a
   pin opens its project; resting on it shows the note; the list below
@@ -759,11 +759,11 @@ in a note long enough to scroll.
   Verso's right-click menu and Obsidian opens there. The keys were taken
   from the plugin's public source (`obsidianmd/obsidian-maps` at
   `a5bf456`, `src/map-view.ts`), not yet seen on a base the plugin wrote.
-- [ ] **A regular expression in the real core** (A): note 04, the
+- [ ] **A regular expression in the real core** (A): note 14, the
   *Mês* column of *Todos os Projetos* shows `09/2026`; a formula
   `/(?<=a)b/.matches(file.name)` says *A expressão regular usa
   lookbehind…* in its cells and above the view.
-- [ ] **An embedded base edited in place** (A): note 04 in Leitura, the
+- [ ] **An embedded base edited in place** (A): note 14 in Leitura, the
   embedded *Todos os Projetos*: add a sort from its toolbar; *Projetos.base*
   on disk gains the sort and nothing else changes (`git diff`). With
   *Projetos.base* open in another tab and edited unsaved, the embed's
@@ -908,7 +908,7 @@ in a note long enough to scroll.
   confirme que é você; nada mudou.* VoiceOver reads the dialog's title
   and line; the focus goes back to the share dialog when it closes.
 - [ ] **Mermaid diagrams after 12.2.0** (ADR 0083 item 13, 5225d6c): the
-  demo vault's "08 - Diagramas Mermaid" in the installed app and in the
+  demo vault's "17 - Diagramas Mermaid" in the installed app and in the
   browser: every diagram draws, in light and dark; a diagram with a
   syntax error shows the parser's own message under "Syntax error in
   text"; circle nodes fit their label, a mindmap's labels are centred and
@@ -1155,7 +1155,7 @@ in a note long enough to scroll.
   Linux, with the focus still in the tree): the note goes back, the status
   bar says *Movimento desfeito*; ⌘⇧Z (Ctrl+Shift+Z / Ctrl+Y) moves it
   again. Then click into a note's text and ⌘Z: only the text is undone.
-- [ ] **An SVG in Editar**: note 06 of the demo vault, Editar — the
+- [ ] **An SVG in Editar**: note 18 of the demo vault, Editar — the
   diagram shows, and stays when selected with the text around it. Left
   of a note's title with no sticker, a faint sparkle, not a star.
 - [ ] **The version in the files' addresses** (cache after an update):
@@ -1445,7 +1445,7 @@ them; if they still happen, a step that makes them happen is enough.
   appears for the first folder's note, and none covers the table's chat in
   the first (macOS, Windows, Linux; the web has one folder per page).
 - [ ] Shared table, player in the browser, game master on the desktop app: the player's pasted, dropped and chosen images on the board reach the desktop without a reload, an animated GIF keeps animating on both, and a player who does not edit the board gets the notice (macOS, Windows, Linux).
-- [ ] The guided installer on a real Oracle Cloud Always Free machine (E2.1.Micro 1 GB, and an A1 ARM64), following note 34 of the demo vault: the menu, the swap offer, the VCN security-list steps it prints, `sh universo.sh firewall`, HTTPS with an sslip.io name (Let's Encrypt itself; the automated check only uses Caddy's internal CA), the first admin, and the address opened on a phone. Also DuckDNS with a real token and a rate-limited sslip.io (nip.io offered).
+- [ ] The guided installer on a real Oracle Cloud Always Free machine (E2.1.Micro 1 GB, and an A1 ARM64), following note 33 of the demo vault: the menu, the swap offer, the VCN security-list steps it prints, `sh universo.sh firewall`, HTTPS with an sslip.io name (Let's Encrypt itself; the automated check only uses Caddy's internal CA), the first admin, and the address opened on a phone. Also DuckDNS with a real token and a rate-limited sslip.io (nip.io offered).
 
 - [ ] The container's memory limit (B9) on a real 1 GB server: `docker stats universo` shows a limit of 768 MiB; send a note far bigger than that and see the container restart by itself while the machine and its SSH session stay up.
 - [ ] The trash's size cap (B11) on a real server: with `VERSO_TRASH_MAX=50MB`, delete a few large files from a desktop folder synced to it; the oldest leave the server's trash first, the folder's own files stay, and the console's folder page shows the trash under 50 MB.
@@ -1501,7 +1501,7 @@ On the installed beta, macOS 14.4 or later, as the game master of a UniVerso tab
 
 ## Music at the table (ADR 0116 phase 1## Music at the table (ADR 0116 phase 1, 2026-10-31)
 
-On the real engines, which the harness's stubbed `play()` does not reach; a UniVerso table with the master in the desktop app and players in browsers and phones (note 36):
+On the real engines, which the harness's stubbed `play()` does not reach; a UniVerso table with the master in the desktop app and players in browsers and phones (note 27):
 
 1. **iOS volume** (A, iPhone Safari): the player's **Seu volume** and the master's **Volume da mesa** change the loudness (the GainNode path; `HTMLMediaElement.volume` is read-only on iOS). **Silenciar** silences; the side buttons still set the phone's own volume.
 2. **Autoplay** (A, each engine: WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux, Safari iOS, Chrome Android): a window that joins while a track plays either plays at once or shows **Ouvir a mesa** focused; one tap anywhere starts it at the others' point.
@@ -1513,7 +1513,7 @@ On the real engines, which the harness's stubbed `play()` does not reach; a UniV
 
 ## Audio embeds with a player (ADR 0116 amendment, 2026-11-01)
 
-On the real engines, which the harness's stubbed `play()` does not reach (notes 06 and 36, lesson 16 of the training board):
+On the real engines, which the harness's stubbed `play()` does not reach (notes 18 and 27, lesson 16 of the training board):
 
 1. **iOS** (A, iPhone and iPad Safari, a UniVerso folder): an embed plays from a tap (no "not allowed" in the console), the player shows *Pausar* and the time moves; the phone's buttons change the loudness and **Silenciar** silences it; the screen locked, the sound stops or goes on as Safari decides — note which. The `/f/` address seeks (drag the bar to the middle: it plays from there).
 2. **Codecs on Windows and Linux** (A, WebView2 and WebKitGTK): MP3, M4A (AAC), WAV, FLAC and OGG embeds each play or say *Esta janela não toca este formato…*; on Linux note what a plain Ubuntu desktop does for `.m4a` without `gst-plugins-bad` / `gst-libav`. An OGG on macOS and iOS says it cannot play.

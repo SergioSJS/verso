@@ -68,7 +68,7 @@ test("importing over an untouched older demo note updates it and says how many w
 
 test("a note the tutorial renamed: the untouched old copy goes to the trash, the new notes are there", async ({ app }) => {
   await app.open("?vault=empty");
-  // The dice note as the demo had it before it became note 25 (git
+  // The dice note as the demo had it when it was note 24 (git
   // 8f6fa462), untouched, and the person's edited copy of another renamed
   // note.
   const old = readFileSync(new URL("./data/dice-24-8f6fa462.md.txt", import.meta.url), "utf8");
@@ -84,8 +84,8 @@ test("a note the tutorial renamed: the untouched old copy goes to the trash, the
   await app.page.locator(".confirm-box button.save").click();
   const files = await app.files();
   expect(files).not.toContain("24 - Dados e Tabelas Sorteadas.md");
-  expect(files).toContain("25 - Dados e Tabelas Sorteadas.md");
-  expect(files).toContain("24 - Instalar o seu UniVerso, Passo a Passo.md");
+  expect(files).toContain("22 - Dados e Tabelas Sorteadas.md");
+  expect(files).toContain("31 - Instalar o seu UniVerso, Passo a Passo.md");
   // Restorable, not deleted: it is in the trash, whole.
   expect(await app.page.evaluate(() => window.__harness.bytes(".trash/24 - Dados e Tabelas Sorteadas.md"))).toBe(Buffer.from(old).toString("base64"));
   expect(await app.file("daily/2026-09-24.md")).toBe("# O meu dia\\n");

@@ -1,4 +1,4 @@
-// Walkthrough, section 14 (note 26): the layout editor (ADR 0099 item 8).
+// Walkthrough, section 14 (note 23): the layout editor (ADR 0099 item 8).
 // Settings › RPG & Mesa Solo › Fichas e Templates › Editar on a built-in
 // layout copies it into the folder (`.verso/layouts/`) and opens the
 // editor: the tree of blocks beside the card it draws. A block added from

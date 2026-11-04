@@ -1,4 +1,4 @@
-// Walkthrough, section 14 (note 26): the project wizard (ADR 0098 item 3).
+// Walkthrough, section 14 (note 24): the project wizard (ADR 0098 item 3).
 // "Criar estrutura" does not write: it shows the whole tree, with a box and
 // a name for every folder and file. What is unticked is not made (a folder
 // takes what is inside it along); only then "Criar agora" writes.

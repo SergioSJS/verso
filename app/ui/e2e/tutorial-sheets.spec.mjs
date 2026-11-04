@@ -1,8 +1,8 @@
-// Walkthrough, section 14 (notes 26 and 27, ADR 0058): the tutorial's sheets
+// Walkthrough, section 14 (notes 23 and 24, ADR 0058): the tutorial's sheets
 // note must be a page of working cards. Every ```statblock fence of
-// "26 - Fichas" is drawn as a card (Leitura and Live Preview), none with an
+// "23 - Fichas" is drawn as a card (Leitura and Live Preview), none with an
 // error, "too large" or "layout não encontrado" badge, nothing past its card
-// and nothing drawn over another; "27 - Oráculos e Criação de Mundos" shows
+// and nothing drawn over another; "24 - Oráculos e Criação de Mundos" shows
 // its [!oracle] callouts with the button, and the oracle lists the note's
 // ^id table. Off a Mac the pages are kept as pictures
 // (e2e/results/tutorial-shots/<engine>/), read after a change of the notes.
@@ -10,8 +10,8 @@
 import { join } from "node:path";
 import { test, expect } from "./fixtures.mjs";
 
-const SHEETS = "26 - Fichas";
-const ORACLES = "27 - Oráculos e Criação de Mundos";
+const SHEETS = "23 - Fichas";
+const ORACLES = "24 - Oráculos e Criação de Mundos";
 const SHOTS = process.platform !== "darwin";
 const shot = (info, file) => join(info.project.outputDir, "tutorial-shots", info.project.name, file);
 

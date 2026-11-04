@@ -735,9 +735,9 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   };
   // The folder's own settings hold a bookmark of its owner's: the folder's
   // layer is there — a reader's star must leave it alone.
-  const before = await folderSettings(page, "12 - Busca e Navegação.md");
+  const before = await folderSettings(page, "09 - Busca e Navegação.md");
   expect(before.exists).toBe(true);
-  expect(before.bookmarks).toContain("12 - Busca e Navegação.md");
+  expect(before.bookmarks).toContain("09 - Busca e Navegação.md");
   // A reader of the folder, invited to it.
   const email = `estrela-${test.info().project.name}@verso.test`;
   await page.goto("/admin/invitations");
@@ -760,8 +760,8 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
   // The window knows it only reads before anything is starred.
   await expect(reader.locator("#open .folder-lock")).toBeVisible();
-  const NOTE = "14 - Arquivos e Pastas.md";
-  const star = reader.locator(".title-row:visible", { has: reader.locator(".note-title", { hasText: /^14 - Arquivos e Pastas$/ }) }).locator("button.star");
+  const NOTE = "07 - Arquivos e Pastas.md";
+  const star = reader.locator(".title-row:visible", { has: reader.locator(".note-title", { hasText: /^07 - Arquivos e Pastas$/ }) }).locator("button.star");
   await showTree(reader);
   await reader.locator(`#notes li[data-path="${NOTE}"] > button`).click();
   await expect(star).toBeVisible();

@@ -12,7 +12,7 @@ import { leakFixtures } from "../e2e/leaks.mjs";
 const test = base.extend(leakFixtures);
 
 const ADMIN = { email: "admin@verso.test", password: "uma senha bem longa" };
-const NOTE = "25 - Dados e Tabelas Sorteadas.md";
+const NOTE = "22 - Dados e Tabelas Sorteadas.md";
 
 /** Console errors of the page, read at the end of each test. */
 function watch(page) {
@@ -149,7 +149,7 @@ test("someone with no account reads the note: no secret, a link out of it as tex
   // The note links to one that was not shared: plain text that says so.
   const plain = preview.locator(".link-outside", { hasText: "UniVerso" }).first();
   await expect(plain).toContainText("(não compartilhado)");
-  await expect(preview.locator('a.wikilink[data-target^="23 - Verso num Servidor"]')).toHaveCount(0);
+  await expect(preview.locator('a.wikilink[data-target^="30 - Verso num Servidor"]')).toHaveCount(0);
   // Only what was shared: the note, and what it embeds.
   await expect(reader.locator("#notes li[data-path]").first()).toBeVisible();
   const shown = await reader.locator("#notes li[data-path]").evaluateAll((li) => li.map((x) => x.dataset.path));

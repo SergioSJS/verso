@@ -16,6 +16,10 @@ versão de teste.
 
 - As entradas desta seção estão em inglês no [CHANGELOG.md](../../CHANGELOG.md) e são traduzidas quando a versão sair.
 
+### Alterado
+
+- As entradas desta seção estão em inglês no [CHANGELOG.md](../../CHANGELOG.md) e são traduzidas quando a versão sair.
+
 ### Corrigido
 
 - **Um arquivo YAML aninhado em centenas de níveis não derruba mais a janela no Windows.** O diagrama de dados mede a profundidade de um YAML antes de lê-lo e, passando de 256 níveis, diz "O YAML tem aninhamento fundo demais para desenhar" ([ADR 0106](../adr/0106-structured-data-as-a-diagram.md)). A biblioteca de YAML recursa a cada nível; quando a pilha acabava enquanto o motor compilava uma das suas expressões regulares, o V8 (o motor do WebView2 do Windows) abortava a página inteira em vez de informar o erro.

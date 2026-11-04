@@ -237,7 +237,7 @@ test("a list keeps its last word, and says why", async ({ app, page }) => {
 
 test("two tables of one note have their own names, and a table with a die counts and shows each option once", async ({ app, page }) => {
   await openPage(app);
-  const cards = page.locator(".orc-table", { hasText: "Da nota 25 - Dados e Tabelas Sorteadas" });
+  const cards = page.locator(".orc-table", { hasText: "Da nota 22 - Dados e Tabelas Sorteadas" });
   await expect(cards).toHaveCount(2);
   await expect(cards.locator(".orc-table-name")).toHaveText(["Tabelas sorteadas (^encontros)", "Tabelas sorteadas (^tempo)"]);
   const encounters = cards.first();

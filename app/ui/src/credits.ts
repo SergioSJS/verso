@@ -50,8 +50,8 @@ export const CREDITS: Credit[] = [
     id: "randommind",
     name: "RandomMind",
     line: {
-      pt: "As duas músicas de amostra do tutorial (nota 36, assets/sons): “The Old Tower Inn” e “The Bard's Tale”, em domínio público (CC0 1.0), do OpenGameArt.",
-      en: "The tutorial's two sample tracks (note 36, assets/sons): “The Old Tower Inn” and “The Bard's Tale”, in the public domain (CC0 1.0), from OpenGameArt.",
+      pt: "As duas músicas de amostra do tutorial (nota 27, assets/sons): “The Old Tower Inn” e “The Bard's Tale”, em domínio público (CC0 1.0), do OpenGameArt.",
+      en: "The tutorial's two sample tracks (note 27, assets/sons): “The Old Tower Inn” and “The Bard's Tale”, in the public domain (CC0 1.0), from OpenGameArt.",
     },
     link: "https://opengameart.org/users/randommind",
     licence: "CC0 1.0",

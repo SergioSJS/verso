@@ -3,7 +3,7 @@ excalidraw-plugin: parsed
 tags:
   - excalidraw
 ---
-This note was drawn with Obsidian's Excalidraw plugin, which keeps the drawing inside a `.excalidraw.md` file. In Verso it opens showing the drawing: **Convert to board**, in the bar above it, shows the board it becomes and creates it next to this note when you confirm, and **Show the text** shows this text; this note stays as it is. See [[09 - Board and Relations]].
+This note was drawn with Obsidian's Excalidraw plugin, which keeps the drawing inside a `.excalidraw.md` file. In Verso it opens showing the drawing: **Convert to board**, in the bar above it, shows the board it becomes and creates it next to this note when you confirm, and **Show the text** shows this text; this note stays as it is. See [[20 - Board and Relations]].
 
 # Excalidraw Data
 

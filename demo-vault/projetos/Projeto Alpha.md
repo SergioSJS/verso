@@ -25,4 +25,4 @@ O **Projeto Alpha** é a iniciativa prioritária de reformulação da arquitetur
 ## Conexões
 - Referência principal: [[Pesquisa e Descobertas]]
 - Projeto irmão: [[Projeto Beta]]
-- Documentação central: [[04 - Visualização de Bases e Dados|Bases de Dados]]
+- Documentação central: [[14 - Visualização de Bases e Dados|Bases de Dados]]

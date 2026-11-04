@@ -349,7 +349,7 @@ test("the tree by touch: Select turns it into a selection with a bar; Keep open 
   await expect(page.locator(".tab.preview")).toHaveCount(0);
   // "Open" in a note's menu opens it without the preview.
   await tree(app);
-  await menuOf(row("05 - Visualização de Grafo e Conexões.md"));
+  await menuOf(row("15 - Visualização de Grafo e Conexões.md"));
   await menu.getByRole("menuitem", { name: "Abrir", exact: true }).click();
   await expect(page.locator(".tab", { hasText: "05 - Visualização" })).toHaveCount(1);
   await expect(page.locator(".tab.preview")).toHaveCount(0);

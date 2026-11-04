@@ -98,7 +98,7 @@ In **Settings › Editor**, **Suggest links as I type** (off by default) makes V
 
 Another path, on by default (**Mention a note with @**, in the same place): type `@` at the start of a word and the same list of notes as `[[` opens; keep typing to filter and pick a note — the `@` and what came after become `[[Name]]` (or `[[Name|text]]`). **Esc** leaves the text as you typed it. It doesn't open in `someone@email`, nor in code, links, formulas or tags.
 
-Renaming a note breaks nothing: Verso shows the notes that point to it and updates the links when you confirm (see [[14 - Files and Folders]]).
+Renaming a note breaks nothing: Verso shows the notes that point to it and updates the links when you confirm (see [[07 - Files and Folders]]).
 
 ---
 
@@ -121,4 +121,4 @@ Below are a few filler lines to make sure the anchor jump visibly scrolls the sc
 > **You have reached the Local Target Section!**
 > If you clicked the link `[[#Local Target Section]]`, the screen scrolled here automatically.
 
-Back to [[00 - Welcome to Verso|Home]] or on to [[03 - Properties and Metadata]].
+Previous: [[01 - Markdown Guide and Syntax]] · Next: [[03 - Properties and Metadata]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

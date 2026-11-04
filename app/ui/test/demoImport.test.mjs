@@ -56,7 +56,7 @@ test("a note the tutorial renamed: the untouched old copy goes to the trash, an 
   const old = await sha256Hex(enc.encode("dados antigos\n"));
   const edit = await sha256Hex(enc.encode("dados do usuário\n"));
   const a = "24 - Dados e Tabelas Sorteadas.md";
-  const b = "25 - Dados e Tabelas Sorteadas.md";
+  const b = "22 - Dados e Tabelas Sorteadas.md";
   assert.equal(decideRetired(old, [old], true, a, b), "trash");
   assert.equal(decideRetired(edit, [old], true, a, b), "keep");
   assert.equal(decideRetired(null, [old], true, a, b), "none");
@@ -69,5 +69,5 @@ test("a note the tutorial renamed: the untouched old copy goes to the trash, an 
 test("the embedded demo knows the renamed dice note", () => {
   const src = readFileSync(new URL("../src/demoVault.ts", import.meta.url), "utf8");
   const at = src.indexOf('"path": "24 - Dados e Tabelas Sorteadas.md"');
-  assert.ok(at > 0 && src.slice(at, at + 200).includes('"to": "25 - Dados e Tabelas Sorteadas.md"'));
+  assert.ok(at > 0 && src.slice(at, at + 200).includes('"to": "22 - Dados e Tabelas Sorteadas.md"'));
 });

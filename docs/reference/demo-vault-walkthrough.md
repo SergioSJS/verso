@@ -85,7 +85,7 @@ point 13).
    what is missing is created, a file that is the untouched copy of an
    earlier version's demo (its bytes are one the demo carries the hash of)
    is replaced by the current one, the untouched old copy of a note the
-   tutorial renamed (`24 - Dados e Tabelas Sorteadas.md`, now 25) goes to
+   tutorial renamed (`24 - Dados e Tabelas Sorteadas.md`, now 22) goes to
    the folder's trash — restorable — once the current note is there, a
    file with other content — the
    person's edit — is kept as it is and named, the toast and the status
@@ -131,7 +131,7 @@ point 13).
    quit the app (`bf12a4d`).
 4. On a board, ⌘P opens "Abrir…". Level: H; E: `board-tour.spec.mjs`.
    Caught: Excalidraw kept the key (`b1c5d58`).
-5. Note 13: ⌘R reloads the window with the note typed in saved first; with a
+5. Note 10: ⌘R reloads the window with the note typed in saved first; with a
    note that cannot be saved (a conflict waiting), the window stays and says
    why. Level: H; E: `notes.spec.mjs`.
 6. Windows (ADR 0065): File › New Window opens a window on the start page;
@@ -143,7 +143,7 @@ point 13).
    folder; closing a window leaves the others as they were; `verso
    <folder>` with every window on a folder opens a new window. Level: A;
    U: `cargo test -p verso-app` (`each_window_answers_from_its_own_folder`).
-7. No title bar (ADR 0072, note 13), on macOS, Windows and Linux: the
+7. No title bar (ADR 0072, note 10), on macOS, Windows and Linux: the
    window's buttons — macOS's at the top left, the app's own at the top
    right on Windows and Linux — never cover a tab, a button or the folder's name, with the side
    bars open or closed, two panes, a narrow window; the empty part of the
@@ -159,7 +159,7 @@ point 13).
 1. Note 01 in Leitura: the callout with its own title, the folded callout
    that opens on a click, the nested callout, the footnote, the hidden
    `%%` comment, the tag as a pill, KaTeX, the table. Level: H.
-2. Note 11 in Editar: on an empty line, `/` opens the menu with Básico,
+2. Note 04 in Editar: on an empty line, `/` opens the menu with Básico,
    Listas, Destaques and Inserir; typing `data` leaves "Data de hoje", and
    Enter writes today's date; ⌘Z takes it back. Level: H; E:
    `notes.spec.mjs` (the date written at the end, and gone after ⌘Z).
@@ -168,7 +168,7 @@ point 13).
    `#^atomica` shows the third finding alone, not the whole note (spec Q3,
    Q21). Level: S (the links, `fixtures/block/`), H; E:
    `blocks-ids.spec.mjs`.
-4. Note 06 in Leitura: `![Diagrama|320](assets/diagrama.svg)` is shown
+4. Note 18 in Leitura: `![Diagrama|320](assets/diagrama.svg)` is shown
    320 px wide, from the folder; dragging its corner writes the new size on
    that picture, and the example of it in the heading's code is left as it
    is. Level: H; E: `notes.spec.mjs`. Caught: the picture was asked of the
@@ -206,7 +206,7 @@ point 13).
    Level: H; E: `notes.spec.mjs`. Caught: Editar's text 7.5 px further right,
    its lines 113 px longer in a wide window (`100ch` in the interface's
    font), its list looser (2026-10-02).
-10. Note 20 in Editar (ADR 0061): the pointer over a paragraph shows `+`
+10. Note 05 in Editar (ADR 0061): the pointer over a paragraph shows `+`
     and ⋮⋮ in the margin, left of the text, and an outline round the whole
     paragraph; ⋮⋮ dragged below the lists moves the paragraph whole, and
     one ⌘Z puts it back; "Terceiro passo" dragged to the top renumbers the
@@ -281,7 +281,7 @@ point 13).
     list, which wins over the partial list. Level: S, U
     (`test/linkSuggest.test.mjs`, `test/linkSuggestPartial.test.mjs`, with
     the 10,000-note benchmark), H; E: `typing-links.spec.mjs`.
-15. Note 24 (ADR 0088): in Leitura each `dice:` code is a die button named
+15. Note 22 (ADR 0088): in Leitura each `dice:` code is a die button named
     "Rolar 1d20+5" and so on; a click, or Tab to it and Enter, shows the
     total, each die and what was added in a card beside it, with "Rolar de
     novo", and the status region says it (*1d20+5: 17 — 12 mais 5*);
@@ -293,7 +293,7 @@ point 13).
     Verso does not read it. `dice: 3d6!` rolls one more die for each 6,
     and `dice: d%` is a d100. Level: H; E: `dice.spec.mjs`; U:
     `test/dice.test.mjs`.
-16. Note 24, "O segredo do mestre" ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
+16. Note 22, "O segredo do mestre" ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
     in Leitura the `[!secret]` callout has a lock and *Visível para quem
     tiver o arquivo* in its title (a folder of this computer hides
     nothing). *Ver como leitor*, beside Ler and Editar, shows the note
@@ -311,7 +311,7 @@ point 13).
    the kanban in a column per status; the calendar back in September 2026
    shows the three projects. Level: H. Caught: with no filter the base
    listed the whole vault (`ae5f6b2`).
-2. Note 04: the embedded view and the `base` block listing the daily notes.
+2. Note 14: the embedded view and the `base` block listing the daily notes.
    Level: H.
 3. ⌘⇧D (⌘D until 2026-10-06, ADR 0061): `Diário/<today>.md` is made from `Templates/Diário.md`, `{{title}}`
    and `{{date}}` filled. Level: S (the folders), H; E: `notes.spec.mjs`.
@@ -319,7 +319,7 @@ point 13).
    use by default (`ae5f6b2`).
 4. Right panel (⌘⌥→) › Calendário: dots on 24 and 25 September and on today.
    Level: H; E: `notes.spec.mjs`.
-5. The typed note (note 21, ADR 0052): `Personagens/Capitão Ruy` shows
+5. The typed note (note 13, ADR 0052): `Personagens/Capitão Ruy` shows
    "Tipo: Personagem" above its properties, the schema's properties first
    under their labels, `nível: alto` underlined, "Primeira aparição" an
    empty date row; opening it writes nothing; a date picked there goes at
@@ -329,14 +329,14 @@ point 13).
    schemas share the name; `type:personagem` in the search lists the two.
    In English, "Type: Character". Level: S (`crates/verso-core/tests/typed.rs`,
    `fixtures/schema/`), H; E: `typed.spec.mjs`.
-6. Note 07, "Começar uma nota nova por um template" (ADR 0068): ⌘N shows
+6. Note 12, "Começar uma nota nova por um template" (ADR 0068): ⌘N shows
    "Começar com" under the title — Em branco, Diário, Nota de Reunião, Novo
    Projeto, Semanal; "Nota de Reunião" fills the note, `{{title}}` and `{{date}}`
    replaced; Em branco, Esc or typing put the list away and write nothing;
    the arrows move along the list. A folder whose note sets
    `items_template` makes the note from it, with no list. Level: H; E:
    `templates.spec.mjs`.
-7. The infobox (note 21, "O Infobox", ADR 0086): `Lugares/Porto Cinzento`
+7. The infobox (note 13, "O Infobox", ADR 0086): `Lugares/Porto Cinzento`
    shows its properties as a card at the right of the text, in the
    reading view and in Edit mode — the harbour's picture at its head (a
    screen reader reads "O Porto Cinzento visto do farol", the link's
@@ -350,7 +350,7 @@ point 13).
    card reaches the file. Level: S (`crates/verso-core/tests/typed.rs`,
    `fixtures/schema/infobox`), H; E: `infobox.spec.mjs`,
    `test/infobox.test.mjs`.
-8. The map (note 04, "O Mapa", ADR 0094): *Projetos.base › Mapa* draws the
+8. The map (note 14, "O Mapa", ADR 0094): *Projetos.base › Mapa* draws the
    world outline shipped with the app and three pins — São Paulo, Lisbon,
    Recife; a pin's click opens its project, resting on it shows the note;
    below, "Lugares do mapa" lists the three in the view's order with their
@@ -362,16 +362,16 @@ point 13).
    visão". Level: S (`crates/verso-core/tests/demo_base.rs`,
    `tests_map_tiles.rs` of the server), H; E: `base-map.spec.mjs`; U:
    `test/baseMap.test.mjs`.
-9. Regular expressions (note 04, "Expressões Regulares nas Fórmulas"): the
+9. Regular expressions (note 14, "Expressões Regulares nas Fórmulas"): the
    *Mês* column of *Todos os Projetos* shows `09/2026` for the three
    projects — evaluated by the core, not by the harness, which leaves a
    formula empty. Level: S (`crates/verso-core/src/bases/tests_regex.rs`,
    `crates/verso-core/tests/demo_base.rs`), A.
-10. The embedded *Todos os Projetos* of note 04 has the view's tools; a
+10. The embedded *Todos os Projetos* of note 14 has the view's tools; a
     sort added there is written to `Projetos.base` and the rest of the file
     is kept. `html()` in a base draws HTML, cleaned (no script, no
     `onerror`). Level: H; E: `base-map.spec.mjs`.
-11. Periodic notes (note 07, "A Semana, o Mês, o Trimestre e o Ano", ADR
+11. Periodic notes (note 12, "A Semana, o Mês, o Trimestre e o Ano", ADR
    0093): "Nota desta semana" in the palette makes `Diário/<gggg-[W]ww>.md`
    from `Templates/Semanal.md` — `{{date}}` the week's Sunday, the seven
    days by `{{date+Nd:…}}`, `{{saturday:DD/MM}}` — and "Nota deste mês"
@@ -404,9 +404,9 @@ point 13).
 2. With the focus outside the editor, ⌘⇧H: "Localizar e substituir no
    cofre…"; ✓ shows the plan, note by note; "Deixar como está" writes
    nothing. Level: A.
-3. "Grafo do cofre": the graph and its controls as note 05 names them.
+3. "Grafo do cofre": the graph and its controls as note 15 names them.
    Level: H.
-4. ⌘K `busca navegação`: note 12 comes first, found by its file name,
+4. ⌘K `busca navegação`: note 09 comes first, found by its file name,
    before the notes that only say the words; the × at the end of the field
    clears the words and the tree comes back, as Esc does. Level: A (the
    core's search); E: `search.spec.mjs`.
@@ -420,7 +420,7 @@ point 13).
    the window's side — the notes and the board rewritten, the panel at once;
    the relation in a frontmatter is followed by hand. Caught: the renamed
    note showed no backlinks until reopened (`bf12a4d`).
-2. The PDF: its bar as note 06 names it; select a line, "Citar seleção nas
+2. The PDF: its bar as note 18 names it; select a line, "Citar seleção nas
    anotações": `assets/manual-verso — Anotações.md` holds the quote, linked
    to its page. Level: A.
 3. F2 renames the open note — right after a click on its row in the tree
@@ -444,14 +444,14 @@ point 13).
 6. With a question on screen (Settings, a plan), the menu's ⌘W closes
    nothing behind it; with no tab left, ⌘W closes the window. Level: H (the
    question); E: `tabs.spec.mjs`; A (the window).
-7. Note 14, "Vários de uma vez" (ADR 0048, revised 2026-10-07): ⌘-click two
+7. Note 07, "Vários de uma vez" (ADR 0048, revised 2026-10-07): ⌘-click two
    notes of the tree and ⇧-click a third — the rows between are selected;
    Esc clears; a plain click opens. Drag the selection onto a folder: they
    move together, and a note linking to them by path shows in one plan. The
    selection's menu: "Mover para…", "Copiar caminhos relativos", "Mover para
    a lixeira" asked once. Level: H; E: `tree-selection.spec.mjs`; S:
    `crates/verso-core/tests/workspace/rename.rs`.
-8. Note 14, "Criar" (ADR 0070): a new note named `CON`, `Reunião: pauta`,
+8. Note 07, "Criar" (ADR 0070): a new note named `CON`, `Reunião: pauta`,
    `Ideia?` or `a\b` is not made (`nota.` is: its file is `nota..md`); the status bar says Windows cannot keep that name.
    A rename to such a name is refused the same way. Level: H; E:
    `prompts.spec.mjs`; S: `crates/verso-fs/tests/ops.rs`.
@@ -460,7 +460,7 @@ point 13).
    `Nota` to `nota` works (spec Q8, decided 2026-10-12). Level: A (the
    harness does not refuse it); U: `crates/verso-fs/tests/ops.rs`,
    `crates/verso-core/tests/workspace/rename.rs`.
-9. Note 14, "A Visão de Pasta": open a folder with its chevron and close
+9. Note 07, "A Visão de Pasta": open a folder with its chevron and close
    another; open the app again — the tree is as it was left. A folder of
    thousands of notes opens with its top-level folders closed. Level: H;
    E: `tree-big.spec.mjs` (`?vault=big`, both engines), which also pins
@@ -469,7 +469,7 @@ point 13).
    "…" inside its row. Tab into the tree: the focus ring shows on all four
    sides of a row, inside it (by eye, both engines; caught 2026-10-08: the
    folders' containment cut it).
-10. Note 14, "Arrastar e Soltar", on a touch screen: a swipe over the tree
+10. Note 07, "Arrastar e Soltar", on a touch screen: a swipe over the tree
    scrolls it and moves nothing; a finger held on a row and lifted opens
    its menu; held and then moved, it drags the row into a folder. Level: H
    (touch moves only in Chromium); E: `touch.spec.mjs`.
@@ -478,7 +478,7 @@ point 13).
    they were, together, and the status bar says *Movimento desfeito*;
    ⌘⇧Z moves them again. Click into a note's text and ⌘Z: the note's text
    is undone, the move stays. Level: H; E: `tree-selection.spec.mjs`.
-11. Note 14, "A Lixeira" ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
+11. Note 07, "A Lixeira" ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)):
    delete a note, make another with its name, and open the trash from the
    palette ("Abrir a lixeira"), from the tree's right-click on empty space,
    or from *Ajustes › Arquivos e links*, where the trash shows beside the
@@ -496,7 +496,7 @@ point 13).
    mais que o limite da lixeira do servidor … sem poder ser restaurado*; it
    stays in the bin a day at least (E: `trash-cap-warning.spec.mjs`; S: the
    `due` and server-sweep tests).
-12. Note 14, "O Histórico de Versões" ([ADR 0091](../adr/0091-version-history.md)):
+12. Note 07, "O Histórico de Versões" ([ADR 0091](../adr/0091-version-history.md)):
    open a note, type a line, wait for its save, and open *Histórico de
    versões* from the palette, the tab's menu, the tree's menu or the clock
    in the status bar: the list has a header row, the edit named *(este
@@ -731,7 +731,7 @@ point 13).
 
 ## 10. Settings, help, the command line
 
-1. ⌘,: the sections as note 15 names them; Aparência's options; Terminal e
+1. ⌘,: the sections as note 36 names them; Aparência's options; Terminal e
    agentes: the command's button (Instalar or Substituir; on Windows no
    button — verso.exe comes with the app) and the MCP snippets, which show
    the command the host would write; without Claude Desktop, "Baixar o
@@ -776,45 +776,45 @@ point 13).
    `verso backlinks <folder> "Projeto Alpha"` (its name, as a link names
    it, or its path); `--unresolved`; `--json`. Level: A. Caught: only a path
    was found (2026-10-01).
-4. An agent on the folder through `verso mcp` (note 17): asked which notes
+4. An agent on the folder through `verso mcp` (note 35): asked which notes
    have the tag `projeto` and what "Tour do Verso" shows, it lists them by
    tag and reads the board's cards and edges; `links` of a note with
    `relacionado: "[[…]]"` names the relation; `query_base` on
    `Projetos.base` gives the table's rows. Nothing in the folder changes.
    Level: S (`crates/verso-cli/tests/mcp.rs`), A (a client: Claude Desktop
    or Claude Code).
-5. `verso <another folder>` with the app open (note 17): the folder opens
+5. `verso <another folder>` with the app open (note 35): the folder opens
    in a window of its own, in the same app — one Verso in the Dock or the
    taskbar, never a second app. Level: S (`a_second_launch_hands_its_folder_to_the_running_app`,
    the host's tests), A (the installed app, on macOS and Windows). Caught
    2026-10-08: on macOS a second app started, with no window.
-6. "Um servidor para todo o Verso" in Terminal e agentes (note 17): the
+6. "Um servidor para todo o Verso" in Terminal e agentes (note 35): the
    switch "Esta pasta é visível para agentes" appears off; the snippets and
    the entry "Adicionar ao Claude Desktop" shows say `mcp --all`. With the
    folder marked, an agent's `list_folders` names it and its tools read it
    by `folder`; unmarked, it is gone from the list. Level: H; E:
    `settings.spec.mjs`; S (`the_server_for_all_of_verso_reads_only_the_visible_folders`);
    A (Claude Desktop, with the app closed).
-7. An update (note 18): from an installed version older than the newest
+7. An update (note 37): from an installed version older than the newest
    release, Ajustes › Geral › Versão › "Verificar atualizações", then
    "Baixar e atualizar": the file's checksum and its signature are checked
    before anything is installed; a file whose signature is missing or does
    not verify installs nothing and says so. "Ver notas da versão" shows
    that release's news in the window's language, as plain lines — never
    the release page's download tables. A second folder of the same
-   name added to Claude Desktop (note 17) gets `verso-<parent>-<name>`.
+   name added to Claude Desktop (note 35) gets `verso-<parent>-<name>`.
    Level: S (`an_update_installs_only_with_its_signature`,
    `a_folder_of_a_name_already_added_takes_its_parent_s_name`); U
    (`test/updateNews.test.mjs`); A (the first signed release, on macOS and
    Windows).
-8. On Linux (note 17): the `.deb` installs `verso-app` and `verso` in
+8. On Linux (note 35): the `.deb` installs `verso-app` and `verso` in
    /usr/bin, and Terminal e agentes says the command came with the
    package; an AppImage's "Instalar" puts `verso` in `~/.local/bin`; "Mostrar
    no gerenciador de arquivos" selects the file. Level: S
    (`scripts/check-linux-vm.sh --install`, the app opened on Ubuntu's
    desktop; `--webkit`, the suite on Linux's WebKit); A (Debian, Fedora,
    the AppImage).
-9. The folder's settings (note 15, "Da pasta ou desta máquina"; [ADR
+9. The folder's settings (note 36, "Da pasta ou desta máquina"; [ADR
    0070](../adr/0070-what-travels-with-the-folder.md) items 1–2): in a
    folder just imported, Ajustes › Arquivos e links › "Ignorar pastas de
    build" says *Desta máquina*, and the folder holds no `.verso/`;
@@ -832,7 +832,7 @@ point 13).
    file is not changed (decided 2026-10-12). Level: U (`npm test`'s
    `folderLayer.test.mjs`; `crates/verso-server/src/tests.rs`, "an
    invited reader"); A.
-10. Notifications (note 18, "Notificações"; [ADR
+10. Notifications (note 37, "Notificações"; [ADR
     0084](../adr/0084-notifications-in-the-window.md)): a sync that fails
     is said once in a toast at the bottom right — "A sincronização
     falhou", its level a word and a mark — and again only when it is back,
@@ -900,7 +900,7 @@ point 13).
 
 ## 11. Organizing: stickers, covers, folder pages, order
 
-1. Note 19: its sticker and colour show on its tree row, in its tab and
+1. Note 11: its sticker and colour show on its tree row, in its tab and
    above its title. A row whose `sticker:` is no sticker keeps its own icon.
    Level: H; E: `labels.spec.mjs`, "sticker in frontmatter appears in tree
    row and tab" and "a sticker picked from the picker is written as make.md
@@ -955,7 +955,7 @@ point 13).
    ocultos da árvore" lists it, and "Mostrar" brings it back. Level: H; E:
    `order-pins.spec.mjs`, "hide from tree removes item from tree and unhide
    in settings restores it".
-9. The embed in note 19: a click on its text edits it in place; what is
+9. The embed in note 11: a click on its text edits it in place; what is
     typed goes to `projetos/Pesquisa e Descobertas.md`. With the file changed
     elsewhere, the conflict shows; switching mode then asks, and "Cancelar"
     keeps the text. Level: H; E: `flow.spec.mjs`, "typing inside an embed in
@@ -976,7 +976,7 @@ point 13).
 
 ## 12. On a phone and a tablet
 
-From the tour's stop ⑰ "No celular" and note 22 ([ADR
+From the tour's stop ⑱ "No celular" and note 28 ([ADR
 0076](../adr/0076-the-window-on-every-screen.md)). By machine, the tests
 tagged `@layout` run at 390 × 844 (WebKit), 412 × 915 (Chromium, touch) and
 820 × 1180 (WebKit) besides the desktop's size (`playwright.config.mjs`); by
@@ -1019,7 +1019,7 @@ hand, on a phone and an iPad, the server's window in the browser.
    the keyboard. Level: H; E: `responsive.spec.mjs`, "the keyboard's bar"
    and "the on-screen keyboard" (the system's keyboard stood in for: by
    hand on the phone).
-   Note 20 in Editar on a touch screen: no `+` or ⋮⋮ and no wide margin to
+   Note 05 in Editar on a touch screen: no `+` or ⋮⋮ and no wide margin to
    the left of the text; the bar scrolls sideways, "Mover bloco para baixo"
    and "para cima" reorder two paragraphs with the cursor staying in the
    block above the keyboard, "Transformar em…" opens its menu above the
@@ -1045,7 +1045,7 @@ hand, on a phone and an iPad, the server's window in the browser.
     `manual-checks.md`).
 
 11. Offline on the phone ([ADR
-    0092](../adr/0092-the-phone-offline.md); note 22, "Sem Rede"): on a
+    0092](../adr/0092-the-phone-offline.md); note 28, "Sem Rede"): on a
     server over HTTPS, a folder's *Settings › Offline* says the space first and
     keeps the folder on this device; with the network off the page still
     opens, lists the folder, a note is read and edited, the status bar says
@@ -1064,7 +1064,7 @@ hand, on a phone and an iPad, the server's window in the browser.
 
 ## 13. On a server
 
-From the tour's stop "Num servidor" and note 23 ([ADR
+From the tour's stop "Num servidor" and note 30 ([ADR
 0073](../adr/0073-self-hosted-server-first.md), [0074](../adr/0074-accounts-and-access-on-the-server.md),
 [0075](../adr/0075-server-packaging-and-storage.md)). By machine, the
 server's end-to-end tests drive a real `verso serve` (`scripts/check-e2e.sh
@@ -1166,7 +1166,7 @@ rest below and in `manual-checks.md`.
    console sets and empties it; the sweep expires what is past its days and
    the oldest while a trash alone passes the quota (`tests_trash.rs`).
 10. Sharing between people ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
-   from note 23's "Compartilhar com outra pessoa" and the tour's stop: the
+   from note 30's "Compartilhar com outra pessoa" and the tour's stop: the
    demo vault has one account, so the other side is followed with two
    browsers on a UniVerso. The folder button at the top of the side bar
    opens the switcher, *Neste computador*, *Meus*, *Compartilhados comigo*;
@@ -1194,7 +1194,7 @@ rest below and in `manual-checks.md`.
    share counts, sums and lists only notes inside it (the server's Rust
    test, `tests_shares.rs`, "a receivers counts are the shares").
 11. Editing together in a synced folder ([ADR
-    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 23's
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 30's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,
     a note opened in *Editar* says *ao vivo, só você* beside its title (a
     dot, the words in its tip and to a screen reader) and in the status bar;
@@ -1229,7 +1229,7 @@ rest below and in `manual-checks.md`.
     the steps run in the harness's room or by hand.
 12. Everything edited together, not only notes ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md) item 12), from
-    note 23's *Editar junto* and the tour's stop "Num servidor": with the
+    note 30's *Editar junto* and the tour's stop "Num servidor": with the
     demo vault on a UniVerso, open *Tour do Verso* — or a board of your
     own — in two windows. Drag a card in one while the other draws a text
     with the text tool: each window shows both, and the file holds both,
@@ -1258,7 +1258,7 @@ rest below and in `manual-checks.md`.
     (`boardStress.test.mjs`); three windows in two engines working at
     random for a minute (e2e-server, "three windows, two engines").
 13. Secret blocks ([ADR 0087](../adr/0087-secret-blocks-hidden-from-readers.md)):
-    the owner of a folder copies note 25's secret block into a note and
+    the owner of a folder copies note 22's secret block into a note and
     gives another account *leitor*. The reader's window shows the note
     without the block — in Leitura, a hover preview, an embed of it, the
     search (*estalajadeira* finds nothing), the backlinks, the tags and
@@ -1281,17 +1281,17 @@ rest below and in `manual-checks.md`.
     dialect's `tests/secret.rs` and `fixtures/callout/secret` (approved
     2026-10-15); A: `manual-checks.md`.
 
-14. The installation lesson (note 24, "Instalar o seu UniVerso, Passo a
-    Passo"): the tour's "Num servidor" stop shows notes 23 and 25 side by
-    side, and note 23's *Instalar* links to 25. In 25 every fenced block
+14. The installation lesson (note 31, "Instalar o seu UniVerso, Passo a
+    Passo"): the tour's "Num servidor" stop shows notes 30 and 31 side by
+    side, and note 30's *Instalar* links to 31. In 31 every fenced block
     (`bash`, `yaml`) copies whole, and each command, path, port and
     variable reads the same as in `docs/reference/server-hands-on.md`; the
     note says Verso is in testing, with no public download yet; and the
-    links to `#Se algo der errado` and to note 23's *O primeiro admin e as
+    links to `#Se algo der errado` and to note 30's *O primeiro admin e as
     contas* land on their headings. Level: H; R: `scripts/demo-vault.mjs
     check` (links and headings of the vault).
 
-15. This app is a server (note 22, *Parear o Celular com o Seu Computador*;
+15. This app is a server (note 28, *Parear o Celular com o Seu Computador*;
     [ADR 0096](../adr/archive/0096-this-app-is-a-server.md)): *Ajustes* › *Este app é
     um servidor* offers the folders opened on this computer, none ticked; the
     one that also syncs with a server cannot be ticked. Nothing ticked,
@@ -1311,7 +1311,7 @@ rest below and in `manual-checks.md`.
 
 16. UniVerso found on the network ([ADR
     0097](../adr/0097-universo-found-on-the-network-and-a-bad-dns-survived.md);
-    note 24, section 6, *O caminho mais curto*): in *Settings › Servers*,
+    note 31, section 6, *O caminho mais curto*): in *Settings › Servers*,
     *Encontrados nesta rede* lists a UniVerso announced on the network with
     the address each row will use and *sem HTTPS* when it is plain; a click
     fills that address and starts the sign-in as if typed, and nothing
@@ -1323,7 +1323,7 @@ rest below and in `manual-checks.md`.
     A for the network; R: `scripts/demo-vault.mjs check` for the note.
 
 17. Files only in the cloud, downloaded from the sync card ([ADR
-    0043](../adr/0043-placeholder-guard.md), decided 2026-10-27; note 23,
+    0043](../adr/0043-placeholder-guard.md), decided 2026-10-27; note 30,
     section *Syncing a folder from this computer*): *Settings › Sync* lists
     files not on this computer yet with *Baixar N arquivos (X MB)*; the size
     is said before anything starts; a disk without room (or whose room cannot
@@ -1340,11 +1340,11 @@ rest below and in `manual-checks.md`.
     for the card, A for iCloud; R: `scripts/demo-vault.mjs check` for the
     note.
 
-## 14. Features, oracle, sheets and worlds (notes 26 and 27, the Fractal campaign)
+## 14. Features, oracle, sheets and worlds (notes 23 and 24, the Fractal campaign)
 
-Open note 26 (*Fichas*, the sheets) and note 27 (*Oráculos e Criação de Mundos*,
+Open note 23 (*Fichas*, the sheets) and note 24 (*Oráculos e Criação de Mundos*,
 the features, the oracle and the wizard) in Leitura, in a folder that has the
-demo content. The steps below follow them (1 to 3 in note 27, 4 to 6 in note 26); the Fractal campaign is
+demo content. The steps below follow them (1 to 3 in note 24, 4 to 6 in note 23); the Fractal campaign is
 the folder `Campanha Fractal/` beside it ([ADR
 0098](../adr/0098-world-and-campaign-wizard-template-bundles.md), [ADR
 0099](../adr/0099-visual-markdown-statblocks-and-cards.md), [ADR
@@ -1358,10 +1358,10 @@ the folder `Campanha Fractal/` beside it ([ADR
    *Cancelar*. Turn *Oráculos* off, close Settings: the `[!oracle]` callout of
    the note is drawn with no *Consultar Oráculo* button, and ⌘⇧P offers no
    *Oráculo (sim/não e faíscas)…*. Turn it on: the button is back. No file
-   changed (note 27 in Fonte reads as before). Level: H; E: `oracle.spec.mjs`
+   changed (note 24 in Fonte reads as before). Level: H; E: `oracle.spec.mjs`
    (the switch), `statblock.spec.mjs` and `world-wizard.spec.mjs` (the
    others); U: `test/capabilities.test.mjs`.
-2. The oracle in the note. In the callout of note 27 *A patrulha da guarda ouviu o
+2. The oracle in the note. In the callout of note 24 *A patrulha da guarda ouviu o
    barulho da invasão?* click *Consultar Oráculo*: the dialog opens with the
    question filled in, three tabs (*Sim ou Não*, *Faíscas*, *Tabelas*) and the
    five odds as a radio group. *Consultar* shows one of the six answers with
@@ -1402,7 +1402,7 @@ the folder `Campanha Fractal/` beside it ([ADR
    the harness plays the server, `src/harness/room.ts`); E:
    `oracle-settings.spec.mjs`; U: `test/oracleData.test.mjs`; the real room,
    in `manual-checks.md`.
-4. Statblocks. Note 26 holds one card for each built-in layout (34), none with
+4. Statblocks. Note 23 holds one card for each built-in layout (34), none with
    an error badge, and `tutorial-sheets.spec.mjs` counts them. In the *Criatura
    d20* card the dice (`+4 to hit`, `4 (1d4 + 2)`) roll with a click, the card says the
    result and the note in Fonte is unchanged; the *PV atuais* buttons − and +
@@ -1424,7 +1424,7 @@ the folder `Campanha Fractal/` beside it ([ADR
    Level: H; E: `layout-editor.spec.mjs`; U: `test/statblockEditor.test.mjs`,
    `test/statblockFolder.test.mjs`.
 6. The Fractal campaign (`Campanha Fractal/Mundo`, opened from the card on the
-   tour or from note 26). The first line is Fractal's credit, word for word as
+   tour or from note 23). The first line is Fractal's credit, word for word as
    *Créditos e agradecimentos* has it. *Yara do Farol*: a click on a box of
    *Fôlego* changes `reserva_2_atual` in Fonte and nothing else; *Quebrado* on
    a fact strikes it, writes `quebrado: true` and moves the count (*N de 3
@@ -1457,9 +1457,9 @@ the folder `Campanha Fractal/` beside it ([ADR
    (the page); A (the link opening in the system's browser); U:
    `test/credits.test.mjs`.
 
-## 15. Structured data as a diagram (note 28, the sample files)
+## 15. Structured data as a diagram (note 16, the sample files)
 
-Open note 28 (*Dados Estruturados como Diagrama*) and the two files of
+Open note 16 (*Dados Estruturados como Diagrama*) and the two files of
 `Dados de Exemplo/` in a folder that has the demo content ([ADR
 0106](../adr/0106-structured-data-as-a-diagram.md)).
 
@@ -1499,7 +1499,7 @@ Open note 28 (*Dados Estruturados como Diagrama*) and the two files of
    dashed line from `conhece: *aliados` to the box marked `&aliados`.
    Level: H; E: `datagraph.spec.mjs`; U: `test/datagraph.test.mjs` (a file built
    to expand into millions of values draws a few boxes).
-8. Note 28's own ```json block: *Ver como diagrama* on the block opens its
+8. Note 16's own ```json block: *Ver como diagrama* on the block opens its
    diagram in a tab beside, read-only, without the text switch. Level: H; E:
    `datagraph.spec.mjs`.
 9. *Salvar como board…* (the bar, or ⌘⇧P): a dialog with the name, the folder
@@ -1512,9 +1512,9 @@ Open note 28 (*Dados Estruturados como Diagrama*) and the two files of
     window); two fingers on a screen pinch and move it. Level: H (the wheel);
     the fingers by hand.
 
-## 16. Colour swatches (note 30)
+## 16. Colour swatches (note 06)
 
-Open note 30 (*Colour Swatches*) in a folder that has the demo content
+Open note 06 (*Colour Swatches*) in a folder that has the demo content
 ([ADR 0108](../adr/0108-colour-swatches-for-colour-codes.md)).
 
 1. *Leitura*: a small square of the colour before each code of the note, in
@@ -1538,9 +1538,9 @@ Open note 30 (*Colour Swatches*) in a folder that has the demo content
 5. *Ajustes* › *Aplicação* › *Recursos* › *Amostras de cor* off: no square
    anywhere, no file changed. On: back. Level: H; E: `swatches.spec.mjs`.
 
-## 17. The table (note 31)
+## 17. The table (note 25)
 
-Open note 31 (*The Table*) in a folder that has the demo content
+Open note 25 (*The Table*) in a folder that has the demo content
 ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md), phase 1).
 
 1. Open the right panel, tab *Mesa* (the *Table*): empty, with the line that
@@ -1576,7 +1576,7 @@ Open note 31 (*The Table*) in a folder that has the demo content
 8. On a phone's width, *Painel* › *Mesa* opens a sheet from the bottom, resting
    on the bottom bar, that never scrolls the page sideways; the add button is
    at least 32 px. Level: H; E: `table.spec.mjs` (`@layout`).
-9. Saved rolls (note 31, *Saved rolls*): in the dice row under the message
+9. Saved rolls (note 25, *Saved rolls*): in the dice row under the message
    field, the bookmark button opens a pop-over; *Escolher nota…*, pick a note
    with two lines like ``- Ataque da Bia: `dice: 1d20+7` ``: two buttons, named
    *Ataque da Bia* and the other line's text. Click one: the pop-over closes,
@@ -1587,7 +1587,7 @@ Open note 31 (*The Table*) in a folder that has the demo content
    alone, the pop-over names it by itself. On a phone's width the pop-over stays
    inside the window and each button is at least 44 px. Level: H; E:
    `saved-rolls.spec.mjs`; U: `test/savedRolls.test.mjs`.
-10. The dice row (note 31, *Composing a roll*): under the message field there is
+10. The dice row (note 25, *Composing a roll*): under the message field there is
     one row, about one button tall: d4 d6 d8 d10 d12 d20, the dots, a number
     field showing 0, KH, KL, the bookmark and the dice button. Click the d6
     twice and the d20 once: the field reads `/r 2d6+1d20`, badges show 2 and 1,
@@ -1601,7 +1601,7 @@ Open note 31 (*The Table*) in a folder that has the demo content
     lines. On a phone's width the row fits (it may scroll inside itself, never
     the page) and its buttons are at least 40 px tall. Level: H; E:
     `composer.spec.mjs` (`@layout`); U: `test/composer.test.mjs`.
-11. The message box (note 31, *Everyone's table, on a UniVerso*): the foot of the panel
+11. The message box (note 25, *Everyone's table, on a UniVerso*): the foot of the panel
     is ONE box — no notation field, no row of image / dice / Secreta buttons.
     The field starts three lines tall (two on a phone) and grows to eight.
     The paperclip picks an image; a screenshot or an image copied and pasted
@@ -1616,9 +1616,9 @@ Open note 31 (*The Table*) in a folder that has the demo content
     table. Level: H (the real app's paste menu is H only); E:
     `table2.spec.mjs`, `campaign.spec.mjs` (`@layout`).
 
-## 18. Running a table (note 32)
+## 18. Running a table (note 26)
 
-Open note 32 (*Running a Table*) in a folder that has the demo content
+Open note 26 (*Running a Table*) in a folder that has the demo content
 ([ADR 0110](../adr/0110-a-table-is-a-campaign-folder.md), phase 1). The folder
 must be a server's, and the person its owner.
 
@@ -1769,7 +1769,7 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 3. Drop a GIF file (and paste one copied as a file): the card keeps animating. (A GIF copied with the browser's "Copy image" is turned into a PNG by the browser before Verso sees it; drag the file instead.)
 4. As the game master, with the player's image sent while the file is still on its way by sync: the card fills in by itself within seconds.
 
-## A file opened without its folder (ADR 0114, note 33, 2026-10-30)
+## A file opened without its folder (ADR 0114, note 08, 2026-10-30)
 
 1. In a terminal, `verso ~/Downloads/nota.md` (or `open -a "Verso Beta" nota.md`, a double-click in Finder with Verso chosen under Open with, or File › Open File…): the app opens the file in a window with no tree, no ribbon and no search; the bar above the tabs says `nota.md · em Downloads` and has **Abrir a pasta inteira**; the right panel keeps the outline only; the palette lists no new note, no graph, no bin, no split, no version history. Level: A; E: `loose.spec.mjs`, the window with `?loose=1`.
    - The bar is the window's top row: on macOS its text starts right of the three window buttons, centred on them, and dragging the bar's empty part moves the window (a double click zooms it); on Windows and Linux it stays clear of the app's own buttons at the right and the menu button at the left. Narrow the window to its minimum (360 px): the bar stays on one line, the names shorten with an ellipsis, the buttons stay. Level: A (the real buttons); E: `loose.spec.mjs` (`&frame=mac`, `&frame=windows`, 360 and 1280 px).
@@ -1789,9 +1789,9 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 
 1. Put a Markdown file of more than 16 MiB (e.g. `head -c 17000000 /dev/zero | tr '\0' a > Grande.md`, one long line is enough) in the folder and open it: above the text a line says the note is over 16 MiB and out of the index, so search and backlinks do not see it; a normal note shows no such line. Level: H; E: `big-note-notice.spec.mjs`; the core's side (`INDEX_MOST`) is in `verso-core`'s tests.
 
-## The guided installer (ADR 0075 amendment, note 34, 2026-10-30)
+## The guided installer (ADR 0075 amendment, note 33, 2026-10-30)
 
-On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an account), as in note 34:
+On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an account), as in note 33:
 
 1. `curl -fsSLO https://versomd.com/universo.sh && sh universo.sh`: the menu opens, with arrows when `whiptail` is there and a numbered list otherwise, in the language of `LANG`; `0` or Quit leaves. Declining a step ("Go on?" with `n`) runs nothing. Level: A; E: `scripts/check-installer.sh` (menu driven by a script, both languages, a declined step).
 2. Option 1, Install: on a 1 GB machine it offers a swap file first; after the install it prints the short "back in the menu" lines, and on Oracle the VCN steps. Level: A (swap and install through the .deb: `scripts/check-installer.sh`; a real Oracle machine: manual).
@@ -1802,13 +1802,13 @@ On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an accou
 
 ## Server hardening of 2026-10-31 (B9, B11, B13)
 
-1. The memory limit (B9): in note 24 (both vaults) both compose files carry `mem_limit: 768m` with a line saying why; `docker compose config` of the file prints `mem_limit: "805306368"`. Level: A on a real container: `docker stats universo` shows a 768 MiB limit. Check: `scripts/check-server-image.sh`.
+1. The memory limit (B9): in note 31 (both vaults) both compose files carry `mem_limit: 768m` with a line saying why; `docker compose config` of the file prints `mem_limit: "805306368"`. Level: A on a real container: `docker stats universo` shows a 768 MiB limit. Check: `scripts/check-server-image.sh`.
 2. The trash's size cap (B11): on a test server started with `VERSO_TRASH_MAX=1MB`, delete notes or files in a folder until its trash passes 1 MB: within seconds the oldest entries are gone from the trash (the folder page in the console shows the new size, and the audit log has `trash_over_cap` lines), the newest stay, and nothing outside `.trash/` is touched. Level: H (server); E: `tests_trash.rs`, `tests/trash.rs` of verso-core.
 3. The old address (B13): on a server with `VERSO_PUBLIC_URL=https://<its name>` set, open `http://<its IP>:7340` in a browser: a page, not a bare line, in the browser's language first and the other below, saying the address has changed, with a link that opens the public one; the page names no address you typed. `curl -si http://<its IP>:7340/api/me` still answers `421` with JSON (`"error":"host"`). Level: A for the browser; E: `tests_http.rs`, `wrong_host.rs`.
 
 ## Only the folder's owner deletes, outside a table (ADR 0113 B, amended 2026-10-31)
 
-On a UniVerso, with the owner's account and an editor's (two browsers, or the browser and the desktop app), a folder with a shared subfolder `Mesa` shared to a third account as editor, and no table, as in notes 14 and 23:
+On a UniVerso, with the owner's account and an editor's (two browsers, or the browser and the desktop app), a folder with a shared subfolder `Mesa` shared to a third account as editor, and no table, as in notes 07 and 30:
 
 1. As the editor, right-click a note in the tree: no **Mover para a lixeira**; the selection's menu and the selection bar have **Mover para…** and no bin; the palette has no **Apagar**. Level: A; E: `e2e-server/zz-owner-deletes.spec.mjs`.
 2. As the editor, select a note and press Delete (or ⌘⌫): the notice and the status line say "Só o dono da pasta apaga aqui: nada foi apagado…" (EN: "Only the folder's owner deletes here…"); the note stays. Level: A; E: `zz-owner-deletes.spec.mjs`.
@@ -1818,19 +1818,19 @@ On a UniVerso, with the owner's account and an editor's (two browsers, or the br
 6. On the editor's desktop, the folder synced here: delete a note in Finder, wait for a pass: the note is back, and Ajustes › Sincronizar lists "Um arquivo apagado aqui voltou…". Move a note out of `Mesa` in Finder: after a pass it is back in `Mesa`, listed as "Um arquivo tirado aqui de uma pasta compartilhada voltou para ela". Level: A; E: `tests_sync_access.rs`.
 7. As the owner, every delete is offered and works; inside a table nothing changed (a player still never deletes, the game master does). Level: A; E: `access-vectors.json`.
 
-## Compatibility with Obsidian and the NAS or VPS install (notes 37 and 38, 2026-10-31)
+## Compatibility with Obsidian and the NAS or VPS install (notes 38 and 32, 2026-10-31)
 
-Docs only; no code changed. Both lessons exist in `demo-vault/` (pt-BR) and `demo-vault-en/` (EN), are paired in `scripts/demo-vault/names.mjs`, sit in the Tour (cards in *Arquivos* and *Num servidor*) and in note 00's list.
+Docs only; no code changed. Both lessons exist in `demo-vault/` (pt-BR) and `demo-vault-en/` (EN), are paired in `scripts/demo-vault/names.mjs`, sit in the Tour (cards in *Atalhos e ajuda* and *Num servidor*) and in note 00's list.
 
-1. Open the Tour board: the *Arquivos* group has a card for note 37 and the *Num servidor* group one for note 38, in both languages; double-click each and read the note. Level: H; E: `node scripts/demo-vault.mjs check`.
-2. Note 34 ends with a link to note 37, and note 37 ends with one to note 38 (the check refuses a chain that skips). Level: H.
-3. Note 37, section 6, on a copy of a real Obsidian vault: open it with `⌘ O`; a note in Fonte reads as Obsidian wrote it and the file's date is unchanged after closing without typing; an edit in Verso shows in Obsidian; a `.canvas` with one card moved changes one line in the Git diff; the Excalidraw drawing's **Converter em board** shows the board before creating it; `> [!secret]` reads as a callout in Obsidian; with Obsidian's daily-note settings in `.obsidian/`, **Ajustes › Notas periódicas** offers **Usar os ajustes do Obsidian**. Level: A (needs Obsidian installed).
-4. Note 37 states only what `docs/spec/dialect.md` (sections 5 to 7), ADRs 0011, 0012, 0030 and 0070 and the lessons it links say: if one of those changes (embedded HTML, the accepted forms of `tags` and `aliases`, the plugin shim), reread sections 3 and 4 of the note. Level: H.
-5. Note 38, section 2, against `packaging/server/docker-compose.yml`: the paths, `mem_limit: 768m` and the `user:` line it describes are the file's. Section 3 against `sh universo.sh --help`: the commands `install`, `https [--duckdns NAME]`, `admin`, `swap`, `firewall`, `status`, `backup [--keygen|--encrypt]`, `restore`, `schedule backup|update|status|off`, `update`, `support`, `reset-admin` exist. Level: H; E: `scripts/check-installer.sh` for the script.
-6. Note 38, section 7: `VERSO_TRASH_DAYS` (30) and `VERSO_TRASH_MAX` (1GB) are the defaults of `docs/reference/server-install.md` section 7; the unit's `MemoryMax=75%` is `packaging/server/universo.service`. Level: H.
-7. Note 38 end to end on a real NAS (ZimaOS or CasaOS) and a real Ubuntu VPS, as a layperson would: not run for this change; the other Docker NAS brands are not covered by the project and the note says so. Level: A.
+1. Open the Tour board: the *Atalhos e ajuda* group has a card for note 38 and the *Num servidor* group one for note 32, in both languages; double-click each and read the note. Level: H; E: `node scripts/demo-vault.mjs check`.
+2. Note 31 ends with a link to note 32, note 32 with one to note 33, and note 37 with one to note 38, the last lesson (the check refuses a chain that skips). Level: H.
+3. Note 38, section 6, on a copy of a real Obsidian vault: open it with `⌘ O`; a note in Fonte reads as Obsidian wrote it and the file's date is unchanged after closing without typing; an edit in Verso shows in Obsidian; a `.canvas` with one card moved changes one line in the Git diff; the Excalidraw drawing's **Converter em board** shows the board before creating it; `> [!secret]` reads as a callout in Obsidian; with Obsidian's daily-note settings in `.obsidian/`, **Ajustes › Notas periódicas** offers **Usar os ajustes do Obsidian**. Level: A (needs Obsidian installed).
+4. Note 38 states only what `docs/spec/dialect.md` (sections 5 to 7), ADRs 0011, 0012, 0030 and 0070 and the lessons it links say: if one of those changes (embedded HTML, the accepted forms of `tags` and `aliases`, the plugin shim), reread sections 3 and 4 of the note. Level: H.
+5. Note 32, section 2, against `packaging/server/docker-compose.yml`: the paths, `mem_limit: 768m` and the `user:` line it describes are the file's. Section 3 against `sh universo.sh --help`: the commands `install`, `https [--duckdns NAME]`, `admin`, `swap`, `firewall`, `status`, `backup [--keygen|--encrypt]`, `restore`, `schedule backup|update|status|off`, `update`, `support`, `reset-admin` exist. Level: H; E: `scripts/check-installer.sh` for the script.
+6. Note 32, section 7: `VERSO_TRASH_DAYS` (30) and `VERSO_TRASH_MAX` (1GB) are the defaults of `docs/reference/server-install.md` section 7; the unit's `MemoryMax=75%` is `packaging/server/universo.service`. Level: H.
+7. Note 32 end to end on a real NAS (ZimaOS or CasaOS) and a real Ubuntu VPS, as a layperson would: not run for this change; the other Docker NAS brands are not covered by the project and the note says so. Level: A.
 
-## Share audio, the window (ADR 0116 section B, task S6, note 36)
+## Share audio, the window (ADR 0116 section B, task S6, note 27)
 
 As the game master in the desktop app of a table (a debug build lists a test tone as the one source; a release lists none until a capture back-end is built), and as a player in a browser:
 
@@ -1840,7 +1840,7 @@ As the game master in the desktop app of a table (a debug build lists a test ton
 4. A source that is silent (a muted app): within 3 seconds the card says *Silêncio: nada está sendo captado…*. A capture that cannot start leaves no share at the table and says why in the status bar. Level: A; E: `share-audio.spec.mjs`.
 5. On a phone (390 × 844) every control above is 44 px and the picker fits; the keyboard moves through the picker with the arrows and Tab stays inside it. Level: A; E: `share-audio.spec.mjs` (`@layout`).
 
-## Share audio on Windows (ADR 0116 item 17 as narrowed on 2026-11-01, task S8, note 36)
+## Share audio on Windows (ADR 0116 item 17 as narrowed on 2026-11-01, task S8, note 27)
 
 As the game master in the installed desktop app on Windows 11 at a UniVerso table, with a browser as the listener:
 
@@ -1850,7 +1850,7 @@ As the game master in the installed desktop app on Windows 11 at a UniVerso tabl
 4. **Parar de compartilhar**, closing the window and quitting each end the share. Level: A.
 5. **Two pages** (S10): with two pages open and one playing, the list names only that one; both playing, both are named. Level: A.
 
-## Share audio on the Mac (ADR 0116 section B, tasks S7, S7b, note 36)
+## Share audio on the Mac (ADR 0116 section B, tasks S7, S7b, note 27)
 
 As the game master in the installed desktop app on a Mac (macOS 14.4 or later) at a UniVerso table, with a browser as the listener:
 
@@ -1863,7 +1863,7 @@ As the game master in the installed desktop app on a Mac (macOS 14.4 or later) a
 7. On a macOS below 14.4 the picker says *Compartilhar áudio no Mac precisa do macOS 14.4 ou mais novo…* and Start is off. Level: A.
 8. **Parar de compartilhar**, closing the window and quitting the app each end the share and leave no capture running. Level: A; the lifecycle is `macos_source` tests.
 
-## Share audio on Linux (ADR 0116 section B, task S9, note 36)
+## Share audio on Linux (ADR 0116 section B, task S9, note 27)
 
 On the installed app (.deb or .rpm, or the AppImage with `pulseaudio-utils` installed by hand), in a desktop session with PipeWire or PulseAudio, as the game master at a UniVerso table, with a browser as the listener. The harness cannot reach the real capture:
 
@@ -1876,30 +1876,30 @@ On the installed app (.deb or .rpm, or the AppImage with `pulseaudio-utils` inst
 7. **No page, no tools** (A): with no page open the picker says *Abra uma página no Verso…*; without `pactl` and `parec` it says to install `pulseaudio-utils`. Level: A.
 8. **Stop, window close, quit** (A): each ends the share; `pgrep -a 'parec|pacat'` finds nothing left. Level: A.
 
-## Music at the table (ADR 0116 phase 1, note 36## Music at the table (ADR 0116 phase 1, note 36, 2026-10-31)
+## Music at the table (ADR 0116 phase 1, note 27, 2026-10-31)
 
-On a UniVerso folder made a table, with the game master's window (the desktop app or a browser) and a player's (a second browser, or a phone), as in note 36. Copy `assets/sons/taverna.mp3` and `assets/sons/estrada.mp3` into a folder `Música` of the table, or play them from note 36:
+On a UniVerso folder made a table, with the game master's window (the desktop app or a browser) and a player's (a second browser, or a phone), as in note 27. Copy `assets/sons/taverna.mp3` and `assets/sons/estrada.mp3` into a folder `Música` of the table, or play them from note 27:
 
 1. Ajustes › Recursos › RPG e mesa has **Som da mesa**, on. The right panel has a **Música** tab beside **Mesa**; in it the master sees *Tocando agora · Nada tocando…*, **Pastas** (the `Música` folder, two tracks) and **Playlists**; the player sees the same lists with no play button and *Só o mestre toca…*. No `<audio>` element exists yet (item 30). Level: A; E: `e2e/table-sound.spec.mjs`.
 2. As the master, **Tocar “taverna”** in Pastas: both windows show *taverna*, *De: Música*, and the time; the player's has no play, pause, next, stop or table volume, only **Seu volume**, **Silenciar** and **Seguir a mesa**. Both hear it at the same point (a clap test: under half a second apart). Level: A; E: `e2e-server/table-sound.spec.mjs`.
 3. **Pausar**, the **Posição** bar, **Volume da mesa** at 40: the player's window follows each within a second. The player's **Seguir a mesa** off: their window goes silent, the master's still plays. **Filtrar músicas** with "est": only *estrada* stays. Level: A; E: `table-sound.spec.mjs`.
 4. Open the **Mesa** tab: while a track plays, one slim row at its top (the name; for the master previous, pause, next; **Volume** opens your own volume and mute); nothing when nothing plays; the chat input does not move. A click on the name opens the Música tab. Level: A; E: `table-sound.spec.mjs` (`@layout`, the row's height).
-5. Open note 36: a play button beside each sound link, for the master only; the play beside *A taverna*, then **Próxima faixa**: *A estrada*; Next is greyed at the list's end; **Repetir** twice (*a lista*): Next goes back to the first. Let a track end: the master's window plays the next of the list. Level: A; E: `table-sound.spec.mjs`, `tableSound.test.mjs`.
+5. Open note 27: a play button beside each sound link, for the master only; the play beside *A taverna*, then **Próxima faixa**: *A estrada*; Next is greyed at the list's end; **Repetir** twice (*a lista*): Next goes back to the first. Let a track end: the master's window plays the next of the list. Level: A; E: `table-sound.spec.mjs`, `tableSound.test.mjs`.
 6. A file no player sees (leave it hidden): playing it asks "N jogadores não veem este arquivo (names). Liberar para a mesa e tocar?"; **Tocar sem eles**: the player's tab says *uma faixa que você não vê* with why, and the browser's Network tab shows no request for the file; the master's tab says who does not hear. **Liberar e tocar** on another: the player hears it. Level: A; E: `tests_table_sound.rs`, `e2e-server/table-sound.spec.mjs`.
 7. Close the master's window: the music goes on for the player; the player reloads: it lands where it was. Everyone leaves and comes back: nothing plays. Level: A; E: `tests_table_sound.rs`.
 8. With both the Mesa and Música tabs closed, the status bar shows the note glyph and the track's name; a click opens Música. On a phone (390 × 844) Música is a sheet, every button 44 px and reachable. Level: A; E: `table-sound.spec.mjs` (`@layout`).
 9. A folder of this computer alone: the Música tab plays for this window and says *Só nesta janela: a pasta não tem mesa*. Level: A; E: `table-sound.spec.mjs`.
 
-## Audio embeds with a player (ADR 0116 amendment, notes 06 and 36, 2026-11-01)
+## Audio embeds with a player (ADR 0116 amendment, notes 18 and 27, 2026-11-01)
 
 In either vault, in the desktop app and in a browser of a UniVerso folder:
 
-1. Open note 06, section *Som na Nota* / *Sound in the Note*: `![[assets/sons/taverna.mp3]]` is a player — a round play button, the file's name, `0:00 / 0:49`, the bar, **Silenciar** and **Volume**, and **Tocar na aba Música** (a folder of this computer) — not the engine's own controls. Play: the button becomes **Pausar**, the bar moves; drag it, or Tab to it and press the arrows. Level: A; E: `e2e/audio-embed.spec.mjs`.
+1. Open note 18, section *Som na Nota* / *Sound in the Note*: `![[assets/sons/taverna.mp3]]` is a player — a round play button, the file's name, `0:00 / 0:49`, the bar, **Silenciar** and **Volume**, and **Tocar na aba Música** (a folder of this computer) — not the engine's own controls. Play: the button becomes **Pausar**, the bar moves; drag it, or Tab to it and press the arrows. Level: A; E: `e2e/audio-embed.spec.mjs`.
 2. **Editar**: the player stands where the embed is written; put the caret inside `![[…]]` and the text shows. **Fonte**: only the text. Switch modes while it plays: the sound goes on in the player of the mode shown. The note's file is unchanged (`git diff` of the vault: nothing). Level: A; E: `audio-embed.spec.mjs`.
-3. Start the second sample (`![](assets/sons/estrada.mp3)` in note 06's list): the first pauses. **Silenciar** on one mutes both; the volume set on one is the other's too, and after a reload. Level: A; E: `audio-embed.spec.mjs`, `audioEmbed.test.mjs`.
+3. Start the second sample (`![](assets/sons/estrada.mp3)` in note 18's list): the first pauses. **Silenciar** on one mutes both; the volume set on one is the other's too, and after a reload. Level: A; E: `audio-embed.spec.mjs`, `audioEmbed.test.mjs`.
 4. A click on the name **taverna.mp3** opens a tab of its own with the same player (so does the file in the tree). Level: A; E: `audio-embed.spec.mjs`.
 5. Training board, lesson **16 · Som num cartão**: the card is the player; play, drag the bar and mute right on the card without entering it; the card still moves by its head and resizes by its corner. Drag `estrada.mp3` from the tree, and an MP3 from Finder or Explorer: each becomes a card. Level: A; E: `audio-embed.spec.mjs` (the card, the bar dragged through the board).
-6. At a table, as the game master, note 36 *Um player na nota*: **Tocar para a mesa** plays it in the Music tab for everyone, from the scene above; a file some players do not see asks the release question. With the table's music playing, play an embed: the table's music goes lower and the player says so; play another track from the Music tab: the embed pauses with *Pausado: a música da mesa começou.* Level: A; E: `audio-embed.spec.mjs`.
+6. At a table, as the game master, note 27 *Um player na nota*: **Tocar para a mesa** plays it in the Music tab for everyone, from the scene above; a file some players do not see asks the release question. With the table's music playing, play an embed: the table's music goes lower and the player says so; play another track from the Music tab: the embed pauses with *Pausado: a música da mesa começou.* Level: A; E: `audio-embed.spec.mjs`.
 7. As a player of that table (the hidden track set to *Toda a mesa: Não vê* in Acesso…; a file with no access of its own follows the notes that embed it, ADR 0113 K.3): an embed of a file you see plays for you alone, with no **Tocar para a mesa**; the embed of the hidden file is *🔒 (ainda não revelado)* and its board card is locked; the page holds no trace of its name. Level: A; E: `e2e-server/audio-embed.spec.mjs`.
 8. On a phone (390 × 844): every control of the player is 44 px, there is no volume slider (the phone's buttons), **Silenciar** works; the board's card plays from a tap. Level: A; E: `audio-embed.spec.mjs` (`@layout`).
 
@@ -1915,10 +1915,10 @@ In the desktop app, on a folder of this computer (the demo vault will do). The U
 6. `sleep 1000 &` then `sleep 100`, and ⌘W: the question says a program is running; **Cancelar** keeps the tab, **Fechar** ends it; `ps` in another terminal shows no `sleep` left. `exit` in a terminal closes its tab and the status line says *O terminal terminou (código 0).* Level: A; E: `terminal.spec.mjs`; U: `a_closed_terminal_leaves_no_process_of_its_tree`, `a_terminal_is_busy_while_a_program_runs_in_it`.
 7. With a terminal open, ⌘R: the tab comes back and finds the same shell, with what it wrote. Quit the app with `sleep 100` running: it asks first. Level: A; E: `terminal.spec.mjs`; U: `a_reloaded_window_finds_its_terminal_again`.
 8. In a terminal, `echo "linha nova" >> "00 - Bem-vindo ao Verso.md"` with that note open and untouched: the note shows the line; the history (the clock in the status bar) lists the change as made outside Verso, and restoring the version before it takes the line out. Level: A (the watcher and the history: their own tests).
-9. A window on a server's folder (Ajustes › Servidores, a folder of the server not synced here): **Novo terminal** opens in the home folder with the line *Esta pasta não está neste computador…*. The browser's window of that server, the phone and a loose-files window (a `.md` opened by itself, note 33) show no terminal anywhere, the switch on. Level: A; E: `terminal.spec.mjs` (`showServerFolder`, `?side=server`, `?loose=1`); U: `a_server_folders_window_has_the_terminal_and_the_server_never_does`, `tests_loose.rs`.
+9. A window on a server's folder (Ajustes › Servidores, a folder of the server not synced here): **Novo terminal** opens in the home folder with the line *Esta pasta não está neste computador…*. The browser's window of that server, the phone and a loose-files window (a `.md` opened by itself, note 08) show no terminal anywhere, the switch on. Level: A; E: `terminal.spec.mjs` (`showServerFolder`, `?side=server`, `?loose=1`); U: `a_server_folders_window_has_the_terminal_and_the_server_never_does`, `tests_loose.rs`.
 10. Turn **Terminal** off in Ajustes › Recursos with two terminals open: both tabs close and their shells end. Level: A; U: `the_switch_off_ends_every_terminal`.
 
-## The right panel's tabs hidden, reordered, brought back (ADR 0072 amendment, note 13, 2026-11-01)
+## The right panel's tabs hidden, reordered, brought back (ADR 0072 amendment, note 10, 2026-11-01)
 
 On the app (desktop and a phone, 390 × 844), with a folder open and, for steps 5 and 6, a table with Table sound on:
 
@@ -1933,11 +1933,11 @@ On the app (desktop and a phone, 390 × 844), with a folder open and, for steps 
 - **A synced editor is offered no delete (ADR 0113 B8, item 8 of 2026-11-01).** In the desktop app, a folder synced with a server where this account is an editor: right-click a note, the menu has no *Mover para a lixeira*; select two and the bar has no delete; `Delete` on a note says *só a dona da pasta apaga*. The owner's own synced window still offers it. S: `test/access-synced.test.mjs`.
 - **A phone's right-panel tabs (ADR 0072 amendment, 2026-11-01).** On a phone, open the right panel on the Outline tab: eight tabs of 34 × 44 px fit in the drawer at 390 px; on a 320 px or 360 px phone the ones that do not fit are in **⋯**, in your order. E: `right-tabs-phone.spec.mjs`.
 
-## This app is a server: the internet link, invitations and the table (ADR 0117, note 39, 2026-11-04)
+## This app is a server: the internet link, invitations and the table (ADR 0117, note 29, 2026-11-04)
 
-Lesson 39 (*Mesa pela Internet* / *A Table over the Internet*) exists in both vaults, is paired in `scripts/demo-vault/names.mjs`, sits in the Tour (card in *Num servidor*) and in note 00's list; notes 22 and 38 point to it. The window is the harness's (it answers the link, the own address, the invitations and the seat in memory); the real `cloudflared`, Cloudflare and a phone on mobile data are in `manual-checks.md`.
+Lesson 29 (*Mesa pela Internet* / *A Table over the Internet*) exists in both vaults, is paired in `scripts/demo-vault/names.mjs`, sits in the Tour (card in *No celular*) and in note 00's list; notes 28 and 32 point to it. The window is the harness's (it answers the link, the own address, the invitations and the seat in memory); the real `cloudflared`, Cloudflare and a phone on mobile data are in `manual-checks.md`.
 
-1. Open the Tour board: the *Num servidor* group has a card for note 39 in both languages; read the note. Note 22's pairing section names the two boxes and says a phone pairs on the network only; note 38 ends pointing to 39. Level: H; E: `node scripts/demo-vault.mjs check`.
+1. Open the Tour board: the *No celular* group has a card for note 29 in both languages; read the note. Note 28's pairing section names the two boxes and says a phone pairs on the network only; note 32 ends pointing to 29. Level: H; E: `node scripts/demo-vault.mjs check`.
 2. **Ajustes › Transformar em servidor**: under the switch, **Na minha rede** and **Por um link na internet (Cloudflare, modo de teste)**. Neither ticked, **Ligar o servidor** does not start and says to tick one. The link alone serves: **Link no ar.**, the address with **Copiar link** and the QR, the hours left with **Prorrogar por 12 horas**, the testing-mode warning, **Parear um celular** off and saying why; unticking the box stops serving. Level: H (the real link: A); E: `local-server-link.spec.mjs`, `local-server.spec.mjs`.
 3. A download that fails, a checksum refused, Cloudflare unreachable and a link that drops each say so in words in both languages. Level: H; E: `local-server-link.spec.mjs`, `localServerLink.test.mjs` (the phrases are the host's).
 4. **Usar meu endereço**: the three steps written out, **Entrar na Cloudflare**, an address that is taken is said, then **Configurar**; the link on that address shows no countdown; **Remover meu endereço** asks first; **Esquecer só neste computador** appears when Cloudflare could not be asked. Level: H (real Cloudflare: A); E: `local-server-link.spec.mjs`.
@@ -1947,3 +1947,14 @@ Lesson 39 (*Mesa pela Internet* / *A Table over the Internet*) exists in both va
 8. **Apps Verso de outras pessoas** lists a signed-in app with its name and person and **Encerrar**; an app gone meanwhile is said. **Ligar os links de leitura** starts off; on and off are said, a refusal puts the box back; the seated window with links off says where to turn them on. Level: H; E: `local-server-accounts.spec.mjs`, `localServerAccounts.test.mjs`.
 9. **Pessoas convidadas** (D9, the row of "forgot the password"): a player who accepted is listed with name, e-mail, **Alcança: …** with the role and *visto por último em*; with serving off **Nova senha** says **Ligue o servidor primeiro.**; on, it shows the link once with **Copiar o link** focused and says it works once for 24 hours; **Encerrar sessões** is said and the row shows *sem sessão aberta*; **Remover** asks first, **Cancelar** keeps the person and returns the focus, **Remover** takes them and the focus goes to the heading; a person gone meanwhile is said. At 390 x 844 no sideways scroll. Level: H (the real reset through the link: S); E: `local-server-players.spec.mjs`, `localServerPlayers.test.mjs`; S: `local::tests_players`, `tests_local_accounts`.
 10. **Ajustes › Créditos** names `cloudflared` (Apache-2.0). The tray's line **Link pela internet ligado** is the host's (`tray.rs` test). Level: S, A for the tray (macOS, Windows).
+
+## The lessons in seven blocks (the maintainer, 2026-11-04)
+
+Both vaults hold lessons 00 to 38, in seven blocks: I. Começando (00–06), II. Organizar (07–13), III. Outras formas de ver (14–19), IV. Board (20–21), V. RPG (22–27), VI. Juntos e em outros aparelhos (28–34), VII. Avançado (35–38). The former notes 17 (*Terminal, CLI e Agentes*) and 35 (*Terminal e Agentes de IA*) are one lesson, *35 - Terminal, CLI e Agentes de IA* / *35 - Terminal, CLI and AI Agents*.
+
+1. Note 00, *Mapa de Exploração do Vault*: the seven blocks as headings, each with its line, and every lesson once, in number order; the same in English. Level: S (every numbered note in the map), H.
+2. Every lesson from 01 ends with one line — *Anterior* · *Próxima* · *Página Inicial* · *Tour do Verso* (EN: *Previous* · *Next* · *Home Page* · *Verso Tour*); note 38 says it is the last lesson. A cross-reference that was in the old closing line (24 to 16, 29 to 30 and 32, 30, 31, 32 and 33 to their server and table notes) stays, as its own sentence above it. Level: S (each links to the next), H.
+3. The Tour: 22 stops, ① to ㉒, in the blocks' order (Escrever, Conectar, Blocos; Arquivos, Encontrar, Abas e janelas, Figurinhas e ordem, Focos, Diárias e tipos; Bases e grafo, Diagramas, Ler e ver, Web; Boards; Dados, Mundos e RPG, A mesa; No celular, Num servidor; Terminal e agentes, Ajustes, Atalhos e ajuda); each stop's cards are lessons of one block, and *Num servidor*'s five cards fit inside its group. Same drawing in English. Level: H; E: `board-tour.spec.mjs`, `demo-vault-en.spec.mjs`.
+4. Note 35 reads in this order: the terminal (on, opening, the warning, keys, closing, each system), the `verso` command, agents through MCP, AI agents in the terminal; its links to `#Agentes de IA (MCP)` and `#O terminal` land on their headings. Level: S (the headings), H.
+5. Import into a folder that holds the earlier demo untouched: the old copy of each renamed lesson goes to the folder's trash once its new name is written (`DEMO_RETIRED` lists each old path with its new one); a lesson the person edited is kept and named. The two old terminal lessons were merged, not renamed (git follows neither into the new 35), so their untouched copies stay in such a folder. Level: H; E: `import.spec.mjs`, `test/demoImport.test.mjs`.
+6. The site's wiki is made from these vaults (ADR 0058 points 16–18): import it again in the `versomd-site` repository and read the pages of the lessons that moved. Level: A.

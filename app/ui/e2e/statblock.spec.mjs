@@ -1,4 +1,4 @@
-// Walkthrough, section 14 (notes 26 and the Fractal campaign): a statblock
+// Walkthrough, section 14 (note 23 and the Fractal campaign): a statblock
 // on a layout of the app (ADR 0099). A reserve is a tracker whose box
 // writes that one number into the note's text; a fact's "Quebrado" mark
 // strikes it and writes `quebrado: true`; nothing else in the block moves.

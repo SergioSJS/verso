@@ -4,7 +4,7 @@
 		{"id":"n-alpha","type":"file","file":"projects/Project Alpha.md","x":-420,"y":-240,"width":400,"height":420},
 		{"id":"n-beta","type":"file","file":"projects/Project Beta.md","x":60,"y":-240,"width":400,"height":420},
 		{"id":"n-pesquisa","type":"file","file":"projects/Research and Findings.md","x":600,"y":-240,"width":400,"height":300},
-		{"id":"t-bemvindo","type":"text","text":"## Verso Board\n\nDrag the cards, connect notes with arrows and draw on top.\n\n**Double-click** a note card to enter it, and one more click edits; the ↗ opens the note in a tab. See [[09 - Board and Relations]].","x":-460,"y":280,"width":420,"height":200,"color":"4"},
+		{"id":"t-bemvindo","type":"text","text":"## Verso Board\n\nDrag the cards, connect notes with arrows and draw on top.\n\n**Double-click** a note card to enter it, and one more click edits; the ↗ opens the note in a tab. See [[20 - Board and Relations]].","x":-460,"y":280,"width":420,"height":200,"color":"4"},
 		{"id":"n-diagrama","type":"file","file":"assets/diagrama.svg","x":20,"y":280,"width":300,"height":200},
 		{"id":"l-jsoncanvas","type":"link","url":"https://jsoncanvas.org","x":600,"y":120,"width":400,"height":120}
 	],

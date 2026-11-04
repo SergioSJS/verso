@@ -8,7 +8,7 @@
 
 import { test, expect } from "./fixtures.mjs";
 
-const NOTE = "11 - Escrevendo no Editor.md";
+const NOTE = "04 - Escrevendo no Editor.md";
 // A 1x1 PNG.
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 

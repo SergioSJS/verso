@@ -28,7 +28,11 @@ test release.
 
 - **Other people's Verso apps, read links, passkeys and tokens in this server.** A list of **Other people's Verso apps** (the desktop apps an invited account signed in) with **End**; a person's Verso connects through the internet link's address, since on the network it does not trust this computer's own certificate, and phones never sync. **Read links** is a switch, off at first, whose off closes every link at once; links are made from the window sitting at the table. On the network people sign in with the password; a passkey works only through the internet link, a quick link's passkey goes away with that link and the own address keeps it. Accounts can make personal access tokens for programs, reaching only their own folders.
 
-- **A new lesson in both demo vaults:** note 39, *Mesa pela Internet* / *A Table over the Internet* (turning the link on, the failures, inviting, sitting at the table, read links, your own address, passkeys and other people's apps), with note 22's section on pairing a phone and note 38 now pointing to it.
+- **A new lesson in both demo vaults:** note 29, *Mesa pela Internet* / *A Table over the Internet* (turning the link on, the failures, inviting, sitting at the table, read links, your own address, passkeys and other people's apps), with note 28's section on pairing a phone and note 32 now pointing to it.
+
+### Changed
+
+- **The tutorial's lessons in seven blocks** (the maintainer, 2026-11-04). Both demo vaults now read in order by theme, the lessons of one theme together and renumbered: I. Getting started (00–06), II. Organizing (07–13), III. Other ways to see (14–19), IV. Board (20–21), V. RPG (22–27), VI. Together and on other devices (28–34), VII. Advanced (35–38). The two terminal lessons are one, *35 - Terminal, CLI and AI Agents* / *Terminal, CLI e Agentes de IA*: the terminal, the `verso` command, the folder in AI agents through MCP, and AI agents in the terminal. The welcome note's map is grouped by block with a line on each, every lesson ends with its previous and next one, and the Verso Tour's stops follow the blocks. Importing the tutorial into a folder that holds the earlier one moves the untouched old copy of each renamed lesson to the folder's trash.
 
 ### Fixed
 

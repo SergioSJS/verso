@@ -600,7 +600,7 @@ fn a_rename_in_the_demo_vault_writes_the_same_bytes_on_every_os() {
             w.path
         );
         // A link written with its folder keeps it; one written by name
-        // alone (note 24's table) stays by name.
+        // alone (note 22's table) stays by name.
         let kept = if w.before.contains("Personagens/Capitão Ruy") {
             "Personagens/Capitão Rui"
         } else {

@@ -10,7 +10,7 @@ tags:
 
 # Costa das Lanternas
 
-Uma campanha de exemplo, escrita para o tutorial: um **mundo**, uma **personagem**, três **Desafios** encaixados e o **diário** de uma sessão. Os nomes dos campos são os do Fractal; todo o texto é nosso. A nota que ensina cada passo é [[26 - Fichas]].
+Uma campanha de exemplo, escrita para o tutorial: um **mundo**, uma **personagem**, três **Desafios** encaixados e o **diário** de uma sessão. Os nomes dos campos são os do Fractal; todo o texto é nosso. A nota que ensina cada passo é [[23 - Fichas]].
 
 ## Realismo
 
