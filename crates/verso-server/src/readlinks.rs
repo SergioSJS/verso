@@ -143,9 +143,7 @@ pub struct Live {
 /// link not revoked or expired. Every refusal alike: `None` (item 6: a
 /// link says nothing of why it does not open).
 pub fn live(server: &Server, token: &str) -> Result<Option<Live>, String> {
-    // "This app is a server" has no read links: its phones are paired
-    // (ADR 0096), and ADR 0105 says nothing of it.
-    if server.local.is_some() || !token_shaped(token) {
+    if !token_shaped(token) {
         return Ok(None);
     }
     if !server.db.read_links_on()? {
@@ -157,10 +155,17 @@ pub fn live(server: &Server, token: &str) -> Result<Option<Live>, String> {
     if !link.live(crate::db::now()) {
         return Ok(None);
     }
-    Ok(server
-        .db
-        .folder(&link.folder)?
-        .map(|folder| Live { link, folder }))
+    let Some(folder) = server.db.folder(&link.folder)? else {
+        return Ok(None);
+    };
+    // "This app is a server" (ADR 0117 D9, S12): a link never opens a
+    // folder served in part — the hide lock holds for a link's reader as
+    // for everyone, whatever link was made before the folder was narrowed.
+    // (A folder no longer served has no folder for the link to open.)
+    if server.local.as_ref().is_some_and(|l| l.hides(&folder.id)) {
+        return Ok(None);
+    }
+    Ok(Some(Live { link, folder }))
 }
 
 /// The name a link's window shows: the note's own, without `.md`, for a
@@ -391,11 +396,16 @@ fn audit(ctx: &Ctx, action: &str, link: &ReadLink) {
     }
 }
 
-fn off() -> ApiError {
+fn off(server: &Server) -> ApiError {
     ApiError::new(
         axum::http::StatusCode::FORBIDDEN,
         "read_links_off",
-        "read links are turned off on this server: an administrator turns them on in the console",
+        if server.local.is_some() {
+            // The app's own section is this server's console (ADR 0117 D9).
+            "read links are turned off on this computer's server: turn them on in Settings, where it serves"
+        } else {
+            "read links are turned off on this server: an administrator turns them on in the console"
+        },
     )
 }
 
@@ -411,7 +421,7 @@ pub async fn list(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
         .map(|l| link_json(&ctx.server, l))
         .collect();
     Ok(ok(json!({
-        "enabled": ctx.server.db.read_links_on()? && ctx.server.local.is_none(),
+        "enabled": ctx.server.db.read_links_on()?,
         "links": links,
     })))
 }
@@ -526,8 +536,14 @@ pub async fn make(ctx: Ctx, Path(id): Path<String>, Json(body): Json<Make>) -> A
     // 0083 item 6).
     ctx.proved()?;
     let folder = owned(&ctx, &id)?;
-    if ctx.server.local.is_some() || !ctx.server.db.read_links_on()? {
-        return Err(off());
+    if !ctx.server.db.read_links_on()? {
+        return Err(off(&ctx.server));
+    }
+    // "This app is a server": links are the owner's, made from the app's
+    // window at the table (ADR 0117 D9, S12); an invited account owns no
+    // folder here, and none makes one.
+    if ctx.server.local.is_some() && !crate::db::is_this_computer(&ctx.person()?.account.email) {
+        return Err(ApiError::forbidden("read links are the owner's here"));
     }
     target_ok(
         &ctx,

@@ -18,12 +18,12 @@ use super::tests::{Lab, call, lab, next, run};
 use super::tests_parts::lab_in_part;
 use crate::db::Role;
 
-const NAME: &str = "tidy-otter-quiet-lamp.trycloudflare.com";
-const ORIGIN: &str = "https://tidy-otter-quiet-lamp.trycloudflare.com";
-const PASSWORD: &str = "uma senha longa da mesa 2026";
+pub(super) const NAME: &str = "tidy-otter-quiet-lamp.trycloudflare.com";
+pub(super) const ORIGIN: &str = "https://tidy-otter-quiet-lamp.trycloudflare.com";
+pub(super) const PASSWORD: &str = "uma senha longa da mesa 2026";
 
 /// The cookie a response set, as a browser sends it back.
-fn cookie_of(res: &reqwest::Response) -> Option<String> {
+pub(super) fn cookie_of(res: &reqwest::Response) -> Option<String> {
     res.headers()
         .get("set-cookie")
         .and_then(|v| v.to_str().ok())
@@ -32,12 +32,12 @@ fn cookie_of(res: &reqwest::Response) -> Option<String> {
 }
 
 /// The token of an invitation's link.
-fn token_of(link: &str) -> String {
+pub(super) fn token_of(link: &str) -> String {
     link.rsplit_once("/invite/").unwrap().1.to_owned()
 }
 
 /// A player accepts `link` on the network: their cookie.
-async fn accept(lab: &Lab, link: &str, email: &str, name: &str) -> String {
+pub(super) async fn accept(lab: &Lab, link: &str, email: &str, name: &str) -> String {
     let token = token_of(link);
     let res = lab
         .client
@@ -53,7 +53,7 @@ async fn accept(lab: &Lab, link: &str, email: &str, name: &str) -> String {
 
 /// Through the internet link's listener, as the tunnel forwards a client
 /// at `from` that wrote `forged` in its own `X-Forwarded-For`.
-fn through(port: u16, path: &str, forged: &str, from: &str) -> reqwest::RequestBuilder {
+pub(super) fn through(port: u16, path: &str, forged: &str, from: &str) -> reqwest::RequestBuilder {
     reqwest::Client::new()
         .post(format!("http://127.0.0.1:{port}{path}"))
         .header("host", NAME)

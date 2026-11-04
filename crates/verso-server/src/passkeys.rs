@@ -40,8 +40,25 @@ pub struct Ceremonies {
     signing_in: Mutex<HashMap<String, (Instant, String, String, PasskeyAuthentication)>>,
 }
 
+/// A passkey's ceremony needs a secure context and a name for the relying
+/// party. "This app is a server" has them through its internet link alone
+/// — a quick link or the person's own address, HTTPS by Cloudflare (ADR
+/// 0117 D9, S13) — never on the network, whose own certificate is no
+/// secure context to a browser and whose address is no name: there it is
+/// refused in words, before anything is counted.
+pub(crate) fn on_a_secure_origin(ctx: &Ctx) -> ApiResult<()> {
+    if ctx.server.local.is_some() && !ctx.peer.link {
+        return Err(ApiError::bad(
+            "passkey_needs_link",
+            "a passkey is added and used through this server's internet link; on the network, sign in with the password",
+        ));
+    }
+    Ok(())
+}
+
 /// The relying party: this server, by the address people use.
 fn webauthn(ctx: &Ctx) -> ApiResult<Webauthn> {
+    on_a_secure_origin(ctx)?;
     let origin = crate::auth::expected_origin(&ctx.server, &ctx.headers, &ctx.peer)
         .ok_or_else(|| ApiError::bad("no_address", "set VERSO_PUBLIC_URL for passkeys"))?;
     let url = Url::parse(&origin).map_err(|e| ApiError::bad("no_address", e.to_string()))?;
@@ -208,6 +225,7 @@ fn assertion(ctx: &Ctx, account: String, keys: Vec<(String, Passkey)>) -> ApiRes
 /// (threat-model.md).
 pub async fn sign_in_start(ctx: Ctx, Json(body): Json<SignInStart>) -> ApiResult<Response> {
     ctx.changes()?;
+    on_a_secure_origin(&ctx)?;
     start_paced(&ctx)?;
     let account = ctx.server.db.account_by_email(&body.email)?;
     let keys = match &account {
@@ -224,6 +242,7 @@ pub async fn sign_in_start(ctx: Ctx, Json(body): Json<SignInStart>) -> ApiResult
 /// 6): their own passkeys as options, paced as a sign-in's start is.
 pub async fn prove_start(ctx: Ctx) -> ApiResult<Response> {
     ctx.changes()?;
+    on_a_secure_origin(&ctx)?;
     let who = ctx.person()?.clone();
     start_paced(&ctx)?;
     let keys = credentials(&ctx.server.db.passkeys(&who.account.id)?);

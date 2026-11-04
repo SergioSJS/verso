@@ -25,6 +25,7 @@ pub mod allow;
 pub mod announce;
 mod bind;
 pub mod cert;
+mod devices;
 mod invites;
 pub mod link;
 pub mod net;
@@ -32,6 +33,7 @@ pub mod pairing;
 mod parts;
 mod policy;
 pub mod qr;
+mod read_links;
 mod routes;
 pub mod seat;
 #[cfg(test)]
@@ -39,15 +41,21 @@ mod tests;
 #[cfg(test)]
 mod tests_accounts;
 #[cfg(test)]
+mod tests_devices;
+#[cfg(test)]
 mod tests_link;
 #[cfg(test)]
 mod tests_parts;
 #[cfg(test)]
 mod tests_parts_bin;
 #[cfg(test)]
+mod tests_read_links;
+#[cfg(test)]
 mod tests_seat;
 #[cfg(test)]
 mod tests_serving;
+#[cfg(test)]
+mod tests_tokens;
 
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
@@ -108,6 +116,7 @@ pub enum Event {
 
 type Sink = Arc<dyn Fn(Event) + Send + Sync>;
 
+pub use self::devices::Device;
 pub use self::invites::{InvitationRow, Invite};
 pub use self::policy::{PhoneGuard, Policy, refused_command};
 pub use self::seat::Seat;

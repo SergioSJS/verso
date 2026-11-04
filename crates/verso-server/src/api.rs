@@ -40,7 +40,10 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
         // does; the internet link's, whose requests a trusted proxy alone
         // forwards, answers pairing as an unknown route, and its page says
         // nothing of it.
-        "pairing": ctx.server.local.is_some() && !ctx.peer.forwarded,
+        "pairing": ctx.server.local.is_some() && !ctx.peer.link,
+        // Whether a passkey can be added and used from this page: in "this
+        // app is a server", through its internet link alone (ADR 0117 D9).
+        "passkeys": ctx.server.local.is_none() || ctx.peer.link,
         // Links by e-mail exist only with a public address to build them
         // from (see [`mail_ready`]); the sign-in page hides them otherwise.
         "mail": mail_ready(&ctx.server),
@@ -605,6 +608,8 @@ pub async fn sessions(ctx: Ctx) -> ApiResult<Response> {
         .db
         .sessions_of(&who.account.id)?
         .into_iter()
+        // The owner's window's seat is listed nowhere (ADR 0117 D4 Q3).
+        .filter(|s| !ctx.server.local.as_ref().is_some_and(|l| l.is_seat(&s.id)))
         .map(|s| {
             let mine = current.as_deref() == Some(s.id.as_str());
             json!({ "session": s, "current": mine })
