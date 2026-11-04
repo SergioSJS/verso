@@ -239,7 +239,7 @@
   instead of "no such command"; a feature that needs one is shown off
   with the same words when it is built, through `capabilities`
   ([0027](0027-runtime-capabilities.md)). A browser page this server
-  served still reloads on the hash ([0096](0096-this-app-is-a-server.md)
+  served still reloads on the hash ([0096](archive/0096-this-app-is-a-server.md)
   item 18): it is the server's own build. Item 2's words above are kept.
   A synced folder is judged by the sync's version alone:
   [0079](0079-sync-a-local-folder-with-a-server.md) item 5, revised the
