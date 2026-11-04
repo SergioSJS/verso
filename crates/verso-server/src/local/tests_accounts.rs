@@ -462,3 +462,44 @@ fn this_computers_accounts_are_no_ones() {
         assert_eq!(status, 401, "an owner's session that is no phone");
     });
 }
+
+/// The players see the owner by a person's name, never "This computer"
+/// nor this computer's inner e-mail (the test of 2026-11-04): the host
+/// names the owner from the system's user at first, a name the person gave
+/// is kept, and the person changes it in Settings.
+#[test]
+fn players_see_the_owner_by_name_and_never_its_inner_address() {
+    run(async {
+        let mut lab = lab();
+        assert_eq!(
+            lab.local.owner_name().unwrap(),
+            crate::db::LOCAL_OWNER_UNNAMED
+        );
+        lab.local.name_owner_if_unnamed("Sérgio Sousa").unwrap();
+        assert_eq!(lab.local.owner_name().unwrap(), "Sérgio Sousa");
+        lab.local.name_owner_if_unnamed("sergio").unwrap();
+        assert_eq!(
+            lab.local.owner_name().unwrap(),
+            "Sérgio Sousa",
+            "a name given is kept"
+        );
+        lab.serve();
+        let made = lab
+            .local
+            .invite(Some("Campanha"), Some(Role::Reader))
+            .unwrap();
+        let cookie = accept(&lab, &made.link, "ana@example.org", "Ana").await;
+        let (_, folders) = lab.get("/api/folders", Some(&cookie)).await;
+        let owner = &folders["folders"][0]["owner"];
+        assert_eq!(owner["name"], "Sérgio Sousa", "{folders}");
+        assert!(owner["email"].is_null(), "{folders}");
+        assert!(!folders.to_string().contains("this-computer"), "{folders}");
+        assert_eq!(
+            lab.local.set_owner_name("  Mestre Sérgio \n").unwrap(),
+            "Mestre Sérgio"
+        );
+        let (_, folders) = lab.get("/api/folders", Some(&cookie)).await;
+        assert_eq!(folders["folders"][0]["owner"]["name"], "Mestre Sérgio");
+        assert!(lab.local.set_owner_name("  ").is_err());
+    });
+}

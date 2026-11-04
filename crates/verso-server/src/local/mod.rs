@@ -29,6 +29,7 @@ mod devices;
 mod invites;
 pub mod link;
 pub mod net;
+mod owner;
 pub mod pairing;
 mod parts;
 mod players;

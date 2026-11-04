@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-server-owner-name"
+description = "Enables the local_server_owner_name command without any pre-configured scope."
+commands.allow = ["local_server_owner_name"]
+
+[[permission]]
+identifier = "deny-local-server-owner-name"
+description = "Denies the local_server_owner_name command without any pre-configured scope."
+commands.deny = ["local_server_owner_name"]

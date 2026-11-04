@@ -366,6 +366,14 @@ fn of_share(server: &Server, folder: &Folder, share: &Share) -> ApiResult<Value>
     }))
 }
 
+/// A folder's owner as a person is shown it: the name, and the e-mail —
+/// never this computer's inner address, which is no one's to write to
+/// ("this app is a server", ADR 0117).
+fn owner_json(a: &crate::db::Account) -> Value {
+    let email = (!crate::db::is_this_computer(&a.email)).then_some(a.email.as_str());
+    json!({ "name": a.name, "email": email })
+}
+
 /// The folders `who` may enter, for the lists of item 5: its own, the
 /// whole folders others own ("Shared with me", with the owner), and the
 /// shares given to it; and the shares of its own folders ("Shared by me").
@@ -383,8 +391,7 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
         let owner = if role == Role::Owner {
             Value::Null
         } else {
-            owner_of(server, &f.id)?
-                .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }))
+            owner_of(server, &f.id)?.map_or(Value::Null, |a| owner_json(&a))
         };
         // The folder's bytes count its secret blocks' (ADR 0087): one who
         // only reads it is not told them, as a share's receiver is not.
@@ -424,8 +431,7 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
         {
             Value::Null
         } else {
-            owner_of(server, &folder.id)?
-                .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }))
+            owner_of(server, &folder.id)?.map_or(Value::Null, |a| owner_json(&a))
         };
         folders.push(json!({
             "id": share.id, "name": scope.name, "role": role, "space": null,

@@ -20,6 +20,7 @@ import { asDialog, closed, opened } from "./a11y";
 import { servedFolders } from "./servedFolders";
 import { localStrings } from "./localServerStrings";
 import { linkBoxes, linkSentence, whyOf } from "./localServerLink";
+import { ownerNameBlock } from "./localServerOwnerName";
 import { linkStrings } from "./localServerLinkStrings";
 import { invitations } from "./localServerInvites";
 import { accountsBlock } from "./localServerAccounts";
@@ -169,6 +170,8 @@ export function localServerBody(_item: Item): HTMLElement {
   const lead = h("p", "ls-lead", w.lead);
   // The two boxes under the switch, and the link (ADR 0117 D1).
   const boxes = linkBoxes({ say, redraw: () => void redraw() });
+  // The owner's name as the players see it.
+  const ownerName = ownerNameBlock(say);
   // Invitations (ADR 0117 D3 item 2).
   const invites = invitations(say);
   // The people invited: a new password, sessions, remove (ADR 0117 D9).
@@ -462,7 +465,7 @@ export function localServerBody(_item: Item): HTMLElement {
     const s = r.data;
     void refreshMark();
     unsupported.hidden = s.supported;
-    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, invites.el, players.el, accounts.el, seat.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
+    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, ownerName.el, invites.el, players.el, accounts.el, seat.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
     if (!s.supported) return;
     keep.checked = s.keep_on;
     most.value = String(s.max_connected);
@@ -481,6 +484,7 @@ export function localServerBody(_item: Item): HTMLElement {
     pairHelp.hidden = onNet;
     pairHelp.textContent = s.serving ? linkStrings().pairNeedsNetwork : w.pairNeedsOn;
     boxes.draw(s);
+    ownerName.draw(s);
     if (!s.serving && s.stopped_because) say(w.stoppedNet);
     const f = await commands.localServerFolders();
     if (f.status === "ok") drawFolders(f.data, s.serving);
@@ -575,6 +579,7 @@ export function localServerBody(_item: Item): HTMLElement {
     block(lead, unsupported, runRow, said, boxes.el, blocked, keepLabel, keepHelp),
     block(foldersHead, foldersLead, folders),
     block(seat.el),
+    block(ownerName.el),
     block(invites.el),
     block(players.el),
     block(accounts.el),

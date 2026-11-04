@@ -93,6 +93,8 @@ export class LocalServerHarness {
   private signedIn = false;
   /** The words the next `local_server_link_on` fails with (a test's). */
   private linkFailure: string | null = null;
+  /** The owner's name for the players, as the host names it at first. */
+  private ownerName = "Sérgio";
   private slow: { done: number; total: number | null } | null = null;
   /** The turn-on under way while it downloads: ended by a turn-off. */
   private downloading: ((link: LocalLink) => void) | null = null;
@@ -232,6 +234,7 @@ export class LocalServerHarness {
       own_address: this.own ? { ...this.own } : null,
       cloudflare_signed_in: this.signedIn,
       read_links: this.readLinks,
+      owner_name: this.ownerName,
       ...this.cert,
     };
   }
@@ -546,6 +549,13 @@ export class LocalServerHarness {
       this.devices = this.devices.filter((d) => d.email !== p.email);
       this.log("account_deleted", p.email);
       return null;
+    },
+    local_server_owner_name: (a): LocalServerStatus => {
+      const name = String(a["name"] ?? "").trim();
+      if (!name) refuse("a name for the players");
+      if ([...name].length > 200) refuse("a name of 200 characters at most");
+      this.ownerName = name;
+      return this.status();
     },
     local_server_read_links: (a): LocalServerStatus => {
       this.readLinks = a["on"] === true;

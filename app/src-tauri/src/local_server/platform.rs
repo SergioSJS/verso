@@ -39,6 +39,13 @@ pub(super) fn server<R: tauri::Runtime>(
         crate::tray::follow(&events);
     });
     let made = LocalServer::new(config.join("local-server"), ui, env!("VERSO_COMMIT"), sink);
+    // The players see a person, not "This computer" (the test of
+    // 2026-11-04): the system's user until the person names themselves.
+    if let Some(name) = super::owner::system_person()
+        && let Err(e) = made.name_owner_if_unnamed(&name)
+    {
+        log::write("WARN", "host", &format!("the owner's name: {e}"));
+    }
     Ok(state.local_server.server.get_or_init(|| made).clone())
 }
 
@@ -81,6 +88,7 @@ pub(super) fn status_of<R: tauri::Runtime>(
             }),
         cloudflare_signed_in: crate::tunnel::signed_in(),
         read_links: local.read_links_on()?,
+        owner_name: local.owner_name()?,
         supported: true,
         serving: s.serving,
         port: s.port.map(u32::from),

@@ -71,6 +71,9 @@ pub struct LocalServerStatus {
     /// Read links are on for this computer's server (ADR 0105 item 3; ADR
     /// 0117 D9, S12): off at first, the owner's switch in the section.
     pub read_links: bool,
+    /// The name the players see for this computer's owner: its account's
+    /// name, the system's user at first (`local_server_owner_name`).
+    pub owner_name: String,
 }
 
 /// Where the internet link stands (ADR 0117 D3 item 6).

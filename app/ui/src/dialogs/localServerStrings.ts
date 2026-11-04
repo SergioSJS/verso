@@ -9,6 +9,11 @@
 const pt = {
   section: "Transformar em servidor",
   title: "Servir minhas pastas ao celular",
+  ownerName: "Seu nome para os jogadores",
+  ownerNameDesc: "Como os jogadores veem você no chat, nas rolagens, na lista da mesa e nos links de leitura. Começa com o nome do usuário deste computador.",
+  ownerNameSave: "Salvar nome",
+  ownerNameEmpty: "Escreva um nome para os jogadores.",
+  ownerNameSaved: (name: string) => `Os jogadores veem você como ${name}.`,
   lead: "O Verso deste computador pode servir as pastas que você marcar ao navegador do seu celular, pela rede em que os dois estão. Fica desligado até você ligar, e desliga de novo quando o app fecha.",
   unsupported: "Este sistema não consegue servir.",
   foldersTitle: "Pastas servidas",
@@ -152,6 +157,11 @@ const pt = {
 const en: typeof pt = {
   section: "Turn into a server",
   title: "Serve my folders to the phone",
+  ownerName: "Your name for the players",
+  ownerNameDesc: "How the players see you in the chat, the rolls, the table's list and read links. It starts as this computer's user name.",
+  ownerNameSave: "Save name",
+  ownerNameEmpty: "Type a name for the players.",
+  ownerNameSaved: (name) => `The players see you as ${name}.`,
   lead: "Verso on this computer can serve the folders you tick to your phone's browser, over the network the two share. It stays off until you turn it on, and off again when the app quits.",
   unsupported: "This system cannot serve.",
   foldersTitle: "Folders served",

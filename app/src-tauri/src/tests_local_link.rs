@@ -26,6 +26,7 @@ const ADDED: &[&str] = &[
     "local_server_link_off",
     "local_server_link_extend",
     "local_server_link_mode",
+    "local_server_owner_name",
     "local_server_own_address_login",
     "local_server_own_address_set_up",
     "local_server_own_address_remove",

@@ -99,6 +99,26 @@ test("the first download of cloudflared says how far it got and can be cancelled
   expect([s.serving, s.link.state]).toEqual([false, "off"]);
 });
 
+test("your name for the players: the system's user at first, changed and kept, never empty", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  const name = body.getByRole("textbox", { name: "Seu nome para os jogadores" });
+  await expect(name).toHaveValue("Sérgio");
+  await expect(name).toHaveAccessibleDescription(/Como os jogadores veem você no chat/);
+  await name.fill("  Mestre Sérgio ");
+  await name.press("Enter");
+  await expect(body.getByText("Os jogadores veem você como Mestre Sérgio.").first()).toBeVisible();
+  expect(await app.calls("local_server_owner_name")).toEqual([{ name: "Mestre Sérgio" }]);
+  await expect(name).toHaveValue("Mestre Sérgio");
+  await name.fill("   ");
+  await body.getByRole("button", { name: "Salvar nome" }).click();
+  await expect(body.getByText("Escreva um nome para os jogadores.").first()).toBeVisible();
+  await expect(name).toHaveValue("Mestre Sérgio");
+  const overflow = await body.evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
 test("neither box ticked does not start; a link that fails says why in words, and one that drops says the table is offline", async ({ app, page }) => {
   await app.open();
   await section(app);

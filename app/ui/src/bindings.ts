@@ -1030,6 +1030,11 @@ export const commands = {
 	 */
 	localServerLinkMode: (own: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_link_mode", { own })),
 	/**
+	 *  The name the players see for this computer's owner (its account's,
+	 *  as on a UniVerso), set in the section.
+	 */
+	localServerOwnerName: (name: string) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_owner_name", { name })),
+	/**
 	 *  *Use my own address*, step one: log in to Cloudflare in the browser
 	 *  (D10 item 2).
 	 */
@@ -3436,6 +3441,11 @@ export type LocalServerStatus = {
 	 *  0117 D9, S12): off at first, the owner's switch in the section.
 	 */
 	read_links: boolean,
+	/**
+	 *  The name the players see for this computer's owner: its account's
+	 *  name, the system's user at first (`local_server_owner_name`).
+	 */
+	owner_name: string,
 };
 
 /**  One file the loose-files window shows (ADR 0114 item 18). */

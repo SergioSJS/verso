@@ -50,6 +50,8 @@ O painel diz o motivo em palavras. Os mais comuns:
 
 ## 2. Convidar as jogadoras
 
+Antes, confira **Seu nome para os jogadores**: é como a mesa vê você no chat, nas rolagens e na lista. Começa com o nome do usuário deste computador; troque e toque em **Salvar nome**.
+
 Em **Convidar pessoas**:
 
 1. Em **Pasta**, escolha uma pasta servida inteira (uma servida só em parte não aparece) ou **Nenhuma (só a conta)**, e em **Pode**, **Ler** ou **Editar**.

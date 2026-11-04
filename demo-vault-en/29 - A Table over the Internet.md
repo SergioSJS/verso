@@ -50,6 +50,8 @@ The panel gives the reason in words. The usual ones:
 
 ## 2. Invite the players
 
+First, check **Your name for the players**: it is how the table sees you in the chat, the rolls and the list. It starts as this computer's user name; change it and tap **Save name**.
+
 Under **Invite people**:
 
 1. Under **Folder**, choose a folder served whole (one served only in part does not show) or **None (the account only)**, and under **Can**, **Read** or **Edit**.

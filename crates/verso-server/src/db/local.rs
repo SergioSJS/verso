@@ -33,6 +33,10 @@ CREATE TABLE phones (
 /// (`crate::auth::who`).
 pub const LOCAL_OWNER: &str = "owner@this-computer.verso";
 
+/// The local owner's name until it has one (`local::owner`): the host
+/// names it from the system's user at the first use.
+pub const LOCAL_OWNER_UNNAMED: &str = "This computer";
+
 /// The domain of this computer's own accounts: none is a person's, and an
 /// invitation never makes one in it ([`is_this_computer`]).
 const THIS_COMPUTER: &str = "@this-computer.verso";
@@ -74,7 +78,7 @@ impl Db {
         let owner = match self.account_by_email(LOCAL_OWNER)? {
             Some(a) if a.admin && !a.may_create => return Ok(a),
             Some(a) => a,
-            None => self.create_account(LOCAL_OWNER, "This computer", "pt", None, true)?,
+            None => self.create_account(LOCAL_OWNER, LOCAL_OWNER_UNNAMED, "pt", None, true)?,
         };
         self.set_powers(&owner.id, true, false)?;
         Ok(Account {

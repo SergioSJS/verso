@@ -29,6 +29,7 @@ pub(crate) struct LocalSlot {
 mod accounts;
 mod link;
 mod own;
+mod owner;
 #[cfg(test)]
 pub(crate) use own::hostname_of;
 mod platform;
@@ -282,6 +283,17 @@ pub(crate) async fn local_server_link_extend<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<LocalLink, ContractError> {
     link::link_extend(app).await
+}
+
+/// The name the players see for this computer's owner (its account's,
+/// as on a UniVerso), set in the section.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_owner_name<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    name: String,
+) -> Result<LocalServerStatus, ContractError> {
+    owner::set(app, name).await
 }
 
 /// A quick link (`own` false) or the own address (D10), for the next time

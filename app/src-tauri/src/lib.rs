@@ -976,6 +976,7 @@ macro_rules! commands_for {
                 local_server_link_off::<$runtime>,
                 local_server_link_extend::<$runtime>,
                 local_server_link_mode::<$runtime>,
+                local_server_owner_name::<$runtime>,
                 local_server_own_address_login::<$runtime>,
                 local_server_own_address_set_up::<$runtime>,
                 local_server_own_address_remove::<$runtime>,

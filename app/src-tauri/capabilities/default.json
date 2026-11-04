@@ -234,6 +234,7 @@
     "allow-local-server-link-off",
     "allow-local-server-link-extend",
     "allow-local-server-link-mode",
+    "allow-local-server-owner-name",
     "allow-local-server-own-address-login",
     "allow-local-server-own-address-set-up",
     "allow-local-server-own-address-remove",
