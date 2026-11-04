@@ -14,9 +14,9 @@
 //! through the browser, by which an invited person's Verso syncs a folder
 //! shared with them (ADR 0117 D9, S11; `devices.rs`). A read link's page
 //! is served to whoever holds it, and the owner makes links from the
-//! window at the table (S12). There is still no setup, no "forgot the
-//! password" or sign-in by mail, no admin console, no token and no passkey
-//! (D9: S13).
+//! window at the table (S12). An account has its tokens and its passkeys,
+//! a passkey through the internet link alone (S13). There is no setup, no
+//! "forgot the password" or sign-in by mail and no admin console (D9).
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -64,6 +64,26 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/device/approve", post(crate::device::approve_typed))
         .route("/api/device/refuse", post(crate::device::refuse_typed))
         .route("/api/me/device", put(crate::device::rename))
+        // Personal access tokens and passkeys (ADR 0074 items 3 and 8; ADR
+        // 0117 D9, S13). A passkey's ceremony only on a secure origin with a
+        // name: through the internet link (`passkeys::on_a_secure_origin`).
+        .route(
+            "/api/me/tokens",
+            get(crate::api::tokens).post(crate::api::create_token),
+        )
+        .route("/api/me/tokens/{id}", delete(crate::api::revoke_token))
+        .route(
+            "/api/me/passkeys",
+            get(crate::passkeys::list).post(crate::passkeys::register_start),
+        )
+        .route(
+            "/api/me/passkeys/finish",
+            post(crate::passkeys::register_finish),
+        )
+        .route("/api/me/passkeys/{id}", delete(crate::passkeys::remove))
+        .route("/api/me/prove/passkey", post(crate::passkeys::prove_start))
+        .route("/api/passkey/start", post(crate::passkeys::sign_in_start))
+        .route("/api/passkey/finish", post(crate::passkeys::sign_in_finish))
         // A folder's read links, its owner's (ADR 0105; ADR 0117 D9, S12):
         // here the owner's window at the table alone (`readlinks::make`).
         .route(

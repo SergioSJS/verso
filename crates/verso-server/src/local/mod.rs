@@ -54,6 +54,8 @@ mod tests_read_links;
 mod tests_seat;
 #[cfg(test)]
 mod tests_serving;
+#[cfg(test)]
+mod tests_tokens;
 
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};

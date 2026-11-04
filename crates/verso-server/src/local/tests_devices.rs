@@ -21,18 +21,18 @@ use super::{lock, seat::SEAT_DEVICE};
 use crate::db::Role;
 use crate::state::Server;
 
-fn server_of(lab: &Lab) -> Arc<Server> {
+pub(super) fn server_of(lab: &Lab) -> Arc<Server> {
     Arc::clone(&lock(&lab.local.shared.inner).as_ref().unwrap().server)
 }
 
 /// The CSRF token of a browser's session, as the page reads it.
-async fn csrf(lab: &Lab, cookie: &str) -> String {
+pub(super) async fn csrf(lab: &Lab, cookie: &str) -> String {
     let (_, state) = lab.get("/api/state", Some(cookie)).await;
     state["csrf"].as_str().unwrap().to_owned()
 }
 
 /// A request of a page signed in with `cookie`.
-async fn as_page(lab: &Lab, path: &str, body: Value, cookie: &str) -> (u16, Value) {
+pub(super) async fn as_page(lab: &Lab, path: &str, body: Value, cookie: &str) -> (u16, Value) {
     let res = lab
         .client
         .post(lab.url(path))
@@ -87,7 +87,7 @@ async fn device_token(lab: &Lab, cookie: &str, device: &str) -> String {
 }
 
 /// A GET with a bearer credential on the network.
-async fn bearer_get(lab: &Lab, path: &str, token: &str) -> (u16, Value) {
+pub(super) async fn bearer_get(lab: &Lab, path: &str, token: &str) -> (u16, Value) {
     let res = lab
         .client
         .get(lab.url(path))
@@ -101,7 +101,7 @@ async fn bearer_get(lab: &Lab, path: &str, token: &str) -> (u16, Value) {
 
 /// The contract's WebSocket with a bearer credential, as the desktop app
 /// opens it: no cookie, no `Origin`.
-async fn bearer_ws(lab: &Lab, token: &str) -> Result<Ws, u16> {
+pub(super) async fn bearer_ws(lab: &Lab, token: &str) -> Result<Ws, u16> {
     let mut req = format!("wss://127.0.0.1:{}/api/ws", lab.port)
         .into_client_request()
         .unwrap();
@@ -144,18 +144,6 @@ fn an_invited_accounts_desktop_app_syncs_its_folder() {
         assert_eq!(list.len(), 1, "{folders}");
         assert_eq!(list[0]["role"], "editor");
         let id = list[0]["id"].as_str().unwrap().to_owned();
-        // A personal access token of the same account: not taken here
-        // before ADR 0117 D9's S13.
-        let ana = server_of(&lab)
-            .db
-            .account_by_email("ana@example.org")
-            .unwrap()
-            .unwrap();
-        let (pat, _) = server_of(&lab)
-            .db
-            .create_token(&ana.id, "script", false, None, std::slice::from_ref(&id))
-            .unwrap();
-        assert_eq!(bearer_get(&lab, "/api/folders", &pat).await.0, 401);
         let mut ws = bearer_ws(&lab, &token).await.unwrap();
         assert!(next(&mut ws).await.get("hello").is_some());
         let opened = call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;

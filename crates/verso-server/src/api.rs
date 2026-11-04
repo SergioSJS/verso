@@ -36,6 +36,9 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
         // D3 item 2 a person invited signs in there too ("accounts").
         "local": ctx.server.local.is_some(),
         "accounts": true,
+        // Whether a passkey can be added and used from this page: in "this
+        // app is a server", through its internet link alone (ADR 0117 D9).
+        "passkeys": ctx.server.local.is_none() || ctx.peer.link,
         // Links by e-mail exist only with a public address to build them
         // from (see [`mail_ready`]); the sign-in page hides them otherwise.
         "mail": mail_ready(&ctx.server),

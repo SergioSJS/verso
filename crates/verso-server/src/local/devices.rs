@@ -16,7 +16,8 @@
 //!   owner, the holder of the folders served in part) — so the seat's
 //!   token opens nothing outside its door, and a phone, which is a browser
 //!   session of the owner, never becomes a device;
-//! - a personal access token: not yet (S13).
+//! - a personal access token (`verso_pat_`) of an invited account, as on
+//!   a UniVerso (S13), never one of this computer's accounts.
 //!
 //! A phone has none of the device routes (`routes.rs`, as an unknown route)
 //! and still runs no `sync_*` (the allowlist, `allow.rs`). The hide lock of
@@ -30,7 +31,7 @@
 use serde::Serialize;
 
 use super::{LocalServer, Policy, lock};
-use crate::auth::{Via, Who};
+use crate::auth::Who;
 use crate::db::{Audit, Db, is_this_computer};
 use crate::state::Server;
 
@@ -63,10 +64,6 @@ impl Policy {
         let Some(who) = crate::auth::bearer_who(server, secret)? else {
             return Ok(None);
         };
-        // Personal access tokens are not taken here yet (ADR 0117 D9: S13).
-        if matches!(who.via, Via::Token { .. }) {
-            return Ok(None);
-        }
         // A phone is a browser's session of the owner, which a bearer never
         // opens; the owner's devices — the seat's token outside its door —
         // and the holder's are this computer's.
