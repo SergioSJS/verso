@@ -189,10 +189,11 @@ fn a_host_that_is_not_ours_is_refused() {
     });
 }
 
-/// No setup, no token, no console, no device flow here, and a phone has
-/// none of an account's routes: it gets in by pairing and by nothing else.
-/// (The sign-in is here since ADR 0117 D3 item 2, for a person invited;
-/// `tests_accounts.rs` has its rules.)
+/// No setup, no token, no console here, and a phone has none of an
+/// account's routes: it gets in by pairing and by nothing else. (The
+/// sign-in is here since ADR 0117 D3 item 2, and the device flow since D9's
+/// S11, for a person invited; `tests_accounts.rs` and `tests_devices.rs`
+/// have their rules.)
 #[test]
 fn the_routes_of_a_server_with_accounts_are_not_here() {
     run(async {
@@ -232,8 +233,9 @@ fn the_routes_of_a_server_with_accounts_are_not_here() {
     });
 }
 
-/// A bearer token or a device session opens nothing here, whatever it is:
-/// the only credential is a paired phone's cookie.
+/// A phone's session presented as a bearer, or a token no one made, opens
+/// nothing: a phone's credential is its cookie. (An invited account's
+/// device does open its folders: `tests_devices.rs`.)
 #[test]
 fn a_bearer_credential_opens_nothing() {
     run(async {

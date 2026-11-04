@@ -25,6 +25,7 @@ pub mod allow;
 pub mod announce;
 mod bind;
 pub mod cert;
+mod devices;
 mod invites;
 pub mod link;
 pub mod net;
@@ -38,6 +39,8 @@ pub mod seat;
 mod tests;
 #[cfg(test)]
 mod tests_accounts;
+#[cfg(test)]
+mod tests_devices;
 #[cfg(test)]
 mod tests_link;
 #[cfg(test)]
@@ -108,6 +111,7 @@ pub enum Event {
 
 type Sink = Arc<dyn Fn(Event) + Send + Sync>;
 
+pub use self::devices::Device;
 pub use self::invites::{InvitationRow, Invite};
 pub use self::policy::{PhoneGuard, Policy, refused_command};
 pub use self::seat::Seat;

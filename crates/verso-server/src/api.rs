@@ -600,6 +600,8 @@ pub async fn sessions(ctx: Ctx) -> ApiResult<Response> {
         .db
         .sessions_of(&who.account.id)?
         .into_iter()
+        // The owner's window's seat is listed nowhere (ADR 0117 D4 Q3).
+        .filter(|s| !ctx.server.local.as_ref().is_some_and(|l| l.is_seat(&s.id)))
         .map(|s| {
             let mine = current.as_deref() == Some(s.id.as_str());
             json!({ "session": s, "current": mine })

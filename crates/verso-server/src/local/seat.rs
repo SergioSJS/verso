@@ -18,8 +18,9 @@
 //! widened for it: the network's still refuses loopback, the link's still
 //! answers the link's name alone. A request through the door carries
 //! [`BySeat`], which that door's router alone sets; the seat's token opens
-//! nothing anywhere else — "this app is a server" refuses every bearer
-//! credential that did not come in by it (`crate::auth::who`).
+//! nothing anywhere else — a bearer credential of this computer's own
+//! accounts that did not come in by it is refused (`devices.rs`,
+//! `Policy::bearer_who`).
 //!
 //! The session lives as long as serving: a stop ends it, a start sweeps
 //! one a crash left. It is no phone (it has no row in `phones`), so the
@@ -257,7 +258,7 @@ impl Seat {
 
 impl Policy {
     /// The seat's session, while there is one.
-    fn seat_session(&self) -> Option<String> {
+    pub(super) fn seat_session(&self) -> Option<String> {
         self.seat
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -273,8 +274,8 @@ impl Policy {
 
     /// Who a bearer `secret` is, in "this app is a server": the owner, when
     /// it is the seat's token and the request came in by the seat's door
-    /// (`by_seat`); no one otherwise — a bearer credential opens nothing
-    /// here (ADR 0096 items 2 and 12).
+    /// (`by_seat`); no one otherwise. Through the door nothing else is
+    /// heard; elsewhere, see `Policy::bearer_who`.
     pub fn seat_who(
         &self,
         server: &Server,

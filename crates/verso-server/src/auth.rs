@@ -398,38 +398,15 @@ pub fn who(
     https: bool,
     by_seat: bool,
 ) -> Result<Option<Who>, String> {
-    // "This app is a server" has no tokens and no device sign-in: a bearer
-    // credential opens nothing (ADR 0096 items 2 and 12) — but the owner's
-    // window's seat, through its own door alone (ADR 0117 D4 Q3).
-    if let (Some(local), Some(secret)) = (&server.local, bearer(headers)) {
-        return local.seat_who(server, &secret, by_seat);
-    }
+    // "This app is a server" judges a bearer credential its own way: the
+    // owner's window's seat through its door alone (ADR 0117 D4 Q3), an
+    // invited account's devices elsewhere (D9, S11), never a phone or this
+    // computer's own accounts (`crate::local::Policy::bearer_who`).
     if let Some(secret) = bearer(headers) {
-        if secret.starts_with("verso_pat_") {
-            let Some(grant) = server.db.token(&secret)? else {
-                return Ok(None);
-            };
-            return Ok(server.db.account(&grant.account)?.map(|account| Who {
-                account,
-                via: Via::Token {
-                    id: grant.id,
-                    write: grant.write,
-                    folders: grant.folders,
-                },
-                phone: None,
-            }));
+        if let Some(local) = &server.local {
+            return local.bearer_who(server, &secret, by_seat);
         }
-        let Some(s) = server.db.session(&secret)? else {
-            return Ok(None);
-        };
-        if s.kind != "device" {
-            return Ok(None);
-        }
-        return Ok(server.db.account(&s.account)?.map(|account| Who {
-            account,
-            via: Via::Device { session: s.id },
-            phone: None,
-        }));
+        return bearer_who(server, &secret);
     }
     let Some(token) = cookie(headers, cookie_name(https)) else {
         return Ok(None);
@@ -467,6 +444,37 @@ pub fn who(
             csrf: s.csrf,
         },
         phone,
+    }))
+}
+
+/// Who a bearer `secret` is on a UniVerso: a personal access token
+/// (`verso_pat_`) or a device's session (ADR 0074 item 8); `None` for
+/// anything else, a browser's session included.
+pub(crate) fn bearer_who(server: &Server, secret: &str) -> Result<Option<Who>, String> {
+    if secret.starts_with("verso_pat_") {
+        let Some(grant) = server.db.token(secret)? else {
+            return Ok(None);
+        };
+        return Ok(server.db.account(&grant.account)?.map(|account| Who {
+            account,
+            via: Via::Token {
+                id: grant.id,
+                write: grant.write,
+                folders: grant.folders,
+            },
+            phone: None,
+        }));
+    }
+    let Some(s) = server.db.session(secret)? else {
+        return Ok(None);
+    };
+    if s.kind != "device" {
+        return Ok(None);
+    }
+    Ok(server.db.account(&s.account)?.map(|account| Who {
+        account,
+        via: Via::Device { session: s.id },
+        phone: None,
     }))
 }
 
