@@ -12,7 +12,7 @@ import { promptText } from "../dialog";
 import { button, h, ui } from "../dom";
 import { fail } from "../errors";
 import { deleteEntry, textBase64 } from "../files";
-import { allEntries, allFiles, allNotes, folderName, iconOfPath } from "../folder";
+import { allEntries, allFiles, allNotes, currentFolder, folderName, iconOfPath } from "../folder";
 import { humanDate, humanSize, kindLabel } from "../format";
 import { icon } from "../icons";
 import { noteImages } from "../images";
@@ -21,6 +21,7 @@ import { armDrag } from "../layout/drag";
 import { Pane } from "../layout/pane";
 import { tableViewer } from "../access";
 import { tableCard } from "../tableCard";
+import { receivedHost, receivedLine } from "../receivedHere";
 import { campaign } from "../campaign";
 import { mayShare } from "../shares";
 import { crumbsFor, crumbsNav, layout, liveHolder, openFolder, openNote, persistSoon } from "../layout/spaces";
@@ -191,6 +192,17 @@ export class FolderLeaf extends Leaf {
     const card = tableCard(this.path);
     this.tableBox.replaceChildren(...(card ? [card] : []));
     this.tableBox.hidden = !card;
+    // No table to offer: a folder of this computer received from another
+    // account on a UniVerso says why it is not served from here (ADR 0117
+    // D4.3), in the words of Settings' row.
+    if (!card && can("local_folders")) void this.paintReceived(key);
+  }
+  private async paintReceived(asked: string): Promise<void> {
+    const r = await commands.localServerFolders();
+    const host = r.status === "ok" ? receivedHost(r.data, currentFolder) : null;
+    if (!host || asked !== this.tableFor) return;
+    this.tableBox.replaceChildren(receivedLine(host));
+    this.tableBox.hidden = false;
   }
   setViewMode(mode: "table" | "grid" | "list"): void {
     this.viewMode = mode;

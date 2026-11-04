@@ -46,6 +46,8 @@ test release.
 
 ### Fixed
 
+- **A folder shared with you says on its own page why this computer does not serve it** (ADR 0117). A folder another account shared with you on a UniVerso, synced here, is not served from this computer; Settings said so beside the folder, and now the folder's page says it too, where the table strip would be: *Turn into a server — shared with you on …: only its owner can serve it*.
+
 - **The page of a folder's root lists its notes again** (since 0.4; the re-test of 2026-11-04). The table on the root's page said *Invalid expression: : empty expression* over *0 results*: the page's base wrote `filters:` with nothing after it, which was read as an empty filter instead of none. A base whose `filters:` (or a view's) is empty now has no filter, so a saved `index.base` with that line shows its notes too.
 
 - **A new name reaches the table's next lines at once** (UniVerso and the app; the re-test of 2026-11-04). After **Your name for the players** was changed in Settings, the game master's window at the table kept writing the old name into the chat and the rolls until it left the table and sat again; the next line now carries the new name, and what was said before keeps the name it was said under. The same holds for a person who renames their account on a UniVerso with a window open.
