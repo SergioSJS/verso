@@ -299,22 +299,33 @@ fn the_link_beside_the_network_leaves_phones_and_pairing_as_they_were() {
     });
 }
 
-/// The links the server hands out are built from the link's origin while
-/// it has one, and are a path otherwise (the window adds its address).
+/// The links the server hands out — the table's invitation as Settings'
+/// — open where this server is reached now: the link's origin while it has
+/// one, else the network's address; the same as `LocalServer::links_base`,
+/// so the two invitations never name two places.
 #[test]
 fn links_handed_out_carry_the_links_origin() {
     run(async {
         let mut lab = lab();
         lab.serve();
         let server = running_server(&lab);
-        assert_eq!(crate::window_link(&server, "/invite/abc"), "/invite/abc");
+        let network = format!("https://127.0.0.1:{}", lab.port);
+        assert_eq!(lab.local.links_base().as_deref(), Some(network.as_str()));
+        assert_eq!(
+            crate::window_link(&server, "/invite/abc"),
+            format!("{network}/invite/abc")
+        );
         lab.local.link_open().unwrap();
         lab.local.set_link_origin(Some(ORIGIN)).unwrap();
+        assert_eq!(lab.local.links_base().as_deref(), Some(ORIGIN));
         assert_eq!(
             crate::window_link(&server, "/invite/abc"),
             format!("{ORIGIN}/invite/abc")
         );
         lab.local.link_close();
-        assert_eq!(crate::window_link(&server, "/invite/abc"), "/invite/abc");
+        assert_eq!(
+            crate::window_link(&server, "/invite/abc"),
+            format!("{network}/invite/abc")
+        );
     });
 }

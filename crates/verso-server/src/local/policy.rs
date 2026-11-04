@@ -68,6 +68,10 @@ pub struct Policy {
     /// it has one (ADR 0117 D3 item 4): set at runtime, gone the moment
     /// the link is off.
     pub(super) link: RwLock<Option<super::link::Origin>>,
+    /// Where the network's listeners are reached, while there are any:
+    /// the host's own name with its own certificate files, or the best
+    /// address (ADR 0117 D13 Q8). Set at each start.
+    pub(super) net_base: RwLock<Option<String>>,
     /// The named proxies of the link's loopback listener.
     pub(super) link_proxies: crate::proxy::Proxies,
     /// The session of the owner's window's seat, while there is one (ADR
@@ -96,6 +100,7 @@ impl Policy {
             full_said: Mutex::new(HashMap::new()),
             parts: parts::Parts::default(),
             link: RwLock::new(None),
+            net_base: RwLock::new(None),
             link_proxies: crate::proxy::Proxies::loopback(),
             seat: RwLock::new(None),
             #[cfg(test)]
@@ -127,6 +132,28 @@ impl Policy {
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             (port, served.iter().map(|n| n.ip).collect());
+    }
+
+    /// Where the network's listeners are reached (see `net_base`).
+    pub(super) fn set_net_base(&self, base: Option<String>) {
+        *self
+            .net_base
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = base;
+    }
+
+    /// Where the links this server hands out open now — an invitation's
+    /// from Settings or from the table, a new password's, a read link's:
+    /// the internet link's origin while it has one, else the network's
+    /// address; none while neither is there.
+    #[must_use]
+    pub fn links_base(&self) -> Option<String> {
+        self.link_origin().or_else(|| {
+            self.net_base
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone()
+        })
     }
 
     pub(super) fn set_folders(&self, folders: HashMap<String, PathBuf>) {

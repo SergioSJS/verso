@@ -18,7 +18,7 @@
 
 use serde::Serialize;
 
-use super::{LocalServer, Running, lock, net};
+use super::{LocalServer, Running, lock};
 use crate::db::{Audit, Db, INVITE_LIFE, NewLink, Role};
 
 /// An invitation just made: its link is said this once.
@@ -48,19 +48,10 @@ pub struct InvitationRow {
 
 /// Where an invitation is opened: the link's origin while it has one, else
 /// the network's address this server is reached at — the host's own name
-/// with its own certificate files, or the best address (D4 Q8).
+/// with its own certificate files, or the best address (D4 Q8). The same
+/// as the table's invitation (`crate::window_link`): `Policy::links_base`.
 pub(super) fn base(r: &Running) -> Option<String> {
-    if let Some(origin) = r.policy.link_origin() {
-        return Some(origin);
-    }
-    let first = r.nets.first()?;
-    let named = super::read_settings(&r.server.db)
-        .host_name
-        .filter(|h| !h.is_empty() && r.certificate == "files");
-    Some(match named {
-        Some(h) => format!("https://{h}:{}", r.port),
-        None => format!("https://{}", net::authority(first.ip, r.port)),
-    })
+    r.policy.links_base()
 }
 
 fn audit(db: &Db, action: &str, subject: &str, folder: Option<&str>) {

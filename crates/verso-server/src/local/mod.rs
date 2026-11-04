@@ -606,6 +606,16 @@ impl LocalServer {
             .test_loopback
             .store(self.shared.loopback, Ordering::Relaxed);
         policy.set_network(&nets, port, &extra);
+        policy.set_net_base(nets.first().map(|first| {
+            match settings
+                .host_name
+                .as_deref()
+                .filter(|h| !h.is_empty() && certificate == "files")
+            {
+                Some(h) => format!("https://{h}:{port}"),
+                None => format!("https://{}", net::authority(first.ip, port)),
+            }
+        }));
         policy.set_folders(folders);
         for (folder, part) in &reconciled.dropped {
             crate::log::warn(&format!(

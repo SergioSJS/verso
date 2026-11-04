@@ -162,10 +162,12 @@ fn base_url(config: &Config) -> String {
 /// by (the listening address may be the wildcard, and `Host` is not trusted,
 /// ADR 0045), so the window puts its own server's address before it. A link
 /// that leaves by mail has no window and uses [`base_url`]. "This app is a
-/// server" with the internet link on builds it from the link's origin,
-/// which is what a player reaches (ADR 0117 D3 item 4).
+/// server" builds it from where a player reaches it now — the internet
+/// link's origin while it has one (ADR 0117 D3 item 4), else the network's
+/// address — the same base as the invitations of its Settings
+/// (`local::Policy::links_base`), so the two never name two places.
 pub(crate) fn window_link(server: &state::Server, path: &str) -> String {
-    let link = server.local.as_ref().and_then(|l| l.link_origin());
+    let link = server.local.as_ref().and_then(|l| l.links_base());
     match server.config.public_url.as_deref().or(link.as_deref()) {
         Some(base) => format!("{}{path}", base.trim_end_matches('/')),
         None => path.to_owned(),
