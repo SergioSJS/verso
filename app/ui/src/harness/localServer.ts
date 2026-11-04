@@ -16,7 +16,9 @@
 // runs here — `app/src-tauri/src/tunnel/tests.rs` drives a fake one); an
 // own address is set up after a login; invitations are made, listed and
 // ended. A test makes the link fail with `failLink(words)`, and makes it
-// end by itself with `__harness.emit("local-server-link", …)`.
+// end by itself with `__harness.emit("local-server-link", …)`; with
+// `slowLink(done, total)` the next turn-on stays downloading cloudflared
+// (bytes so far and in all) until the link is turned off.
 //
 // S7c: another person's desktop app signs in (`signInDevice`, a test's)
 // and is listed and ended; the read links' switch, off at first; and the
@@ -85,12 +87,15 @@ export class LocalServerHarness {
   private network = true;
   /** Serving on the network now (the link alone serves on no address). */
   private lan = false;
-  private link: LocalLink = { state: "off", origin: null, until: null, own: false, ended: null, protocol: null, qr: [] };
+  private link: LocalLink = { state: "off", origin: null, until: null, own: false, ended: null, protocol: null, qr: [], download: null };
   private linkOwn = false;
   private own: { hostname: string } | null = null;
   private signedIn = false;
   /** The words the next `local_server_link_on` fails with (a test's). */
   private linkFailure: string | null = null;
+  private slow: { done: number; total: number | null } | null = null;
+  /** The turn-on under way while it downloads: ended by a turn-off. */
+  private downloading: ((link: LocalLink) => void) | null = null;
   private invites: LocalInvitation[] = [];
   /** The window sits at its own server's table (ADR 0117 D4 Q3). */
   private seated = false;
@@ -155,6 +160,12 @@ export class LocalServerHarness {
     this.linkFailure = words;
   }
 
+  /** The next turn-on of the link stays downloading cloudflared, `done`
+   *  bytes of `total`, until the link is turned off. */
+  slowLink(done: number, total: number | null): void {
+    this.slow = { done, total };
+  }
+
   /** The link's state as the host's event would set it (a test's). */
   setLink(link: Partial<LocalLink>): void {
     this.link = { ...this.link, ...link };
@@ -170,7 +181,12 @@ export class LocalServerHarness {
   }
 
   private linkOff(ended: LocalLink["ended"]): LocalLink {
-    this.link = { state: "off", origin: null, until: null, own: false, ended, protocol: null, qr: [] };
+    this.link = { state: "off", origin: null, until: null, own: false, ended, protocol: null, qr: [], download: null };
+    // A download under way hears the stop: its turn-on ends refused, as
+    // the host's does.
+    const ending = this.downloading;
+    this.downloading = null;
+    if (ending) ending({ ...this.link });
     // As the server: with the network's box unticked nothing is left to serve.
     if (!this.lan) {
       this.serving = false;
@@ -419,11 +435,21 @@ export class LocalServerHarness {
       }
       if (this.ticked.size === 0) refuse("tick at least one folder to serve");
       if (this.linkOwn && !this.own) refuse("set up your own address first, or use a quick link");
+      const slow = this.slow;
+      if (slow !== null) {
+        // As the host: starting from the click, serving not yet started.
+        this.slow = null;
+        this.link = { ...this.link, state: "starting", ended: null, download: { done: slow.done, total: slow.total } };
+        void emit("local-server-link", { ...this.link });
+        return new Promise<LocalLink>((_, reject) => {
+          this.downloading = () => reject({ kind: "refused", message: "the link was stopped" } satisfies ContractError);
+        }) as unknown as LocalLink;
+      }
       if (!this.serving) this.dropped = [];
       this.serving = true;
       const origin = this.linkOwn && this.own ? `https://${this.own.hostname}` : "https://exemplo-de-mesa.trycloudflare.com";
       const until = this.linkOwn ? null : Math.floor(Date.now() / 1000) + 12 * 3600;
-      this.link = { state: "on", origin, until, own: this.linkOwn, ended: null, protocol: "quic", qr: square() };
+      this.link = { state: "on", origin, until, own: this.linkOwn, ended: null, protocol: "quic", qr: square(), download: null };
       this.log("link_on");
       return { ...this.link };
     },

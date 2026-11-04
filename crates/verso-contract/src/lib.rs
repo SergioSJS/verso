@@ -25,9 +25,9 @@ pub use read_links::{ReadLinkInfo, ReadLinkMade, ReadLinks};
 mod local;
 pub use local::{
     LocalAddressChoice, LocalAsked, LocalAudit, LocalDevice, LocalFolder, LocalInvitation,
-    LocalInvite, LocalLink, LocalLinkEnd, LocalLinkState, LocalOwnAddress, LocalOwnLogin,
-    LocalPairState, LocalPairing, LocalPhone, LocalPlayer, LocalPlayerReach, LocalReset,
-    LocalServerStatus,
+    LocalInvite, LocalLink, LocalLinkDownload, LocalLinkEnd, LocalLinkState, LocalOwnAddress,
+    LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer, LocalPlayerReach,
+    LocalReset, LocalServerStatus,
 };
 mod folder_data;
 pub use folder_data::{

@@ -161,6 +161,9 @@ pub struct LinkView {
     /// How `cloudflared` reached Cloudflare while on: `quic`, or `http2`
     /// after QUIC found no way out (`run::up`).
     pub protocol: Option<String>,
+    /// While starting, the download of `cloudflared` under way: the bytes
+    /// so far and in all.
+    pub download: Option<(u64, Option<u64>)>,
 }
 
 /// What the window is told: the contract's form of a [`LinkView`].
@@ -192,6 +195,12 @@ pub fn contract(view: &LinkView) -> verso_contract::LocalLink {
             .as_deref()
             .and_then(|o| verso_server::local::qr::matrix(o).ok())
             .unwrap_or_default(),
+        download: view
+            .download
+            .map(|(done, total)| verso_contract::LocalLinkDownload {
+                done: u32::try_from(done).unwrap_or(u32::MAX),
+                total: total.map(|t| u32::try_from(t).unwrap_or(u32::MAX)),
+            }),
     }
 }
 
@@ -212,6 +221,8 @@ enum Phase {
         generation: u64,
         cancel: Arc<AtomicBool>,
         own: bool,
+        /// The download of `cloudflared` under way, how far it got.
+        download: Option<(u64, Option<u64>)>,
     },
     On(Running),
     Offline,
@@ -309,17 +320,18 @@ impl Manager {
         mode: Mode,
     ) -> Result<LinkView, String> {
         let program = program.to_path_buf();
-        self.start_after(mode, move || Ok((door, program)))
+        self.start_after(mode, move |_| Ok((door, program)))
     }
 
     /// [`Self::start`] once `prepare` said the door and the program — the
     /// download of `cloudflared` on first use. The link is starting from
-    /// before `prepare`: a stop while it runs is heard, and nothing opens
-    /// after it.
+    /// before `prepare`: a stop while it runs is heard — `prepare` reads it
+    /// in [`Preparing::downloaded`], which ends the download — and nothing
+    /// opens after it.
     pub fn start_after(
         &self,
         mode: Mode,
-        prepare: impl FnOnce() -> Result<(Box<dyn Door>, PathBuf), String>,
+        prepare: impl FnOnce(&Preparing) -> Result<(Box<dyn Door>, PathBuf), String>,
     ) -> Result<LinkView, String> {
         let shared = &self.shared;
         let own = matches!(mode, Mode::Own { .. });
@@ -334,12 +346,21 @@ impl Manager {
                 generation,
                 cancel: Arc::clone(&cancel),
                 own,
+                download: None,
             };
             generation
         };
         shared.emit();
-        let up = prepare()
-            .and_then(|(door, program)| self.bring_up(door, &program, &mode, generation, &cancel));
+        let preparing = Preparing {
+            shared: Arc::clone(shared),
+            generation,
+            cancel: Arc::clone(&cancel),
+            told: Mutex::new(None),
+        };
+        let up = prepare(&preparing).and_then(|(door, program)| {
+            preparing.downloaded_all();
+            self.bring_up(door, &program, &mode, generation, &cancel)
+        });
         match up {
             Ok(view) => Ok(view),
             Err(why) => {
@@ -500,6 +521,67 @@ impl Manager {
         crate::log::write("INFO", "host", "the internet link was extended");
         self.shared.emit();
         Ok(view)
+    }
+}
+
+/// A start's preparation (the download of `cloudflared`): what it hears
+/// of a stop, and what it says of the download, which the window shows.
+pub struct Preparing {
+    shared: Arc<Shared>,
+    generation: u64,
+    cancel: Arc<AtomicBool>,
+    /// When the window was last told how far the download got.
+    told: Mutex<Option<std::time::Instant>>,
+}
+
+/// How often the window is told how far the download got, at most.
+const TELL_EVERY: Duration = Duration::from_millis(250);
+
+impl Preparing {
+    /// `done` bytes of `total` downloaded: the window is told, a few times
+    /// a second at most. Says whether to go on — false once the link was
+    /// stopped (*Cancel*, *Stop serving*, the app's end).
+    pub fn downloaded(&self, done: u64, total: Option<u64>) -> bool {
+        if self.cancel.load(Ordering::SeqCst) {
+            return false;
+        }
+        {
+            let mut phase = lock(&self.shared.phase);
+            match &mut *phase {
+                Phase::Starting {
+                    generation,
+                    download,
+                    ..
+                } if *generation == self.generation => *download = Some((done, total)),
+                _ => return false,
+            }
+        }
+        let mut told = lock(&self.told);
+        let last = total.is_some_and(|t| done >= t);
+        if last || told.is_none_or(|at| at.elapsed() >= TELL_EVERY) {
+            *told = Some(std::time::Instant::now());
+            drop(told);
+            self.shared.emit();
+        }
+        true
+    }
+
+    /// The download is over: the window says the link is starting again.
+    fn downloaded_all(&self) {
+        let was = {
+            let mut phase = lock(&self.shared.phase);
+            match &mut *phase {
+                Phase::Starting {
+                    generation,
+                    download,
+                    ..
+                } if *generation == self.generation => download.take(),
+                _ => None,
+            }
+        };
+        if was.is_some() {
+            self.shared.emit();
+        }
     }
 }
 
@@ -676,14 +758,16 @@ fn view_of(phase: &Phase) -> LinkView {
             own: false,
             ended: *ended,
             protocol: None,
+            download: None,
         },
-        Phase::Starting { own, .. } => LinkView {
+        Phase::Starting { own, download, .. } => LinkView {
             state: LinkState::Starting,
             origin: None,
             until_ms: None,
             own: *own,
             ended: None,
             protocol: None,
+            download: *download,
         },
         Phase::On(r) => LinkView {
             state: LinkState::On,
@@ -692,6 +776,7 @@ fn view_of(phase: &Phase) -> LinkView {
             own: r.own,
             ended: None,
             protocol: Some(r.protocol.clone()).filter(|p| !p.is_empty()),
+            download: None,
         },
         Phase::Offline => LinkView {
             state: LinkState::Offline,
@@ -700,6 +785,7 @@ fn view_of(phase: &Phase) -> LinkView {
             own: false,
             ended: Some(LinkEnd::Exited),
             protocol: None,
+            download: None,
         },
     }
 }
@@ -747,9 +833,18 @@ fn dir<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> 
 /// The pinned `cloudflared`, fetched and checked if needed (blocking: a
 /// download). Its first run is `--version`.
 pub fn binary<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
+    binary_going(app, &|_, _| true)
+}
+
+/// [`binary`], telling `going` how far a download got (it ends the
+/// download when it answers false).
+fn binary_going<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    going: &fetch::Going<'_>,
+) -> Result<PathBuf, String> {
     let pin = fetch::pin_here()
         .ok_or_else(|| "no cloudflared is published for this system".to_owned())?;
-    let (path, fresh) = fetch::ensure(&dir(app)?, pin, &mut fetch::download)?;
+    let (path, fresh) = fetch::ensure_going(&dir(app)?, pin, &mut fetch::download_sized, going)?;
     if fresh {
         run::version_check(&path, fetch::VERSION)?;
     }
@@ -762,8 +857,8 @@ pub fn binary<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, S
 fn start<R: tauri::Runtime>(app: &tauri::AppHandle<R>, mode: Mode) -> Result<LinkView, String> {
     let local = crate::local_server::server_for_link(app)?;
     let asked = local.stops();
-    manager(app).start_after(mode, || {
-        let program = binary(app)?;
+    manager(app).start_after(mode, |preparing| {
+        let program = binary_going(app, &|done, total| preparing.downloaded(done, total))?;
         Ok((Box::new(Serving { local, asked }) as Box<dyn Door>, program))
     })
 }
@@ -899,5 +994,12 @@ pub(crate) fn stop_with<R: tauri::Runtime>(app: &tauri::AppHandle<R>, why: LinkE
     let slot = &app.state::<crate::App>().inner().local_server.link;
     if let Some(m) = slot.manager.get() {
         m.stop(why);
+    }
+    // The app ends before a download cut short hears the stop: nothing of
+    // it stays behind.
+    if why == LinkEnd::Quit
+        && let Ok(dir) = dir(app)
+    {
+        fetch::forget_partial(&dir);
     }
 }

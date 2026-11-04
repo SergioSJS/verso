@@ -21,6 +21,10 @@ use std::path::Path;
 
 use sha2::Digest;
 
+/// The words of a download ended by a stop: the window's `linkWhy` reads
+/// them as the link turned off before it was up.
+pub(crate) const STOPPED: &str = "the link was stopped";
+
 /// The directory, made if it is not there; `0700` on Unix (it will hold a
 /// tunnel's credentials).
 pub(crate) fn make_dir(dir: &Path) -> Result<(), String> {
@@ -59,6 +63,18 @@ pub(crate) fn sha256_of(path: &Path) -> Result<Option<String>, String> {
 /// hashing what passes; more than `cap` bytes is refused. Synced before it
 /// returns. Says the SHA-256 of what was written.
 pub(crate) fn store(from: &mut dyn Read, to: &Path, cap: u64) -> Result<String, String> {
+    store_watched(from, to, cap, &mut |_| true)
+}
+
+/// [`store`], `going` told the bytes written so far after each piece: when
+/// it answers false the copy ends there, refused with [`STOPPED`] (the
+/// caller removes the file).
+pub(crate) fn store_watched(
+    from: &mut dyn Read,
+    to: &Path,
+    cap: u64,
+    going: &mut dyn FnMut(u64) -> bool,
+) -> Result<String, String> {
     let mut file = create(to)?;
     let mut hasher = sha2::Sha256::new();
     let mut buffer = vec![0u8; 128 * 1024];
@@ -80,6 +96,9 @@ pub(crate) fn store(from: &mut dyn Read, to: &Path, cap: u64) -> Result<String, 
         hasher.update(&buffer[..n]);
         file.write_all(&buffer[..n])
             .map_err(|e| format!("writing {}: {e}", name_of(to)))?;
+        if !going(total) {
+            return Err(STOPPED.to_owned());
+        }
     }
     file.sync_all()
         .map_err(|e| format!("writing {}: {e}", name_of(to)))?;

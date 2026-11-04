@@ -23,7 +23,11 @@ const pt = {
   tickOne: "Marque “Na minha rede”, “Por um link na internet”, ou os dois.",
   servingLinkOnly: "Servindo só pelo link na internet.",
   pairNeedsNetwork: "Parear um celular é pela sua rede: marque “Na minha rede” (pare de servir para mudar).",
-  starting: "Ligando o link… Na primeira vez o Verso baixa o cloudflared, da Cloudflare (cerca de 40 MB), e confere a soma dele.",
+  starting: "Ligando o link…",
+  downloading: (done: number, total: number | null): string =>
+    `Baixando o cloudflared, da Cloudflare: ${total === null ? `${done} MB` : `${done} de ${total} MB`}. Só na primeira vez; depois o Verso confere a soma dele e liga o link.`,
+  cancel: "Cancelar",
+  cancelled: "Cancelado: o link não foi ligado.",
   on: "Link no ar.",
   onOwn: "Seu endereço está no ar.",
   off: "Link desligado.",
@@ -137,6 +141,8 @@ const pt = {
   seatGone: "O servidor parou: a janela voltou à pasta deste computador.",
   // The status bar's mark.
   markLink: "Servindo · link na internet",
+  markLinkStarting: "Servindo · ligando o link…",
+  markOnlyStarting: "Ligando o link…",
   markSeated: "Na mesa",
   linkFell: "O link pela internet caiu",
 };
@@ -154,7 +160,11 @@ const en: typeof pt = {
   tickOne: "Tick “On my network”, “By an internet link”, or both.",
   servingLinkOnly: "Serving by the internet link only.",
   pairNeedsNetwork: "A phone pairs over your network: tick “On my network” (stop serving to change it).",
-  starting: "Turning the link on… The first time, Verso downloads cloudflared, Cloudflare's program (about 40 MB), and checks its sum.",
+  starting: "Turning the link on…",
+  downloading: (done, total) =>
+    `Downloading cloudflared, Cloudflare's program: ${total === null ? `${done} MB` : `${done} of ${total} MB`}. Only the first time; then Verso checks its sum and turns the link on.`,
+  cancel: "Cancel",
+  cancelled: "Cancelled: the link was not turned on.",
   on: "The link is up.",
   onOwn: "Your address is up.",
   off: "The link is off.",
@@ -260,6 +270,8 @@ const en: typeof pt = {
   seatNeeds: "Tick this window's folder (all of it) and turn the server on to sit at its table.",
   seatGone: "The server stopped: the window went back to this computer's folder.",
   markLink: "Serving · internet link",
+  markLinkStarting: "Serving · turning the link on…",
+  markOnlyStarting: "Turning the link on…",
   markSeated: "At the table",
   linkFell: "The internet link dropped",
 };
@@ -296,6 +308,11 @@ export function linkWhy(message: string, w: LinkWords): string | null {
   if (m.includes("that app is not signed in here")) return w.why.appGone;
   if (m.includes("that person has no account here")) return w.why.personGone;
   return null;
+}
+
+/** Bytes as whole megabytes (MiB), for the download's progress. */
+export function megabytes(bytes: number): number {
+  return Math.round(bytes / 1_048_576);
 }
 
 /** What is left of a quick link's twelve hours at `nowMs`: whole hours and

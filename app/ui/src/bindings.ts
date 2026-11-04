@@ -3202,6 +3202,19 @@ export type LocalLink = {
 	 *  table to scan (D3 item 6); empty while off. The window draws it.
 	 */
 	qr: string[],
+	/**
+	 *  While starting, the download of `cloudflared` under way (its first
+	 *  use): how far it got. None when nothing downloads.
+	 */
+	download: LocalLinkDownload | null,
+};
+
+/**  How far the download of `cloudflared` got. */
+export type LocalLinkDownload = {
+	/**  Bytes downloaded so far. */
+	done: number,
+	/**  Bytes in all, when GitHub said. */
+	total: number | null,
 };
 
 /**  Why the link last ended. */

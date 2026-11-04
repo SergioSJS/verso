@@ -62,7 +62,10 @@ async function refreshMark(): Promise<void> {
   const r = await commands.localServerStatus();
   if (r.status !== "ok" || !r.data.supported) return markOff();
   const s = r.data;
-  if (!s.serving) return markOff();
+  // Starting the link alone, nothing serves yet: the mark says so, with
+  // its Stop, while cloudflared downloads (Linux has no tray).
+  const linkStarting = s.link.state === "starting";
+  if (!s.serving && !linkStarting) return markOff();
   const w = localStrings();
   // An app that started serving by itself before this window listened.
   if (s.dropped.length > 0) serveDroppedHeard(w.droppedSaid(s.dropped.join(", ")));
@@ -90,9 +93,11 @@ async function refreshMark(): Promise<void> {
   const text = mark.querySelector<HTMLElement>(".ls-mark-text");
   // The internet link is said in the mark while it is on (ADR 0117 D3
   // item 6): nothing listens on the internet without being visible.
-  const linkOn = s.link.state === "on" || s.link.state === "starting";
-  if (text) text.textContent = linkOn ? linkStrings().markLink : w.mark(s.phones_connected);
-  mark.title = linkOn && s.link.origin ? s.link.origin : where(s);
+  // Up only once it has its address; until then, "turning the link on".
+  const lw = linkStrings();
+  const said = linkStarting ? (s.serving ? lw.markLinkStarting : lw.markOnlyStarting) : s.link.state === "on" ? lw.markLink : w.mark(s.phones_connected);
+  if (text) text.textContent = said;
+  mark.title = s.link.state === "on" && s.link.origin ? s.link.origin : s.serving ? where(s) : said;
   seatOnMark(mark);
 }
 

@@ -15,7 +15,7 @@ import { commands, type ContractError, type LocalLink, type LocalServerStatus } 
 import { button, h } from "../dom";
 import { errorSentence } from "../errors";
 import { busy } from "../reach";
-import { clockAt, linkStrings, linkWhy, timeLeft } from "./localServerLinkStrings";
+import { clockAt, linkStrings, linkWhy, megabytes, timeLeft } from "./localServerLinkStrings";
 import { ownAddress } from "./localServerOwn";
 import { drawQr } from "./qr";
 
@@ -42,7 +42,11 @@ export function whyOf(e: ContractError | unknown): string {
 /** What the panel's live line says for the link `l`. */
 export function linkSentence(l: LocalLink): string {
   const w = linkStrings();
-  if (l.state === "starting") return w.starting;
+  if (l.state === "starting") {
+    // The download's words only while it downloads (its first use).
+    const d = l.download;
+    return d ? w.downloading(megabytes(d.done), d.total === null ? null : megabytes(d.total)) : w.starting;
+  }
   if (l.state === "on") return l.own ? w.onOwn : w.on;
   if (l.state === "offline") return w.offline;
   return (l.ended && w.ended[l.ended]) || w.off;
@@ -93,12 +97,19 @@ export function linkBoxes(ctx: Ctx): Boxes {
   extend.type = "button";
   extend.setAttribute("aria-describedby", left.id);
   const notes = h("div", "ls-link-notes");
+  // While it starts (the first download of cloudflared can take minutes):
+  // the way to stop, here, where the person waits — Linux has no tray.
+  const cancel = button("btn", w.cancel);
+  cancel.type = "button";
+  cancel.classList.add("ls-link-cancel");
+  cancel.hidden = true;
   const own = ownAddress(ctx);
-  panel.append(live, where, left, extend, notes);
+  panel.append(live, where, left, extend, cancel, notes);
   el.append(title, netRow, netHelp, linkRow, linkHelp, testing, panel, own.el);
 
   let status: LocalServerStatus | null = null;
   let wish = false;
+  let cancelling = false;
   let timer = 0;
   let shownOrigin = "";
 
@@ -161,6 +172,7 @@ export function linkBoxes(ctx: Ctx): Boxes {
     live.textContent = panel.hidden ? "" : !up && wish && !s.serving ? w.linkLater : linkSentence(l);
     drawWhere(l);
     extend.hidden = !(l.state === "on" && l.until !== null);
+    cancel.hidden = l.state !== "starting";
     notes.replaceChildren();
     if (l.state === "on" && l.protocol === "http2") notes.append(h("p", "ls-help", w.http2));
     if (l.state === "on" && !l.own) notes.append(h("p", "ls-help", w.newEachRun));
@@ -179,7 +191,8 @@ export function linkBoxes(ctx: Ctx): Boxes {
     if (r.status !== "ok") {
       wish = false;
       link.checked = false;
-      const said = whyOf(r.error);
+      const said = cancelling ? w.cancelled : whyOf(r.error);
+      cancelling = false;
       live.textContent = said;
       ctx.say(said);
       ctx.redraw();
@@ -222,6 +235,22 @@ export function linkBoxes(ctx: Ctx): Boxes {
         return ctx.say(whyOf(r.error));
       }
       ctx.say(w.off);
+      ctx.redraw();
+    });
+  });
+  cancel.addEventListener("click", () => {
+    cancelling = true;
+    busy(cancel, true);
+    void commands.localServerLinkOff().then((r) => {
+      busy(cancel, false);
+      if (r.status !== "ok") {
+        cancelling = false;
+        return ctx.say(whyOf(r.error));
+      }
+      wish = false;
+      link.checked = false;
+      live.textContent = w.cancelled;
+      ctx.say(w.cancelled);
       ctx.redraw();
     });
   });

@@ -316,6 +316,7 @@ fn the_window_is_told_the_link_in_seconds_and_with_how_it_reached_cloudflare() {
         own: false,
         ended: None,
         protocol: Some("http2".to_owned()),
+        download: None,
     });
     assert_eq!(on.until, Some(1_800_000_000));
     assert_eq!(on.protocol.as_deref(), Some("http2"));
@@ -330,6 +331,7 @@ fn the_window_is_told_the_link_in_seconds_and_with_how_it_reached_cloudflare() {
         own: false,
         ended: Some(LinkEnd::Ceiling),
         protocol: None,
+        download: None,
     });
     assert_eq!(
         serde_json::to_value(&ended).unwrap()["ended"],

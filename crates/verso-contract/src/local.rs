@@ -124,6 +124,18 @@ pub struct LocalLink {
     /// The origin as a QR, rows of `1` (dark) and `0`, for a phone at the
     /// table to scan (D3 item 6); empty while off. The window draws it.
     pub qr: Vec<String>,
+    /// While starting, the download of `cloudflared` under way (its first
+    /// use): how far it got. None when nothing downloads.
+    pub download: Option<LocalLinkDownload>,
+}
+
+/// How far the download of `cloudflared` got.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalLinkDownload {
+    /// Bytes downloaded so far.
+    pub done: u32,
+    /// Bytes in all, when GitHub said.
+    pub total: Option<u32>,
 }
 
 /// The person's own address for the link (ADR 0117 D10 (a)): a hostname of

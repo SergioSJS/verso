@@ -621,7 +621,7 @@ fn stop_during_the_first_download_opens_nothing() {
     let started = std::thread::scope(|s| {
         let (m, door, program) = (&m, &door, &program);
         let start = s.spawn(move || {
-            m.start_after(Mode::Quick, move || {
+            m.start_after(Mode::Quick, move |_| {
                 // A slow download: it ends when the test says.
                 downloading.send(()).unwrap();
                 finish.recv().unwrap();
@@ -652,6 +652,107 @@ fn stop_during_the_first_download_opens_nothing() {
         (LinkState::Off, None, Some(LinkEnd::Stopped))
     );
     assert_eq!(m.pid(), None);
+}
+
+/// A download that hands a piece each time the test says, and counts the
+/// pieces read.
+#[cfg(unix)]
+struct Paced {
+    piece: Vec<u8>,
+    pieces: usize,
+    go: std::sync::mpsc::Receiver<()>,
+    read: Arc<Mutex<usize>>,
+}
+
+#[cfg(unix)]
+impl Read for Paced {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let mut read = self.read.lock().unwrap();
+        if *read == self.pieces || self.go.recv().is_err() {
+            return Ok(0);
+        }
+        *read += 1;
+        let n = self.piece.len().min(buf.len());
+        buf[..n].copy_from_slice(&self.piece[..n]);
+        Ok(n)
+    }
+}
+
+/// *Cancel* during the first download of `cloudflared`: the window was
+/// told how far it got, the download ends at the next piece — not read to
+/// its end — nothing of it is left in the folder, no binary is kept, and
+/// the door is never opened. At the app's end a `.part` left behind is
+/// removed too.
+#[cfg(unix)]
+#[test]
+fn cancel_during_the_download_ends_it_and_leaves_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let (m, seen) = manager_with(CEILING);
+    let door = FakeDoor::default();
+    let piece = vec![7u8; 1000];
+    let pin = bare_pin(&[7u8; 10_000]);
+    let read = Arc::new(Mutex::new(0usize));
+    let (go, gone) = std::sync::mpsc::channel::<()>();
+    let paced = Mutex::new(Some(Paced {
+        piece,
+        pieces: 10,
+        go: gone,
+        read: Arc::clone(&read),
+    }));
+    let started = std::thread::scope(|s| {
+        let go = go;
+        let (m, door, dir, pin, paced) = (&m, &door, dir.path(), &pin, &paced);
+        let start = s.spawn(move || {
+            m.start_after(Mode::Quick, move |preparing| {
+                let mut source = |_: &str| {
+                    let from = paced.lock().unwrap().take().unwrap();
+                    Ok((Box::new(from) as Box<dyn Read + Send>, Some(10_000)))
+                };
+                let (program, _) =
+                    fetch::ensure_going(dir, pin, &mut source, &|d, t| preparing.downloaded(d, t))?;
+                Ok((Box::new(door.clone()) as Box<dyn Door>, program))
+            })
+        });
+        go.send(()).unwrap();
+        go.send(()).unwrap();
+        let during = wait_for(m, Duration::from_secs(5), |v| {
+            v.download == Some((2000, Some(10_000)))
+        });
+        let stopped = m.stop(LinkEnd::Stopped);
+        // One more piece is let through: the download hears the stop there.
+        let _ = go.send(());
+        drop(go);
+        (during, stopped, start.join().unwrap())
+    });
+    let (during, stopped, started) = started;
+    assert_eq!(during.state, LinkState::Starting);
+    assert_eq!(
+        contract(&during).download,
+        Some(verso_contract::LocalLinkDownload {
+            done: 2000,
+            total: Some(10_000)
+        })
+    );
+    assert_eq!(stopped.download, None, "a stopped link downloads nothing");
+    assert_eq!(started.unwrap_err(), "the link was stopped");
+    assert!(*read.lock().unwrap() < 10, "the download ended early");
+    assert!(
+        files::names_in(dir.path()).is_empty(),
+        "left behind: {:?}",
+        files::names_in(dir.path())
+    );
+    assert!(door.calls().is_empty(), "{:?}", door.calls());
+    assert!(
+        seen.lock().unwrap().iter().any(|v| v.download.is_some()),
+        "the window was told how far it got"
+    );
+    // The app's end: what a cut download left is removed.
+    let part = dir
+        .path()
+        .join(format!(".cloudflared-{}.part", fetch::VERSION));
+    files::write(&part, b"half");
+    fetch::forget_partial(dir.path());
+    assert!(files::names_in(dir.path()).is_empty());
 }
 
 #[cfg(unix)]

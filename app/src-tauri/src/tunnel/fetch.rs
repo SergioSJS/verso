@@ -125,19 +125,45 @@ pub fn binary_path(dir: &Path) -> PathBuf {
 /// `.part` beside it.
 static FETCHING: Mutex<()> = Mutex::new(());
 
-/// Where a download is read from: the real one is [`download`]; the tests
-/// hand bytes.
+/// Where a download is read from: the tests hand bytes.
+#[cfg(test)]
 pub type Source<'s> = dyn FnMut(&str) -> Result<Box<dyn Read + Send>, String> + 's;
+
+/// A download and its size in bytes, when the server said it: the real one
+/// is [`download_sized`].
+pub type Sized<'s> = dyn FnMut(&str) -> Result<(Box<dyn Read + Send>, Option<u64>), String> + 's;
+
+/// What a download tells as it goes: the bytes so far and in all; it
+/// answers whether to go on (false: the person stopped the link).
+pub type Going<'g> = dyn Fn(u64, Option<u64>) -> bool + 'g;
 
 /// The pinned binary in `dir`, downloaded and checked when it is not there
 /// or is not the pinned one. Says its path, and whether it was fetched now
 /// (then the caller runs [`super::run::version_check`] before first use).
 /// A download whose sum is not the pinned one is refused, said why, and
-/// leaves no file behind.
+/// leaves no file behind. (The app goes through [`ensure_going`].)
+#[cfg(test)]
 pub fn ensure(
     dir: &Path,
     pin: &Pin<'_>,
     source: &mut Source<'_>,
+) -> Result<(PathBuf, bool), String> {
+    ensure_going(
+        dir,
+        pin,
+        &mut |url| source(url).map(|r| (r, None)),
+        &|_, _| true,
+    )
+}
+
+/// [`ensure`], telling `going` how far the download got; when it answers
+/// false the download ends there, nothing of it is kept (no `.part`), and
+/// it is refused with `files::STOPPED`.
+pub fn ensure_going(
+    dir: &Path,
+    pin: &Pin<'_>,
+    source: &mut Sized<'_>,
+    going: &Going<'_>,
 ) -> Result<(PathBuf, bool), String> {
     let _one = FETCHING
         .lock()
@@ -155,10 +181,12 @@ pub fn ensure(
         }
         None => {}
     }
+    if !going(0, None) {
+        return Err(files::STOPPED.to_owned());
+    }
     files::make_dir(dir)?;
-    let part = dir.join(format!(".cloudflared-{VERSION}.part"));
-    let inner = dir.join(format!(".cloudflared-{VERSION}.bin"));
-    let fetched = fetch_into(pin, source, &part, &inner).and_then(|ready| {
+    let (part, inner) = partial_paths(dir);
+    let fetched = fetch_into(pin, source, going, &part, &inner).and_then(|ready| {
         files::place_runnable(&ready, &binary)?;
         Ok((binary.clone(), true))
     });
@@ -174,16 +202,34 @@ pub fn ensure(
     fetched
 }
 
+/// The files a download writes before the binary is placed: the download,
+/// and a `.tgz`'s extracted binary.
+fn partial_paths(dir: &Path) -> (PathBuf, PathBuf) {
+    (
+        dir.join(format!(".cloudflared-{VERSION}.part")),
+        dir.join(format!(".cloudflared-{VERSION}.bin")),
+    )
+}
+
+/// At the app's end: a download cut short leaves nothing behind in `dir`
+/// (the process may end before the download hears the stop).
+pub fn forget_partial(dir: &Path) {
+    let (part, inner) = partial_paths(dir);
+    files::remove(&part);
+    files::remove(&inner);
+}
+
 /// Download into `part`, check it; for a `.tgz`, extract into `inner` and
 /// check that. Says the file that is ready to be placed.
 fn fetch_into(
     pin: &Pin<'_>,
-    source: &mut Source<'_>,
+    source: &mut Sized<'_>,
+    going: &Going<'_>,
     part: &Path,
     inner: &Path,
 ) -> Result<PathBuf, String> {
-    let mut from = source(&pin.url())?;
-    let got = files::store(&mut from, part, CAP)?;
+    let (mut from, total) = source(&pin.url())?;
+    let got = files::store_watched(&mut from, part, CAP, &mut |done| going(done, total))?;
     refuse_unless(&got, pin.sha256, pin.asset)?;
     if !pin.is_tgz() {
         return Ok(part.to_path_buf());
@@ -205,8 +251,8 @@ fn refuse_unless(got: &str, want: &str, what: &str) -> Result<(), String> {
 
 /// The real download: `https://github.com/…` only (and the redirect GitHub
 /// answers with, to its own asset store), as ADR 0050's revision by 0117
-/// says.
-pub fn download(url: &str) -> Result<Box<dyn Read + Send>, String> {
+/// says; with its size, when GitHub says it.
+pub fn download_sized(url: &str) -> Result<(Box<dyn Read + Send>, Option<u64>), String> {
     if !url.starts_with("https://github.com/cloudflare/cloudflared/releases/download/") {
         return Err("cloudflared is downloaded from its GitHub releases alone".to_owned());
     }
@@ -226,5 +272,6 @@ pub fn download(url: &str) -> Result<Box<dyn Read + Send>, String> {
             answer.status()
         ));
     }
-    Ok(Box::new(answer))
+    let total = answer.content_length();
+    Ok((Box::new(answer), total))
 }

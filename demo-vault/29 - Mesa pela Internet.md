@@ -26,7 +26,7 @@ Você quer jogar com gente que não está na sua casa, sem alugar servidor nem e
 1. Abra a pasta da campanha no Verso e vá em **Ajustes › Transformar em servidor**.
 2. Em **Pastas servidas**, marque a pasta da campanha. Nenhuma vem marcada. Para a mesa, sirva a **pasta inteira**: é ela que você vai convidar e é nela que você vai sentar.
 3. Em **Onde servir**, marque **Por um link na internet (Cloudflare, modo de teste)**. Se não quiser servir celulares na sua rede, deixe **Na minha rede** desmarcada: com só o link, o computador não aceita nada pela rede da casa.
-4. Toque em **Ligar o servidor**. Na **primeira vez** o Verso baixa o **cloudflared**, o programa da Cloudflare que abre o link (cerca de 40 MB), e confere a soma dele antes de usar. Demora um pouco; o painel diz o que está acontecendo.
+4. Toque em **Ligar o servidor**. Na **primeira vez** o Verso baixa o **cloudflared**, o programa da Cloudflare que abre o link (cerca de 40 MB), e confere a soma dele antes de usar. Demora um pouco; o painel mostra quantos MB já vieram, e **Cancelar** para tudo ali mesmo — nada liga depois e o arquivo pela metade é apagado.
 5. Quando aparecer **Link no ar.**, o painel mostra o **Endereço da mesa**, com **Copiar link** e **Mostrar o QR do link**. A barra de status passa a dizer **Servindo · link na internet**, e o **ícone do Verso** na barra de menus do Mac (ou na área de notificação do Windows) ganha uma linha **Link pela internet ligado**; no Linux fica só a marca da barra de status.
 
 O painel também diz:

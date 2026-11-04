@@ -73,6 +73,32 @@ test("the link alone serves: its address with Copy and a QR, the hours left with
   await expect(net).toBeEnabled();
 });
 
+test("the first download of cloudflared says how far it got and can be cancelled; nothing starts after", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
+  await body.getByRole("checkbox", { name: "Na minha rede" }).uncheck();
+  const link = body.getByRole("checkbox", { name: "Por um link na internet (Cloudflare, modo de teste)" });
+  await link.check();
+  await page.evaluate(() => window.__harness.core.localServer.slowLink(12 * 1048576, 40 * 1048576));
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await expect(body.locator(".ls-link-state")).toHaveText(/^Baixando o cloudflared, da Cloudflare: 12 de 40 MB\./);
+  // Where the person waits, and in the status bar: not "serving" yet.
+  await expect(page.locator("#local-mark")).toContainText("Ligando o link…");
+  await expect(page.locator("#local-mark")).not.toContainText("Servindo");
+  const cancel = body.getByRole("button", { name: "Cancelar", exact: true });
+  await expect(cancel).toBeVisible();
+  await cancel.click();
+  await expect(body.getByText("Cancelado: o link não foi ligado.").first()).toBeVisible();
+  await expect(link).not.toBeChecked();
+  await expect(cancel).toBeHidden();
+  await expect(page.locator("#local-mark")).toHaveCount(0);
+  await expect(body.getByRole("button", { name: "Ligar o servidor" })).toBeEnabled();
+  const s = await page.evaluate(() => window.__harness.core.invoke("local_server_status", {}));
+  expect([s.serving, s.link.state]).toEqual([false, "off"]);
+});
+
 test("neither box ticked does not start; a link that fails says why in words, and one that drops says the table is offline", async ({ app, page }) => {
   await app.open();
   await section(app);

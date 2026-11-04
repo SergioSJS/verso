@@ -98,3 +98,17 @@ test("both languages have every word, none empty", () => {
   assert.match(en.left(3, 5, "23:15"), /3 h 05 min/);
   globalThis.document.documentElement.lang = "pt-BR";
 });
+
+test("the download is said only while it downloads, in megabytes of the whole", () => {
+  globalThis.document.documentElement.lang = "pt-BR";
+  const w = L.linkStrings();
+  // Every start says "turning on"; the download's words are its own.
+  assert.doesNotMatch(w.starting, /cloudflared|baix/i);
+  assert.equal(L.megabytes(12 * 1_048_576 + 300_000), 12);
+  assert.match(w.downloading(12, 40), /12 de 40 MB/);
+  assert.match(w.downloading(12, null), /12 MB/);
+  assert.match(w.markLinkStarting, /ligando o link/);
+  globalThis.document.documentElement.lang = "en";
+  assert.match(L.linkStrings().downloading(3, 40), /3 of 40 MB/);
+  globalThis.document.documentElement.lang = "pt-BR";
+});
