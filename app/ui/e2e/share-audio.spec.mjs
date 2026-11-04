@@ -1,6 +1,6 @@
 // Share audio, the sharer's window and the people at the table (ADR 0116
 // section B, items 16, 21, 26, 27; task S6), in the harness: the game master
-// sees "Compartilhar áudio…" in the Music tab (empty state and header) only
+// sees "Compartilhar áudio…" in the Music tab (its header, once) only
 // where the desktop host lists `audio_share` AND the table lets them
 // broadcast; the picker lists the host's sources (an empty list says capture
 // comes with an update); the first start shows the notice once; the start
@@ -75,11 +75,12 @@ async function acceptNotice(page) {
   await notice.getByRole("button", { name: "Entendi, compartilhar" }).click();
 }
 
-test("@layout the game master shares: the button in the empty state and the header, the picker, the notice once, the server's share then the capture, the card with its meter, Stop in the tab, the mini-player and the status bar", async ({ app, page }, info) => {
+test("@layout the game master shares: the one button, in the header, the picker, the notice once, the server's share then the capture, the card with its meter, Stop in the tab, the mini-player and the status bar", async ({ app, page }, info) => {
   await atTable(app, page, "owner");
   const view = await openMusic(page);
-  // The empty state and the header both lead to it (ADR 0116 item 16).
-  await expect(view.getByRole("button", { name: /^Compartilhar áudio/ })).toHaveCount(2);
+  // One button, in the header, in the empty state (ADR 0116 item 27).
+  await expect(view.getByRole("button", { name: /^Compartilhar áudio/ })).toHaveCount(1);
+  await expect(view.getByRole("button", { name: /^Compartilhar áudio/ })).toBeVisible();
   await shot(page, "1-master-empty", info);
   await view.getByRole("button", { name: /^Compartilhar áudio/ }).first().click();
   const picker = page.getByRole("dialog", { name: "Compartilhar áudio" });
@@ -117,7 +118,7 @@ test("@layout the game master shares: the button in the empty state and the head
   await expect.poll(() => shareOf(page)).toBeNull();
   await expect(page.locator(".status-sound-stop")).toBeHidden();
   const again = await openMusic(page);
-  await expect(again.getByRole("button", { name: /^Compartilhar áudio/ })).toHaveCount(2);
+  await expect(again.getByRole("button", { name: /^Compartilhar áudio/ })).toHaveCount(1);
   // The notice is not asked again.
   await startThroughPicker(page, again);
   await expect(again.locator(".music-sharing-title")).toContainText("Compartilhando Spotify");
@@ -150,13 +151,16 @@ test("a capture that fails undoes the server's share and says why", async ({ app
   // The server's share is gone, nothing is sharing, the button is still there.
   await expect.poll(() => shareOf(page)).toBeNull();
   await expect(view.locator(".music-sharing")).toBeHidden();
-  await expect(view.getByRole("button", { name: /^Compartilhar áudio/ })).toHaveCount(2);
+  await expect(view.getByRole("button", { name: /^Compartilhar áudio/ })).toHaveCount(1);
 });
 
 test("a second share asks before it replaces the first", async ({ app, page }) => {
   await atTable(app, page, "owner");
   const view = await openMusic(page);
   const first = await harness(page, () => window.__harness.audioShare.masterShares({ name: "Navegador", by: "Ana" }));
+  // Not the empty state any more (someone else's share runs): still exactly one button, the header's.
+  await expect(view.getByRole("button", { name: /^Compartilhar áudio/ })).toHaveCount(1);
+  await expect(view.getByRole("button", { name: /^Compartilhar áudio/ })).toBeVisible();
   await startThroughPicker(page, view);
   await acceptNotice(page);
   const ask = page.getByRole("dialog", { name: "Compartilhar áudio" });

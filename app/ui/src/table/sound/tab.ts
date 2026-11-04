@@ -74,7 +74,6 @@ class MusicView {
   private readonly from = h("div", "music-from");
   private readonly why = h("p", "music-why");
   private readonly empty = h("p", "music-empty");
-  private readonly emptyShare = h("div", "music-empty-share");
   private readonly headShare = shareButton("music-share-head");
   private readonly shared = new ShareCard();
   private readonly timeRow = h("div", "music-time-row");
@@ -131,10 +130,9 @@ class MusicView {
     this.timeRow.append(this.bar, this.time);
     this.buttons.append(this.prev, this.toggle, this.next, this.stop, this.loop);
     const head = h("h3", "panel-sub music-head", st.nowPlaying);
-    this.emptyShare.append(shareButton("music-share-empty"));
     const headRow = h("div", "music-head-row");
     headRow.append(head, this.headShare);
-    this.now.append(headRow, this.empty, this.emptyShare, this.shared.el, this.title, this.from, this.why, this.timeRow, this.buttons, this.volumes, this.notes, this.live);
+    this.now.append(headRow, this.empty, this.shared.el, this.title, this.from, this.why, this.timeRow, this.buttons, this.volumes, this.notes, this.live);
     this.filter.type = "search";
     this.filter.placeholder = st.filter;
     this.filter.setAttribute("aria-label", st.filter);
@@ -204,7 +202,6 @@ class MusicView {
     const hearsShare = !!live && !sharing();
     const idle = !playing && !live;
     this.empty.hidden = !idle;
-    this.emptyShare.hidden = !idle;
     this.empty.textContent = master ? st.nothingMaster : st.nothing;
     for (const el of [this.title, this.from, this.timeRow]) el.hidden = !playing;
     this.volumes.hidden = !playing && !hearsShare;
