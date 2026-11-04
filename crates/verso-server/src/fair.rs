@@ -41,10 +41,16 @@ pub const PER_ADDRESS: u32 = 64;
 /// the maintainer: 8.
 pub const LOCAL_PER_ACCOUNT: u32 = 8;
 
-/// …and one address's, an address behind which a household may play: the
-/// connections the listener lets one address hold
-/// (`crate::listen::LOCAL_PER_ADDRESS`). `[OPEN]` for the maintainer: 16.
-pub const LOCAL_PER_ADDRESS: u32 = 16;
+/// …and one address's, an address behind which a table may play: through
+/// the internet link every player of a table at one house, or behind one
+/// carrier's NAT, comes from one address (the re-test of 2026-11-04: ten
+/// players, two WebSockets each — the window's and the copy kept on the
+/// device — were refused past 16). Ten players' two each, with room for a
+/// second tab or a phone beside; each account is still held to
+/// [`LOCAL_PER_ACCOUNT`] of them, and on the network a device to the
+/// listener's own `crate::listen::LOCAL_PER_ADDRESS`. `[OPEN]` for the
+/// maintainer: 48 (16 before).
+pub const LOCAL_PER_ADDRESS: u32 = 48;
 
 /// The bounds of WebSockets for this server: per account (a read link's
 /// and a phone's too), per address.

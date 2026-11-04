@@ -303,6 +303,96 @@ fn one_address_holds_a_bounded_number_of_requests_through_the_proxy() {
     });
 }
 
+/// Ten players behind one address open a UniVerso's window cold through
+/// its proxy, all at once (the re-test of 2026-11-04 found the same guard
+/// refusing them through the app's link): 77 requests each, 52 at once,
+/// every one answered — the window's files take no place among the
+/// address's requests in flight, and each account's API requests count
+/// under the account, the address's signed-in bound above them.
+#[test]
+fn a_table_of_ten_behind_one_address_loads_cold_through_the_proxy() {
+    block_on(async {
+        let r = start_with(|c| {
+            c.trusted_proxy = crate::proxy::Proxies::parse("127.0.0.1").unwrap();
+        })
+        .await;
+        let ui = r.server.config.ui_dir.join("chunks");
+        crate::data::ensure_dir(&ui).unwrap();
+        crate::data::write_for_tests(&r.server.config.ui_dir.join("web.html"), "<!doctype html>");
+        for n in 0..80 {
+            crate::data::write_for_tests(
+                &ui.join(format!("chunk-{n}.js")),
+                &"// a chunk\n".repeat(400),
+            );
+        }
+        let mut cookies = Vec::new();
+        for p in 0..10 {
+            let email = format!("p{p}@mesa.example");
+            r.server
+                .db
+                .create_account(
+                    &email,
+                    &format!("P{p}"),
+                    "pt",
+                    Some("senha muito longa"),
+                    false,
+                )
+                .unwrap();
+            cookies.push(sign_in(&r, &email, "senha muito longa").await.cookie);
+        }
+        // What a proxy carries at once; its connections are counted only
+        // against the server's (`crate::listen::CONNECTIONS`).
+        let carried = std::sync::Arc::new(tokio::sync::Semaphore::new(200));
+        let client = reqwest::Client::new();
+        let opening = [
+            "/api/state",
+            "/api/me",
+            "/api/me/settings",
+            "/api/folders",
+            "/api/state",
+        ];
+        let load = |cookie: String| {
+            let (client, carried, url) = (client.clone(), carried.clone(), r.url(""));
+            async move {
+                let ask = |n: usize| {
+                    let (client, carried, url, cookie) =
+                        (client.clone(), carried.clone(), url.clone(), cookie.clone());
+                    tokio::spawn(async move {
+                        let _carried = carried.acquire().await.unwrap();
+                        let req = match opening.get(n) {
+                            Some(route) => {
+                                client.get(format!("{url}{route}")).header("cookie", cookie)
+                            }
+                            None => client.get(format!("{url}/chunks/chunk-{n}.js")),
+                        };
+                        req.header("x-forwarded-for", "198.51.100.50")
+                            .send()
+                            .await
+                            .map_or(0, |res| res.status().as_u16())
+                    })
+                };
+                let mut statuses = Vec::new();
+                for wave in [0..52, 52..77] {
+                    let asked: Vec<_> = wave.map(ask).collect();
+                    for done in asked {
+                        statuses.push(done.await.unwrap());
+                    }
+                }
+                statuses
+            }
+        };
+        let loads: Vec<_> = cookies.into_iter().map(|c| tokio::spawn(load(c))).collect();
+        for (p, done) in loads.into_iter().enumerate() {
+            let statuses = done.await.unwrap();
+            assert_eq!(statuses.len(), 77);
+            assert!(
+                statuses.iter().all(|s| *s == 200),
+                "player {p}: {statuses:?}"
+            );
+        }
+    });
+}
+
 /// The first piece of a file of `size` bytes a device sends to `path`.
 async fn first_piece(
     ws: &mut crate::tests::Socket,

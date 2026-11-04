@@ -9,7 +9,9 @@
 let box: HTMLElement | null = null;
 let timer = 0;
 
-export function notice(text: string, kind: "info" | "error" = "info"): void {
+/** `stay`: kept until the next line, for what the page cannot go on
+ *  without (its window did not load). */
+export function notice(text: string, kind: "info" | "error" = "info", stay = false): void {
   if (!box) {
     box = document.createElement("div");
     box.className = "web-notice";
@@ -21,6 +23,7 @@ export function notice(text: string, kind: "info" | "error" = "info"): void {
   box.dataset.kind = kind;
   box.hidden = false;
   clearTimeout(timer);
+  if (stay) return;
   timer = window.setTimeout(() => {
     if (box) box.hidden = true;
   }, kind === "error" ? 8000 : 3000);

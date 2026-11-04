@@ -23,6 +23,7 @@ import { notice } from "./notice";
 import { pickFiles } from "./pickFiles";
 import { readLinkCall } from "./readLinkOwner";
 import { FULL_RETRY, phonesFullMost } from "./phonesFull";
+import { saidOnClose } from "./openingRefused";
 import { w } from "./strings";
 import { sortMessage } from "../table/sound/frameHeader";
 
@@ -51,6 +52,9 @@ const verdicts: ((v: "up" | "down") => void)[] = [];
 let folderId: string | null = params.get("folder");
 let role: string | null = null;
 let openedOnce = false;
+/** Whether a connection ever came up in this tab: a refusal before it is
+ *  said at each try (web/openingRefused.ts). */
+let everUp = false;
 let retry = 0;
 /** Connections in a row that the other end closed within [`LIVED`] of opening: the wait grows with them, so a server that accepts and closes at once is not asked once a second. */
 let quick = 0;
@@ -270,6 +274,7 @@ function connect(): void {
   ws.addEventListener("open", () => {
     connecting = false;
     open = true;
+    everUp = true;
     const back = retry > 0 || routedOffline;
     openedAt = Date.now();
     retry = 0;
@@ -346,7 +351,11 @@ function connect(): void {
     // Said in words, once per refusal, and tried again slowly.
     const most = phonesFullMost(ev.code, ev.reason);
     const fullSaid = most === null ? null : w().phonesFull(most);
-    if (fullSaid) notice(fullSaid, "error");
+    // A connection refused before it ever came up (too many from one
+    // address, the server not there yet) is said at each try: the window
+    // that would say a drop is not there yet.
+    const said = saidOnClose({ everUp, full: fullSaid, offline: w().offline });
+    if (said) notice(said, "error");
     open = false;
     reopening = false;
     // What was asked and not answered may or may not have happened: it is

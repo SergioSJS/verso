@@ -380,6 +380,13 @@ pub(crate) fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
         .map(|(_, v)| v.to_owned())
 }
 
+/// Whether a request carries anything that may open an account — a bearer
+/// credential or a cookie — and is worth asking [`who`] about.
+#[must_use]
+pub fn carries_credential(headers: &HeaderMap) -> bool {
+    headers.contains_key(AUTHORIZATION) || headers.contains_key(COOKIE)
+}
+
 fn bearer(headers: &HeaderMap) -> Option<String> {
     let value = headers.get(AUTHORIZATION)?.to_str().ok()?;
     let (scheme, token) = value.split_once(' ')?;

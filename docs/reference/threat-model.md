@@ -135,7 +135,12 @@ Every connection first takes a place — 512 on the server, 128 per address
 before a TLS handshake or a byte of HTTP is read, and holds it to its end,
 a WebSocket's included; a request then takes a place among its address's
 32 in flight, the address walked past the trusted proxies (429 past it;
-a direct connection from this machine not counted; 0a04d1b7). A
+a direct connection from this machine not counted; 0a04d1b7) — one that
+opens an account instead among its account's 32 and its address's 128
+signed-in, and a file of the window itself (a `GET` with no body, not
+under `/api/`, `/f/` or a read link's routes) none: it is answered as
+soon as it is opened (the re-test of 2026-11-04, a table of ten behind
+one address). A
 request's headers have 30 s, the wait for the next request on a
 kept-alive connection included; a request has 60 s and its body 10 s
 (408 past either; 0a04d1b7); a request's head is 64 KiB at most (431 past

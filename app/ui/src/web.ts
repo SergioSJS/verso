@@ -25,6 +25,7 @@ import { holdClicks } from "./earlyClicks";
 import { watchDeskOnPhone } from "./deskOnPhone";
 import { localSignInNotes, watchIfLocal, watchTableOffline } from "./web/localTable";
 import { setPasskeysOffered } from "./web/passkeys";
+import { afterFailedStart } from "./web/openingRefused";
 
 // The folder button is on the page before the window's script, which this
 // one imports only after the server said who is signed in: a click on it
@@ -194,8 +195,31 @@ let leaving = false;
 addEventListener("pagehide", () => (leaving = true));
 addEventListener("beforeunload", () => (leaving = true));
 
+/** The tab's own reloads after a failed start (web/openingRefused.ts). */
+const RELOADS = "verso.reloadsAfterFailure";
+
 void start().catch((e: unknown) => {
   if (leaving) return;
   console.error(e);
-  notice(w().failed, "error");
+  // A file of the window that did not come (refused, cut), or anything else
+  // that stopped the start: never a blank page. Loaded again by itself a
+  // few times a minute, said; past them, the person is asked to reload.
+  let kept: unknown = null;
+  try {
+    kept = JSON.parse(sessionStorage.getItem(RELOADS) ?? "null");
+  } catch {
+    kept = null;
+  }
+  const next = afterFailedStart(Date.now(), kept);
+  try {
+    sessionStorage.setItem(RELOADS, JSON.stringify(next.recent));
+  } catch {
+    // No storage: the page still says what happened.
+  }
+  if (next.reload) {
+    notice(w().failedReloading, "error", true);
+    setTimeout(() => location.reload(), 3000);
+  } else {
+    notice(w().failedReload, "error", true);
+  }
 });

@@ -315,7 +315,11 @@ twelve-hour stop; follows *Keep on at start*. Built (S5b `8453abd86`, S6b
 
 The link's share of the laptop's 64 connections (`c0ce21237`): the link at
 most 32; network and link together at most 56, 8 kept for the owner's
-window; 8 WebSockets per account, phone or read link; 16 per address. The
+window; 8 WebSockets per account, phone or read link; 48 per address (16
+until the re-test of 2026-11-04, when ten players behind one address were
+refused). Through any proxy, the window's own files take no place among an
+address's requests in flight, and a signed-in player's requests count under
+their account (32) and the address's signed-in 128 (`crate::http`). The
 numbers are `[OPEN]` (D14, the build's list).
 
 ### D12. The network (from 0096; was D2) — built, unchanged but two items
