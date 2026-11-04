@@ -516,7 +516,7 @@ pub(crate) fn error_of(status: u16, body: &Value) -> ContractError {
             kind: ErrorKind::NotFound,
             message,
         },
-        _ => failed(message),
+        _ => crate::reach::answered(status, message),
     }
 }
 

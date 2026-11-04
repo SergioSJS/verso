@@ -533,3 +533,26 @@ fn http_is_a_servers_address_from_any_machine() {
     assert!(crate::remote::server_url("ftp://notas.casa").is_err());
     assert!(crate::remote::server_url("notas.casa").is_err());
 }
+
+/// A server's answer that refuses what was asked (a 4xx: "no account has
+/// that e-mail: make an invitation link for them", which the share dialog
+/// turns into its invitation) is an answer, said in the log at INFO as the
+/// window says its answers; a server's own fault (5xx) stays an ERROR (the
+/// re-test of 2026-11-04). The window still gets the same refusal.
+#[test]
+fn a_servers_answer_is_no_error_in_the_log() {
+    assert_eq!(crate::reach::level_of_answer(400), "INFO");
+    assert_eq!(crate::reach::level_of_answer(409), "INFO");
+    assert_eq!(crate::reach::level_of_answer(429), "INFO");
+    assert_eq!(crate::reach::level_of_answer(500), "ERROR");
+    assert_eq!(crate::reach::level_of_answer(503), "ERROR");
+    let said = crate::remote::error_of(
+        400,
+        &serde_json::json!({ "error": "no_account", "message": "no account has that e-mail: make an invitation link for them" }),
+    );
+    assert_eq!(said.kind, verso_contract::ErrorKind::Failed);
+    assert_eq!(
+        said.message,
+        "no account has that e-mail: make an invitation link for them"
+    );
+}
