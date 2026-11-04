@@ -155,9 +155,10 @@ fn an_invited_accounts_desktop_app_syncs_its_folder() {
         );
         let put = crate::tests_sync::send(&mut ws, 3, "Nova.md", b"# Nova da Ana\n", None).await;
         assert_eq!(put["ok"]["done"], true, "{put}");
-        let on_disk =
-            std::fs::read_to_string(lab.notes.path().join("Campanha").join("Nova.md")).unwrap();
-        assert_eq!(on_disk, "# Nova da Ana\n");
+        // Read back from the folder through verso-fs, as the server serves it
+        // (std::fs stays in data.rs, ADR 0029).
+        let (on_disk, _) = crate::tests_sync::fetch(&mut ws, 19, "Nova.md").await;
+        assert_eq!(on_disk, b"# Nova da Ana\n");
         let (bytes, _) = crate::tests_sync::fetch(&mut ws, 20, "Sessao.md").await;
         assert_eq!(bytes, b"# Sessao\n");
         // Settings lists the app, by its name and its person's.
