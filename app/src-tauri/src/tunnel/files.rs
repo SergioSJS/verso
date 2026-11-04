@@ -192,6 +192,7 @@ pub(crate) fn names_in(dir: &Path) -> Vec<String> {
 
 /// A runnable script at `dir/name` (the tests' fake `cloudflared`).
 #[cfg(test)]
+#[cfg(unix)]
 pub(crate) fn write_script(dir: &Path, name: &str, text: &str) -> std::path::PathBuf {
     let path = dir.join(name);
     let tmp = dir.join(format!(".{name}.tmp"));

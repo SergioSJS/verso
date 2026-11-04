@@ -229,10 +229,7 @@ fn a_download_with_the_pinned_sum_is_kept_runnable_and_not_fetched_again() {
     assert_eq!(files::read(&path), body);
     #[cfg(unix)]
     assert_eq!(files::mode_of(&path), 0o755);
-    assert_eq!(
-        files::names_in(dir.path()),
-        [format!("cloudflared-{}", fetch::VERSION)]
-    );
+    assert_eq!(files::names_in(dir.path()), [kept_name(dir.path())]);
     let (again, fresh) = fetch::ensure(dir.path(), &pin, &mut source).unwrap();
     assert_eq!((again, fresh), (path, false));
     assert_eq!(asked.lock().unwrap().len(), 1, "checked, not fetched again");
@@ -272,10 +269,7 @@ fn two_at_once_download_once() {
     assert_eq!(fresh, [false, true], "{got:?}");
     assert_eq!(asked.lock().unwrap().len(), 1, "downloaded once");
     assert_eq!(files::read(&fetch::binary_path(dir.path())), body);
-    assert_eq!(
-        files::names_in(dir.path()),
-        [format!("cloudflared-{}", fetch::VERSION)]
-    );
+    assert_eq!(files::names_in(dir.path()), [kept_name(dir.path())]);
 }
 
 #[test]
@@ -922,9 +916,10 @@ fn the_own_address_command_lines() {
     let cert = named::cert_path(home);
     assert_eq!(cert, Path::new("/home/p/.cloudflared/cert.pem"));
     let cred = named::credentials_path(dir, UUID);
+    // Paths as `/`-separated text, whatever this system joins them with.
     let s = |v: Vec<OsString>| {
         v.into_iter()
-            .map(|a| a.to_string_lossy().into_owned())
+            .map(|a| a.to_string_lossy().replace('\\', "/"))
             .collect::<Vec<_>>()
     };
     assert_eq!(s(named::login_args()), ["tunnel", "login"]);
@@ -1135,4 +1130,12 @@ fn create_keeps_the_credentials_as_uuid_json_0600() {
     assert_eq!(files::mode_of(&kept), 0o600);
     assert_eq!(files::mode_of(&data), 0o700);
     assert!(named::create(&program, Path::new("/home/p"), &data, "bad name").is_err());
+}
+
+/// The kept binary's file name on this system (`.exe` on Windows).
+fn kept_name(dir: &Path) -> String {
+    fetch::binary_path(dir)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }

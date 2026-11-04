@@ -287,6 +287,7 @@ impl Manager {
 
     /// The running child's process id (the tests).
     #[cfg(test)]
+    #[cfg(unix)]
     #[must_use]
     pub fn pid(&self) -> Option<u32> {
         match &*lock(&self.shared.phase) {
@@ -300,6 +301,7 @@ impl Manager {
     /// origin. One at a time: refused while one is starting or on. (The
     /// app goes through [`Self::start_after`].)
     #[cfg(test)]
+    #[cfg(unix)]
     pub fn start(
         &self,
         door: Box<dyn Door>,
