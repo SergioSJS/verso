@@ -249,7 +249,21 @@ fn the_own_address_is_a_mode_only_once_set_up_and_is_forgotten_here() {
     )
     .unwrap_err();
     assert!(message(&twice).contains("remove the address set up before"));
-    // Forgotten on this computer alone: nothing asks Cloudflare.
+    // The tunnel's credentials, as `cloudflared tunnel create` left them
+    // (made through tempfile: std::fs stays out of the app's crate).
+    let config = s._dirs[3].path();
+    let tunnel = crate::tunnel::tunnel_dir(config);
+    let _tunnel_dir = tempfile::Builder::new()
+        .prefix("tunnel")
+        .rand_bytes(0)
+        .tempdir_in(config)
+        .unwrap();
+    let uuid = "6ff42ae2-765d-4adf-8112-31c55c1551ef";
+    let _file = note(&tunnel, &format!("{uuid}.json"), r#"{"TunnelSecret":"y"}"#);
+    let credentials = tunnel.join(format!("{uuid}.json"));
+    assert!(credentials.exists());
+    // Forgotten on this computer alone: nothing asks Cloudflare, and the
+    // credentials that could run a connector for the hostname are gone.
     let gone = call(
         &s.webview,
         "local_server_own_address_remove",
@@ -259,6 +273,7 @@ fn the_own_address_is_a_mode_only_once_set_up_and_is_forgotten_here() {
     assert_eq!(gone["own_address"], Value::Null);
     assert_eq!(gone["link_own"], json!(false));
     assert!(s.local.settings().unwrap().own_address.is_none());
+    assert!(!credentials.exists(), "the tunnel's credentials were left");
 }
 
 #[test]

@@ -109,7 +109,9 @@ pub(super) async fn set_up<R: tauri::Runtime>(
 /// Forget the own address: its link stops, its tunnel is deleted at
 /// Cloudflare with its credentials — or, with `here_only` (after a delete
 /// that failed: no connection, the login gone), forgotten on this computer
-/// alone, the tunnel left for Cloudflare's dashboard.
+/// alone, the tunnel left for Cloudflare's dashboard. Either way the
+/// tunnel's credentials leave this computer: they could still run a
+/// connector for the hostname.
 pub(super) async fn remove<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     here_only: bool,
@@ -126,6 +128,7 @@ pub(super) async fn remove<R: tauri::Runtime>(
         if !here_only {
             crate::tunnel::own_delete(&app, &own.tunnel)?;
         }
+        crate::tunnel::own_forget(&app, &own.tunnel)?;
         local.set_settings(&LocalSettings {
             own_address: None,
             link_own: false,

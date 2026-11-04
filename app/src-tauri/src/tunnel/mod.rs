@@ -867,6 +867,21 @@ pub fn own_delete<R: tauri::Runtime>(app: &tauri::AppHandle<R>, uuid: &str) -> R
     named::delete(&program, &home_dir()?, &dir(app)?, uuid)
 }
 
+/// Forget the named tunnel `uuid`'s credentials on this computer
+/// (`<config>/tunnel/<uuid>.json`): left behind, they could still run a
+/// connector for the person's hostname. Its absence is the success.
+pub fn own_forget<R: tauri::Runtime>(app: &tauri::AppHandle<R>, uuid: &str) -> Result<(), String> {
+    if !named::valid_uuid(uuid) {
+        return Err("not a tunnel's id".to_owned());
+    }
+    let credentials = named::credentials_path(&dir(app)?, uuid);
+    files::remove(&credentials);
+    if files::is_there(&credentials) {
+        return Err("the tunnel's credentials could not be removed from this computer".to_owned());
+    }
+    Ok(())
+}
+
 /// The link is on or starting (the tray says so); `false` before the
 /// manager was ever made.
 #[cfg(any(target_os = "macos", windows))]
