@@ -44,9 +44,9 @@ Várias notas abertas ao mesmo tempo: em abas, lado a lado, em espaços de traba
 
 Um espaço de trabalho é um conjunto de painéis e abas, para trocar de assunto sem fechar nada.
 
-- `⌘T` (na paleta, **Nova área**) cria um espaço de trabalho novo, chamado *Área 2*, *Área 3*…; com dois ou mais, aparece a barra de espaços e `⌘1` a `⌘9` trocam entre eles. O **×** no nome, ou **Fechar espaço de trabalho** no botão direito, fecha um.
+- `⌘T` (na paleta, **Novo espaço de trabalho**) cria um espaço de trabalho novo, chamado *Espaço de trabalho 2*, *Espaço de trabalho 3*…; com dois ou mais, aparece a barra de espaços e `⌘1` a `⌘9` trocam entre eles. O **×** no nome, ou **Fechar espaço de trabalho** no botão direito, fecha um.
 - Um duplo clique no nome de um espaço de trabalho (ou `F2`, ou **Renomear** no botão direito) o renomeia.
-- Arraste uma aba para o nome de outro espaço de trabalho para levá-la até lá — ou, no menu da aba, **Mover para: Área 2**.
+- Arraste uma aba para o nome de outro espaço de trabalho para levá-la até lá — ou, no menu da aba, **Mover para: Espaço de trabalho 2**.
 
 ---
 

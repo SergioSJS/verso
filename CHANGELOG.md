@@ -34,6 +34,8 @@ test release.
 
 ### Changed
 
+- **One name for a workspace in Portuguese**: the new-workspace button and command say *Novo espaço de trabalho*, the bar of workspaces is labelled *Espaço de trabalho*, and a new workspace is named *Espaço de trabalho 2*, 3… (some labels still said *área*); the tutorial note on tabs, panes and workspaces follows.
+
 - **The tutorial's lessons in seven blocks** (the maintainer, 2026-11-04). Both demo vaults now read in order by theme, the lessons of one theme together and renumbered: I. Getting started (00–06), II. Organizing (07–13), III. Other ways to see (14–19), IV. Board (20–21), V. RPG (22–27), VI. Together and on other devices (28–34), VII. Advanced (35–38). The two terminal lessons are one, *35 - Terminal, CLI and AI Agents* / *Terminal, CLI e Agentes de IA*: the terminal, the `verso` command, the folder in AI agents through MCP, and AI agents in the terminal. The welcome note's map is grouped by block with a line on each, every lesson ends with its previous and next one, and the Verso Tour's stops follow the blocks. Importing the tutorial into a folder that holds the earlier one moves the untouched old copy of each renamed lesson to the folder's trash.
 
 ### Fixed
