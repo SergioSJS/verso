@@ -1001,6 +1001,24 @@ pub async fn changed(
     .await;
 }
 
+/// Who is at `folder` changed outside its windows — an invitation accepted
+/// (`api::accept`, `invite_join::join`): the windows open on it hear it as
+/// for a change made in them ([`changed`], no path touched), so the game
+/// master's table shows the new player at once (the maintainer's
+/// "Jogadores 0", 2026-11-04). With no window open there is no one to tell:
+/// the folder's table is read again by the next.
+pub async fn people_changed(server: &Arc<Server>, folder: &str) {
+    let client = lock(&server.clients)
+        .iter()
+        .find(|(_, c)| c.folder.as_ref().is_some_and(|(f, _)| f == folder))
+        .map(|(id, _)| id.clone());
+    let Some(key) = client.and_then(|c| server.service.folder_of(&c)) else {
+        campaign::forget(server, folder);
+        return;
+    };
+    changed(server, folder, &key, Vec::new(), None).await;
+}
+
 /// The synchronous part of [`changed`].
 pub fn refresh(
     server: &Server,

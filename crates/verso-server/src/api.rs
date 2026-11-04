@@ -410,6 +410,12 @@ pub async fn accept(
         link.folder.as_deref(),
         true,
     );
+    // The folder's windows — the game master's table — learn who came.
+    if opens.is_some()
+        && let Some(folder) = &link.folder
+    {
+        crate::campaign_cmds::people_changed(&ctx.server, folder).await;
+    }
     // `open`: the folder or share just joined, which the page shows next.
     signed_in(&ctx, &account, json!({ "open": opens }))
 }

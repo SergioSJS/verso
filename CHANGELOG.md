@@ -44,6 +44,8 @@ test release.
 
 ### Fixed
 
+- **A player who accepts an invitation shows at the table at once** (UniVerso and the app; the maintainer, 2026-11-04: the table said *Jogadores 0* while the player was in). Accepting an invitation — a new account, or one that joins signed in — granted the folder or share but told no window, so the game master's table kept the players it had read until the folder was opened again. The folder's open windows are now told, as for any change of who is at the table, and the players' list and count follow.
+
 - **The Music tab shows *Share audio…* once.** The game master saw the button twice, in the empty state and in the tab's header; it is now only in the header, which is on screen whether nothing plays, a file plays or someone else shares (the button hides itself only while your own share runs, and *Stop sharing* is still in the share's card, the mini-player and the status bar). The Music lesson of the tutorial says so.
 
 - **Settings in the desktop app no longer offers the browser's offline copy.** A desktop window on a server's folder listed *Sem rede* / *Offline*, the section of a window in a browser (ADR 0092), which the app does not use: it keeps folders with sync.

@@ -90,6 +90,12 @@ pub async fn join(ctx: Ctx, Path(token): Path<String>) -> ApiResult<Response> {
         link.folder.as_deref(),
         true,
     );
+    // The folder's windows — the game master's table — learn who came.
+    if opens.is_some()
+        && let Some(folder) = &link.folder
+    {
+        crate::campaign_cmds::people_changed(&ctx.server, folder).await;
+    }
     // `open`: what the window shows next, the folder or share just joined
     // (a folder's id, or a share's), so the person lands at the table.
     Ok(ok(json!({ "folder": link.folder, "open": opens })))
