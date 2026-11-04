@@ -52,7 +52,7 @@ import { installStatusItem } from "./table/sound/status";
 import { hearAccess, mayHere, may } from "./access";
 import { can, loadCan } from "./can";
 import { mayEndTerminals, pushSwitch } from "./terminal/open";
-import { copyFilesInto, newUntitled } from "./files";
+import { copyFilesInto, newUntitled, takeBackMove } from "./files";
 import { windowDrop } from "./windowDrop";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
@@ -792,6 +792,8 @@ export function runEditCommand(command: string): void {
     );
     return;
   }
+  // The focus in the file tree or nowhere, after a move: ⌘Z takes the move back.
+  if (!field && takeBackMove(command)) return;
   // The focus on a button, a box or nothing, and a note in Editar or
   // Fonte in view: its editor takes the command. The web view's own Undo
   // knows nothing of the editor's history and rewrites its lines behind

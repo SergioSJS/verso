@@ -1119,6 +1119,11 @@ in a note long enough to scroll.
 - [ ] **⌘Z from the menu with the focus off the text**: in a note in
   Editar, type two words a second apart, click Editar's button, press
   ⌘Z twice — each word goes in turn; ⌘⇧Z brings the last back.
+- [ ] **⌘Z takes back a move in the tree** (A): drag a note into another
+  folder and press ⌘Z at once (the Mac's Edit menu; Ctrl+Z on Windows and
+  Linux, with the focus still in the tree): the note goes back, the status
+  bar says *Movimento desfeito*; ⌘⇧Z (Ctrl+Shift+Z / Ctrl+Y) moves it
+  again. Then click into a note's text and ⌘Z: only the text is undone.
 - [ ] **An SVG in Editar**: note 06 of the demo vault, Editar — the
   diagram shows, and stays when selected with the text around it. Left
   of a note's title with no sticker, a faint sparkle, not a star.
