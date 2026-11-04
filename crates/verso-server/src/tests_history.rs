@@ -671,3 +671,46 @@ fn a_write_the_walk_recorded_first_keeps_its_author() {
         );
     });
 }
+
+/// The same race through the path a window's write takes
+/// (`reconcile_moved`, rpc.rs): it lacked the take-over, so on Windows a
+/// window's write the watcher saw first stayed nobody's (C3).
+#[test]
+fn a_window_write_the_walk_recorded_first_keeps_its_author() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = window(&r, &b, &id).await;
+        let key =
+            crate::access::key(&r.server, &r.server.db.folder(&id).unwrap().unwrap()).unwrap();
+        let admin = r
+            .server
+            .db
+            .account_by_email("admin@casa.lan")
+            .unwrap()
+            .unwrap();
+        {
+            use std::io::Write;
+            let mut f = tempfile::NamedTempFile::new_in(r.campanha()).unwrap();
+            f.write_all(b"tres\n").unwrap();
+            f.persist(r.campanha().join("Sessao.md")).unwrap();
+        }
+        crate::sync::reconcile(&r.server, &id, &key, None, &["Sessao.md".to_owned()]).unwrap();
+        crate::sync::reconcile_moved(
+            &r.server,
+            &key,
+            Some(&admin.id),
+            &["Sessao.md".to_owned()],
+            &[],
+        );
+        let list = call(&mut ws, 6, "history_list", json!({ "path": "Sessao.md" })).await;
+        let v = versions(&list);
+        assert_eq!(v[0]["kind"], "write", "{list}");
+        assert_eq!(
+            v[0]["authors"][0],
+            json!({ "kind": "account", "name": "Admin" }),
+            "{list}"
+        );
+    });
+}

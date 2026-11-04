@@ -132,7 +132,7 @@ pub(super) fn reconcile_paths(
     // on Windows, 2026-10-31): offered to the history with its author, which
     // takes the version over when it is the walk's guess of moments ago
     // (`Store::record`), and makes none otherwise.
-    if by.account.is_some() || by.device.is_some() || by.token.is_some() || by.room.is_some() {
+    if by.names_someone() {
         crate::history::recorded(server, (folder, key), by, &same, false);
     }
     Ok(head)
