@@ -8,23 +8,24 @@
 # Needs the Rust toolchain of rust-toolchain.toml, Node 22 for the UI and
 # cargo-deny (`cargo install cargo-deny --locked`); the wasm32 target is added
 # here if missing. The fuzzing and the benchmark are not run (see README.md).
-# One step CI does not run: the window's end-to-end tests in WebKit and
-# Chromium over the browser harness (ADR 0058), local only; Playwright's
-# browsers are downloaded on the first run. On a Mac they run with one
-# worker, without screen captures, after a pre-flight that refuses to start
-# while a browser or the Verso app is open, and under a watch that stops
-# them if the window server's surfaces climb (app/ui/e2e/preflight.mjs;
-# ADR 0069 item 8, revised 2026-10-12: four WindowServer aborts).
+#
+# One step CI does not run: the window's end-to-end tests (ADR 0058), the
+# browser harness's and the server's, local only. They run in Docker, in
+# Playwright's Linux image, never on this machine's own window server
+# (scripts/check-e2e.sh; the maintainer's decision of 2026-11-02, fix
+# release item C2: on a Mac they ran here with one worker for 1 h 10, and
+# the window server aborted under them four times, ADR 0069 item 8).
+# Without Docker they are skipped and the last line says so. `--no-e2e`
+# skips them on purpose, e.g. while scripts/check-e2e.sh runs on its own.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # The commit checked, so that a kept log names it.
 printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 
-step() { printf '\n== %s\n' "$*"; }
+e2e=1
+[ "${1:-}" = "--no-e2e" ] && e2e=0
 
-# The end-to-end steps come late: what would refuse them refuses now, before
-# the rest is built (app/ui/e2e/preflight.mjs; it does nothing off macOS).
-node app/ui/e2e/preflight.mjs
+step() { printf '\n== %s\n' "$*"; }
 
 step "docs mirror (ADR 0008)"
 bash scripts/check-docs-mirror.sh
@@ -87,30 +88,10 @@ step "UI: type check, bundle and unit tests"
   npm run build
   npm test
 )
-step "UI: end-to-end tests in the browser harness (ADR 0058, local only)"
-(
-  cd app/ui
-  # Nothing else drawing on this Mac's window server while they run
-  # (ADR 0069 item 8, revised 2026-10-12); one worker on a Mac.
-  node e2e/preflight.mjs
-  npx playwright install webkit chromium >/dev/null
-  if [ "$(uname -s)" = Darwin ]; then
-    npx playwright test --workers=1
-  else
-    npx playwright test --workers=3
-  fi
-)
 step "cargo clippy -D warnings"
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 step "cargo test"
 cargo test --workspace --all-features --locked
-step "the server's end-to-end tests: the window in a browser against verso serve (ADR 0073, local only)"
-cargo build -q --locked -p verso-cli
-(
-  cd app/ui
-  node e2e/preflight.mjs
-  npx playwright test -c playwright.server.config.mjs --workers=1
-)
 step "the committed bindings are the generated ones (ADR 0026 rule 3)"
 tmp="$(mktemp "${TMPDIR:-/tmp}/verso-bindings.XXXXXX")"
 cargo run -q --locked -p verso-app -- --export-bindings "$tmp"
@@ -128,4 +109,16 @@ step "verso-dialect compiles to wasm32 (ADR 0029)"
 rustup target list --installed | grep -qx wasm32-unknown-unknown || rustup target add wasm32-unknown-unknown
 cargo check --target wasm32-unknown-unknown -p verso-dialect --locked
 
-printf '\nall guardrails green on %s\n' "$(uname -s)"
+# Last, as the longest: in Docker, whatever this machine is (ADR 0058,
+# decision of 2026-11-02).
+e2e_said="the end-to-end tests with them, in Docker"
+if [ "$e2e" = 0 ]; then
+  e2e_said="WITHOUT the end-to-end tests (--no-e2e): run scripts/check-e2e.sh"
+elif ! docker info >/dev/null 2>&1; then
+  e2e_said="WITHOUT the end-to-end tests: Docker is not running here; run scripts/check-e2e.sh where it is"
+else
+  step "the window's end-to-end tests, the harness's and the server's, in Docker (ADR 0058, ADR 0073, local only)"
+  bash scripts/check-e2e.sh
+fi
+
+printf '\nall guardrails green on %s; %s\n' "$(uname -s)" "$e2e_said"

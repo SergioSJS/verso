@@ -4,7 +4,7 @@
 // engine of the app's web view on macOS, and Chromium, the engine of
 // WebView2 on Windows (ADR 0069, item 8) — what differs between the two is
 // most of what will differ in the Windows app. `npm run e2e` builds, then
-// runs them; scripts/check.sh runs them before every push.
+// runs them; scripts/check-e2e.sh runs them in Docker before every push.
 //
 // On macOS (ADR 0069 item 8, revised on 2026-10-12): one worker, no
 // screenshot and no trace screencast. Playwright's WebKit on a Mac takes
