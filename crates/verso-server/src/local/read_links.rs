@@ -19,7 +19,6 @@
 //! (`crate::readlinks::live`), nor one no longer served.
 
 use super::{LocalServer, lock};
-use crate::db::Audit;
 
 impl LocalServer {
     /// Whether read links are on for this computer's server.
@@ -39,35 +38,18 @@ impl LocalServer {
             .and_then(super::invites::base)
     }
 
-    /// Read links on or off (ADR 0105 item 3). Off ends every link at once,
-    /// open pages included; the links are kept and open again when it is
-    /// turned on. In the audit.
+    /// Read links on or off (ADR 0105 item 3), as the console's switch
+    /// does (`crate::readlinks::turn`): off ends every link at once, open
+    /// pages included; the links are kept and open again when it is turned
+    /// on. In the audit, as the app's act.
     pub fn set_read_links(&self, on: bool) -> Result<(), String> {
+        let by = crate::admin::acts::By::default();
         let running = lock(&self.shared.inner);
-        let action = if on {
-            "read_links_on"
-        } else {
-            "read_links_off"
-        };
-        let audited = Audit {
-            actor: None,
-            action,
-            subject: None,
-            folder: None,
-            address: None,
-            ok: true,
-        };
         if let Some(r) = running.as_ref() {
-            r.server.db.set_read_links_on(on)?;
-            if !on {
-                r.server.links.end_all();
-            }
-            r.server.db.audit(&audited)?;
+            crate::readlinks::turn(&r.server.db, Some(&r.server.links), on, &by)?;
         } else {
             drop(running);
-            let db = self.open_db()?;
-            db.set_read_links_on(on)?;
-            db.audit(&audited)?;
+            crate::readlinks::turn(&self.open_db()?, None, on, &by)?;
         }
         crate::log::info(&format!(
             "read links are now {}",

@@ -651,20 +651,40 @@ pub struct Switch {
 pub async fn set_switch(ctx: Ctx, Json(body): Json<Switch>) -> ApiResult<Response> {
     ctx.changes()?;
     ctx.proved()?;
-    ctx.admin()?;
-    ctx.server.db.set_read_links_on(body.enabled)?;
-    if !body.enabled {
-        ctx.server.links.end_all();
+    let admin = ctx.admin()?.account.id.clone();
+    let address = ctx.address();
+    let by = crate::admin::acts::By {
+        actor: Some(&admin),
+        address: Some(&address),
+    };
+    turn(&ctx.server.db, Some(&ctx.server.links), body.enabled, &by)?;
+    Ok(ok(json!({ "enabled": body.enabled })))
+}
+
+/// Read links on or off for the whole server (item 3), the act of the
+/// console's switch and of the app's section where it serves (ADR 0117
+/// D9): off ends every open link at once (`open`, the running server's;
+/// none while the app does not serve), the links kept to open again when
+/// it is turned on. In the audit, on behalf of `by`.
+pub fn turn(
+    db: &crate::db::Db,
+    open: Option<&Open>,
+    on: bool,
+    by: &crate::admin::acts::By<'_>,
+) -> Result<(), String> {
+    db.set_read_links_on(on)?;
+    if !on && let Some(open) = open {
+        open.end_all();
     }
-    ctx.audit(
-        if body.enabled {
+    by.audit(
+        db,
+        if on {
             "read_links_on"
         } else {
             "read_links_off"
         },
         None,
         None,
-        true,
     );
-    Ok(ok(json!({ "enabled": body.enabled })))
+    Ok(())
 }

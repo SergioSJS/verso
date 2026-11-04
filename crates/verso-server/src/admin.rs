@@ -8,6 +8,8 @@
 //! log, and the server's own state. The admin has no implicit access to a
 //! folder: entering one is a grant to themselves, in the log.
 
+pub mod acts;
+
 use axum::Json;
 use axum::extract::Path;
 use axum::http::StatusCode;
