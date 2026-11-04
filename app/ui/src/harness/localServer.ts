@@ -22,9 +22,13 @@
 // and is listed and ended; the read links' switch, off at first; and the
 // window seated at its own table makes read links as the server answers
 // them through the seat's door (`atTable`).
+//
+// ADR 0117 D9: the people invited (`addPlayer`, a test's; an invitation
+// accepted adds one too), with a new password's link, their sessions
+// ended and their account removed.
 
 import { emit } from "@tauri-apps/api/event";
-import type { ContractError, FolderAccess, FolderInfo, LocalAudit, LocalDevice, LocalFolder, LocalInvitation, LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalServerStatus, ReadLinkInfo } from "../bindings";
+import type { ContractError, FolderAccess, FolderInfo, LocalAudit, LocalDevice, LocalFolder, LocalInvitation, LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer, LocalReset, LocalServerStatus, ReadLinkInfo } from "../bindings";
 
 type Args = Record<string, unknown>;
 
@@ -97,6 +101,18 @@ export class LocalServerHarness {
   private links: ReadLinkInfo[] = [];
   /** Other people's desktop apps signed in (ADR 0117 D9, S11). */
   private devices: LocalDevice[] = [];
+
+  /** The people invited who made an account (ADR 0117 D9). */
+  private players: LocalPlayer[] = [];
+
+  /** A person invited made an account and was last seen at the table (a test's). */
+  addPlayer(name = "Bia", email = "bia@casa.example", reaches: LocalPlayer["reaches"] = [{ name: "Vault", role: "editor" }]): string {
+    const at = Math.floor(Date.UTC(2026, 10, 4) / 1000);
+    const id = `a${this.nextId++}`;
+    this.players.push({ id, name, email, created: at, last_seen: at + 3600, reaches });
+    this.players.sort((a, b) => a.email.localeCompare(b.email));
+    return id;
+  }
 
   /** Another person's desktop app signs in through the browser (a test's). */
   signInDevice(device = "Verso · Mac da Ana", account = "Ana", email = "ana@casa.example"): void {
@@ -481,6 +497,30 @@ export class LocalServerHarness {
       this.devices.splice(at, 1);
       return null;
     },
+    // ADR 0117 D9: the people invited.
+    local_server_accounts: (): LocalPlayer[] => this.players.map((p) => ({ ...p, reaches: p.reaches.map((r) => ({ ...r })) })),
+    local_server_account_reset: (a): LocalReset => {
+      const p = this.player(a);
+      if (!this.serving) refuse("turn serving on first");
+      p.last_seen = null;
+      this.log("reset_link", p.email);
+      const base = this.link.state === "on" && this.link.origin ? this.link.origin : "https://192.168.1.20:51234";
+      return { link: `${base}/reset/senha-${p.id}-${this.nextId++}`, expires: Math.floor(Date.UTC(2026, 10, 5) / 1000) };
+    },
+    local_server_account_end_sessions: (a): null => {
+      const p = this.player(a);
+      p.last_seen = null;
+      this.devices = this.devices.filter((d) => d.email !== p.email);
+      this.log("account_sessions_ended", p.email);
+      return null;
+    },
+    local_server_account_remove: (a): null => {
+      const p = this.player(a);
+      this.players = this.players.filter((x) => x.id !== p.id);
+      this.devices = this.devices.filter((d) => d.email !== p.email);
+      this.log("account_deleted", p.email);
+      return null;
+    },
     local_server_read_links: (a): LocalServerStatus => {
       this.readLinks = a["on"] === true;
       this.log(this.readLinks ? "read_links_on" : "read_links_off");
@@ -488,10 +528,19 @@ export class LocalServerHarness {
     },
   };
 
-  /** An invitation was accepted by a player (a test's). */
+  /** An invitation was accepted by a player (a test's): their account. */
   acceptInvitation(id: string, name = "Bia"): void {
     const inv = this.invites.find((i) => i.id === id);
-    if (inv) Object.assign(inv, { state: "used", used_by: name });
+    if (!inv) return;
+    Object.assign(inv, { state: "used", used_by: name });
+    this.addPlayer(name, `${name.toLowerCase()}@casa.example`, inv.folder && inv.role ? [{ name: inv.folder, role: inv.role }] : []);
+  }
+
+  /** The person a command names, as the server refuses one it has not. */
+  private player(a: Args): LocalPlayer {
+    const p = this.players.find((x) => x.id === String(a["id"]));
+    if (!p) refuse("that person has no account here");
+    return p;
   }
 }
 

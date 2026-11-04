@@ -67,6 +67,7 @@ const pt = {
     needOn: "Ligue o servidor primeiro.",
     // S7c: an app of another person ended meanwhile (it signed out).
     appGone: "Esse app já não está conectado aqui.",
+    personGone: "Essa pessoa já não tem conta aqui.",
   },
   // *Usar meu endereço* (D10).
   ownTitle: "Usar meu endereço",
@@ -191,6 +192,7 @@ const en: typeof pt = {
     notServed: "This folder is not served now: tick it and turn the server on.",
     needOn: "Turn the server on first.",
     appGone: "That app is no longer signed in here.",
+    personGone: "That person no longer has an account here.",
   },
   ownTitle: "Use my own address",
   ownLead: "A fixed address of your own, like table.yourdomain.com, instead of the link that changes. It needs a domain of yours on Cloudflare (the free plan will do); Verso does the rest through cloudflared.",
@@ -281,6 +283,7 @@ export function linkWhy(message: string, w: LinkWords): string | null {
   if (m.includes("not served now")) return w.why.notServed;
   if (m.includes("turn serving on first")) return w.why.needOn;
   if (m.includes("that app is not signed in here")) return w.why.appGone;
+  if (m.includes("that person has no account here")) return w.why.personGone;
   return null;
 }
 

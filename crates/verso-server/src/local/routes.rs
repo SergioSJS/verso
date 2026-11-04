@@ -16,8 +16,10 @@
 //! is served to whoever holds it, and the owner makes links from the
 //! window at the table (S12), and shares a folder inside a served one with
 //! a person invited, from the same window (ADR 0081). An account has its tokens and its passkeys,
-//! a passkey through the internet link alone (S13). There is no setup, no
-//! "forgot the password" or sign-in by mail and no admin console (D9).
+//! a passkey through the internet link alone (S13). A person's new password
+//! is set from a link the owner made in the app (`players.rs`). There is
+//! no setup, no "forgot the password" or sign-in by mail and no admin
+//! console (D9).
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -56,6 +58,13 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/me/sessions", get(crate::api::sessions))
         .route("/api/me/sessions/others", delete(crate::api::end_others))
         .route("/api/me/sessions/{id}", delete(crate::api::end_session))
+        // A new password from the link the owner made in the app and
+        // handed over (ADR 0117 D9: no mail on a laptop; ADR 0074 item 5's
+        // reset link, `players.rs`). The page is `/reset/…`, the window's.
+        .route(
+            "/api/reset/{token}",
+            get(crate::api::reset_link).post(crate::api::reset),
+        )
         // The desktop app's sign-in through the browser (ADR 0074 item 8;
         // ADR 0117 D9, S11): an invited person's Verso connects and syncs
         // a folder shared with them. The page is `/device`, the window's.

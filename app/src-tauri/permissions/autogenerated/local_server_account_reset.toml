@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-server-account-reset"
+description = "Enables the local_server_account_reset command without any pre-configured scope."
+commands.allow = ["local_server_account_reset"]
+
+[[permission]]
+identifier = "deny-local-server-account-reset"
+description = "Denies the local_server_account_reset command without any pre-configured scope."
+commands.deny = ["local_server_account_reset"]

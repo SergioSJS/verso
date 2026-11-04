@@ -504,6 +504,11 @@ mod tests {
             "local_server_devices",
             "local_server_end_device",
             "local_server_read_links",
+            // The people invited: the list, a new password, sessions, remove.
+            "local_server_accounts",
+            "local_server_account_reset",
+            "local_server_account_end_sessions",
+            "local_server_account_remove",
             "a_command_added_tomorrow",
         ] {
             for role in [Role::Reader, Role::Editor, Role::Owner] {

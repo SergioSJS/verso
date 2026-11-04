@@ -12,8 +12,8 @@
 
 use verso_contract::{
     LocalAddressChoice, LocalAsked, LocalAudit, LocalDevice, LocalFolder, LocalInvitation,
-    LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone,
-    LocalServerStatus,
+    LocalInvite, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer,
+    LocalReset, LocalServerStatus,
 };
 
 use super::*;
@@ -389,6 +389,48 @@ pub(crate) async fn local_server_read_links<R: tauri::Runtime>(
     on: bool,
 ) -> Result<LocalServerStatus, ContractError> {
     accounts::read_links(app, on).await
+}
+
+/// The people invited to this computer's server (ADR 0117 D9), for
+/// *Pessoas convidadas*; never this computer's own accounts.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_accounts<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<LocalPlayer>, ContractError> {
+    accounts::players(app).await
+}
+
+/// *Nova senha*: a single-use link for a day that sets a person's new
+/// password (ADR 0117 D9; ADR 0074 item 5), said this once; their sessions
+/// end now.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_account_reset<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<LocalReset, ContractError> {
+    accounts::reset(app, id).await
+}
+
+/// *Encerrar sessões*: every session of a person ends, their tokens too.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_account_end_sessions<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), ContractError> {
+    accounts::end_sessions(app, id).await
+}
+
+/// *Remover*: a person's account and everything it held.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_account_remove<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), ContractError> {
+    accounts::remove(app, id).await
 }
 
 /// At the app's start: serve again when the person asked it to keep on

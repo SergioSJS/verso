@@ -91,6 +91,11 @@ const pt = {
     phone_role_reader: "Celular passou a só ler",
     phones_forgotten: "Celulares esquecidos",
     identity_replaced: "Identidade substituída",
+    reset_link: "Link de senha nova criado",
+    password_reset: "Senha nova criada pelo link",
+    token_revoked: "Token revogado",
+    account_sessions_ended: "Sessões de uma pessoa encerradas",
+    account_deleted: "Conta de uma pessoa removida",
   } as Record<string, string>,
   // The first time (ADR 0096 item 9): what the system will ask, and why.
   firstTitle: "Antes de ligar",
@@ -228,6 +233,11 @@ const en: typeof pt = {
     phone_role_reader: "Phone now only reads",
     phones_forgotten: "Phones forgotten",
     identity_replaced: "Identity replaced",
+    reset_link: "New password link made",
+    password_reset: "New password set from the link",
+    token_revoked: "Token revoked",
+    account_sessions_ended: "A person's sessions ended",
+    account_deleted: "A person's account removed",
   },
   firstTitle: "Before you turn it on",
   firstBody: [
