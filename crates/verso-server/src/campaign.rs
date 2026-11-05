@@ -455,6 +455,14 @@ impl Veil {
         )
     }
 
+    /// The set `path` has of its own, inside a table; `None` when it
+    /// follows its folder or lies in no table.
+    #[must_use]
+    pub fn own_set(&self, path: &str) -> Option<NodeSet> {
+        self.table_of(path)?;
+        self.facts.sets.get(&key(path)).cloned()
+    }
+
     /// The set `path` follows now: its own, else its folder's, else hidden.
     #[must_use]
     pub fn effective_set(&self, path: &str) -> NodeSet {

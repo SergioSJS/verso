@@ -1266,6 +1266,19 @@ pub fn version_kept(server: &Server, folder: &str, path: &str, bin: &str) {
     }
 }
 
+/// A copy of `from` made at `to` (a past version, `history_copy`): when
+/// `from` has access of its own, the copy keeps it, not the folder's a new
+/// file takes (the maintainer, 2026-11-05). Run in the copy's session.
+pub fn copy_kept(server: &Server, folder: &str, from: &str, to: &str) {
+    let Some(set) = campaign::veil_of(server, folder).and_then(|v| v.own_set(from)) else {
+        return;
+    };
+    match server.db.access_put(folder, to, set) {
+        Ok(()) => campaign::forget(server, folder),
+        Err(e) => crate::log::warn(&format!("keeping a copy's access: {e}")),
+    }
+}
+
 /// The paths a command that deletes, renames or moves names, which the
 /// players who see them are remembered for before it runs.
 fn losing(cmd: &str, args: &Value) -> Vec<String> {

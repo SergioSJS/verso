@@ -488,3 +488,30 @@ fn a_devices_deletion_leaves_its_access_to_no_file_made_at_its_name() {
         made_where_one_went(&mut m, true).await;
     });
 }
+
+/// A copy of a past version of a note with access of its own, made beside
+/// it: as hidden as the note (the maintainer, 2026-11-05), not under the
+/// folder's access a new file takes.
+#[test]
+fn a_copy_of_a_hidden_notes_version_is_as_hidden_as_the_note() {
+    block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        let path = hidden_note(&mut m, "Praça/Diário Zq").await;
+        let list = m.owner.call("history_list", json!({ "path": path })).await;
+        let id = list["ok"]["versions"][0]["id"].clone();
+        assert!(!id.is_null(), "{list}");
+        let copy = m
+            .owner
+            .call(
+                "history_copy",
+                json!({ "path": path, "id": id, "stamp": "2026-11-05 11h40", "lang": "pt" }),
+            )
+            .await;
+        let copied = copy["ok"]["path"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{copy}"))
+            .to_owned();
+        still_hidden(&mut m, &copied).await;
+    });
+}

@@ -567,8 +567,13 @@ pub async fn command(
                 let new = history::copy_name(&path, &stamp, lang.starts_with("pt"), 1)
                     .map_err(OpError::into_contract)?;
                 crate::quota::check(&s, &key, &new, len)?;
+                // The copy keeps the note's own access before anyone reads
+                // the folder again.
                 let done = s.service.with(&c, |ws| {
-                    history::copy_beside(ws, &path, &bytes, &stamp, lang.starts_with("pt"))
+                    let done =
+                        history::copy_beside(ws, &path, &bytes, &stamp, lang.starts_with("pt"))?;
+                    crate::campaign_cmds::copy_kept(&s, &folder, &path, &done.path);
+                    Ok(done)
                 })?;
                 crate::sync::reconcile_key_by(&s, &key, by, std::slice::from_ref(&done.path));
                 crate::sync::told(&s, &key, std::slice::from_ref(&done.path), &[], &[]);
