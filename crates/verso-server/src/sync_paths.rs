@@ -7,9 +7,11 @@
 //! to date with those paths alone, without walking the folder.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use serde_json::Value;
 use verso_contract::{ContractError, ErrorKind};
+use verso_service::lock;
 
 use super::{Author, LARGEST, listed_sizes, one_name, quick_of, read_file, record_changes};
 use crate::state::Server;
@@ -253,4 +255,116 @@ pub(crate) fn moves_of(name: &str, args: &Value, answer: &Value) -> Vec<(String,
     };
     out.extend(pairs(&answer["also"]));
     out
+}
+
+/// A window's move in the folder's log's keeping, from the move until it
+/// is dropped once its reconciliation ran ([`moving`]).
+pub(crate) struct Moving {
+    server: Arc<Server>,
+    folder: String,
+    pairs: Vec<(String, String)>,
+}
+
+impl Drop for Moving {
+    fn drop(&mut self) {
+        let mut all = lock(&self.server.transfers.moving);
+        if let Some(kept) = all.get_mut(&self.folder) {
+            for pair in &self.pairs {
+                if let Some(i) = kept.iter().position(|p| p == pair) {
+                    kept.swap_remove(i);
+                }
+            }
+            if kept.is_empty() {
+                all.remove(&self.folder);
+            }
+        }
+    }
+}
+
+/// Run a window's move (`run`, the command `name` with `args`) under the
+/// folder's lock: no reconciliation reads the folder while its files
+/// move, and the files it moved, each new path with its own old one, are
+/// kept until the move's own reconciliation ([`super::reconcile_moved`])
+/// records them — any other before it, the watcher's, leaves them as the
+/// log had them ([`held_back`]). Without it the watcher's took the move
+/// first and paired files of the same bytes by hash, whichever it met
+/// first (seen on Windows, 2026-11-05; ADR 0079 B12). The move is kept
+/// while the answer's `Moving` lives.
+pub(crate) fn moving(
+    server: &Arc<Server>,
+    key: &str,
+    (name, args): (&str, &Value),
+    run: impl FnOnce() -> Result<Value, ContractError>,
+) -> (Result<Value, ContractError>, Option<Moving>) {
+    // Any other command runs as it did, without the folder's lock.
+    if !matches!(name, "rename_note" | "rename_entry" | "move_entries") {
+        return (run(), None);
+    }
+    let folder = lock(&server.keys).get(key).cloned();
+    let Some(folder) = folder else {
+        return (run(), None);
+    };
+    let one = super::one_at_a_time(server, &folder);
+    let _only = lock(&one);
+    let answer = run();
+    let Ok(done) = &answer else {
+        return (answer, None);
+    };
+    let moved = moves_of(name, args, done);
+    if moved.is_empty() {
+        return (answer, None);
+    }
+    let pairs: Vec<(String, String)> = match server.db.manifest_paths(&folder) {
+        Ok(known) => files_moved(&known, &moved).into_iter().collect(),
+        Err(e) => {
+            crate::log::warn(&format!("keeping a window's move for sync: {e}"));
+            return (answer, None);
+        }
+    };
+    if pairs.is_empty() {
+        return (answer, None);
+    }
+    lock(&server.transfers.moving)
+        .entry(folder.clone())
+        .or_default()
+        .extend(pairs.iter().cloned());
+    let kept = Moving {
+        server: Arc::clone(server),
+        folder,
+        pairs,
+    };
+    (answer, Some(kept))
+}
+
+/// What a reconciliation leaves as the log has it, the folder's lock
+/// held: the files of a window's move not yet recorded ([`moving`]) when
+/// it is not the move's own (`moved` names them, new path → old) — their
+/// old paths stay, their new ones wait. A move whose old path the log no
+/// longer knows is recorded: nothing of it is held.
+pub(super) fn held_back(
+    server: &Server,
+    folder: &str,
+    known: &HashMap<String, crate::db::Known>,
+    moved: &HashMap<String, String>,
+) -> (HashSet<String>, HashSet<String>) {
+    let pending: Vec<(String, String)> = lock(&server.transfers.moving)
+        .get(folder)
+        .map(|kept| {
+            kept.iter()
+                .filter(|(to, from)| moved.get(to) != Some(from))
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut old = HashSet::new();
+    let mut new = HashSet::new();
+    for (to, from) in pending {
+        let in_log =
+            known.contains_key(&from) || server.db.known(folder, &from).ok().flatten().is_some();
+        if in_log {
+            new.insert(to);
+            old.insert(from);
+        }
+    }
+    (old, new)
 }

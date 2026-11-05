@@ -1321,13 +1321,16 @@ pub(crate) async fn folder_run(
     let n = name.to_owned();
     let folder_id = folder.to_owned();
     let by = crate::trash::by_name(who, None);
-    let answer = blocking(move || {
+    // `_moving`: a window's move kept until its reconciliation, below.
+    let (answer, _moving) = blocking(move || {
         // Nothing typed is left behind a rename or a bin.
         if moves {
             crate::collab::write_all(&s, &key)?;
             // The players who see what goes, remembered while it is there.
             crate::campaign_cmds::before_write(&s, &folder_id, &key, &n, &args);
         }
+        // A window's move, its files kept for its own reconciliation.
+        let mut kept: Option<crate::sync::Moving> = None;
         // A deletion is recorded with who made it (ADR 0080 item 2).
         let answer = if matches!(
             n.as_str(),
@@ -1341,7 +1344,8 @@ pub(crate) async fn folder_run(
             // A player of a table: what its veil leaves (ADR 0110).
             if let Some(p) = &player {
                 return crate::campaign_serve::answer(&service, &c, p, &n, args)
-                    .unwrap_or_else(|| Err(refused("you may only read this folder")));
+                    .unwrap_or_else(|| Err(refused("you may only read this folder")))
+                    .map(|a| (a, None));
             }
             // A text past the server's bound, read or written: refused
             // before the core reads or writes it (`crate::texts`).
@@ -1355,9 +1359,13 @@ pub(crate) async fn folder_run(
                     .dispatch_reader(&c, &n, args)
                     .unwrap_or_else(|| Err(refused("you may only read this folder")))
             } else {
-                service
-                    .dispatch(&c, &n, args)
-                    .unwrap_or_else(|| Err(refused("no such command")))
+                let (answer, moving) = crate::sync::moving(&s, &key, (&n, &moved_args), || {
+                    service
+                        .dispatch(&c, &n, args)
+                        .unwrap_or_else(|| Err(refused("no such command")))
+                });
+                kept = moving;
+                answer
             }
         };
         if moves && let Ok(notes) = service.with(&c, ops::list_notes) {
@@ -1366,7 +1374,7 @@ pub(crate) async fn folder_run(
         if moves && answer.is_err() {
             crate::campaign_cmds::write_failed(&s, &folder_id, &n, &moved_args);
         }
-        answer
+        answer.map(|a| (a, kept))
     })
     .await?;
     // A board's file written from outside its room — a window not in it, a
