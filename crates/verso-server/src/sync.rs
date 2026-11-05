@@ -1021,11 +1021,15 @@ pub(crate) async fn command_in(
                     let p = path.clone();
                     // The players who see it, remembered while it is there.
                     cc::device_will(&s, (&folder, &key), "sync_delete", "path", &path);
+                    let (sd, fd) = (Arc::clone(&s), folder.clone());
                     let gone = s.service.with_key(&key, move |ws| {
                         is_now(ws, &p, Some(&base))?;
                         let gone = ws.delete_entry(&p)?;
                         // No empty folder left behind on the server either.
                         ws.prune_empty_parents(&p);
+                        // What the table keeps of the note goes with it, into
+                        // the bin, before the folder's session is free.
+                        cc::device_did(&sd, &fd, ("delete_entry", "path"), (&p, &gone.path));
                         Ok(gone)
                     });
                     let gone = cc::drop_if_failed(
@@ -1034,9 +1038,8 @@ pub(crate) async fn command_in(
                         ("sync_delete", &json!({ "path": path })),
                         gone,
                     )?;
-                    // What the table keeps of the note goes with it, into
-                    // the bin.
-                    cc::device_did(&s, &folder, ("delete_entry", "path"), (&path, &gone.path));
+                    #[cfg(test)]
+                    crate::pause::at("device-deleted", &folder);
                     crate::trash::deleted(&s, &folder, &gone, &by);
                     let head = reconcile_paths(
                         &s,

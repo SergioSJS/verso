@@ -388,3 +388,103 @@ fn a_replaced_version_restored_beside_its_note_is_as_hidden_as_the_note() {
         still_hidden(&mut m, &path).await;
     });
 }
+
+/// A note hidden inside a folder the players see, made again at the name
+/// of one just deleted that every player saw: the deleted one's access is
+/// not the new one's, not even in the moment of the deletion.
+async fn made_where_one_went(m: &mut Mesa, device: bool) {
+    praca(m).await;
+    let hide = m
+        .owner
+        .call(
+            "access_set",
+            json!({ "paths": ["Praça"], "change": set("none") }),
+        )
+        .await;
+    assert!(hide.get("ok").is_some(), "{hide}");
+    let path = "Praça/Placa.md";
+    let made = m
+        .owner
+        .call(
+            "create_note",
+            json!({ "name": "Praça/Placa", "text": "aberta\n" }),
+        )
+        .await;
+    assert!(made.get("ok").is_some(), "{made}");
+    let open = m
+        .owner
+        .call(
+            "access_set",
+            json!({ "paths": [path], "change": set("see") }),
+        )
+        .await;
+    assert!(open.get("ok").is_some(), "{open}");
+    let read = m.ana.call("read_note", json!({ "path": path })).await;
+    assert!(read.get("ok").is_some(), "{read}");
+    let args = if device {
+        let state = m.owner.call("sync_state", json!({})).await;
+        let base = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == path)
+            .map(|f| f["hash"].clone())
+            .unwrap();
+        json!({ "path": path, "base": base })
+    } else {
+        json!({ "path": path })
+    };
+    let (point, cmd) = if device {
+        ("device-deleted", "sync_delete")
+    } else {
+        ("window-deleted", "delete_entry")
+    };
+    let (heard, go) = hold(point, &m.id);
+    let server = std::sync::Arc::clone(&m.r.server);
+    let id = m.id.clone();
+    let Mesa { owner, ana, .. } = m;
+    let deleter = owner.call(cmd, args);
+    let player = async {
+        arrived(heard).await;
+        // Another window's note lands on disk at that name now (its own
+        // bookkeeping would wait for the folder's lock a device's deletion
+        // holds).
+        let key = verso_service::lock(&server.keys)
+            .iter()
+            .find(|(_, f)| **f == id)
+            .map(|(k, _)| k.clone())
+            .unwrap();
+        let made = server.service.with_key(&key, |ws| {
+            verso_service::ops::dispatch(
+                ws,
+                "create_note",
+                json!({ "name": "Praça/Placa", "text": "zq nova\n" }),
+            )
+            .unwrap()
+        });
+        assert!(made.is_ok(), "{made:?}");
+        let read = ana.call("read_note", json!({ "path": path })).await;
+        let _ = go.send(());
+        read
+    };
+    let (gone, read) = tokio::join!(deleter, player);
+    assert!(gone.get("ok").is_some(), "{gone}");
+    assert!(read.get("ok").is_none(), "the new note reached Ana: {read}");
+    still_hidden(m, path).await;
+}
+
+#[test]
+fn a_window_deletion_leaves_its_access_to_no_file_made_at_its_name() {
+    block_on(async {
+        let mut m = mesa().await;
+        made_where_one_went(&mut m, false).await;
+    });
+}
+
+#[test]
+fn a_devices_deletion_leaves_its_access_to_no_file_made_at_its_name() {
+    block_on(async {
+        let mut m = mesa().await;
+        made_where_one_went(&mut m, true).await;
+    });
+}

@@ -119,12 +119,13 @@ pub fn deleted(server: &Arc<Server>, folder: &str, gone: &verso_core::Trashed, b
 
 /// The removal `name` asks for, into the bin: a note, an entry, or a data
 /// file of `.verso/` named by its kind and id (ADR 0099 item 2, ADR 0098
-/// item 2).
+/// item 2). `after` runs on a note's or an entry's, in the folder's session
+/// still: what follows the deletion before anyone reads the folder again.
 pub fn removal(
     service: &verso_service::Service,
     client: &str,
-    name: &str,
-    args: &Value,
+    (name, args): (&str, &Value),
+    after: impl FnOnce(&verso_core::Trashed),
 ) -> Result<verso_core::Trashed, ContractError> {
     if name == "remove_folder_data" {
         let kind: verso_contract::FolderDataKind = arg(args, "kind")?;
@@ -137,11 +138,13 @@ pub fn removal(
     }
     let path: String = arg(args, "path")?;
     service.with(client, |ws| {
-        Ok(if name == "delete_note" {
+        let gone = if name == "delete_note" {
             ws.delete_note(&path)?
         } else {
             ws.delete_entry(&path)?
-        })
+        };
+        after(&gone);
+        Ok(gone)
     })
 }
 
