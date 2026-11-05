@@ -20,6 +20,7 @@ import { asDialog, closed, opened } from "./a11y";
 import { servedFolders } from "./servedFolders";
 import { localStrings } from "./localServerStrings";
 import { linkBoxes, linkSentence, whyOf } from "./localServerLink";
+import { newest } from "./localServerFresh";
 import { ownerNameBlock } from "./localServerOwnerName";
 import { linkStrings, markSaid } from "./localServerLinkStrings";
 import { invitations } from "./localServerInvites";
@@ -457,9 +458,13 @@ export function localServerBody(_item: Item): HTMLElement {
     log.append(list, h("p", "ls-help", w.logKept));
   };
 
+  // The host's answers come back in any order: the newest asked is drawn.
+  const order = newest();
   const redraw = async (): Promise<void> => {
+    const asked = order.ask();
     const r = await commands.localServerStatus();
     if (r.status !== "ok") return failed(r.error);
+    if (!order.take(asked)) return;
     status = r.data;
     const s = r.data;
     void refreshMark();

@@ -106,6 +106,43 @@ test("the first download of cloudflared says how far it got and can be cancelled
   expect([s.serving, s.link.state]).toEqual([false, "off"]);
 });
 
+// The re-test of 2026-11-04 (VM 104): after Cancel the box was ticked
+// again and the panel said "O link liga junto com o servidor." beside
+// "Cancelado". The host's answers do not come back in the order asked: one
+// asked while it downloaded was drawn after the Cancel.
+for (const order of ["asked", "reverse"]) {
+  test(`Cancel during the download leaves the box unticked, whatever order the host's answers come back in (${order})`, async ({ app, page }) => {
+    await app.open();
+    await section(app);
+    const body = page.locator(".settings-body");
+    await body.getByRole("checkbox", { name: /^Vault/ }).check();
+    await body.getByRole("checkbox", { name: "Na minha rede" }).uncheck();
+    const link = body.getByRole("checkbox", { name: "Por um link na internet (Cloudflare, modo de teste)" });
+    await link.check();
+    await page.evaluate(() => window.__harness.core.localServer.slowLink(12 * 1048576, 40 * 1048576));
+    await body.getByRole("button", { name: "Ligar o servidor" }).click();
+    const live = body.locator(".ls-link-state");
+    await expect(live).toHaveText(/^Baixando o cloudflared/);
+    // The download says how far it got: the section asks the status, and
+    // that answer, read while it downloads, comes back late.
+    await page.evaluate(() => {
+      window.__harness.core.localServer.holdStatus();
+      void window.__harness.emit("local-server-link", { state: "starting", origin: null, until: null, own: false, ended: null, protocol: null, qr: [], download: { done: 13 * 1048576, total: 40 * 1048576 } });
+    });
+    await body.getByRole("button", { name: "Cancelar", exact: true }).click();
+    await expect(body.getByText("Cancelado: o link não foi ligado.").first()).toBeVisible();
+    const held = await page.evaluate((order) => window.__harness.core.localServer.releaseStatus(order), order);
+    expect(held).toBeGreaterThan(1);
+    await expect(link).not.toBeChecked();
+    await expect(body.getByText("O link liga junto com o servidor.")).toHaveCount(0);
+    await expect(live).not.toHaveText(/Baixando/);
+    await expect(body.getByRole("button", { name: "Cancelar", exact: true })).toBeHidden();
+    // Nothing comes back by itself.
+    await page.waitForTimeout(300);
+    await expect(link).not.toBeChecked();
+  });
+}
+
 test("your name for the players: the system's user at first, changed and kept, never empty", async ({ app, page }) => {
   await app.open();
   await section(app);

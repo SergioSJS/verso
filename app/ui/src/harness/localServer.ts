@@ -18,7 +18,10 @@
 // ended. A test makes the link fail with `failLink(words)`, and makes it
 // end by itself with `__harness.emit("local-server-link", …)`; with
 // `slowLink(done, total)` the next turn-on stays downloading cloudflared
-// (bytes so far and in all) until the link is turned off.
+// (bytes so far and in all) until the link is turned off. With
+// `holdStatus()` the status is read when asked but answered only at
+// `releaseStatus(order)`, in the order asked or the reverse: the host's
+// answers do not come back in the order they were asked.
 //
 // S7c: another person's desktop app signs in (`signInDevice`, a test's)
 // and is listed and ended; the read links' switch, off at first; and the
@@ -98,6 +101,8 @@ export class LocalServerHarness {
   private slow: { done: number; total: number | null } | null = null;
   /** The turn-on under way while it downloads: ended by a turn-off. */
   private downloading: ((link: LocalLink) => void) | null = null;
+  /** Statuses read when asked, answered at `releaseStatus` (a test's). */
+  private held: { at: LocalServerStatus; answer: (s: LocalServerStatus) => void }[] | null = null;
   private invites: LocalInvitation[] = [];
   /** The window sits at its own server's table (ADR 0117 D4 Q3). */
   private seated = false;
@@ -166,6 +171,25 @@ export class LocalServerHarness {
    *  bytes of `total`, until the link is turned off. */
   slowLink(done: number, total: number | null): void {
     this.slow = { done, total };
+  }
+
+  /** From now, each status is read when asked and answered only at
+   *  `releaseStatus` (a test's). */
+  holdStatus(): void {
+    this.held = [];
+  }
+
+  /** The statuses held, answered in the order asked or the reverse, one
+   *  after the other; says how many. Statuses are answered at once again. */
+  async releaseStatus(order: "asked" | "reverse" = "asked"): Promise<number> {
+    const held = this.held ?? [];
+    this.held = null;
+    if (order === "reverse") held.reverse();
+    for (const h of held) {
+      h.answer(h.at);
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return held.length;
   }
 
   /** The link's state as the host's event would set it (a test's). */
@@ -247,7 +271,12 @@ export class LocalServerHarness {
   }
 
   readonly handlers: Record<string, (a: Args) => unknown> = {
-    local_server_status: (): LocalServerStatus => this.status(),
+    local_server_status: (): LocalServerStatus => {
+      const held = this.held;
+      if (!held) return this.status();
+      const at = this.status();
+      return new Promise<LocalServerStatus>((answer) => held.push({ at, answer })) as unknown as LocalServerStatus;
+    },
     local_server_folders: (): LocalFolder[] => this.rows(),
     // The folders inside one, as the host's walk lists them: relative, `/`-joined, none hidden.
     local_server_subfolders: (a): string[] => {
