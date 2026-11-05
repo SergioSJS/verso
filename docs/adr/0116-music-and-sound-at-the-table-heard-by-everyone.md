@@ -90,7 +90,12 @@
   file the table's veil hides answers *not found* (0110 item 4, 0113). On the
   desktop the same bytes come from `verso://` (`app/src-tauri/src/protocol.rs`,
   `media-src verso:` allowed). Nothing new is needed to stream a music file
-  to a listener who may see it.
+  to a listener who may see it. `[REVISED 2026-11-04]` Except on Linux:
+  WebKitGTK's media engine plays no custom scheme (`verso:` or `tauri:`
+  are refused before a byte is read, MediaError 4, in 0.8.4 too), so there
+  the page fetches the file and plays a blob it made
+  (`app/ui/src/audio/source.ts`; the whole file is held while it plays),
+  under `media-src blob:` (`1188c561e`).
 - *Audio in the window* is Web Audio: one `AudioContext` made only inside a
   gesture (`app/ui/src/dice3d/audio.ts`: `unlockAudio`, `armAudio`,
   `whenContext`, `keepWarm`, the audio clock watched for a standing
@@ -577,7 +582,8 @@ streamed to the table — independent of the files**
       or system, never video, never a window's title.
     - *No new script surface*: an `<audio>` element and a worklet run no
       page script; `media-src 'self'` and `media-src verso:` already allow
-      the files; `worker-src 'self' blob:` already allows the worklet; the
+      the files (on Linux `media-src blob:` too, a blob only the page's own
+      script makes, `[REVISED 2026-11-04]`); `worker-src 'self' blob:` already allows the worklet; the
       WASM decoder is the app's own file.
     - *Rule 5*: no `std::fs` anywhere; the capture module touches audio
       devices, never a file. *Rule 4*: paths relative to the table's root.

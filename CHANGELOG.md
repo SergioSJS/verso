@@ -46,6 +46,8 @@ test release.
 
 ### Fixed
 
+- **Sound files play in the Linux app** (ADR 0116). The table's music and the audio players in notes said the file could not be played. On Linux, the app's web engine (WebKitGTK) plays media only from web addresses, not from the address Verso gives a folder's files, though it reads the file's bytes from there. Now, on Linux only, Verso reads the file first and hands the bytes to the player. A note's player reads its file when you press play, so its length shows from then on. The dice sounds were never affected. macOS, Windows and the web keep playing the file from its address.
+
 - **People invited say the hour they were last seen** (ADR 0117). **Settings › Turn into a server › People invited** said only the day after *last seen on*; it now says the day and the hour, as the app's other dates do.
 
 - **Stopping the internet link no longer reads *Serving to the phone*** (ADR 0117). With only the link ticked, cancelling its download or stopping it showed *Serving to the phone* on the status bar for a few seconds while serving stopped; it now says *Stopping the server…*, and the app's log says the link was stopped instead of a warning about phones.
