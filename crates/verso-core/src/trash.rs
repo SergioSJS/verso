@@ -300,7 +300,8 @@ pub fn sweep(
         swept.size = swept.size.saturating_add(item.size);
     }
     // Folders in the bin with nothing in them, deepest first: what a
-    // restore or another program left.
+    // restore or another program left. Removed only if still empty: a file
+    // may have landed in one since the walk (`trashbin::remove_empty`).
     let mut empty: Vec<&Binned> = found
         .iter()
         .filter(|b| {
@@ -313,7 +314,7 @@ pub fn sweep(
     empty.sort_by_key(|b| std::cmp::Reverse(b.path.len()));
     for dir in empty {
         if !items.iter().any(|i| i.record.path == dir.path) {
-            let _ = trashbin::purge(folder, Path::new(&dir.path));
+            let _ = trashbin::remove_empty(folder, Path::new(&dir.path));
         }
     }
     Ok(swept)
