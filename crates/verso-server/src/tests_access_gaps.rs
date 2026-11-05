@@ -126,3 +126,40 @@ fn a_players_answer_that_straddles_a_move_is_judged_by_the_access_after_it() {
         still_hidden(&mut m, "Praça/Barão Zq.md").await;
     });
 }
+
+/// A device's rename of the hidden note into "Praça": the same moment,
+/// between the file landing and the table following it.
+#[test]
+fn a_devices_rename_shows_no_player_the_file_before_its_access_follows() {
+    block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        let state = m.owner.call("sync_state", json!({})).await;
+        let base = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == "Barão Zq.md")
+            .map(|f| f["hash"].clone())
+            .unwrap();
+        let (heard, go) = hold("device-renamed", &m.id);
+        let Mesa { owner, ana, .. } = &mut m;
+        let mover = owner.call(
+            "sync_rename",
+            json!({ "from": "Barão Zq.md", "to": "Praça/Barão Zq.md", "base": base }),
+        );
+        let player = async {
+            arrived(heard).await;
+            let listed = ana.call("list_notes", json!({})).await;
+            let read = ana
+                .call("read_note", json!({ "path": "Praça/Barão Zq.md" }))
+                .await;
+            let _ = go.send(());
+            (listed, read)
+        };
+        let (moved, (listed, read)) = tokio::join!(mover, player);
+        assert!(moved.get("ok").is_some(), "{moved}");
+        assert_eq!(shown(&listed, &read), Vec::<String>::new());
+        still_hidden(&mut m, "Praça/Barão Zq.md").await;
+    });
+}

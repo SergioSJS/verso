@@ -1070,6 +1070,7 @@ pub(crate) async fn command_in(
                     cc::device_will(&s, (&folder, &key), "sync_rename", "from", &from);
                 }
                 let (f, t) = (from.clone(), to.clone());
+                let (sd, fd) = (Arc::clone(&s), folder.clone());
                 // The notes the device may write itself; the links of the
                 // others — a player's hidden or read-only ones — are
                 // corrected by the server, without telling (ADR 0113).
@@ -1099,6 +1100,11 @@ pub(crate) async fn command_in(
                     }
                     let done = ws.rename_entry(&f, &t)?;
                     ws.prune_empty_parents(&f);
+                    // What the table keeps of the note follows it before the
+                    // folder's session is free: no read, a player's
+                    // included, finds it under its new folder's access first
+                    // (ADR 0113 K.2; the audit of 2026-11-05).
+                    cc::device_did(&sd, &fd, ("rename_entry", "from"), (&f, &done.path));
                     // Through a share, the owner's notes outside it that link
                     // to what moved: the server rewrites them (ADR 0081 item
                     // 11); the device rewrites the ones it has itself.
@@ -1125,8 +1131,8 @@ pub(crate) async fn command_in(
                     let head = s.db.head(&folder).map_err(verso_service::failed)?;
                     return Ok(json!({ "head": head, "path": from }));
                 };
-                // What the table keeps of the note follows it.
-                cc::device_did(&s, &folder, ("rename_entry", "from"), (&from, &landed));
+                #[cfg(test)]
+                crate::pause::at("device-renamed", &folder);
                 let head = reconcile_paths(
                     &s,
                     &folder,
