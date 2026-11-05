@@ -312,6 +312,48 @@ fn judge(ws: &mut Workspace, p: &Player, name: &str, args: &Value) -> Verdict {
     }
 }
 
+/// A player's command answered by the table as it is once the answer is
+/// made ([`answer`]); `None` when the window is no player of a table. An
+/// answer is made in steps, each in the folder's session, with the veil
+/// taken before the first: one begun before a move and read after it would
+/// judge the moved file by its new folder's access, which the move does
+/// not give it (ADR 0113 K.2; the audit of 2026-11-05). So when the
+/// table's state changed while the answer was made, it is made again with
+/// the veil after the change — a few times, then refused rather than
+/// answered from a table that never was.
+pub async fn settled(
+    server: &std::sync::Arc<crate::state::Server>,
+    who: &crate::auth::Who,
+    client: &str,
+    folder: &str,
+    (name, args): (&str, &Value),
+) -> Option<Result<Value, ContractError>> {
+    for _ in 0..4 {
+        // Read before the veil: a change after it is seen below.
+        let at = server.campaigns.state_generation(folder);
+        let p = crate::campaign::player(server, who, client)
+            .ok()
+            .flatten()?;
+        let (s, c, n, a) = (
+            std::sync::Arc::clone(server),
+            client.to_owned(),
+            name.to_owned(),
+            args.clone(),
+        );
+        let answered = crate::rpc::blocking(move || {
+            answer(&s.service, &c, &p, &n, a)
+                .unwrap_or_else(|| Err(crate::rpc::refused("you may only read this folder")))
+        })
+        .await;
+        if server.campaigns.state_generation(folder) == at {
+            return Some(answered);
+        }
+    }
+    Some(Err(verso_service::failed(
+        "the table changed while this was answered: ask again",
+    )))
+}
+
 /// A command a player calls, answered; `None` when a reader may not call
 /// it (the caller refuses).
 pub fn answer(
@@ -333,6 +375,8 @@ fn run(
     args: Value,
 ) -> Result<Value, ContractError> {
     let verdict = service.with(client, |ws| Ok(judge(ws, p, name, &args)))?;
+    #[cfg(test)]
+    crate::pause::at("player-veiled", &p.veil.folder);
     match verdict {
         Verdict::Hidden => {
             // As a note that does not exist answers: the command run on

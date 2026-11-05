@@ -97,3 +97,32 @@ fn a_window_move_shows_no_player_the_file_before_its_access_follows() {
         still_hidden(&mut m, "Praça/Barão Zq.md").await;
     });
 }
+
+/// A player's answer begun before a move and read after it: what it
+/// lists is judged by the access as it is once the move is done, not by
+/// the table as it was when the answer began.
+#[test]
+fn a_players_answer_that_straddles_a_move_is_judged_by_the_access_after_it() {
+    block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        let (heard, go) = hold("player-veiled", &m.id);
+        let Mesa { owner, ana, .. } = &mut m;
+        let player = ana.call("list_notes", json!({}));
+        let mover = async {
+            arrived(heard).await;
+            let moved = owner
+                .call(
+                    "move_entries",
+                    json!({ "paths": ["Barão Zq.md"], "folder": "Praça" }),
+                )
+                .await;
+            let _ = go.send(());
+            moved
+        };
+        let (listed, moved) = tokio::join!(player, mover);
+        assert!(moved.get("ok").is_some(), "{moved}");
+        assert_eq!(shown(&listed, &json!({})), Vec::<String>::new());
+        still_hidden(&mut m, "Praça/Barão Zq.md").await;
+    });
+}

@@ -1264,12 +1264,15 @@ pub(crate) async fn folder_run(
     let key_for_log = key.clone();
     let args_for_log = args.clone();
     // A player of a table is answered through its veil (ADR 0110): what it
-    // reads. A write the rules allowed it is a writer's.
-    let player = if veiled && access != Access::Write {
-        crate::campaign::player(server, who, client).ok().flatten()
-    } else {
-        None
-    };
+    // reads, as the table is once the answer is made. A write the rules
+    // allowed it is a writer's.
+    if veiled
+        && access != Access::Write
+        && let Some(answer) =
+            crate::campaign_serve::settled(server, who, client, folder, (name, &args)).await
+    {
+        return answer;
+    }
     // A write that would pass the folder's quota is refused before
     // anything is written (ADR 0077 item 5).
     // Its room held until the write is in the folder's record, below.
@@ -1341,12 +1344,6 @@ pub(crate) async fn folder_run(
                 to_value(verso_service::convert::trashed_out(gone))
             })
         } else {
-            // A player of a table: what its veil leaves (ADR 0110).
-            if let Some(p) = &player {
-                return crate::campaign_serve::answer(&service, &c, p, &n, args)
-                    .unwrap_or_else(|| Err(refused("you may only read this folder")))
-                    .map(|a| (a, None));
-            }
             // A text past the server's bound, read or written: refused
             // before the core reads or writes it (`crate::texts`).
             service.with(&c, |ws| {
