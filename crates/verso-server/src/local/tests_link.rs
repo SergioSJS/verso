@@ -38,6 +38,17 @@ fn through(
         .header("x-forwarded-proto", "https")
 }
 
+/// A client of the link's listener as the tunnel is one, its idle
+/// connections kept half as long as the listener keeps them
+/// ([`crate::listen::LINK_IDLE`]): never one the listener may be closing
+/// as a request goes out on it (see `tests::network_client`).
+fn tunnel_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .pool_idle_timeout(crate::listen::LINK_IDLE / 2)
+        .build()
+        .unwrap()
+}
+
 async fn status_of(r: reqwest::RequestBuilder) -> u16 {
     r.send().await.unwrap().status().as_u16()
 }
@@ -57,7 +68,7 @@ fn the_link_answers_its_own_name_alone() {
         lab.serve();
         let port = lab.local.link_open().unwrap();
         assert_eq!(lab.local.link_open().unwrap(), port, "open is said once");
-        let plain = reqwest::Client::new();
+        let plain = tunnel_client();
         let get = |host: &str| through(&plain, reqwest::Method::GET, port, "/api/state", host);
         // No address yet: nothing is answered, whatever the name.
         for host in [NAME, &format!("127.0.0.1:{port}"), "localhost"] {
@@ -116,7 +127,7 @@ fn the_origin_checked_is_the_links_on_the_link_alone() {
         lab.serve();
         let port = lab.local.link_open().unwrap();
         lab.local.set_link_origin(Some(ORIGIN)).unwrap();
-        let plain = reqwest::Client::new();
+        let plain = tunnel_client();
         let sign_out = |origin: &str| {
             through(&plain, reqwest::Method::POST, port, "/api/signout", NAME)
                 .header("origin", origin)
@@ -224,7 +235,7 @@ fn the_link_serves_alone_when_the_network_box_is_unticked() {
         assert!(lab.local.watch_once(id, true));
         assert!(lab.local.status().unwrap().serving);
         lab.local.set_link_origin(Some(ORIGIN)).unwrap();
-        let plain = reqwest::Client::new();
+        let plain = tunnel_client();
         let state = through(&plain, reqwest::Method::GET, port, "/api/state", NAME);
         assert_eq!(status_of(state).await, 200);
         lab.local.link_close();
@@ -284,7 +295,7 @@ fn the_link_beside_the_network_leaves_phones_and_pairing_as_they_were() {
         let (status, _) = lab.get("/api/folders", Some(&cookie)).await;
         assert_eq!(status, 200);
         let view = lab.local.pair_open().unwrap();
-        let plain = reqwest::Client::new();
+        let plain = tunnel_client();
         for path in ["/api/pair", "/api/pair/poll"] {
             let res = through(&plain, reqwest::Method::POST, port, path, NAME)
                 .header("origin", ORIGIN)
@@ -327,5 +338,57 @@ fn links_handed_out_carry_the_links_origin() {
             crate::window_link(&server, "/invite/abc"),
             format!("{network}/invite/abc")
         );
+    });
+}
+
+/// The lab's client never sends a request on a connection the network's
+/// listener is closing: forty connections, each kept idle until within
+/// 1.5 ms either side of the moment the listener closes an idle connection
+/// ([`crate::listen::HEADERS_WITHIN`]), are each asked once more, and every
+/// request is answered. With reqwest's own 90 s, a request at that moment
+/// went out on a connection being closed and was reset: this failed 6 of 6
+/// on the Mac, and `the_link_answers_its_own_name_alone` once on Windows,
+/// where the refused connection before its last request took the tests'
+/// 2 s.
+#[test]
+fn the_labs_client_never_asks_on_a_connection_being_closed() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        let der = {
+            let db = crate::db::Db::open(&lab.dir.path().join("local")).unwrap();
+            let ips: Vec<std::net::IpAddr> = super::net::Interfaces::list(&*lab.table)
+                .iter()
+                .map(|n| n.ip)
+                .collect();
+            super::cert::load_or_make(&db, &ips, crate::db::now())
+                .unwrap()
+                .cert
+        };
+        let mark = crate::listen::HEADERS_WITHIN;
+        let step = std::time::Duration::from_micros(75);
+        let mut asked = Vec::new();
+        for n in 0..40u32 {
+            // Each its own client, so each its own kept connection.
+            let client =
+                super::tests::network_client(Some(reqwest::Certificate::from_der(&der).unwrap()));
+            let url = lab.url("/api/state");
+            let idle = mark - step * 20 + step * n;
+            asked.push(tokio::spawn(async move {
+                let first = client.get(&url).send().await.unwrap();
+                assert_eq!(first.status().as_u16(), 200);
+                let _ = first.bytes().await;
+                tokio::time::sleep(idle).await;
+                client
+                    .get(&url)
+                    .send()
+                    .await
+                    .map(|r| r.status().as_u16())
+                    .map_err(|e| format!("after {idle:?} idle: {e:?}"))
+            }));
+        }
+        for answer in asked {
+            assert_eq!(answer.await.unwrap(), Ok(200));
+        }
     });
 }
