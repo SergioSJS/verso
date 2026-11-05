@@ -1143,6 +1143,35 @@ fn close_out(server: &Server, folder: &str) {
     server.left(&gone);
 }
 
+/// A window's rename or move (`cmd`), run in the folder's session with what
+/// the table keeps of what moved carried along ([`after_write`]) before the
+/// session is let go: every read of the folder waits for the session, a
+/// player's too, so none finds a moved file under its new folder's access
+/// before its own has followed it (ADR 0113 K.2). Until 2026-11-05 the
+/// table followed only after the session was free, and a player asking
+/// then read a hidden note moved into a folder it sees (the audit's
+/// `tests_access_gaps`). Any other command runs as the service runs it.
+pub fn carrying(
+    server: &Server,
+    (service, client): (&verso_service::Service, &str),
+    folder: &str,
+    cmd: &str,
+    args: Value,
+) -> Result<Value, ContractError> {
+    if !matches!(cmd, "rename_note" | "rename_entry" | "move_entries") {
+        return service
+            .dispatch(client, cmd, args)
+            .unwrap_or_else(|| Err(refused("no such command")));
+    }
+    let asked = args.clone();
+    service.with(client, |ws| {
+        let answer = verso_service::ops::dispatch(ws, cmd, args)
+            .unwrap_or_else(|| Err(verso_service::OpError::Contract(refused("no such command"))))?;
+        after_write(server, folder, cmd, &asked, &answer);
+        Ok(answer)
+    })
+}
+
 /// A rename, a move or a deletion made through the server carries what the
 /// table keeps about the notes (ADR 0110 item 4): the state follows the
 /// note, and goes with it.

@@ -678,9 +678,12 @@ pub async fn attachments(
 /// `answer` are in the owner's paths.
 pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
     // The read links of what moved or was deleted follow it (ADR 0105), and
-    // so does the state a table keeps of its notes (ADR 0110).
+    // so does the state a table keeps of its notes (ADR 0110): a move's
+    // already did, in the move's own session (`campaign_cmds::carrying`).
     crate::readlinks::after_write(server, folder, cmd, args, answer);
-    crate::campaign_cmds::after_write(server, folder, cmd, args, answer);
+    if !matches!(cmd, "rename_note" | "rename_entry" | "move_entries") {
+        crate::campaign_cmds::after_write(server, folder, cmd, args, answer);
+    }
     let mut moves: Vec<(String, String)> = Vec::new();
     match cmd {
         "rename_entry" | "rename_note" => {

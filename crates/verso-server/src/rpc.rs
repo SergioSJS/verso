@@ -1359,12 +1359,13 @@ pub(crate) async fn folder_run(
                     .dispatch_reader(&c, &n, args)
                     .unwrap_or_else(|| Err(refused("you may only read this folder")))
             } else {
+                // A move carries the table's state in the same session.
                 let (answer, moving) = crate::sync::moving(&s, &key, (&n, &moved_args), || {
-                    service
-                        .dispatch(&c, &n, args)
-                        .unwrap_or_else(|| Err(refused("no such command")))
+                    crate::campaign_cmds::carrying(&s, (&service, &c), &folder_id, &n, args)
                 });
                 kept = moving;
+                #[cfg(test)]
+                crate::pause::at("window-moved", &folder_id);
                 answer
             }
         };

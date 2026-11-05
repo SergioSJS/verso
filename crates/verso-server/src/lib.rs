@@ -433,11 +433,15 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 }
 
 #[cfg(test)]
+mod pause;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_access_cmds;
 #[cfg(test)]
 mod tests_access_doors;
+#[cfg(test)]
+mod tests_access_gaps;
 #[cfg(test)]
 mod tests_access_review;
 #[cfg(test)]
