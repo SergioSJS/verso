@@ -148,6 +148,11 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         .filter_map(|(id, c)| {
             let scope = c.scope.as_ref()?;
             c.folder.as_ref().filter(|(f, _)| f == folder)?;
+            // A read link's page is no share's: its link is looked at
+            // again before each of its commands (`visit`).
+            if scope.guard.as_ref().is_some_and(|g| g.public) {
+                return None;
+            }
             Some((
                 id.clone(),
                 c.account.clone(),
@@ -789,15 +794,25 @@ pub async fn attachments(
     Ok(ok(of_share(&ctx.server, &folder, &now)?))
 }
 
-/// What a write through the server did to the shares of `folder` (item
-/// 13): a rename or a move carries the shares of what moved, in the same
-/// step; a deletion removes the shares of what it deleted. `args` and
-/// `answer` are in the owner's paths.
-pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
-    // The read links of what moved or was deleted follow it (ADR 0105), and
-    // so does the state a table keeps of its notes (ADR 0110).
-    crate::readlinks::after_write(server, folder, cmd, args, answer);
+/// What follows a rename, a move or a deletion through the server — a
+/// window's or a device's — in the write's own session, before anyone
+/// reads the folder again (the audit of 2026-11-05): the state a table
+/// keeps of its notes (ADR 0110, 0113 K.2) and the read links of what
+/// moved or went (ADR 0105 item 9). Both are the database's alone.
+pub fn followed(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
     crate::campaign_cmds::after_write(server, folder, cmd, args, answer);
+    crate::readlinks::after_write(server, folder, cmd, args, answer);
+    carried(server, folder, cmd, args, answer);
+}
+
+/// What a write through the server does to the shares of `folder` (item
+/// 13): a rename or a move carries the shares of what moved; a deletion
+/// removes the shares of what it deleted. `args` and `answer` are in the
+/// owner's paths. In the write's session ([`followed`]): a window on a
+/// share looks at its share again before each command ([`check`]), so
+/// from then on it reaches the shared folder where it is now, never what
+/// is made at the old place.
+fn carried(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
     let mut moves: Vec<(String, String)> = Vec::new();
     match cmd {
         "rename_entry" | "rename_note" => {
@@ -813,18 +828,18 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
             }
         }
         "delete_entry" | "delete_note" => {
-            if let Some(path) = args["path"].as_str() {
-                deleted(server, folder, path);
+            if let Some(path) = args["path"].as_str()
+                && let Err(e) = server.db.drop_shares_under(folder, path)
+            {
+                crate::log::error(&format!("removing a share: {e}"));
             }
             return;
         }
         _ => return,
     }
-    let mut touched = false;
     for (from, to) in moves {
         match server.db.move_shares(folder, &from, &to) {
-            Ok(ids) if !ids.is_empty() => {
-                touched = true;
+            Ok(ids) => {
                 for id in ids {
                     let _ = server.db.audit_share(
                         &crate::db::Audit {
@@ -839,22 +854,49 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
                     );
                 }
             }
-            Ok(_) => {}
             Err(e) => crate::log::error(&format!("carrying a share: {e}")),
         }
     }
-    if touched {
+}
+
+/// After a rename, a move or a deletion through the server, the session
+/// free: the windows on the shares of `folder` learn at once what changed
+/// ([`refresh`]) — a share moved, or gone with its folder. What they reach
+/// followed already ([`followed`]).
+pub fn after_write(server: &Server, folder: &str, cmd: &str) {
+    if matches!(
+        cmd,
+        "rename_entry" | "rename_note" | "move_entries" | "delete_entry" | "delete_note"
+    ) {
         refresh(server, folder, "deleted");
     }
 }
 
-/// `path` of `folder` deleted through the server: its shares go with it.
-pub fn deleted(server: &Server, folder: &str, path: &str) {
-    match server.db.drop_shares_under(folder, path) {
-        Ok(ids) if !ids.is_empty() => refresh(server, folder, "deleted"),
-        Ok(_) => {}
-        Err(e) => crate::log::error(&format!("removing a share: {e}")),
+/// A device deleted `path`, and the server pruned the folders it left
+/// empty (`prune_empty_parents`), in the deletion's session: a shared
+/// folder gone that way goes with its shares, as a window's deletion of
+/// the folder does (item 13). Whether any went: the windows on them are
+/// then told ([`refresh`]), the session free.
+pub fn device_deleted(
+    server: &Server,
+    ws: &mut verso_core::Workspace,
+    folder: &str,
+    path: &str,
+) -> bool {
+    let Ok(shares) = server.db.shares_of(folder) else {
+        return false;
+    };
+    let mut gone = false;
+    for s in shares {
+        if !covers(&s.path, path) || ws.is_folder(&s.path) {
+            continue;
+        }
+        match server.db.drop_shares_under(folder, &s.path) {
+            Ok(ids) => gone |= !ids.is_empty(),
+            Err(e) => crate::log::error(&format!("removing a share: {e}")),
+        }
     }
+    gone
 }
 
 /// A device's sync renamed `from` to `to`: sync moves files, one at a

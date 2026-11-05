@@ -629,6 +629,9 @@ fn record_changes(
         }
         changes.push((path, Some((hash, size, quick)), from));
     }
+    // A file renamed or deleted outside Verso keeps who sees it, before
+    // the players are told (`campaign_outside`).
+    crate::campaign_outside::followed(server, folder, (&changes, gone), (known, moved));
     // A note a player saw that was deleted, or renamed: the players' devices
     // are told it went — decided in the step that records it, from what was
     // remembered before it ran (ADR 0110 item 4, amended 2026-10-23).
@@ -1014,28 +1017,34 @@ pub(crate) async fn command_in(
             "sync_delete" => {
                 let named: String = arg(&args, "path")?;
                 let base: String = arg(&args, "base")?;
-                let (head, path) = {
+                let (head, path, unshared) = {
                     let one = one_at_a_time(&s, &folder);
                     let _only = lock(&one);
                     let path = as_kept_file(&s, (&folder, &key), &named, &*inside)?;
                     let p = path.clone();
                     // The players who see it, remembered while it is there.
                     cc::device_will(&s, (&folder, &key), "sync_delete", "path", &path);
+                    let (sd, fd) = (Arc::clone(&s), folder.clone());
                     let gone = s.service.with_key(&key, move |ws| {
                         is_now(ws, &p, Some(&base))?;
                         let gone = ws.delete_entry(&p)?;
                         // No empty folder left behind on the server either.
                         ws.prune_empty_parents(&p);
-                        Ok(gone)
+                        // What the table keeps of the note goes with it, into
+                        // the bin, before the folder's session is free.
+                        cc::device_did(&sd, &fd, ("delete_entry", "path"), (&p, &gone.path));
+                        // And a shared folder pruned that way, its shares.
+                        let unshared = crate::shares::device_deleted(&sd, ws, &fd, &p);
+                        Ok((gone, unshared))
                     });
-                    let gone = cc::drop_if_failed(
+                    let (gone, unshared) = cc::drop_if_failed(
                         &s,
                         &folder,
                         ("sync_delete", &json!({ "path": path })),
                         gone,
                     )?;
-                    // What the table keeps of the note goes with it.
-                    cc::device_did(&s, &folder, ("delete_entry", "path"), (&path, ""));
+                    #[cfg(test)]
+                    crate::pause::at("device-deleted", &folder);
                     crate::trash::deleted(&s, &folder, &gone, &by);
                     let head = reconcile_paths(
                         &s,
@@ -1048,10 +1057,13 @@ pub(crate) async fn command_in(
                         },
                         &[(path.clone(), Now::Gone)],
                     )?;
-                    (head, path)
+                    (head, path, unshared)
                 };
                 // Outside the folder's lock: a room takes its own lock first.
                 told(&s, &key, &[], std::slice::from_ref(&path), &[]);
+                if unshared {
+                    crate::shares::refresh(&s, &folder, "deleted");
+                }
                 Ok(json!({ "head": head }))
             }
             "sync_rename" => {
@@ -1070,6 +1082,7 @@ pub(crate) async fn command_in(
                     cc::device_will(&s, (&folder, &key), "sync_rename", "from", &from);
                 }
                 let (f, t) = (from.clone(), to.clone());
+                let (sd, fd) = (Arc::clone(&s), folder.clone());
                 // The notes the device may write itself; the links of the
                 // others — a player's hidden or read-only ones — are
                 // corrected by the server, without telling (ADR 0113).
@@ -1099,6 +1112,11 @@ pub(crate) async fn command_in(
                     }
                     let done = ws.rename_entry(&f, &t)?;
                     ws.prune_empty_parents(&f);
+                    // What the table keeps of the note follows it before the
+                    // folder's session is free: no read, a player's
+                    // included, finds it under its new folder's access first
+                    // (ADR 0113 K.2; the audit of 2026-11-05).
+                    cc::device_did(&sd, &fd, ("rename_entry", "from"), (&f, &done.path));
                     // Through a share, the owner's notes outside it that link
                     // to what moved: the server rewrites them (ADR 0081 item
                     // 11); the device rewrites the ones it has itself.
@@ -1125,8 +1143,8 @@ pub(crate) async fn command_in(
                     let head = s.db.head(&folder).map_err(verso_service::failed)?;
                     return Ok(json!({ "head": head, "path": from }));
                 };
-                // What the table keeps of the note follows it.
-                cc::device_did(&s, &folder, ("rename_entry", "from"), (&from, &landed));
+                #[cfg(test)]
+                crate::pause::at("device-renamed", &folder);
                 let head = reconcile_paths(
                     &s,
                     &folder,

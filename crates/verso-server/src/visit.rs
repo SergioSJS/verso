@@ -502,6 +502,7 @@ async fn run(server: Arc<Server>, token: String, live: Live, scope: Scope, mut s
 
 /// What a command is answered when the link no longer opens.
 const ENDED: &str = "this link no longer opens";
+const MOVED: &str = "what this link opens has moved: open the link again";
 
 async fn handle(
     server: &Arc<Server>,
@@ -517,8 +518,15 @@ async fn handle(
         move || readlinks::live(&s, &t).map_err(verso_service::failed)
     })
     .await?;
-    if !now.is_some_and(|l| l.link.id == live.link.id) {
+    let Some(now) = now.filter(|l| l.link.id == live.link.id) else {
         return Err(refused(ENDED));
+    };
+    // The link's note or folder moved since the page opened (it follows
+    // them, `readlinks::after_write`): the
+    // page reaches the old place, where something else may be made; it
+    // opens the link again (the audit of 2026-11-05).
+    if now.link.path != live.link.path {
+        return Err(refused(MOVED));
     }
     if !allowed(&r.cmd) {
         return Err(refused("not through a read link"));

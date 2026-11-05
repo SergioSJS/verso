@@ -18,6 +18,7 @@ pub mod auth;
 pub mod board_sight;
 pub mod campaign;
 pub mod campaign_cmds;
+pub mod campaign_outside;
 pub mod campaign_serve;
 pub mod campaign_sync;
 pub mod campaign_text;
@@ -429,11 +430,17 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
 }
 
 #[cfg(test)]
+mod pause;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_access_cmds;
 #[cfg(test)]
 mod tests_access_doors;
+#[cfg(test)]
+mod tests_access_gaps;
+#[cfg(test)]
+mod tests_access_outside;
 #[cfg(test)]
 mod tests_access_review;
 #[cfg(test)]
@@ -514,6 +521,8 @@ mod tests_secret;
 mod tests_secret_pins;
 #[cfg(test)]
 mod tests_secret_review;
+#[cfg(test)]
+mod tests_share_gaps;
 #[cfg(test)]
 mod tests_share_given;
 #[cfg(test)]

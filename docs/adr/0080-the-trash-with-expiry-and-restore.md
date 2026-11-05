@@ -140,6 +140,13 @@ carried a recommendation; the maintainer decided. Open items answered
    item 8 is named — and the window says where it went. A trashed folder
    restores as a subtree. A restore is a move inside the folder, with
    invariant 11's check on the target; nothing is rewritten.
+   *Noted 2026-11-05 (the maintainer: "pode seguir as recomendações"):* as
+   a move keeps a file's access ([0113](0113-one-access-model-for-a-table.md)
+   K.2), a restore keeps the access the file had at a table — its own set,
+   or the one it followed — and a table rooted in a restored folder comes
+   back with it ([0110](0110-a-table-is-a-campaign-folder.md) item 4,
+   revised 2026-11-05). The bin keeps them with the entry; a version a
+   device's write replaced keeps its file's.
 6. **A restore and sync** ([0079](0079-sync-a-local-folder-with-a-server.md)).
    A restore is, to sync, a **file that came back**, never the undoing of
    the deletion: the deletion was logged and carried out everywhere, and

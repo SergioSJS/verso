@@ -1156,6 +1156,35 @@ fn close_out(server: &Server, folder: &str) {
     server.left(&gone);
 }
 
+/// A window's rename or move (`cmd`), run in the folder's session with what
+/// the table keeps of what moved carried along ([`after_write`]) before the
+/// session is let go: every read of the folder waits for the session, a
+/// player's too, so none finds a moved file under its new folder's access
+/// before its own has followed it (ADR 0113 K.2). Until 2026-11-05 the
+/// table followed only after the session was free, and a player asking
+/// then read a hidden note moved into a folder it sees (the audit's
+/// `tests_access_gaps`). Any other command runs as the service runs it.
+pub fn carrying(
+    server: &Server,
+    (service, client): (&verso_service::Service, &str),
+    folder: &str,
+    cmd: &str,
+    args: Value,
+) -> Result<Value, ContractError> {
+    if !matches!(cmd, "rename_note" | "rename_entry" | "move_entries") {
+        return service
+            .dispatch(client, cmd, args)
+            .unwrap_or_else(|| Err(refused("no such command")));
+    }
+    let asked = args.clone();
+    service.with(client, |ws| {
+        let answer = verso_service::ops::dispatch(ws, cmd, args)
+            .unwrap_or_else(|| Err(verso_service::OpError::Contract(refused("no such command"))))?;
+        crate::shares::followed(server, folder, cmd, &asked, &answer);
+        Ok(answer)
+    })
+}
+
 /// A rename, a move or a deletion made through the server carries what the
 /// table keeps about the notes (ADR 0110 item 4): the state follows the
 /// note, and goes with it.
@@ -1180,7 +1209,23 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
         }
         "delete_entry" | "delete_note" => {
             if let Some(path) = args["path"].as_str() {
-                touched = server.db.campaign_deleted(folder, path).unwrap_or(0) > 0;
+                // Into the bin, what the file kept at the table goes with
+                // it, for a restore to give back (`Db::campaign_binned`).
+                if let Some(bin) = answer["path"].as_str().filter(|b| crate::trash::in_bin(b)) {
+                    touched = server.db.campaign_binned(folder, path, bin).unwrap_or(0) > 0;
+                    // One that followed its folder takes along what it
+                    // followed, as a move does (K.2): restored alone, its
+                    // folder may be gone, or another's.
+                    if let Some(set) = before.inherited_set(path) {
+                        match server.db.access_put(folder, bin, set) {
+                            Ok(()) => touched = true,
+                            Err(e) => {
+                                crate::log::warn(&format!("keeping a deleted file's access: {e}"))
+                            }
+                        }
+                    }
+                }
+                touched |= server.db.campaign_deleted(folder, path).unwrap_or(0) > 0;
             }
         }
         _ => {}
@@ -1214,6 +1259,36 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
         if changed {
             campaign::forget(server, folder);
         }
+    }
+}
+
+/// The version of `path` a device's write replaced went into the bin at
+/// `bin` (ADR 0080 item 12): it keeps the access `path` has, its own or
+/// the one it follows, for a restore beside the file to give back — a
+/// restore is a move (item 5), and a move keeps a file's access (ADR 0113
+/// K.2). Without it the version came back as a new file of its folder.
+pub fn version_kept(server: &Server, folder: &str, path: &str, bin: &str) {
+    let Some(veil) = campaign::veil_of(server, folder) else {
+        return;
+    };
+    if !veil.in_table(path) {
+        return;
+    }
+    if let Err(e) = server.db.access_put(folder, bin, veil.effective_set(path)) {
+        crate::log::warn(&format!("keeping a replaced version's access: {e}"));
+    }
+}
+
+/// A copy of `from` made at `to` (a past version, `history_copy`): when
+/// `from` has access of its own, the copy keeps it, not the folder's a new
+/// file takes (the maintainer, 2026-11-05). Run in the copy's session.
+pub fn copy_kept(server: &Server, folder: &str, from: &str, to: &str) {
+    let Some(set) = campaign::veil_of(server, folder).and_then(|v| v.own_set(from)) else {
+        return;
+    };
+    match server.db.access_put(folder, to, set) {
+        Ok(()) => campaign::forget(server, folder),
+        Err(e) => crate::log::warn(&format!("keeping a copy's access: {e}")),
     }
 }
 
@@ -1296,9 +1371,11 @@ pub fn device_will(
     before_write(server, folder, key, cmd, &json!({ field: path }));
 }
 
-/// A device did: what the table keeps of the path follows ([`after_write`]).
+/// A device did: what the table keeps of the path follows ([`after_write`]),
+/// and its read links (`shares::followed`).
 /// `cmd` is the window's command that does the same, `field` its argument
-/// naming the path, `to` where it went (empty for a deletion).
+/// naming the path, `to` where it went (for a deletion, its place in the
+/// bin, or empty).
 pub fn device_did(
     server: &Server,
     folder: &str,
@@ -1310,5 +1387,5 @@ pub fn device_did(
     } else {
         json!({ "path": to })
     };
-    after_write(server, folder, cmd, &json!({ field: path }), &answer);
+    crate::shares::followed(server, folder, cmd, &json!({ field: path }), &answer);
 }

@@ -119,6 +119,29 @@ CREATE TABLE campaign_images (
 
 /// The table log's ceiling a table gets, and the bounds its owner may set
 /// it within (ADR 0110, MS.1).
+/// Schema 22: a table rooted in a folder that went into the bin, kept
+/// there with its rights for a restore to give back (ADR 0110 item 4,
+/// revised 2026-11-05); its log rows stay in `table_log`, named by its
+/// root in the bin.
+pub(super) const BIN_TABLES: &str = r#"
+CREATE TABLE campaigns_binned (
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  root TEXT NOT NULL,
+  open INTEGER NOT NULL,
+  log_max INTEGER NOT NULL,
+  image_max INTEGER NOT NULL,
+  created INTEGER NOT NULL,
+  PRIMARY KEY (folder, root)
+);
+CREATE TABLE campaign_rights_binned (
+  folder TEXT NOT NULL REFERENCES folders(id) ON DELETE CASCADE,
+  root TEXT NOT NULL,
+  account TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  "right" TEXT NOT NULL,
+  PRIMARY KEY (folder, root, account, "right")
+);
+"#;
+
 pub const LOG_DEFAULT: i64 = 20_000;
 pub const LOG_LEAST: i64 = 1_000;
 pub const LOG_MOST: i64 = 200_000;
@@ -533,6 +556,52 @@ impl Db {
         Ok(touched)
     }
 
+    /// `path` (a note or a folder) went into the bin, at `bin`: the access
+    /// and the state it kept at a table go there with it, for a restore to
+    /// give back ([`Self::campaign_restored`]) — a restore is a move inside
+    /// the folder (ADR 0080 item 5) and a move keeps a file's access (ADR
+    /// 0113 K.2). So does a table rooted in it, with its rights and its
+    /// log (ADR 0110 item 4, revised 2026-11-05): kept apart, in
+    /// `campaigns_binned` and `campaign_rights_binned`, its log rows named
+    /// by its root in the bin. What the bin kept at that name before goes
+    /// first. The rules never read what is in the bin (`db::access`).
+    pub fn campaign_binned(&self, folder: &str, path: &str, bin: &str) -> R<usize> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        drop_binned_tables(&tx, folder, bin)?;
+        let mut touched = state_moved(&tx, folder, path, bin)?;
+        touched += tables_moved(&tx, folder, (path, bin), ("campaigns", "campaigns_binned"))?;
+        tx.commit().map_err(e)?;
+        Ok(touched)
+    }
+
+    /// The bin's entry at `bin` came back at `to`: what it kept follows it,
+    /// a table it held is a table again (with the players' own logs it
+    /// starts, as [`Self::campaign_make`]'s).
+    pub fn campaign_restored(&self, folder: &str, bin: &str, to: &str) -> R<usize> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        let mut touched = state_moved(&tx, folder, bin, to)?;
+        let tables = tables_moved(&tx, folder, (bin, to), ("campaigns_binned", "campaigns"))?;
+        if tables > 0 {
+            players_logs_begin(&tx, folder)?;
+        }
+        touched += tables;
+        tx.commit().map_err(e)?;
+        self.refresh_images(&conn);
+        Ok(touched)
+    }
+
+    /// The bin's entry at `bin` went for good, and what it kept: a table
+    /// with its rights and its log.
+    pub fn campaign_unbinned(&self, folder: &str, bin: &str) -> R<usize> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        let touched = drop_state_under(&tx, folder, bin)? + drop_binned_tables(&tx, folder, bin)?;
+        tx.commit().map_err(e)?;
+        Ok(touched)
+    }
+
     /// `path` (a note or a folder) was deleted: the state of what it held
     /// goes, and a table rooted in it.
     pub fn campaign_deleted(&self, folder: &str, path: &str) -> R<usize> {
@@ -679,11 +748,161 @@ fn forget_players_logs(conn: &rusqlite::Connection, folder: &str) -> R<()> {
 fn rehome_log(conn: &rusqlite::Connection, folder: &str) -> R<()> {
     conn.execute(
         "UPDATE table_log SET tbl = '' WHERE folder = ?1
+           AND NOT (tbl = '.trash' OR substr(tbl, 1, 7) = '.trash/')
            AND NOT EXISTS (SELECT 1 FROM campaigns WHERE folder = ?1)",
         [folder],
     )
     .map_err(e)?;
     Ok(())
+}
+
+/// The access and the state kept for `from` and under it, moved to `to`
+/// over whatever was kept for `to`: nothing is, of a path just made.
+fn state_moved(tx: &rusqlite::Connection, folder: &str, from: &str, to: &str) -> R<usize> {
+    drop_state_under(tx, folder, to)?;
+    let mut touched = 0;
+    for table in ["campaign_access", "campaign_files"] {
+        touched += tx
+            .execute(
+                &format!(
+                    "UPDATE {table} SET path = {}
+                     WHERE folder = ?1 AND ?2 <> '' AND ?4 <> '' AND {}",
+                    rebased("path"),
+                    under_of("path")
+                ),
+                params![folder, from, under_sql(from), to],
+            )
+            .map_err(e)?;
+    }
+    Ok(touched)
+}
+
+/// `column` with `?2` at its front made `?4`.
+fn rebased(column: &str) -> String {
+    format!("CASE WHEN {column} = ?2 THEN ?4 ELSE ?4 || substr({column}, length(?2) + 1) END")
+}
+
+/// `column` is `?2` or under it (`?3`, `?2` followed by `/`).
+fn under_of(column: &str) -> String {
+    format!("({column} = ?2 OR substr({column}, 1, length(?3)) = ?3)")
+}
+
+/// The tables rooted at `from` or under it, with their rights and their
+/// log, moved to `to` — from the live tables to the bin's (`tables`, the
+/// two tables' names) or back: how many tables.
+fn tables_moved(
+    tx: &rusqlite::Connection,
+    folder: &str,
+    (from, to): (&str, &str),
+    (live, kept): (&str, &str),
+) -> R<usize> {
+    let p = params![folder, from, under_sql(from), to];
+    let (rights_from, rights_to) = if live == "campaigns" {
+        ("campaign_rights", "campaign_rights_binned")
+    } else {
+        ("campaign_rights_binned", "campaign_rights")
+    };
+    tx.execute(
+        &format!(
+            "INSERT OR IGNORE INTO {kept} (folder, root, open, log_max, image_max, created)
+             SELECT folder, {}, open, log_max, image_max, created FROM {live}
+             WHERE folder = ?1 AND ?2 <> '' AND ?4 <> '' AND {}",
+            rebased("root"),
+            under_of("root")
+        ),
+        p,
+    )
+    .map_err(e)?;
+    let n = tx
+        .execute(
+            &format!(
+                "DELETE FROM {live} WHERE folder = ?1 AND ?2 <> '' AND ?4 <> '' AND {}",
+                under_of("root")
+            ),
+            p,
+        )
+        .map_err(e)?;
+    if n == 0 {
+        return Ok(0);
+    }
+    tx.execute(
+        &format!(
+            "INSERT OR IGNORE INTO {rights_to} (folder, root, account, \"right\")
+             SELECT folder, {}, account, \"right\" FROM {rights_from}
+             WHERE folder = ?1 AND {}",
+            rebased("root"),
+            under_of("root")
+        ),
+        p,
+    )
+    .map_err(e)?;
+    tx.execute(
+        &format!(
+            "DELETE FROM {rights_from} WHERE folder = ?1 AND ?2 <> '' AND ?4 <> '' AND {}",
+            under_of("root")
+        ),
+        p,
+    )
+    .map_err(e)?;
+    tx.execute(
+        &format!(
+            "UPDATE table_log SET tbl = {} WHERE folder = ?1 AND ?2 <> '' AND ?4 <> '' AND {}",
+            rebased("tbl"),
+            under_of("tbl")
+        ),
+        p,
+    )
+    .map_err(e)?;
+    Ok(n)
+}
+
+/// The tables the bin kept at `bin` or under it, their rights and their
+/// log, dropped: how many tables.
+fn drop_binned_tables(tx: &rusqlite::Connection, folder: &str, bin: &str) -> R<usize> {
+    let p = params![folder, bin, under_sql(bin)];
+    let n = tx
+        .execute(
+            &format!(
+                "DELETE FROM campaigns_binned WHERE folder = ?1 AND ?2 <> '' AND {}",
+                under_of("root")
+            ),
+            p,
+        )
+        .map_err(e)?;
+    tx.execute(
+        &format!(
+            "DELETE FROM campaign_rights_binned WHERE folder = ?1 AND ?2 <> '' AND {}",
+            under_of("root")
+        ),
+        p,
+    )
+    .map_err(e)?;
+    tx.execute(
+        &format!(
+            "DELETE FROM table_log WHERE folder = ?1 AND ?2 <> '' AND {}",
+            under_of("tbl")
+        ),
+        p,
+    )
+    .map_err(e)?;
+    Ok(n)
+}
+
+/// The access and the state kept for `path` and under it, dropped.
+fn drop_state_under(conn: &rusqlite::Connection, folder: &str, path: &str) -> R<usize> {
+    let mut touched = 0;
+    for table in ["campaign_access", "campaign_files"] {
+        touched += conn
+            .execute(
+                &format!(
+                    "DELETE FROM {table} WHERE folder = ?1 AND ?2 <> ''
+                       AND (path = ?2 OR substr(path, 1, length(?3)) = ?3)"
+                ),
+                params![folder, path, under_sql(path)],
+            )
+            .map_err(e)?;
+    }
+    Ok(touched)
 }
 
 /// `path` followed by `/`: the prefix of what lies under it.

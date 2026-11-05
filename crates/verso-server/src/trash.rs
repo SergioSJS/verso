@@ -101,6 +101,12 @@ pub fn by_name(who: &Who, device: Option<&str>) -> String {
     }
 }
 
+/// Whether `path` is in the folder's bin (`.trash/` at its root).
+#[must_use]
+pub fn in_bin(path: &str) -> bool {
+    path == ".trash" || path.starts_with(".trash/")
+}
+
 /// Record what a deletion in `folder` put in the bin, and sweep the folder
 /// soon (item 8).
 pub fn deleted(server: &Arc<Server>, folder: &str, gone: &verso_core::Trashed, by: &str) {
@@ -113,12 +119,13 @@ pub fn deleted(server: &Arc<Server>, folder: &str, gone: &verso_core::Trashed, b
 
 /// The removal `name` asks for, into the bin: a note, an entry, or a data
 /// file of `.verso/` named by its kind and id (ADR 0099 item 2, ADR 0098
-/// item 2).
+/// item 2). `after` runs on a note's or an entry's, in the folder's session
+/// still: what follows the deletion before anyone reads the folder again.
 pub fn removal(
     service: &verso_service::Service,
     client: &str,
-    name: &str,
-    args: &Value,
+    (name, args): (&str, &Value),
+    after: impl FnOnce(&verso_core::Trashed),
 ) -> Result<verso_core::Trashed, ContractError> {
     if name == "remove_folder_data" {
         let kind: verso_contract::FolderDataKind = arg(args, "kind")?;
@@ -131,11 +138,13 @@ pub fn removal(
     }
     let path: String = arg(args, "path")?;
     service.with(client, |ws| {
-        Ok(if name == "delete_note" {
+        let gone = if name == "delete_note" {
             ws.delete_note(&path)?
         } else {
             ws.delete_entry(&path)?
-        })
+        };
+        after(&gone);
+        Ok(gone)
     })
 }
 
@@ -145,6 +154,7 @@ pub fn replaced(server: &Arc<Server>, folder: &str, kept: &str, original: &str, 
     if let Err(e) = server.db.put_trash_record(folder, &r) {
         crate::log::warn(&format!("the bin's record of {kept}: {e}"));
     }
+    crate::campaign_cmds::version_kept(server, folder, original, kept);
     soon(server, folder);
 }
 
@@ -440,8 +450,20 @@ pub async fn command(
                 })?;
                 let original = size_of[0].as_str().unwrap_or_default().to_owned();
                 crate::quota::check(&s, &key, &original, size_of[1].as_u64().unwrap_or(0))?;
-                let done = with(&s, &mut |ws, book| {
-                    let (done, _) = trash::restore(ws, Some(book), &path, &today, &lang)?;
+                // What the entry kept of a table comes back with it, before
+                // the folder's session is free: a restore is a move (item
+                // 5), and a move keeps a file's access (ADR 0113 K.2).
+                let done = s.service.with(&c, |ws| {
+                    let mut book = crate::db::Restoring(FolderBook {
+                        db: &s.db,
+                        folder: &folder,
+                    });
+                    let (done, _) = trash::restore(ws, Some(&mut book), &path, &today, &lang)?;
+                    match s.db.campaign_restored(&folder, &path, &done.path) {
+                        Ok(n) if n > 0 => crate::campaign::forget(&s, &folder),
+                        Ok(_) => {}
+                        Err(e) => crate::log::warn(&format!("restoring a table's access: {e}")),
+                    }
                     to_value(done).map_err(OpError::Contract)
                 })?;
                 let landed = done["path"].as_str().unwrap_or_default().to_owned();

@@ -14,7 +14,9 @@
 //!   of one path are its **set**; a path with a set has all its access in
 //!   it, a path with none follows its folder (ADR 0113 item 2);
 //! - `campaign_files (folder, path, secret_name)`: what a file keeps that
-//!   is no access (0110 item 7);
+//!   is no access (0110 item 7); the rows of both at a path in the bin
+//!   (`.trash/…`) are what a deleted file kept, for its restore to give
+//!   back (`Db::campaign_binned`), and the rules never read them;
 //! - `campaign_rights (folder, root, account, right)`: what a player may
 //!   do at a table: `images`, `files`, `create_notes`, `create_boards`
 //!   (K.6; schema 21 split `files`, *Send files* of K.4, into the four).
@@ -162,6 +164,7 @@ fn rows_of(conn: &Connection, folder: &str) -> R<Rows> {
     let mut st = conn
         .prepare(
             "SELECT path, account, level FROM campaign_access WHERE folder = ?1
+               AND NOT (path = '.trash' OR substr(path, 1, 7) = '.trash/')
              ORDER BY path, account",
         )
         .map_err(e)?;
@@ -220,6 +223,7 @@ pub(super) fn facts_in(conn: &Connection, folder: &str) -> R<AccessFacts> {
     let mut st = conn
         .prepare(
             "SELECT path FROM campaign_access WHERE folder = ?1
+               AND NOT (path = '.trash' OR substr(path, 1, 7) = '.trash/')
              GROUP BY path HAVING MIN(migrated) = 1",
         )
         .map_err(e)?;
@@ -458,7 +462,10 @@ impl Db {
                 .collect(),
         );
         let mut st = conn
-            .prepare("SELECT path, secret_name FROM campaign_files WHERE folder = ?1")
+            .prepare(
+                "SELECT path, secret_name FROM campaign_files WHERE folder = ?1
+                   AND NOT (path = '.trash' OR substr(path, 1, 7) = '.trash/')",
+            )
             .map_err(e)?;
         let files: HashMap<String, bool> = st
             .query_map([folder], |r| {

@@ -1281,12 +1281,15 @@ pub(crate) async fn folder_run(
     let key_for_log = key.clone();
     let args_for_log = args.clone();
     // A player of a table is answered through its veil (ADR 0110): what it
-    // reads. A write the rules allowed it is a writer's.
-    let player = if veiled && access != Access::Write {
-        crate::campaign::player(server, who, client).ok().flatten()
-    } else {
-        None
-    };
+    // reads, as the table is once the answer is made. A write the rules
+    // allowed it is a writer's.
+    if veiled
+        && access != Access::Write
+        && let Some(answer) =
+            crate::campaign_serve::settled(server, who, client, folder, (name, &args)).await
+    {
+        return answer;
+    }
     // A write that would pass the folder's quota is refused before
     // anything is written (ADR 0077 item 5).
     // Its room held until the write is in the folder's record, below.
@@ -1353,17 +1356,19 @@ pub(crate) async fn folder_run(
             n.as_str(),
             "delete_note" | "delete_entry" | "remove_folder_data"
         ) {
-            crate::trash::removal(&service, &c, &n, &args).and_then(|gone| {
+            // What the table kept of it goes into the bin with it, in the
+            // deletion's session (`shares::followed`).
+            let removed = crate::trash::removal(&service, &c, (&n, &args), |gone| {
+                let into = json!({ "path": gone.path });
+                crate::shares::followed(&s, &folder_id, &n, &args, &into);
+            });
+            #[cfg(test)]
+            crate::pause::at("window-deleted", &folder_id);
+            removed.and_then(|gone| {
                 crate::trash::deleted(&s, &folder_id, &gone, &by);
                 to_value(verso_service::convert::trashed_out(gone))
             })
         } else {
-            // A player of a table: what its veil leaves (ADR 0110).
-            if let Some(p) = &player {
-                return crate::campaign_serve::answer(&service, &c, p, &n, args)
-                    .unwrap_or_else(|| Err(refused("you may only read this folder")))
-                    .map(|a| (a, None));
-            }
             // A text past the server's bound, read or written: refused
             // before the core reads or writes it (`crate::texts`).
             service.with(&c, |ws| {
@@ -1376,12 +1381,13 @@ pub(crate) async fn folder_run(
                     .dispatch_reader(&c, &n, args)
                     .unwrap_or_else(|| Err(refused("you may only read this folder")))
             } else {
+                // A move carries the table's state in the same session.
                 let (answer, moving) = crate::sync::moving(&s, &key, (&n, &moved_args), || {
-                    service
-                        .dispatch(&c, &n, args)
-                        .unwrap_or_else(|| Err(refused("no such command")))
+                    crate::campaign_cmds::carrying(&s, (&service, &c), &folder_id, &n, args)
                 });
                 kept = moving;
+                #[cfg(test)]
+                crate::pause::at("window-moved", &folder_id);
                 answer
             }
         };
@@ -1411,18 +1417,13 @@ pub(crate) async fn folder_run(
         .await;
     }
     if access == Access::Write {
-        // A share follows its folder's rename and goes with its deletion
-        // (ADR 0081 item 13).
+        // A share followed its folder's rename or went with its deletion
+        // (ADR 0081 item 13) in the write's session: its windows are told.
         {
             let s = Arc::clone(server);
-            let (f, n, a, ans) = (
-                folder.to_owned(),
-                name.to_owned(),
-                args_for_log.clone(),
-                answer.clone(),
-            );
+            let (f, n) = (folder.to_owned(), name.to_owned());
             let _ = blocking(move || {
-                crate::shares::after_write(&s, &f, &n, &a, &ans);
+                crate::shares::after_write(&s, &f, &n);
                 Ok(())
             })
             .await;
