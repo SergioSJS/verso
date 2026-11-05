@@ -134,6 +134,11 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         .filter_map(|(id, c)| {
             let scope = c.scope.as_ref()?;
             c.folder.as_ref().filter(|(f, _)| f == folder)?;
+            // A read link's page is no share's: its link is looked at
+            // again before each of its commands (`visit`).
+            if scope.guard.as_ref().is_some_and(|g| g.public) {
+                return None;
+            }
             Some((
                 id.clone(),
                 c.account.clone(),
@@ -680,14 +685,17 @@ pub async fn attachments(
 pub fn followed(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
     crate::campaign_cmds::after_write(server, folder, cmd, args, answer);
     crate::readlinks::after_write(server, folder, cmd, args, answer);
+    carried(server, folder, cmd, args, answer);
 }
 
-/// What a write through the server did to the shares of `folder` (item
-/// 13): a rename or a move carries the shares of what moved, in the same
-/// step; a deletion removes the shares of what it deleted. `args` and
-/// `answer` are in the owner's paths. The table's state and the read links
-/// followed already ([`followed`]).
-pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
+/// What a write through the server does to the shares of `folder` (item
+/// 13): a rename or a move carries the shares of what moved; a deletion
+/// removes the shares of what it deleted. `args` and `answer` are in the
+/// owner's paths. In the write's session ([`followed`]): a window on a
+/// share looks at its share again before each command ([`check`]), so
+/// from then on it reaches the shared folder where it is now, never what
+/// is made at the old place.
+fn carried(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
     let mut moves: Vec<(String, String)> = Vec::new();
     match cmd {
         "rename_entry" | "rename_note" => {
@@ -703,18 +711,18 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
             }
         }
         "delete_entry" | "delete_note" => {
-            if let Some(path) = args["path"].as_str() {
-                deleted(server, folder, path);
+            if let Some(path) = args["path"].as_str()
+                && let Err(e) = server.db.drop_shares_under(folder, path)
+            {
+                crate::log::error(&format!("removing a share: {e}"));
             }
             return;
         }
         _ => return,
     }
-    let mut touched = false;
     for (from, to) in moves {
         match server.db.move_shares(folder, &from, &to) {
-            Ok(ids) if !ids.is_empty() => {
-                touched = true;
+            Ok(ids) => {
                 for id in ids {
                     let _ = server.db.audit_share(
                         &crate::db::Audit {
@@ -729,21 +737,21 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
                     );
                 }
             }
-            Ok(_) => {}
             Err(e) => crate::log::error(&format!("carrying a share: {e}")),
         }
     }
-    if touched {
-        refresh(server, folder, "deleted");
-    }
 }
 
-/// `path` of `folder` deleted through the server: its shares go with it.
-pub fn deleted(server: &Server, folder: &str, path: &str) {
-    match server.db.drop_shares_under(folder, path) {
-        Ok(ids) if !ids.is_empty() => refresh(server, folder, "deleted"),
-        Ok(_) => {}
-        Err(e) => crate::log::error(&format!("removing a share: {e}")),
+/// After a rename, a move or a deletion through the server, the session
+/// free: the windows on the shares of `folder` learn at once what changed
+/// ([`refresh`]) — a share moved, or gone with its folder. What they reach
+/// followed already ([`followed`]).
+pub fn after_write(server: &Server, folder: &str, cmd: &str) {
+    if matches!(
+        cmd,
+        "rename_entry" | "rename_note" | "move_entries" | "delete_entry" | "delete_note"
+    ) {
+        refresh(server, folder, "deleted");
     }
 }
 

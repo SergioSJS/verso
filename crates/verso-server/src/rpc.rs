@@ -1400,18 +1400,13 @@ pub(crate) async fn folder_run(
         .await;
     }
     if access == Access::Write {
-        // A share follows its folder's rename and goes with its deletion
-        // (ADR 0081 item 13).
+        // A share followed its folder's rename or went with its deletion
+        // (ADR 0081 item 13) in the write's session: its windows are told.
         {
             let s = Arc::clone(server);
-            let (f, n, a, ans) = (
-                folder.to_owned(),
-                name.to_owned(),
-                args_for_log.clone(),
-                answer.clone(),
-            );
+            let (f, n) = (folder.to_owned(), name.to_owned());
             let _ = blocking(move || {
-                crate::shares::after_write(&s, &f, &n, &a, &ans);
+                crate::shares::after_write(&s, &f, &n);
                 Ok(())
             })
             .await;
