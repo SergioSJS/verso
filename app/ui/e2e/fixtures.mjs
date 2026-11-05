@@ -137,13 +137,20 @@ export class App {
 
   /** The board's view once it stops moving (a view shown from the outline
    *  or the search slides there). */
-  async settledView() {
-    let was = await this.view();
+  async settledView(from = null) {
+    // Moved off `from` first, when given: a slide that has not begun yet
+    // reads as still. Then the same view three times over 450 ms: a busy
+    // machine can hold a slide's frames back for longer than one wait.
+    if (from) await expect.poll(async () => JSON.stringify(await this.view())).not.toBe(JSON.stringify(from));
+    let was = JSON.stringify(await this.view());
+    let still = 0;
     for (;;) {
       await this.page.waitForTimeout(150);
       const now = await this.view();
-      if (JSON.stringify(now) === JSON.stringify(was)) return now;
-      was = now;
+      const same = JSON.stringify(now) === was;
+      still = same ? still + 1 : 0;
+      if (still === 3) return now;
+      was = JSON.stringify(now);
     }
   }
 

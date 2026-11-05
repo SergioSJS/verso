@@ -14,6 +14,11 @@
 
 import { test, expect } from "./fixtures.mjs";
 
+// One worker for this file, in order: without a GPU the dice are drawn by
+// the processor, and three falls at once in three workers held each one's
+// frames back for seconds (Docker, 2026-11-05).
+test.describe.configure({ mode: "default" });
+
 const NOTE = "Mesa.md";
 const TEXT = ["# Mesa", "", "Ataque: `dice: 1d20+3` e dano `dice: 2d6`.", "", "Muitos: `dice: 21d6` e explosivo `dice: 1d6!`.", ""].join("\n");
 
@@ -48,6 +53,18 @@ async function openNote(app) {
 }
 
 const canvas = (page) => page.locator("canvas.dice3d-canvas");
+
+/** The card is held back while the dice fall and shown once they rest, read
+ *  in one go: a busy machine can let the fall end between two separate looks. */
+async function cardFollowsTheFall(page, dice) {
+  await expect(canvas(page)).toHaveCount(1);
+  const seen = await page.evaluate((d) => {
+    const c = document.querySelector("canvas.dice3d-canvas");
+    const card = [...document.querySelectorAll(`.preview .dice[data-dice="${d}"] .dice-card`)].find((x) => x.closest(".preview")?.checkVisibility());
+    return { resting: c?.dataset.state === "resting", card: !!card?.checkVisibility() };
+  }, dice);
+  expect(seen.card).toBe(seen.resting);
+}
 
 test("the 3D dice switch is off by default, 'Tudo' leaves it off, and a person can turn it on", async ({ app, page }) => {
   await app.open();
@@ -103,9 +120,8 @@ test("switch on: the chunk loads on the first roll only, the result is said at o
   const said = Number(/^1d20\+3: (\d+)/.exec((await page.locator(".dice-said").textContent()) ?? "")?.[1]);
   expect(chunk.length).toBe(1);
   if (hasGl) {
-    await expect(canvas(page)).toHaveCount(1);
+    await cardFollowsTheFall(page, "1d20+3");
     await expect(canvas(page)).toHaveAttribute("aria-hidden", "true");
-    await expect(card).toBeHidden();
     // The canvas lays over the window; the dice rest at the latest at the maximum time and stay (Rolai) until Esc.
     await expect(canvas(page)).toHaveAttribute("data-state", "resting", { timeout: 9000 });
     await page.keyboard.press("Escape");
@@ -136,8 +152,7 @@ test("Esc and a click skip the fall; the card shows the result they held back", 
   const preview = page.locator(".preview:visible");
   const card = preview.locator('.dice[data-dice="1d20+3"] .dice-card');
   await preview.getByRole("button", { name: "Rolar 1d20+3" }).click();
-  await expect(canvas(page)).toHaveCount(1);
-  await expect(card).toBeHidden();
+  await cardFollowsTheFall(page, "1d20+3");
   await page.keyboard.press("Escape");
   await expect(canvas(page)).toHaveCount(0);
   await expect(card.locator(".dice-total")).toHaveText(/^\d+$/);
@@ -582,8 +597,7 @@ test("the dice stay on the table like Rolai's: no timer, a control does not clea
   await rollBtn.scrollIntoViewIfNeeded();
   const t0 = Date.now();
   await rollBtn.click();
-  await expect(canvas(page)).toHaveCount(1);
-  await expect(card).toBeHidden();
+  await cardFollowsTheFall(page, "1d20+3");
   // The card shows as soon as the dice rest...
   await expect(card).toBeVisible({ timeout: 6000 });
   const toCard = Date.now() - t0;
