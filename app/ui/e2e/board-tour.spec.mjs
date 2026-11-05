@@ -17,8 +17,9 @@ test("the tour opens with its stops in order, each shown whole from the outline"
   await expect(stops).toHaveText(STOPS);
   // A stop chosen in the outline is shown whole, in the middle (b1c5d58).
   const fourth = tour.nodes.filter((n) => n.type === "group")[3];
+  const before = await app.view();
   await stops.nth(3).click();
-  const chosen = await app.settledView();
+  const chosen = await app.settledView(before);
   const c = await app.toPage(fourth.x + fourth.width / 2, fourth.y + fourth.height / 2);
   expect(Math.abs(c.x - (chosen.left + chosen.width / 2))).toBeLessThan(40);
   expect(Math.abs(c.y - (chosen.top + chosen.height / 2))).toBeLessThan(40);

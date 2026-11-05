@@ -244,6 +244,32 @@
   A synced folder is judged by the sync's version alone:
   [0079](0079-sync-a-local-folder-with-a-server.md) item 5, revised the
   same day.
+  2026-11-05 — item 2, how people learn the order of updates (the
+  maintainer: *"a gente só precisa pensar numa estratégia dos usuários
+  saberem disso … geralmente se atualiza o servidor e depois os
+  clientes"*; the five points below proposed and accepted the same day,
+  *"pode"*; not built, built with the rest of the N/N-1 work):
+  (a) the app says it **before** anything fails: a server one number
+  behind shows a quiet line on its folder (*the server … runs Verso X;
+  everything works; ask its administrator to update*), and beyond the
+  window the refusal names which side to update, the app or the server;
+  (b) the administrator sees *an update is available* in the UniVerso's
+  console and in the app's *Turn into a server* settings
+  (ADR 0117, on feat/app-server), with the order — the
+  server first, then the apps — and the devices connected now with the
+  version each runs;
+  (c) before a release that changes the server's database schema (22
+  on 2026-11-05: a table kept in the bin), the server copies its
+  database and says that a build before it can no longer open that
+  database, and where the copy is;
+  (d) the order is written where people read it: a *How to update*
+  section in the server's install lesson of the demo vault, both
+  languages ([0058](0058-demo-vault-as-tutorial.md)), and one line in
+  each version's notes;
+  (e) the one exception, said in those notes: apps of 0.8.4 and earlier
+  still ask for the server's exact build, so from 0.8.4 to 0.8.5 the
+  apps go first and the servers after; from 0.8.5 on, the server first
+  and the clients after, as is usual.
 
 ## Context
 
