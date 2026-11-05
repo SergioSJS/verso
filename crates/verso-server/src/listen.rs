@@ -75,6 +75,13 @@ pub const LINK_IDLE: Duration = Duration::from_secs(5);
 #[cfg(test)]
 pub const LINK_IDLE: Duration = Duration::from_millis(500);
 
+/// How long a request under way on the link's listener may take to be
+/// answered once the link is turned off; past it its connection is dropped
+/// unanswered. Off is off: `LocalServer::link_close` returns once every
+/// connection of the link is closed, and waits at most this. `[OPEN]` for
+/// the maintainer: 1 s.
+pub const LINK_GRACE: Duration = Duration::from_secs(1);
+
 /// Of the 64, the places the network leaves to the owner's window at the
 /// table (the seat, ADR 0117 D4 Q3), which counts against the 64 alone:
 /// the owner still sits down with every other place taken. `[OPEN]` for
@@ -440,6 +447,12 @@ pub trait Incoming: Send + 'static {
     fn idle(&self) -> Duration {
         HEADERS_WITHIN
     }
+    /// Once serving stops, how long a request under way may take before its
+    /// connection is dropped. None, but on the link's ([`LINK_GRACE`]): a
+    /// request under way is let finish however long it takes.
+    fn grace(&self) -> Option<Duration> {
+        None
+    }
 }
 
 /// Plain TCP: a connection without a place is closed at once — or, on
@@ -449,6 +462,7 @@ pub struct Plain {
     slots: Arc<Slots>,
     idle: Duration,
     waits: bool,
+    grace: Option<Duration>,
 }
 
 impl Plain {
@@ -459,12 +473,14 @@ impl Plain {
             slots,
             idle: HEADERS_WITHIN,
             waits: false,
+            grace: None,
         }
     }
 
     /// The internet link's listener (ADR 0117 D3 item 3): a connection
-    /// past its places waits for one, and an idle one is closed after
-    /// [`LINK_IDLE`].
+    /// past its places waits for one, an idle one is closed after
+    /// [`LINK_IDLE`], and once it stops a request under way has
+    /// [`LINK_GRACE`].
     #[must_use]
     pub fn for_link(tcp: TcpListener, slots: Arc<Slots>) -> Self {
         Self {
@@ -472,6 +488,7 @@ impl Plain {
             slots,
             idle: LINK_IDLE,
             waits: true,
+            grace: Some(LINK_GRACE),
         }
     }
 }
@@ -511,6 +528,10 @@ impl Incoming for Plain {
     fn idle(&self) -> Duration {
         self.idle
     }
+
+    fn grace(&self) -> Option<Duration> {
+        self.grace
+    }
 }
 
 impl<T> Counted<T> {
@@ -520,8 +541,10 @@ impl<T> Counted<T> {
     }
 }
 
-/// Serve `app` on `listener` until `stop` resolves; then the connections
-/// under way finish their requests and close.
+/// Serve `app` on `listener` until `stop` resolves; then the port closes
+/// at once, and the connections under way finish their requests (within
+/// the listener's [`Incoming::grace`], if it has one) and close, an idle
+/// one at once. Returns once every one of them is closed.
 pub async fn serve<L: Incoming>(
     mut listener: L,
     app: axum::Router,
@@ -530,6 +553,7 @@ pub async fn serve<L: Incoming>(
     let (stopping, stopped) = watch::channel(false);
     let (open, all_closed) = watch::channel(());
     let idle = listener.idle();
+    let grace = listener.grace();
     tokio::pin!(stop);
     loop {
         let (io, addr) = tokio::select! {
@@ -548,25 +572,38 @@ pub async fn serve<L: Incoming>(
         let mut stopped = stopped.clone();
         let closed = all_closed.clone();
         tokio::spawn(async move {
-            let mut builder = hyper::server::conn::http1::Builder::new();
-            builder
-                .timer(TokioTimer::new())
-                .header_read_timeout(idle)
-                .max_buf_size(HEAD_MOST);
-            let conn = builder
-                .serve_connection(TokioIo::new(io), service)
-                .with_upgrades();
-            tokio::pin!(conn);
-            tokio::select! {
-                _ = conn.as_mut() => {}
-                _ = stopped.changed() => {
-                    conn.as_mut().graceful_shutdown();
-                    let _ = conn.as_mut().await;
+            // The connection, its socket with it, is dropped at the end of
+            // this block, before `closed` says so.
+            {
+                let mut builder = hyper::server::conn::http1::Builder::new();
+                builder
+                    .timer(TokioTimer::new())
+                    .header_read_timeout(idle)
+                    .max_buf_size(HEAD_MOST);
+                let conn = builder
+                    .serve_connection(TokioIo::new(io), service)
+                    .with_upgrades();
+                tokio::pin!(conn);
+                tokio::select! {
+                    _ = conn.as_mut() => {}
+                    _ = stopped.changed() => {
+                        conn.as_mut().graceful_shutdown();
+                        match grace {
+                            Some(within) => {
+                                let _ = tokio::time::timeout(within, conn.as_mut()).await;
+                            }
+                            None => {
+                                let _ = conn.as_mut().await;
+                            }
+                        }
+                    }
                 }
             }
             drop(closed);
         });
     }
+    // The port closes now, not once the connections under way have ended.
+    drop(listener);
     let _ = stopping.send(true);
     drop(all_closed);
     open.closed().await;

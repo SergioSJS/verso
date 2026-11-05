@@ -140,10 +140,33 @@ impl Policy {
     }
 }
 
-/// The link's listener while it is open: dropping it closes it.
+/// The link's listener while it is open: dropping it closes it without
+/// waiting (serving stopping takes the runtime with it); [`Self::close`]
+/// waits for every connection to be closed.
 pub(super) struct Listener {
     pub port: u16,
     stop: tokio::sync::watch::Sender<bool>,
+    /// Hung up when the listener's task ends, every connection closed.
+    ended: std::sync::mpsc::Receiver<()>,
+}
+
+impl Listener {
+    /// Close the listener and return once its port and every connection
+    /// it kept are closed (off is off): a request under way has
+    /// `listen::LINK_GRACE` to be answered, an idle connection none. Not
+    /// to be called on the server's own runtime, which does the closing.
+    fn close(self) {
+        let _ = self.stop.send(true);
+        // A margin past the grace: the connections dropped at its end are
+        // closed a moment after it.
+        let most = crate::listen::LINK_GRACE + std::time::Duration::from_secs(1);
+        if let Err(std::sync::mpsc::RecvTimeoutError::Timeout) = self.ended.recv_timeout(most) {
+            crate::log::warn(&format!(
+                "the internet link's listener was still closing after {} s",
+                most.as_secs()
+            ));
+        }
+    }
 }
 
 impl Drop for Listener {
@@ -206,13 +229,16 @@ pub(super) fn open(
     let plain = crate::listen::Plain::for_link(tcp, slots);
     let app = super::routes::router(Arc::clone(server)).layer(axum::Extension(ByLink));
     let (stop, mut stopped) = tokio::sync::watch::channel(false);
+    let (end, ended) = std::sync::mpsc::channel::<()>();
     runtime.spawn(async move {
         crate::listen::serve(plain, app, async move {
             let _ = stopped.wait_for(|s| *s).await;
         })
         .await;
+        // Hung up here, or when the runtime drops this task.
+        drop(end);
     });
-    Ok(Listener { port, stop })
+    Ok(Listener { port, stop, ended })
 }
 
 impl LocalServer {
@@ -294,10 +320,13 @@ impl LocalServer {
         Ok(())
     }
 
-    /// Close the link's listener: its origin is forgotten at once, so no
-    /// request through it is answered again. With the network box unticked
-    /// there is nothing left to serve: serving stops. (The tunnel's own
-    /// connections end when the tunnel does, S5.)
+    /// Close the link's listener: its origin is forgotten at once, and this
+    /// returns once its port and every connection it kept alive are closed
+    /// (a request under way given `listen::LINK_GRACE`), so that a request
+    /// on a kept connection fails instead of being answered. With the
+    /// network box unticked there is nothing left to serve: serving stops.
+    /// (A WebSocket through the link, no longer the listener's once
+    /// upgraded, ends when the tunnel does, S5.)
     pub fn link_close(&self) {
         let mut running = lock(&self.shared.inner);
         let Some(r) = running.as_mut() else { return };
@@ -306,9 +335,13 @@ impl LocalServer {
         }
         r.policy.set_link(None);
         let alone = r.nets.is_empty();
-        r.link = None;
+        let listener = r.link.take();
         r.policy.audit(&r.server, "link_off", None, None);
         drop(running);
+        // Waited for outside the lock: off is off once this returns.
+        if let Some(listener) = listener {
+            listener.close();
+        }
         crate::log::info("the internet link's listener is closed");
         if alone {
             self.stop();

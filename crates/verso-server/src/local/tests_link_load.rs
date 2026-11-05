@@ -124,6 +124,81 @@ fn past_its_places_the_link_queues_what_it_asked_for() {
     });
 }
 
+/// Off is off: once `link_close` returns, a connection the link kept alive
+/// is closed — the next request on it fails, never answered, not even
+/// refused with a 421 — and the link's port refuses a new one, while the
+/// network's listener serves on. Deterministic on a machine of any speed:
+/// the server's two workers are held busy across the close, as a loaded
+/// machine holds them, so a close that did not wait for the connections
+/// would return with this one still open (the race seen on the Mac,
+/// 2026-11-05, in `the_link_answers_its_own_name_alone`).
+#[test]
+fn closing_the_link_ends_its_kept_alive_connections() {
+    use std::io::Read;
+    /// How long the server's workers are held.
+    const HELD: Duration = Duration::from_millis(300);
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        let port = lab.local.link_open().unwrap();
+        lab.local.set_link_origin(Some(ORIGIN)).unwrap();
+        let player = "203.0.113.9";
+        let mut kept = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
+        for n in 0..2 {
+            let status = read_answer(&mut kept, chunk_request(n, player)).await;
+            assert_eq!(status, 200, "request {n} on the kept connection");
+        }
+        let runtime = super::lock(&lab.local.shared.inner)
+            .as_ref()
+            .unwrap()
+            .runtime
+            .as_ref()
+            .unwrap()
+            .handle()
+            .clone();
+        let both = Arc::new(std::sync::Barrier::new(3));
+        for _ in 0..2 {
+            let both = Arc::clone(&both);
+            runtime.spawn(async move {
+                both.wait();
+                std::thread::sleep(HELD);
+            });
+        }
+        both.wait();
+        lab.local.link_close();
+        // Closed by the time the close returned: its end is here already,
+        // or very nearly, well before the workers are let go.
+        let kept = kept.into_std().unwrap();
+        let mut byte = [0u8; 1];
+        let mut closed = false;
+        for _ in 0..10 {
+            match (&kept).read(&mut byte) {
+                Ok(0) => closed = true,
+                Ok(_) => panic!("the link sent on a kept connection after it closed"),
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(Duration::from_millis(5));
+                    continue;
+                }
+                Err(_) => closed = true,
+            }
+            break;
+        }
+        assert!(closed, "the kept connection is still open after link_close");
+        let mut kept = TcpStream::from_std(kept).unwrap();
+        assert_eq!(
+            read_answer(&mut kept, chunk_request(2, player)).await,
+            0,
+            "a request on the kept connection after the link closed"
+        );
+        assert!(
+            TcpStream::connect(("127.0.0.1", port)).await.is_err(),
+            "the link's port refuses"
+        );
+        let (status, _) = lab.get("/api/state", None).await;
+        assert_eq!(status, 200, "the network serves on");
+    });
+}
+
 /// With every place of the link's listener held, a phone on the network
 /// and the owner's window at the table are still answered.
 #[test]
