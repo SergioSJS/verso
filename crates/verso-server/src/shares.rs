@@ -755,6 +755,33 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str) {
     }
 }
 
+/// A device deleted `path`, and the server pruned the folders it left
+/// empty (`prune_empty_parents`), in the deletion's session: a shared
+/// folder gone that way goes with its shares, as a window's deletion of
+/// the folder does (item 13). Whether any went: the windows on them are
+/// then told ([`refresh`]), the session free.
+pub fn device_deleted(
+    server: &Server,
+    ws: &mut verso_core::Workspace,
+    folder: &str,
+    path: &str,
+) -> bool {
+    let Ok(shares) = server.db.shares_of(folder) else {
+        return false;
+    };
+    let mut gone = false;
+    for s in shares {
+        if !covers(&s.path, path) || ws.is_folder(&s.path) {
+            continue;
+        }
+        match server.db.drop_shares_under(folder, &s.path) {
+            Ok(ids) => gone |= !ids.is_empty(),
+            Err(e) => crate::log::error(&format!("removing a share: {e}")),
+        }
+    }
+    gone
+}
+
 /// A device's sync renamed `from` to `to`: sync moves files, one at a
 /// time, so a shared folder moved on a computer arrives as its files, and
 /// the share follows once the folder it named is empty and gone — to

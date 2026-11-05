@@ -127,3 +127,15 @@ fn a_deleted_shared_folders_old_place_is_not_the_shares_in_the_moment() {
         json!({ "path": "Mesa" }),
     ));
 }
+
+/// A device deletes the shared folder's last file: the folder goes with
+/// it (no empty folder is left on the server), and so does its share, as
+/// a window's deletion of the folder ends it (ADR 0081 item 13).
+#[test]
+fn a_devices_deletion_of_a_shared_folders_last_file_ends_the_share() {
+    block_on(in_the_moment(
+        "device-deleted",
+        "sync_delete",
+        json!({ "path": "Mesa/Notas.md" }),
+    ));
+}

@@ -1014,7 +1014,7 @@ pub(crate) async fn command_in(
             "sync_delete" => {
                 let named: String = arg(&args, "path")?;
                 let base: String = arg(&args, "base")?;
-                let (head, path) = {
+                let (head, path, unshared) = {
                     let one = one_at_a_time(&s, &folder);
                     let _only = lock(&one);
                     let path = as_kept_file(&s, (&folder, &key), &named, &*inside)?;
@@ -1030,9 +1030,11 @@ pub(crate) async fn command_in(
                         // What the table keeps of the note goes with it, into
                         // the bin, before the folder's session is free.
                         cc::device_did(&sd, &fd, ("delete_entry", "path"), (&p, &gone.path));
-                        Ok(gone)
+                        // And a shared folder pruned that way, its shares.
+                        let unshared = crate::shares::device_deleted(&sd, ws, &fd, &p);
+                        Ok((gone, unshared))
                     });
-                    let gone = cc::drop_if_failed(
+                    let (gone, unshared) = cc::drop_if_failed(
                         &s,
                         &folder,
                         ("sync_delete", &json!({ "path": path })),
@@ -1052,10 +1054,13 @@ pub(crate) async fn command_in(
                         },
                         &[(path.clone(), Now::Gone)],
                     )?;
-                    (head, path)
+                    (head, path, unshared)
                 };
                 // Outside the folder's lock: a room takes its own lock first.
                 told(&s, &key, &[], std::slice::from_ref(&path), &[]);
+                if unshared {
+                    crate::shares::refresh(&s, &folder, "deleted");
+                }
                 Ok(json!({ "head": head }))
             }
             "sync_rename" => {
