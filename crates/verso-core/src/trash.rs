@@ -284,7 +284,7 @@ pub fn sweep(
     let mut swept = Swept::default();
     let mut gone: HashSet<String> = HashSet::new();
     for (path, why) in due(&items, now, days, quota, cap) {
-        match trashbin::purge(folder, Path::new(&path)) {
+        match purge_found(folder, &path, &found) {
             Ok(()) => {
                 book.forget(&path)?;
                 if let Some(item) = items.iter().find(|i| i.record.path == path) {
@@ -318,6 +318,29 @@ pub fn sweep(
         }
     }
     Ok(swept)
+}
+
+/// Remove the entry of the bin at `path` with what the sweep's walk found
+/// in it, never more: each file and link the walk listed under it, then its
+/// folders while they are empty, deepest first. A file put in it since the
+/// walk — a deletion or a version a write replaced, landing under the path
+/// of a folder deleted long ago — stays, in the bin, an entry of its own at
+/// the next sweep (`remove_dir_all` took it with the folder).
+fn purge_found(folder: &Path, path: &str, found: &[Binned]) -> Result<(), WriteError> {
+    let under = format!("{path}/");
+    let mut mine: Vec<&Binned> = found
+        .iter()
+        .filter(|b| b.path == path || b.path.starts_with(&under))
+        .collect();
+    mine.sort_by_key(|b| std::cmp::Reverse(b.path.len()));
+    for b in mine {
+        if b.dir {
+            trashbin::remove_empty(folder, Path::new(&b.path))?;
+        } else {
+            trashbin::purge(folder, Path::new(&b.path))?;
+        }
+    }
+    Ok(())
 }
 
 /// Every entry of the bin of the folder at `folder`, from a walk and the
