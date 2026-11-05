@@ -75,6 +75,9 @@ let visitor: string | null = null;
  *  left closed, not tried again. */
 let onLinkEnded: (() => void) | null = null;
 let linkEnded = false;
+/** Who waits for the connection to come up again: a read link's folder
+ *  asked when the one before dropped. */
+const backUp: (() => void)[] = [];
 /** Where a live share's frames go (`audio_share_hear`, the desktop host's channel answered here). */
 let audioFrames: { onmessage: (bytes: ArrayBuffer) => void } | null = null;
 
@@ -281,6 +284,7 @@ function connect(): void {
     retry = 0;
     gaveUp = false;
     for (const v of verdicts.splice(0)) v("up");
+    for (const b of backUp.splice(0)) b();
     if (back && folderId && openedOnce) {
       // The folder again first: a new connection shows no folder, and a
       // save queued while offline would be answered "no folder" if it went
@@ -426,6 +430,9 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     }
     case "open_initial": {
       if (!folderId || openedOnce) return done(null);
+      // A read link's window has one folder: it is never left for the start
+      // page's choice of a folder (the re-test of 2026-11-04).
+      if (visitor) return done({ kind: "folder", info: await visitorFolder() });
       const info = await openFolder(folderId).catch(() => {
         // A folder of the address one may no longer enter: the start page,
         // with no role.
@@ -591,6 +598,21 @@ async function openFolder(id: string): Promise<unknown> {
   remember(id);
   offline.folderOpened(id, info as FolderInfo | null, role);
   return info;
+}
+
+/** The folder of a read link's window: asked until the server answers.
+ *  A connection that drops before the answer is not an answer — the folder
+ *  is asked again once the next one is up, the window still opening; a
+ *  refusal of the server is said (an ended link's page comes with it). */
+async function visitorFolder(): Promise<unknown> {
+  for (;;) {
+    try {
+      return await openFolder(folderId ?? "link");
+    } catch (e) {
+      if (linkEnded || (e as { transport?: unknown } | null)?.transport !== true) throw e;
+      await new Promise<void>((resolve) => backUp.push(resolve));
+    }
+  }
 }
 
 /** What Tauri's notification plugin asks of the desktop's host, answered

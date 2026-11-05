@@ -79,6 +79,18 @@ export const rightDivider = el<HTMLDivElement>("right-divider");
 export function lesson(): void {
   page?.classList.add("empty");
   const box = h("div", "lesson");
+  // A read link's window has one folder, its link's (ADR 0105): until it
+  // opens — the connection can come late, a quick link a minute old in
+  // WebKit (the re-test of 2026-11-04) — it says the folder is opening,
+  // as the status bar does for any folder, never the start page's choice
+  // of a folder.
+  if (document.documentElement.dataset["visitor"] === "link") {
+    const opening = h("p", "lesson-opening", t.openingFolder);
+    opening.setAttribute("role", "status");
+    box.append(opening);
+    ui.panes.replaceChildren(box);
+    return;
+  }
   const importBtn = h("button", "lesson-import", t.importDemoVault);
   importBtn.type = "button";
   importBtn.prepend(icon("template"));
