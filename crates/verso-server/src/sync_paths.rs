@@ -144,6 +144,13 @@ pub(super) fn reconcile_paths(
 /// follows the disk's spelling, and the other spelling, if the log knew
 /// it, is gone. A device that had not yet heard of a respelling sends its
 /// edit under the old one; without this the manifest would hold both.
+///
+/// The disk says how it spells the name: the walk's listing does not name
+/// a file made since (a device's new file, written again through another
+/// case before the next walk — the night stress, seed 3, 2026-11-04, left
+/// the log holding `a.md` beside `A.md` and, after the walk, `A.md` with
+/// bytes the disk no longer held). The listing answers only where the disk
+/// cannot.
 fn as_spelled(
     server: &Server,
     key: &str,
@@ -163,7 +170,13 @@ fn as_spelled(
         Ok(named
             .iter()
             .map(|(p, is_gone)| {
-                if *is_gone || entries.iter().any(|e| &e.path == p) {
+                if *is_gone {
+                    return None;
+                }
+                if let Some(d) = ws.spelled_on_disk(p) {
+                    return (d != *p && !gone.contains(&d)).then_some(d);
+                }
+                if entries.iter().any(|e| &e.path == p) {
                     return None;
                 }
                 let k = verso_core::sync::folded(p);

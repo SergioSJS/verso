@@ -462,6 +462,58 @@ fn a_write_through_another_spelling_keeps_one_entry_in_the_log() {
     });
 }
 
+/// The same for a file made since the folder was last walked, which the
+/// walk's listing does not name: the disk is asked how it spells the name.
+/// Found by the night stress (seed 3, 2026-11-04): `A.md` sent new, then
+/// written as `a.md` before any walk, entered the log as a second file
+/// `a.md`, `A.md` keeping the hash of bytes the disk no longer held; the
+/// next walk dropped `a.md` and, the two bodies of one size written in one
+/// second, skipped `A.md` as unchanged — its stale hash for good.
+#[cfg(any(target_os = "macos", windows))]
+#[test]
+fn a_write_through_another_spelling_of_a_file_made_since_the_walk_keeps_one_entry() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = opened(&r, &admin).await;
+        // The folder walked now: the next walk is a minute away.
+        call(&mut ws, 5, "sync_state", json!({})).await;
+        let first = send(&mut ws, 10, "A.md", b"# P3-19\n", None).await;
+        assert_eq!(first["ok"]["done"], true, "{first}");
+        let other = send(
+            &mut ws,
+            20,
+            "a.md",
+            b"# P3-24\n",
+            Some(&sha256(b"# P3-19\n")),
+        )
+        .await;
+        assert_eq!(other["ok"]["done"], true, "{other}");
+        // Said where it landed: the disk keeps the name of the file written
+        // over.
+        assert_eq!(other["ok"]["path"], "A.md", "{other}");
+        assert_eq!(r.campanha_text("A.md"), "# P3-24\n");
+        let state = call(&mut ws, 30, "sync_state", json!({})).await;
+        let spellings: Vec<(String, String)> = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|f| f["path"].as_str().unwrap().to_lowercase() == "a.md")
+            .map(|f| {
+                (
+                    f["path"].as_str().unwrap().to_owned(),
+                    f["hash"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            spellings,
+            vec![("A.md".to_owned(), sha256(b"# P3-24\n"))],
+            "{state}"
+        );
+    });
+}
+
 /// One name is one file on the server (spec Q7, decided 2026-10-10;
 /// finding F20 of the sync campaign): a device whose file system keeps
 /// `Café.md` decomposed sends, fetches and deletes the file the server
