@@ -1196,7 +1196,12 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
         }
         "delete_entry" | "delete_note" => {
             if let Some(path) = args["path"].as_str() {
-                touched = server.db.campaign_deleted(folder, path).unwrap_or(0) > 0;
+                // Into the bin, what the file kept at the table goes with
+                // it, for a restore to give back (`Db::campaign_binned`).
+                if let Some(bin) = answer["path"].as_str().filter(|b| crate::trash::in_bin(b)) {
+                    touched = server.db.campaign_binned(folder, path, bin).unwrap_or(0) > 0;
+                }
+                touched |= server.db.campaign_deleted(folder, path).unwrap_or(0) > 0;
             }
         }
         _ => {}
@@ -1314,7 +1319,8 @@ pub fn device_will(
 
 /// A device did: what the table keeps of the path follows ([`after_write`]).
 /// `cmd` is the window's command that does the same, `field` its argument
-/// naming the path, `to` where it went (empty for a deletion).
+/// naming the path, `to` where it went (for a deletion, its place in the
+/// bin, or empty).
 pub fn device_did(
     server: &Server,
     folder: &str,

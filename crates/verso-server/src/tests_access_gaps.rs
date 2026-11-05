@@ -163,3 +163,139 @@ fn a_devices_rename_shows_no_player_the_file_before_its_access_follows() {
         still_hidden(&mut m, "Praça/Barão Zq.md").await;
     });
 }
+
+/// A note with access of its own, hidden inside "Praça", deleted and then
+/// restored from the bin: it comes back to the players as it was.
+#[test]
+fn a_restored_note_is_shown_to_no_player_it_was_hidden_from() {
+    block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        let made = m
+            .owner
+            .call(
+                "create_note",
+                json!({ "name": "Praça/Segredo Zq", "text": "zq\n" }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let hide = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Praça/Segredo Zq.md"], "change": set("none") }),
+            )
+            .await;
+        assert!(hide.get("ok").is_some(), "{hide}");
+        still_hidden(&mut m, "Praça/Segredo Zq.md").await;
+        let gone = m
+            .owner
+            .call("delete_entry", json!({ "path": "Praça/Segredo Zq.md" }))
+            .await;
+        assert!(gone.get("ok").is_some(), "{gone}");
+        let bin = gone["ok"]["path"].as_str().unwrap().to_owned();
+        let back = m
+            .owner
+            .call(
+                "trash_restore",
+                json!({ "path": bin, "today": "2026-11-05", "lang": "pt" }),
+            )
+            .await;
+        assert_eq!(back["ok"]["path"], "Praça/Segredo Zq.md", "{back}");
+        still_hidden(&mut m, "Praça/Segredo Zq.md").await;
+    });
+}
+
+/// A hidden note made in "Praça", by its own access.
+async fn hidden_note(m: &mut Mesa, name: &str) -> String {
+    let made = m
+        .owner
+        .call("create_note", json!({ "name": name, "text": "zq\n" }))
+        .await;
+    assert!(made.get("ok").is_some(), "{made}");
+    let path = format!("{name}.md");
+    let hide = m
+        .owner
+        .call(
+            "access_set",
+            json!({ "paths": [path], "change": set("none") }),
+        )
+        .await;
+    assert!(hide.get("ok").is_some(), "{hide}");
+    still_hidden(m, &path).await;
+    path
+}
+
+/// Back from the bin as it went in: a folder with access of its own, a
+/// note a device deleted; and an entry gone from the bin for good takes
+/// what it kept with it.
+#[test]
+fn what_the_bin_gives_back_keeps_the_access_it_had() {
+    block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        let restore = |bin: &str| json!({ "path": bin, "today": "2026-11-05", "lang": "pt" });
+        // A folder hidden by its own access, deleted whole.
+        let made = m
+            .owner
+            .call(
+                "create_note",
+                json!({ "name": "Praça/Cofre Zq/Ouro Zq", "text": "zq\n" }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        let hide = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Praça/Cofre Zq"], "change": set("none") }),
+            )
+            .await;
+        assert!(hide.get("ok").is_some(), "{hide}");
+        still_hidden(&mut m, "Praça/Cofre Zq/Ouro Zq.md").await;
+        let gone = m
+            .owner
+            .call("delete_entry", json!({ "path": "Praça/Cofre Zq" }))
+            .await;
+        let bin = gone["ok"]["path"].as_str().unwrap().to_owned();
+        let back = m.owner.call("trash_restore", restore(&bin)).await;
+        assert_eq!(back["ok"]["path"], "Praça/Cofre Zq", "{back}");
+        still_hidden(&mut m, "Praça/Cofre Zq/Ouro Zq.md").await;
+        // A note a device deleted goes to the server's bin as well.
+        let path = hidden_note(&mut m, "Praça/Diário Zq").await;
+        let state = m.owner.call("sync_state", json!({})).await;
+        let base = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == path.as_str())
+            .map(|f| f["hash"].clone())
+            .unwrap();
+        let gone = m
+            .owner
+            .call("sync_delete", json!({ "path": path, "base": base }))
+            .await;
+        assert!(gone.get("ok").is_some(), "{gone}");
+        let list = m.owner.call("trash_list", json!({})).await;
+        let bin = list["ok"]["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["original"] == path.as_str())
+            .map(|i| i["path"].as_str().unwrap().to_owned())
+            .unwrap();
+        let back = m.owner.call("trash_restore", restore(&bin)).await;
+        assert_eq!(back["ok"]["path"], path.as_str(), "{back}");
+        still_hidden(&mut m, &path).await;
+        // Gone for good: nothing of it is kept.
+        let path = hidden_note(&mut m, "Praça/Velho Zq").await;
+        let gone = m.owner.call("delete_entry", json!({ "path": path })).await;
+        let bin = gone["ok"]["path"].as_str().unwrap().to_owned();
+        let purged = m
+            .owner
+            .call("trash_delete", json!({ "paths": [bin] }))
+            .await;
+        assert!(purged.get("ok").is_some(), "{purged}");
+        assert_eq!(m.r.server.db.campaign_unbinned(&m.id, ".trash").unwrap(), 0);
+    });
+}

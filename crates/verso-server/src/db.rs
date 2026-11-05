@@ -1438,7 +1438,7 @@ pub use local::{LOCAL_OWNER, Phone, VAULT_HOLDER};
 pub use readlinks::{NewReadLink, ReadLink};
 pub use shares::{Share, covers};
 pub use sync::{Change, Known, Made, Notice, Notices, ReaderOf, Recorded};
-pub use trash::FolderBook;
+pub use trash::{FolderBook, Restoring};
 
 #[cfg(test)]
 mod tests;

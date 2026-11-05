@@ -1034,8 +1034,9 @@ pub(crate) async fn command_in(
                         ("sync_delete", &json!({ "path": path })),
                         gone,
                     )?;
-                    // What the table keeps of the note goes with it.
-                    cc::device_did(&s, &folder, ("delete_entry", "path"), (&path, ""));
+                    // What the table keeps of the note goes with it, into
+                    // the bin.
+                    cc::device_did(&s, &folder, ("delete_entry", "path"), (&path, &gone.path));
                     crate::trash::deleted(&s, &folder, &gone, &by);
                     let head = reconcile_paths(
                         &s,

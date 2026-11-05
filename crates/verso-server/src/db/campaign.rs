@@ -533,6 +533,55 @@ impl Db {
         Ok(touched)
     }
 
+    /// `path` (a note or a folder) went into the bin, at `bin`: the access
+    /// and the state it kept at a table go there with it, for a restore to
+    /// give back ([`Self::campaign_restored`]) — a restore is a move inside
+    /// the folder (ADR 0080 item 5) and a move keeps a file's access (ADR
+    /// 0113 K.2). What the bin kept at that name before goes first. The
+    /// rules never read what is in the bin (`db::access`).
+    pub fn campaign_binned(&self, folder: &str, path: &str, bin: &str) -> R<usize> {
+        self.state_moved(folder, path, bin)
+    }
+
+    /// The bin's entry at `bin` came back at `to`: what it kept follows it.
+    pub fn campaign_restored(&self, folder: &str, bin: &str, to: &str) -> R<usize> {
+        self.state_moved(folder, bin, to)
+    }
+
+    /// The bin's entry at `bin` went for good, and what it kept.
+    pub fn campaign_unbinned(&self, folder: &str, bin: &str) -> R<usize> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        let touched = drop_state_under(&tx, folder, bin)?;
+        tx.commit().map_err(e)?;
+        Ok(touched)
+    }
+
+    /// The access and the state kept for `from` and under it, moved to `to`
+    /// over whatever was kept for `to`: nothing is, of a path just made.
+    fn state_moved(&self, folder: &str, from: &str, to: &str) -> R<usize> {
+        let mut conn = self.conn();
+        let tx = conn.transaction().map_err(e)?;
+        drop_state_under(&tx, folder, to)?;
+        let under = under_sql(from);
+        let mut touched = 0;
+        for table in ["campaign_access", "campaign_files"] {
+            touched += tx
+                .execute(
+                    &format!(
+                        "UPDATE {table} SET path = CASE WHEN path = ?2 THEN ?4
+                           ELSE ?4 || substr(path, length(?2) + 1) END
+                         WHERE folder = ?1 AND ?2 <> '' AND ?4 <> ''
+                           AND (path = ?2 OR substr(path, 1, length(?3)) = ?3)"
+                    ),
+                    params![folder, from, under, to],
+                )
+                .map_err(e)?;
+        }
+        tx.commit().map_err(e)?;
+        Ok(touched)
+    }
+
     /// `path` (a note or a folder) was deleted: the state of what it held
     /// goes, and a table rooted in it.
     pub fn campaign_deleted(&self, folder: &str, path: &str) -> R<usize> {
@@ -684,6 +733,23 @@ fn rehome_log(conn: &rusqlite::Connection, folder: &str) -> R<()> {
     )
     .map_err(e)?;
     Ok(())
+}
+
+/// The access and the state kept for `path` and under it, dropped.
+fn drop_state_under(conn: &rusqlite::Connection, folder: &str, path: &str) -> R<usize> {
+    let mut touched = 0;
+    for table in ["campaign_access", "campaign_files"] {
+        touched += conn
+            .execute(
+                &format!(
+                    "DELETE FROM {table} WHERE folder = ?1 AND ?2 <> ''
+                       AND (path = ?2 OR substr(path, 1, length(?3)) = ?3)"
+                ),
+                params![folder, path, under_sql(path)],
+            )
+            .map_err(e)?;
+    }
+    Ok(touched)
 }
 
 /// `path` followed by `/`: the prefix of what lies under it.

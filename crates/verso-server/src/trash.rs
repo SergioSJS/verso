@@ -101,6 +101,12 @@ pub fn by_name(who: &Who, device: Option<&str>) -> String {
     }
 }
 
+/// Whether `path` is in the folder's bin (`.trash/` at its root).
+#[must_use]
+pub fn in_bin(path: &str) -> bool {
+    path == ".trash" || path.starts_with(".trash/")
+}
+
 /// Record what a deletion in `folder` put in the bin, and sweep the folder
 /// soon (item 8).
 pub fn deleted(server: &Arc<Server>, folder: &str, gone: &verso_core::Trashed, by: &str) {
@@ -440,8 +446,20 @@ pub async fn command(
                 })?;
                 let original = size_of[0].as_str().unwrap_or_default().to_owned();
                 crate::quota::check(&s, &key, &original, size_of[1].as_u64().unwrap_or(0))?;
-                let done = with(&s, &mut |ws, book| {
-                    let (done, _) = trash::restore(ws, Some(book), &path, &today, &lang)?;
+                // What the entry kept of a table comes back with it, before
+                // the folder's session is free: a restore is a move (item
+                // 5), and a move keeps a file's access (ADR 0113 K.2).
+                let done = s.service.with(&c, |ws| {
+                    let mut book = crate::db::Restoring(FolderBook {
+                        db: &s.db,
+                        folder: &folder,
+                    });
+                    let (done, _) = trash::restore(ws, Some(&mut book), &path, &today, &lang)?;
+                    match s.db.campaign_restored(&folder, &path, &done.path) {
+                        Ok(n) if n > 0 => crate::campaign::forget(&s, &folder),
+                        Ok(_) => {}
+                        Err(e) => crate::log::warn(&format!("restoring a table's access: {e}")),
+                    }
                     to_value(done).map_err(OpError::Contract)
                 })?;
                 let landed = done["path"].as_str().unwrap_or_default().to_owned();
