@@ -1271,3 +1271,58 @@ fn a_link_is_made_for_what_is_on_the_disk_with_no_window_open() {
         assert_eq!(whole["link"]["path"], "");
     });
 }
+
+/// A page open on a link whose note or folder then moves is not served
+/// what is made at the old place after it (the audit of 2026-11-05): the
+/// link follows its target (`readlinks::after_write`), and the page's own
+/// reach must too.
+#[test]
+fn an_open_links_page_is_not_served_what_is_made_where_its_target_was() {
+    block_on(async {
+        let r = start().await;
+        let admin = admin(&r).await;
+        let (id, mut owner) = furnish(&r, &admin).await;
+        on(&r, &admin).await;
+        let note = made(
+            &r,
+            &admin,
+            &id,
+            json!({ "kind": "note", "path": "Alvo.md" }),
+        )
+        .await;
+        let (mut page, _) = reader(&r, &token_of(&note)).await;
+        let folder = made(&r, &admin, &id, json!({ "kind": "folder", "path": "Mesa" })).await;
+        let (mut shelf, _) = reader(&r, &token_of(&folder)).await;
+        for (n, cmd, args) in [
+            (
+                60,
+                "rename_entry",
+                json!({ "from": "Alvo.md", "to": "Alvo antigo.md" }),
+            ),
+            (
+                61,
+                "create_note",
+                json!({ "name": "Alvo", "text": "zqnova privada\n" }),
+            ),
+            (
+                62,
+                "rename_entry",
+                json!({ "from": "Mesa", "to": "Mesa velha" }),
+            ),
+            (
+                63,
+                "create_note",
+                json!({ "name": "Mesa/Nova", "text": "zqnova privada\n" }),
+            ),
+        ] {
+            let done = call(&mut owner, n, cmd, args).await;
+            assert!(done.get("ok").is_some(), "{cmd}: {done}");
+        }
+        let read = ask(&mut page, 2, "read_note", json!({ "path": "Alvo.md" })).await;
+        assert!(!read.to_string().contains("zqnova"), "{read}");
+        let listed = ask(&mut shelf, 2, "list_notes", json!({})).await;
+        assert!(!listed.to_string().contains("Nova"), "{listed}");
+        let read = ask(&mut shelf, 3, "read_note", json!({ "path": "Nova.md" })).await;
+        assert!(!read.to_string().contains("zqnova"), "{read}");
+    });
+}
