@@ -299,3 +299,48 @@ fn what_the_bin_gives_back_keeps_the_access_it_had() {
         assert_eq!(m.r.server.db.campaign_unbinned(&m.id, ".trash").unwrap(), 0);
     });
 }
+
+/// A note that followed its hidden folder, deleted before the folder was,
+/// and restored alone: its folder is made again, with nothing of its own,
+/// and the note comes back as hidden as it went (K.2: a file that followed
+/// its folder takes along what it followed).
+#[test]
+fn a_note_restored_without_its_folder_keeps_the_access_it_followed() {
+    block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        for name in ["Praça/Cofre Zq/Ouro Zq", "Praça/Cofre Zq/Prata Zq"] {
+            let made = m
+                .owner
+                .call("create_note", json!({ "name": name, "text": "zq\n" }))
+                .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        let hide = m
+            .owner
+            .call(
+                "access_set",
+                json!({ "paths": ["Praça/Cofre Zq"], "change": set("none") }),
+            )
+            .await;
+        assert!(hide.get("ok").is_some(), "{hide}");
+        let path = "Praça/Cofre Zq/Ouro Zq.md";
+        still_hidden(&mut m, path).await;
+        let gone = m.owner.call("delete_entry", json!({ "path": path })).await;
+        let bin = gone["ok"]["path"].as_str().unwrap().to_owned();
+        let folder = m
+            .owner
+            .call("delete_entry", json!({ "path": "Praça/Cofre Zq" }))
+            .await;
+        assert!(folder.get("ok").is_some(), "{folder}");
+        let back = m
+            .owner
+            .call(
+                "trash_restore",
+                json!({ "path": bin, "today": "2026-11-05", "lang": "pt" }),
+            )
+            .await;
+        assert_eq!(back["ok"]["path"], path, "{back}");
+        still_hidden(&mut m, path).await;
+    });
+}

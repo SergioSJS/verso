@@ -1200,6 +1200,17 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
                 // it, for a restore to give back (`Db::campaign_binned`).
                 if let Some(bin) = answer["path"].as_str().filter(|b| crate::trash::in_bin(b)) {
                     touched = server.db.campaign_binned(folder, path, bin).unwrap_or(0) > 0;
+                    // One that followed its folder takes along what it
+                    // followed, as a move does (K.2): restored alone, its
+                    // folder may be gone, or another's.
+                    if let Some(set) = before.inherited_set(path) {
+                        match server.db.access_put(folder, bin, set) {
+                            Ok(()) => touched = true,
+                            Err(e) => {
+                                crate::log::warn(&format!("keeping a deleted file's access: {e}"))
+                            }
+                        }
+                    }
                 }
                 touched |= server.db.campaign_deleted(folder, path).unwrap_or(0) > 0;
             }
