@@ -18,6 +18,7 @@ pub mod auth;
 pub mod board_sight;
 pub mod campaign;
 pub mod campaign_cmds;
+pub mod campaign_outside;
 pub mod campaign_serve;
 pub mod campaign_sync;
 pub mod campaign_text;
@@ -442,6 +443,8 @@ mod tests_access_cmds;
 mod tests_access_doors;
 #[cfg(test)]
 mod tests_access_gaps;
+#[cfg(test)]
+mod tests_access_outside;
 #[cfg(test)]
 mod tests_access_review;
 #[cfg(test)]

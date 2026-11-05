@@ -629,6 +629,9 @@ fn record_changes(
         }
         changes.push((path, Some((hash, size, quick)), from));
     }
+    // A file renamed or deleted outside Verso keeps who sees it, before
+    // the players are told (`campaign_outside`).
+    crate::campaign_outside::followed(server, folder, (&changes, gone), (known, moved));
     // A note a player saw that was deleted, or renamed: the players' devices
     // are told it went — decided in the step that records it, from what was
     // remembered before it ran (ADR 0110 item 4, amended 2026-10-23).
