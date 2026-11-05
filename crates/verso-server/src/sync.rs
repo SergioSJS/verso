@@ -13,7 +13,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use axum::body::Bytes;
 use base64::Engine;
@@ -255,6 +255,9 @@ fn reconcile_held(
     moved: &HashMap<String, String>,
 ) -> Result<i64, ContractError> {
     let fail = |e: String| verso_service::failed(e);
+    // Before anything is read: what the reads find is vouched for as of
+    // this moment (`settled`).
+    let read_from = SystemTime::now();
     let known = server.db.manifest(folder).map_err(fail)?;
     let files = listed(server, key)?;
     let listed_paths: HashSet<String> = files.iter().map(|(p, _, _)| p.clone()).collect();
@@ -395,7 +398,7 @@ fn reconcile_held(
         by,
         (&known, &gone),
         (created, moved),
-        &quick_only,
+        (&quick_only, read_from),
     )?;
     // A window's write the watcher recorded first (C3, seen on Windows):
     // offered to the history with its author, as `reconcile_paths` does.
@@ -437,6 +440,42 @@ fn quick_of(revision: &str, len: u64) -> Option<String> {
     let nanos: u128 = parts.next()?.parse().ok()?;
     let length: u64 = parts.next()?.parse().ok()?;
     (len == length).then(|| quick_key(len, nanos))
+}
+
+/// How long a file must have stood unmodified before the reading of it
+/// began for its quick key to be kept: git's racy rule, as the index
+/// trusts a note by its time and length (ADR 0011, amended 2026-10-08) and
+/// as the app's sync remembers a file it read (`app/src-tauri/src/sync.rs`).
+pub(crate) const SETTLED: Duration = Duration::from_secs(2);
+
+/// `quick`, kept only when the time it names is at least [`SETTLED`]
+/// before `read_from`, the moment the reconciliation began to read; else
+/// empty, which no listing gives, so the next walk reads the file again
+/// and keeps its key then. A file written again with its length within the
+/// time its file system keeps (a second on FAT, HFS+ or some shares, a
+/// tick of a coarse clock) has the key of the bytes read: kept, that key
+/// would skip the second write for good. A key with no time (`<len>:0`)
+/// is kept, and one that cannot be read is not.
+pub(crate) fn settled(quick: String, read_from: SystemTime) -> String {
+    let Some((_, time)) = quick.split_once(':') else {
+        return String::new();
+    };
+    if time == "0" {
+        return quick;
+    }
+    let (secs, frac) = time.split_once('.').unwrap_or((time, "0"));
+    let (Ok(secs), Ok(frac)) = (secs.parse::<u128>(), frac.parse::<u128>()) else {
+        return String::new();
+    };
+    let at = secs.saturating_mul(1_000_000_000).saturating_add(frac);
+    let from = read_from
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    if at.saturating_add(SETTLED.as_nanos()) <= from {
+        quick
+    } else {
+        String::new()
+    }
 }
 
 /// A file's quick key, what a walk skips it by while it is as last seen: its
@@ -496,8 +535,19 @@ fn record_changes(
     by: Author<'_>,
     (known, gone): (&HashMap<String, crate::db::Known>, &[(String, String)]),
     (created, moved): (Vec<Created>, &HashMap<String, String>),
-    quick_only: &[(String, String)],
+    (quick_only, read_from): (&[(String, String)], SystemTime),
 ) -> Result<i64, ContractError> {
+    // A key only for a file that has settled (`settled`): one modified in
+    // the 2 s before its reading began is read again by the next walk.
+    let created: Vec<Created> = created
+        .into_iter()
+        .map(|(p, h, s, q)| (p, h, s, settled(q, read_from)))
+        .collect();
+    let quick_only: Vec<(String, String)> = quick_only
+        .iter()
+        .map(|(p, q)| (p.clone(), settled(q.clone(), read_from)))
+        .collect();
+    let quick_only = quick_only.as_slice();
     // What a reader is told of each note read (ADR 0087 item 4): its
     // projection's hash and size, when it holds a secret block — the new
     // and changed ones, and those read again whose bytes did not change.

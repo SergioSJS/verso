@@ -1108,10 +1108,12 @@ fn a_file_larger_than_sync_carries_is_listed_never_read() {
     });
 }
 
-/// A file a device sent is recorded with the quick key the next walk's
-/// listing gives it — its length and its time on the disk — so that walk
-/// skips it instead of reading and hashing it again (R3 of 2026-10-11: the
-/// time was recorded as 0, and every file sent was read once more).
+/// A file a device sent is recorded with the quick key the walk's listing
+/// gives it — its length and its time on the disk — once it has settled,
+/// so that walks skip it instead of reading and hashing it again (R3 of
+/// 2026-10-11: the time was recorded as 0, and every file sent was read at
+/// every walk). Just written, it has no key: the next reconciliation reads
+/// it once (`sync::settled`, git's racy rule).
 #[test]
 fn a_file_sent_is_not_read_again_by_the_next_walk() {
     const NAME: &str = "Enviado-r3.md";
@@ -1122,12 +1124,17 @@ fn a_file_sent_is_not_read_again_by_the_next_walk() {
         let mut ws = opened(&r, &admin).await;
         let sent = send(&mut ws, 2, NAME, b"# enviado\n", None).await;
         assert_eq!(sent["ok"]["done"], true, "{sent}");
+        let fresh = r.server.db.known(&id, NAME).unwrap().unwrap().quick;
+        assert_eq!(fresh, "", "a file just written has no key yet");
+        // Settled, a reconciliation reads it once and keeps its key.
+        tokio::time::sleep(crate::sync::SETTLED + std::time::Duration::from_millis(200)).await;
+        let key = key_of(&r, &id);
+        crate::sync::reconcile(&r.server, &id, &key, None, &[]).unwrap();
         let recorded = r.server.db.known(&id, NAME).unwrap().unwrap().quick;
         assert!(!recorded.ends_with(":0"), "{recorded}");
         // The walk's listing of the file, as the next walk compares it.
         let walked = call(&mut ws, 10, "reindex", json!({})).await;
         assert!(walked.get("ok").is_some(), "{walked}");
-        let key = key_of(&r, &id);
         let listed = r
             .server
             .service
@@ -1263,9 +1270,45 @@ fn a_quick_key_of_whole_seconds_kept_before_makes_the_walk_read_the_file() {
             .cloned()
             .unwrap_or_default();
         assert_eq!(listed["hash"], sha256(b"# do\n"), "{state}");
+        // Its old key gone: just rewritten, it has none until it settles.
         let kept = r.server.db.known(&id, NAME).unwrap().unwrap().quick;
-        assert_eq!(kept, crate::sync::quick_key(5, nanos));
+        assert_ne!(kept, old);
+        assert_eq!(kept, "");
+        let later = std::time::UNIX_EPOCH
+            + std::time::Duration::from_nanos(u64::try_from(nanos).unwrap())
+            + crate::sync::SETTLED;
+        assert_eq!(
+            crate::sync::settled(crate::sync::quick_key(5, nanos), later),
+            crate::sync::quick_key(5, nanos)
+        );
     });
+}
+
+/// The racy rule on a disk that keeps whole seconds (FAT, HFS+, some
+/// network shares; a coarse clock's tick likewise): a file read in the
+/// second it was written has the key of those bytes, and a second write of
+/// its length in that second would leave the same key. Kept, the walk
+/// would skip the second write for good; the key is kept only for a file
+/// that stood unmodified 2 s before the reading began.
+#[test]
+fn a_quick_key_is_kept_only_for_a_file_that_settled() {
+    use crate::sync::{SETTLED, quick_key, settled};
+    use std::time::{Duration, UNIX_EPOCH};
+    // Written at 1000 s on a disk of whole seconds.
+    let coarse = quick_key(9, 1_000 * 1_000_000_000);
+    assert_eq!(coarse, "9:1000.000000000");
+    let at = |ms: u64| UNIX_EPOCH + Duration::from_millis(ms);
+    // Read in that second, and in the next: no key.
+    assert_eq!(settled(coarse.clone(), at(1_000_400)), "");
+    assert_eq!(settled(coarse.clone(), at(1_001_999)), "");
+    // Read 2 s after: kept.
+    assert_eq!(settled(coarse.clone(), at(1_000_000) + SETTLED), coarse);
+    // An older server's key of whole seconds, the same rule.
+    assert_eq!(settled("9:1000".to_owned(), at(1_001_000)), "");
+    assert_eq!(settled("9:1000".to_owned(), at(1_003_000)), "9:1000");
+    // No time from the disk: kept as before; unreadable: none.
+    assert_eq!(settled("9:0".to_owned(), at(1_000_000)), "9:0");
+    assert_eq!(settled("nada".to_owned(), at(1_003_000)), "");
 }
 
 /// A transfer left half done goes with its connection (R2 of 2026-10-11):

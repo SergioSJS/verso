@@ -35,6 +35,8 @@ pub(super) fn reconcile_paths(
     by: Author<'_>,
     paths: &[(String, Now)],
 ) -> Result<i64, ContractError> {
+    // Before anything is read (`super::settled`).
+    let read_from = std::time::SystemTime::now();
     // A file held as the twin of another (`crate::twins`) never enters the
     // log through a write that names it: the walk keeps it out too.
     let held = crate::twins::held(server, folder);
@@ -126,7 +128,7 @@ pub(super) fn reconcile_paths(
         by,
         (&known, &gone),
         (created, &HashMap::new()),
-        &quick_only,
+        (&quick_only, read_from),
     )?;
     // Whoever made a change the walk recorded first, with no author (seen
     // on Windows, 2026-10-31): offered to the history with its author, which
