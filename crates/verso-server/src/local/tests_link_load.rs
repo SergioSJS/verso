@@ -25,59 +25,36 @@ const ORIGIN: &str = "https://abstract-simpson-player.trycloudflare.com";
 /// A cold load's connections, as `cloudflared` opened them in the test.
 const BURST: usize = 80;
 
-/// A file of the window asked on `stream` as the tunnel asks it, for the
-/// player at `client`, the connection kept alive: the answer's status, its
-/// body read whole.
-async fn ask_on(stream: &mut TcpStream, n: usize, client: &str) -> u16 {
-    let request = format!(
+/// A file of the window as the tunnel asks it, for the player at `client`.
+fn chunk_request(n: usize, client: &str) -> String {
+    format!(
         "GET /assets/chunk-{n}.js HTTP/1.1\r\nHost: {NAME}\r\nX-Forwarded-For: {client}\r\nX-Forwarded-Proto: https\r\n\r\n"
-    );
-    if stream.write_all(request.as_bytes()).await.is_err() {
-        return 0;
-    }
-    let mut got = Vec::new();
-    let mut buf = [0u8; 4096];
-    loop {
-        let Ok(n) = stream.read(&mut buf).await else {
-            return 0;
-        };
-        if n == 0 {
-            return 0;
-        }
-        got.extend_from_slice(&buf[..n]);
-        let text = String::from_utf8_lossy(&got);
-        if let Some(end) = text.find("\r\n\r\n") {
-            let head = &text[..end];
-            let length: usize = head
-                .lines()
-                .find_map(|l| {
-                    let (k, v) = l.split_once(':')?;
-                    k.eq_ignore_ascii_case("content-length")
-                        .then(|| v.trim().parse().ok())?
-                })
-                .unwrap_or(0);
-            if got.len() >= end + 4 + length {
-                return head
-                    .split(' ')
-                    .nth(1)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(0);
-            }
-        }
-    }
+    )
 }
 
 /// One player's cold load: [`BURST`] connections opened together, each
-/// asked one file. The statuses, and the connections, kept alive.
+/// sent its file's request the moment it is open, as `cloudflared` sends
+/// a request on the connection it dialled for it. The statuses, each
+/// answer read whole, and the connections, kept alive.
+///
+/// Not all of them opened first and asked after: a connection that says
+/// nothing for [`crate::listen::LINK_IDLE`] is closed by design, and on a
+/// loaded machine 80 connections opened one after another took longer than
+/// the tests' half second (Windows, 2026-11-04: every connection the server
+/// closed was hyper's header timeout, before a byte of its request came).
 async fn cold_load(port: u16, client: String) -> (Vec<u16>, Vec<TcpStream>) {
-    let mut streams = Vec::new();
-    for _ in 0..BURST {
-        streams.push(TcpStream::connect(("127.0.0.1", port)).await.unwrap());
+    let mut asked = Vec::new();
+    for n in 0..BURST {
+        let mut s = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
+        let sent = s.write_all(chunk_request(n, &client).as_bytes()).await;
+        asked.push(tokio::spawn(async move {
+            let status = match sent {
+                Ok(()) => status_of(&mut s).await,
+                Err(_) => 0,
+            };
+            (status, s)
+        }));
     }
-    let asked = streams.into_iter().enumerate().map(|(n, mut s)| {
-        let client = client.clone();
-        tokio::spawn(async move { (ask_on(&mut s, n, &client).await, s) })
-    });
     let mut statuses = Vec::new();
     let mut kept = Vec::new();
     for done in asked {
@@ -169,6 +146,12 @@ async fn read_answer(stream: &mut TcpStream, request: String) -> u16 {
     if stream.write_all(request.as_bytes()).await.is_err() {
         return 0;
     }
+    status_of(stream).await
+}
+
+/// The status of the answer that comes on `stream`, once its body is read
+/// whole; 0 when the connection closes or fails first.
+async fn status_of(stream: &mut TcpStream) -> u16 {
     let mut got = Vec::new();
     let mut buf = [0u8; 4096];
     loop {
