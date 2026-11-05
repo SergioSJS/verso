@@ -1167,7 +1167,7 @@ pub fn carrying(
     service.with(client, |ws| {
         let answer = verso_service::ops::dispatch(ws, cmd, args)
             .unwrap_or_else(|| Err(verso_service::OpError::Contract(refused("no such command"))))?;
-        after_write(server, folder, cmd, &asked, &answer);
+        crate::shares::followed(server, folder, cmd, &asked, &answer);
         Ok(answer)
     })
 }
@@ -1345,7 +1345,8 @@ pub fn device_will(
     before_write(server, folder, key, cmd, &json!({ field: path }));
 }
 
-/// A device did: what the table keeps of the path follows ([`after_write`]).
+/// A device did: what the table keeps of the path follows ([`after_write`]),
+/// and its read links (`shares::followed`).
 /// `cmd` is the window's command that does the same, `field` its argument
 /// naming the path, `to` where it went (for a deletion, its place in the
 /// bin, or empty).
@@ -1360,5 +1361,5 @@ pub fn device_did(
     } else {
         json!({ "path": to })
     };
-    after_write(server, folder, cmd, &json!({ field: path }), &answer);
+    crate::shares::followed(server, folder, cmd, &json!({ field: path }), &answer);
 }

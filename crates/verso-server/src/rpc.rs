@@ -1340,10 +1340,10 @@ pub(crate) async fn folder_run(
             "delete_note" | "delete_entry" | "remove_folder_data"
         ) {
             // What the table kept of it goes into the bin with it, in the
-            // deletion's session (`campaign_cmds::after_write`).
+            // deletion's session (`shares::followed`).
             let removed = crate::trash::removal(&service, &c, (&n, &args), |gone| {
                 let into = json!({ "path": gone.path });
-                crate::campaign_cmds::after_write(&s, &folder_id, &n, &args, &into);
+                crate::shares::followed(&s, &folder_id, &n, &args, &into);
             });
             #[cfg(test)]
             crate::pause::at("window-deleted", &folder_id);

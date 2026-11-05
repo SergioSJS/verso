@@ -1272,6 +1272,18 @@ fn a_link_is_made_for_what_is_on_the_disk_with_no_window_open() {
     });
 }
 
+/// The hash the server's log has of `path`, as a device's base.
+async fn base_of(owner: &mut Socket, n: u64, path: &str) -> Value {
+    let state = call(owner, n, "sync_state", json!({})).await;
+    state["ok"]["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["path"] == path)
+        .map(|f| f["hash"].clone())
+        .unwrap_or_else(|| panic!("{path} in {state}"))
+}
+
 /// A page open on a link whose note or folder then moves is not served
 /// what is made at the old place after it (the audit of 2026-11-05): the
 /// link follows its target (`readlinks::after_write`), and the page's own
@@ -1324,5 +1336,136 @@ fn an_open_links_page_is_not_served_what_is_made_where_its_target_was() {
         assert!(!listed.to_string().contains("Nova"), "{listed}");
         let read = ask(&mut shelf, 3, "read_note", json!({ "path": "Nova.md" })).await;
         assert!(!read.to_string().contains("zqnova"), "{read}");
+    });
+}
+
+/// A device's rename carries the links of what it renamed, and a device's
+/// deletion ends them, as a window's do (`readlinks::after_write`): a link left at
+/// the old path would open whatever is made there next.
+#[test]
+fn a_devices_rename_or_deletion_takes_its_links_along() {
+    block_on(async {
+        let r = start().await;
+        let admin = admin(&r).await;
+        let (id, mut owner) = furnish(&r, &admin).await;
+        on(&r, &admin).await;
+        let moved = made(
+            &r,
+            &admin,
+            &id,
+            json!({ "kind": "note", "path": "Alvo.md" }),
+        )
+        .await;
+        let gone = made(
+            &r,
+            &admin,
+            &id,
+            json!({ "kind": "note", "path": "Porto.md" }),
+        )
+        .await;
+        let base = base_of(&mut owner, 70, "Alvo.md").await;
+        let done = call(
+            &mut owner,
+            71,
+            "sync_rename",
+            json!({ "from": "Alvo.md", "to": "Alvo antigo.md", "base": base }),
+        )
+        .await;
+        assert!(done.get("ok").is_some(), "{done}");
+        let base = base_of(&mut owner, 72, "Porto.md").await;
+        let done = call(
+            &mut owner,
+            73,
+            "sync_delete",
+            json!({ "path": "Porto.md", "base": base }),
+        )
+        .await;
+        assert!(done.get("ok").is_some(), "{done}");
+        for (n, name) in [(74, "Alvo"), (75, "Porto")] {
+            let made = call(
+                &mut owner,
+                n,
+                "create_note",
+                json!({ "name": name, "text": "zqnova privada\n" }),
+            )
+            .await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        let (_, state) =
+            crate::tests::get(&r, &format!("/r/{}/state", token_of(&moved)), None).await;
+        assert_eq!(state["open"], "Alvo antigo.md", "{state}");
+        let (mut page, _) = reader(&r, &token_of(&moved)).await;
+        let read = ask(
+            &mut page,
+            2,
+            "read_note",
+            json!({ "path": "Alvo antigo.md" }),
+        )
+        .await;
+        assert!(read.get("ok").is_some(), "{read}");
+        let read = ask(&mut page, 3, "read_note", json!({ "path": "Alvo.md" })).await;
+        assert!(!read.to_string().contains("zqnova"), "{read}");
+        assert!(visit(&r, &token_of(&gone), None).await.is_err());
+    });
+}
+
+/// A window's deletion ends the links of what it deleted before anyone
+/// reads the folder again: a note made at that name in the moment is not
+/// opened by the old link.
+#[test]
+fn a_deletions_links_end_before_a_note_made_at_its_name_could_be_opened() {
+    block_on(async {
+        let r = start().await;
+        let admin = admin(&r).await;
+        let (id, mut owner) = furnish(&r, &admin).await;
+        on(&r, &admin).await;
+        let link = made(
+            &r,
+            &admin,
+            &id,
+            json!({ "kind": "note", "path": "Porto.md" }),
+        )
+        .await;
+        let token = token_of(&link);
+        let (heard, go) = crate::pause::hold("window-deleted", &id);
+        let server = std::sync::Arc::clone(&r.server);
+        let deleter = call(
+            &mut owner,
+            80,
+            "delete_entry",
+            json!({ "path": "Porto.md" }),
+        );
+        let visitor = async {
+            crate::pause::arrived(heard).await;
+            let key = verso_service::lock(&server.keys)
+                .iter()
+                .find(|(_, f)| **f == id)
+                .map(|(k, _)| k.clone())
+                .unwrap();
+            let made = server.service.with_key(&key, |ws| {
+                verso_service::ops::dispatch(
+                    ws,
+                    "create_note",
+                    json!({ "name": "Porto", "text": "zqnova privada\n" }),
+                )
+                .unwrap()
+            });
+            assert!(made.is_ok(), "{made:?}");
+            let opened = match visit(&r, &token, None).await {
+                Ok(mut ws) => {
+                    next(&mut ws).await;
+                    let _ = ask(&mut ws, 1, "open_server_folder", json!({ "id": "any" })).await;
+                    Some(ask(&mut ws, 2, "read_note", json!({ "path": "Porto.md" })).await)
+                }
+                Err(_) => None,
+            };
+            let _ = go.send(());
+            opened
+        };
+        let (gone, opened) = tokio::join!(deleter, visitor);
+        assert!(gone.get("ok").is_some(), "{gone}");
+        if let Some(read) = opened {
+            assert!(!read.to_string().contains("zqnova"), "{read}");
+        }
     });
 }

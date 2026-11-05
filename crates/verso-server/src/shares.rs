@@ -672,15 +672,22 @@ pub async fn attachments(
     Ok(ok(of_share(&ctx.server, &folder, &now)?))
 }
 
+/// What follows a rename, a move or a deletion through the server — a
+/// window's or a device's — in the write's own session, before anyone
+/// reads the folder again (the audit of 2026-11-05): the state a table
+/// keeps of its notes (ADR 0110, 0113 K.2) and the read links of what
+/// moved or went (ADR 0105 item 9). Both are the database's alone.
+pub fn followed(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
+    crate::campaign_cmds::after_write(server, folder, cmd, args, answer);
+    crate::readlinks::after_write(server, folder, cmd, args, answer);
+}
+
 /// What a write through the server did to the shares of `folder` (item
 /// 13): a rename or a move carries the shares of what moved, in the same
 /// step; a deletion removes the shares of what it deleted. `args` and
-/// `answer` are in the owner's paths.
+/// `answer` are in the owner's paths. The table's state and the read links
+/// followed already ([`followed`]).
 pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
-    // The read links of what moved or was deleted follow it (ADR 0105). The
-    // state a table keeps of its notes (ADR 0110) already did, in the
-    // write's own session (`campaign_cmds::carrying`, `trash::removal`).
-    crate::readlinks::after_write(server, folder, cmd, args, answer);
     let mut moves: Vec<(String, String)> = Vec::new();
     match cmd {
         "rename_entry" | "rename_note" => {
