@@ -143,6 +143,43 @@ for (const order of ["asked", "reverse"]) {
   });
 }
 
+// The re-test of 2026-11-04 (VM 104): the status bar's mark read
+// "Servindo · ligando o link…" for up to 7 s after the panel said "Link no
+// ar.". The mark asked the host apart from the panel, and drew whichever
+// answer came back last.
+test("the status bar's mark says the link is up the moment the panel does, whatever order the host's answers come back in", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false }).first()).toBeVisible();
+  const mark = page.locator("#local-mark");
+  const live = body.locator(".ls-link-state");
+  // The link starting, as the host tells it.
+  const tell = (link) =>
+    page.evaluate((link) => {
+      const full = { state: "off", origin: null, until: null, own: false, ended: null, protocol: null, qr: [], download: null, ...link };
+      window.__harness.core.localServer.setLink(full);
+      void window.__harness.emit("local-server-link", full);
+    }, link);
+  await tell({ state: "starting" });
+  await expect(mark).toContainText("Servindo · ligando o link…");
+  // Up: the answers read while it started come back after those read once
+  // it was up.
+  await page.evaluate(() => window.__harness.core.localServer.holdStatus());
+  await tell({ state: "starting" });
+  await tell({ state: "on", origin: "https://exemplo-de-mesa.trycloudflare.com", until: Math.floor(Date.now() / 1000) + 12 * 3600, protocol: "quic" });
+  await page.evaluate(() => window.__harness.core.localServer.releaseStatus("reverse"));
+  await expect(live).toHaveText("Link no ar.");
+  await expect(mark).toContainText("Servindo · link na internet");
+  // And it stays so.
+  await page.waitForTimeout(300);
+  await expect(mark).toContainText("Servindo · link na internet");
+  await expect(live).toHaveText("Link no ar.");
+});
+
 test("your name for the players: the system's user at first, changed and kept, never empty", async ({ app, page }) => {
   await app.open();
   await section(app);

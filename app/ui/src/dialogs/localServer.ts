@@ -58,12 +58,26 @@ let heard = false;
 let mark: HTMLElement | null = null;
 const redraws = new Set<() => void>();
 
+/** The host's answers, newest asked first, for the mark and the section
+ *  alike: the two draw the same state, and an answer asked before one
+ *  already drawn is dropped. Each asked apart and drawn as it came back,
+ *  the mark said "Servindo · ligando o link…" for seconds after the panel
+ *  said "Link no ar." (the re-test of 2026-11-04). */
+const order = newest();
+
 /** Refresh what shows the mode's state: the mark, and the section if it
  *  is on screen. */
 async function refreshMark(): Promise<void> {
+  const asked = order.ask();
   const r = await commands.localServerStatus();
-  if (r.status !== "ok" || !r.data.supported) return markOff();
-  const s = r.data;
+  if (r.status === "ok" && !order.take(asked)) return;
+  if (r.status !== "ok") return markOff();
+  drawMark(r.data);
+}
+
+/** The mark, from the host's status `s`. */
+function drawMark(s: LocalServerStatus): void {
+  if (!s.supported) return markOff();
   // Starting the link alone, nothing serves yet: the mark says so, with
   // its Stop, while cloudflared downloads (Linux has no tray).
   const linkStarting = s.link.state === "starting";
@@ -458,8 +472,6 @@ export function localServerBody(_item: Item): HTMLElement {
     log.append(list, h("p", "ls-help", w.logKept));
   };
 
-  // The host's answers come back in any order: the newest asked is drawn.
-  const order = newest();
   const redraw = async (): Promise<void> => {
     const asked = order.ask();
     const r = await commands.localServerStatus();
@@ -467,7 +479,8 @@ export function localServerBody(_item: Item): HTMLElement {
     if (!order.take(asked)) return;
     status = r.data;
     const s = r.data;
-    void refreshMark();
+    // The mark from the answer the section draws, at once.
+    drawMark(s);
     unsupported.hidden = s.supported;
     for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, ownerName.el, invites.el, players.el, accounts.el, seat.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
     if (!s.supported) return;

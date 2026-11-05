@@ -54,6 +54,8 @@ test release.
 
 - **Cancelling the internet link's download leaves its box unticked** (ADR 0117; the re-test of 2026-11-04). After **Cancel** while `cloudflared` downloaded, the box *By an internet link* could tick itself again and the panel said *The link turns on with the server.* beside *Cancelled: the link was not turned on.* The section drew a status the app had answered while the link was still starting after the one that said it was off; it now draws only the newest answer, and a link that went down is never wished for again by itself.
 
+- **The status bar's mark says the link is up when the panel does** (ADR 0117; the re-test of 2026-11-04). For up to 7 seconds after the link's panel said *The link is up.*, the mark on the status bar still read *Serving · turning the link on…*. The mark asked the app for its state apart from the panel and kept whichever answer came back last; the two now draw the same, newest answer.
+
 - **A folder shared with you says on its own page why this computer does not serve it** (ADR 0117). A folder another account shared with you on a UniVerso, synced here, is not served from this computer; Settings said so beside the folder, and now the folder's page says it too, where the table strip would be: *Turn into a server — shared with you on …: only its owner can serve it*.
 
 - **The page of a folder's root lists its notes again** (since 0.4; the re-test of 2026-11-04). The table on the root's page said *Invalid expression: : empty expression* over *0 results*: the page's base wrote `filters:` with nothing after it, which was read as an empty filter instead of none. A base whose `filters:` (or a view's) is empty now has no filter, so a saved `index.base` with that line shows its notes too.
