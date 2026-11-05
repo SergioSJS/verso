@@ -470,6 +470,7 @@ impl Workspace {
                     FileEntry {
                         len,
                         modified,
+                        modified_nanos: u128::try_from(modified).unwrap_or(0) * 1_000_000_000,
                         ..e.clone()
                     }
                 }

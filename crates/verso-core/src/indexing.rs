@@ -78,6 +78,7 @@ impl Workspace {
                 },
                 len: entry.len,
                 modified: entry.modified.map_or(0, seconds_since_epoch),
+                modified_nanos: entry.modified.map_or(0, nanos_since_epoch),
                 created: entry.created.map_or(0, seconds_since_epoch),
             });
             match &entry.kind {

@@ -553,6 +553,11 @@ pub struct FileEntry {
     pub len: u64,
     /// Seconds since the Unix epoch; 0 when the file system gave none.
     pub modified: i64,
+    /// The same time in nanoseconds since the Unix epoch, as finely as the
+    /// file system keeps it (whole seconds where it keeps no finer); 0 when
+    /// it gave none. What tells two writes of one length in one second
+    /// apart: sync's quick key.
+    pub modified_nanos: u128,
     /// Creation, in seconds since the Unix epoch; 0 when the file system
     /// gave none.
     pub created: i64,
@@ -762,6 +767,10 @@ fn well_formed_key(key: &str) -> bool {
         && hash
             .bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+fn nanos_since_epoch(t: std::time::SystemTime) -> u128 {
+    t.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_nanos())
 }
 
 fn seconds_since_epoch(t: std::time::SystemTime) -> i64 {

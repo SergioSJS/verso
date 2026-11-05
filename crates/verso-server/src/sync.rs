@@ -150,15 +150,15 @@ impl<'a> Author<'a> {
 
 /// The folder's files as the index lists them, and the folder's settings
 /// directory, which the walk never lists and sync carries (ADR 0070, ADR
-/// 0079 item 2): path, length, time.
-fn listed(server: &Server, key: &str) -> Result<Vec<(String, u64, i64)>, ContractError> {
+/// 0079 item 2): path, length, time in nanoseconds.
+fn listed(server: &Server, key: &str) -> Result<Vec<(String, u64, u128)>, ContractError> {
     server.service.with_key(key, |ws| {
         Ok(ws
             .entries()
             .iter()
             .chain(ws.settings_entries())
             .filter(|e| !matches!(e.kind, FileKind::Folder | FileKind::Placeholder))
-            .map(|e| (e.path.clone(), e.len, e.modified))
+            .map(|e| (e.path.clone(), e.len, e.modified_nanos))
             .collect())
     })
 }
@@ -266,7 +266,7 @@ fn reconcile_held(
     );
     let held: HashSet<String> = twins.iter().map(|t| t.held.clone()).collect();
     crate::twins::found(server, folder, twins);
-    let files: Vec<(String, u64, i64)> = files
+    let files: Vec<(String, u64, u128)> = files
         .into_iter()
         .filter(|(p, _, _)| !held.contains(p))
         .collect();
@@ -280,7 +280,7 @@ fn reconcile_held(
     // be read is gone.
     let mut candidates: Vec<(String, Option<(u64, String)>)> = files
         .iter()
-        .map(|(p, len, modified)| (p.clone(), Some((*len, format!("{len}:{modified}")))))
+        .map(|(p, len, modified)| (p.clone(), Some((*len, quick_key(*len, *modified)))))
         .collect();
     // Read whatever the listing does not vouch for: a path just written,
     // and a known file the listing lacks — written since its last walk, or
@@ -426,7 +426,7 @@ fn read_file(
 }
 
 /// The quick key of `len` bytes read or written at `revision`: their length
-/// and time in whole seconds, as a walk's listing says them, so that the
+/// and time, as a walk's listing says them ([`quick_key`]), so that the
 /// next walk skips the file while it stays as it is. A revision is
 /// `<nanoseconds since the epoch>:<length>:<hash>` (verso-core's
 /// `revision::encode`); `None` when it is not, or names another length (a
@@ -436,7 +436,28 @@ fn quick_of(revision: &str, len: u64) -> Option<String> {
     let mut parts = revision.split(':');
     let nanos: u128 = parts.next()?.parse().ok()?;
     let length: u64 = parts.next()?.parse().ok()?;
-    (len == length).then(|| format!("{len}:{}", nanos / 1_000_000_000))
+    (len == length).then(|| quick_key(len, nanos))
+}
+
+/// A file's quick key, what a walk skips it by while it is as last seen: its
+/// length and its time to the nanosecond as the disk keeps it
+/// (`<len>:<seconds>.<nanoseconds>`; `<len>:0` when the disk gave no time).
+/// Whole seconds told two writes of one length in one second apart from
+/// nothing, and a log entry left behind by one of them was skipped for good
+/// (the night stress, seed 3, 2026-11-04). Where the disk keeps whole
+/// seconds only (FAT, some network shares) the fraction is zero and the key
+/// is as fine as the disk. A key of whole seconds a log kept before
+/// (`<len>:<seconds>`, no dot) is never equal to one of these: such a file
+/// is read once more by the next walk, never skipped.
+pub(crate) fn quick_key(len: u64, nanos: u128) -> String {
+    if nanos == 0 {
+        return format!("{len}:0");
+    }
+    format!(
+        "{len}:{}.{:09}",
+        nanos / 1_000_000_000,
+        nanos % 1_000_000_000
+    )
 }
 
 /// The listing's size of each of `paths` it lists: checked against
