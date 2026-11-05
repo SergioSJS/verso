@@ -145,8 +145,10 @@ pub(crate) fn write(level: &str, source: &str, message: &str) {
 #[cfg(test)]
 static SAID: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
-/// The lines written so far that name `what` (a test's).
-#[cfg(test)]
+/// The lines written so far that name `what` (a test's). Unix only, as
+/// the one test that reads it (`tunnel::tests`, which runs a stand-in
+/// `cloudflared` script): on Windows it would be dead code.
+#[cfg(all(test, unix))]
 pub(crate) fn said(what: &str) -> Vec<String> {
     SAID.lock()
         .map(|s| s.iter().filter(|l| l.contains(what)).cloned().collect())
