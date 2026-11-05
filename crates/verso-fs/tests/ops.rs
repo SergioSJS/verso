@@ -661,3 +661,31 @@ fn the_real_name_of_a_link_and_a_second_name_for_the_same_bytes_are_told() {
     assert!(root.hard_linked(Path::new("solta.txt")));
     assert!(!root.hard_linked(Path::new("pasta/Nota.md")));
 }
+
+/// A file is spelled as the disk keeps its names, asked of the disk: where
+/// names fold, another case reaches the file and is answered with the
+/// disk's; a path that is not there, and a link (another name, not another
+/// spelling), are not spelled.
+#[test]
+fn an_entry_is_spelled_as_the_disk_keeps_it() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(&dir.path().join("Pasta/A.md"), "a");
+    let root = Root::open(dir.path(), vec![]).unwrap();
+    assert_eq!(
+        root.spelled(Path::new("Pasta/A.md")),
+        Some(PathBuf::from("Pasta/A.md"))
+    );
+    assert_eq!(root.spelled(Path::new("Pasta/falta.md")), None);
+    #[cfg(any(target_os = "macos", windows))]
+    assert_eq!(
+        root.spelled(Path::new("pasta/a.md")),
+        Some(PathBuf::from("Pasta/A.md"))
+    );
+    #[cfg(target_os = "linux")]
+    assert_eq!(root.spelled(Path::new("pasta/a.md")), None);
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink("Pasta/A.md", dir.path().join("espelho.md")).unwrap();
+        assert_eq!(root.spelled(Path::new("espelho.md")), None);
+    }
+}
