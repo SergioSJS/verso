@@ -514,6 +514,63 @@ fn a_write_through_another_spelling_of_a_file_made_since_the_walk_keeps_one_entr
     });
 }
 
+/// A deletion or a rename a device names through another case of the file
+/// the log keeps reaches that file on a disk that folds names, and the log
+/// follows at once: the entry it keeps goes, and a rename names it as its
+/// source — never left for the next walk, up to a minute later, while
+/// devices are told of a file that is no longer there (the night stress's
+/// trace, 2026-11-04: `d/b.md` deleted, `d/B.md` still in the log).
+#[cfg(any(target_os = "macos", windows))]
+#[test]
+fn a_deletion_or_rename_through_another_case_follows_the_logs_entry() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = opened(&r, &admin).await;
+        // The folder walked now: the next walk is a minute away.
+        call(&mut ws, 5, "sync_state", json!({})).await;
+        let b = send(&mut ws, 10, "d/B.md", b"# B\n", None).await;
+        assert_eq!(b["ok"]["done"], true, "{b}");
+        let c = send(&mut ws, 20, "C.md", b"# C\n", None).await;
+        assert_eq!(c["ok"]["done"], true, "{c}");
+        let gone = call(
+            &mut ws,
+            30,
+            "sync_delete",
+            json!({ "path": "d/b.md", "base": sha256(b"# B\n") }),
+        )
+        .await;
+        assert!(gone.get("ok").is_some(), "{gone}");
+        let moved = call(
+            &mut ws,
+            40,
+            "sync_rename",
+            json!({ "from": "c.md", "to": "D.md", "base": sha256(b"# C\n") }),
+        )
+        .await;
+        assert_eq!(moved["ok"]["path"], "D.md", "{moved}");
+        let state = call(&mut ws, 50, "sync_state", json!({})).await;
+        let files: Vec<String> = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|f| f["path"].as_str().map(str::to_owned))
+            .filter(|p| ["d/b.md", "c.md", "d.md"].contains(&p.to_lowercase().as_str()))
+            .collect();
+        assert_eq!(files, vec!["D.md".to_owned()], "{state}");
+        let log = call(&mut ws, 60, "sync_changes", json!({ "since": 0 })).await;
+        let d = log["ok"]["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .rev()
+            .find(|c| c["path"] == "D.md")
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(d["renamedFrom"], "C.md", "{log}");
+    });
+}
+
 /// One name is one file on the server (spec Q7, decided 2026-10-10;
 /// finding F20 of the sync campaign): a device whose file system keeps
 /// `Café.md` decomposed sends, fetches and deletes the file the server

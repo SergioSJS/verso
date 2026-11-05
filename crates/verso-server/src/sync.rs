@@ -929,7 +929,7 @@ pub(crate) async fn command_in(
                 let (head, path) = {
                     let one = one_at_a_time(&s, &folder);
                     let _only = lock(&one);
-                    let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
+                    let path = as_kept_file(&s, (&folder, &key), &named, &*inside)?;
                     let p = path.clone();
                     // The players who see it, remembered while it is there.
                     cc::device_will(&s, (&folder, &key), "sync_delete", "path", &path);
@@ -972,7 +972,7 @@ pub(crate) async fn command_in(
                 let base: String = arg(&args, "base")?;
                 let one = one_at_a_time(&s, &folder);
                 let only = lock(&one);
-                let (from, _) = as_kept(&s, &folder, &from, &*inside)?;
+                let from = as_kept_file(&s, (&folder, &key), &from, &*inside)?;
                 // Only the accents' form changing: the same name, the same
                 // file (spec Q7) — nothing to move.
                 let same =
@@ -1214,6 +1214,45 @@ fn as_kept(
         return Err(refused("not in the shared folder"));
     }
     Ok((kept, other))
+}
+
+/// [`as_kept`] for a file that is there, which a deletion or a rename's
+/// source names: where the disk folds names, a path in another case than
+/// the file the log keeps (`d/b.md` for `d/B.md`) reaches that file, and
+/// the change is the log's entry's — spelled as the disk keeps the name
+/// when the log has that spelling, else as the log does. Without this the
+/// file went from the disk while the log kept its entry until the next
+/// walk, a minute later at most, and a rename named no source.
+fn as_kept_file(
+    server: &Server,
+    (folder, key): (&str, &str),
+    path: &str,
+    inside: Inside<'_>,
+) -> Result<String, ContractError> {
+    let (kept, _) = as_kept(server, folder, path, inside)?;
+    let fail = verso_service::failed;
+    if !verso_core::sync::FOLDS_NAMES || server.db.known(folder, &kept).map_err(fail)?.is_some() {
+        return Ok(kept);
+    }
+    let p = kept.clone();
+    let disk = server
+        .service
+        .with_key(key, move |ws| Ok(ws.spelled_on_disk(&p)))?;
+    let name = verso_core::sync::folded(&kept);
+    let logged: Vec<String> = server
+        .db
+        .manifest_paths(folder)
+        .map_err(fail)?
+        .into_iter()
+        .filter(|p| verso_core::sync::folded(p) == name)
+        .collect();
+    let spelled = disk
+        .filter(|d| logged.contains(d))
+        .or_else(|| logged.into_iter().next());
+    match spelled {
+        Some(s) if inside(&s) => Ok(s),
+        _ => Ok(kept),
+    }
 }
 
 /// What a device's change may reach: everything for a whole folder's
