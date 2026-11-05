@@ -128,6 +128,16 @@ for V1, not built. *(History, until 2026-10-28: Proposed.)* `[DECIDED]` items ar
    others, by the rule above. An edit grant to one player (item 5) implies
    that player is in the audience. Who has access is shown inside the note.
 
+   **Revised 2026-11-05 — a deletion keeps the state in the bin (the
+   maintainer: *"pode seguir as recomendações"*).** What the table keeps of a
+   deleted note or folder no longer simply goes with it: it goes into the
+   bin with the entry (ADR 0080), and a restore gives it back. That holds
+   for a table rooted in a deleted folder too — "a table rooted in it goes"
+   is now "a table rooted in it is kept in the bin, with its rights and its
+   log, and is back on restore". Emptied from the bin, or past its time
+   there, it goes for good. Found by the audit of 2026-11-05: a restored
+   folder came back without its table, its files seen by every reader.
+
 5. **Some notes editable by players.** `[DECIDED]` (*"nota do grupo, nota
    da ficha"*). `[PROPOSED]` Per-note write grants, kept on the server like
    item 4: **the group** (every player at the table edits — the group's

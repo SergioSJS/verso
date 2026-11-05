@@ -515,3 +515,89 @@ fn a_copy_of_a_hidden_notes_version_is_as_hidden_as_the_note() {
         still_hidden(&mut m, &copied).await;
     });
 }
+
+/// A folder that holds a table, deleted and restored: the table comes back
+/// with it as it was — its state, its rights, its log — so its players see
+/// what they saw (the maintainer, 2026-11-05); emptied from the bin, the
+/// table goes for good.
+#[test]
+fn a_tables_folder_restored_from_the_bin_is_the_table_it_was() {
+    block_on(async {
+        let mut m = mesa().await;
+        let db = &m.r.server.db;
+        db.campaign_drop(&m.id, "").unwrap();
+        db.campaign_make(&m.id, "Mundo Zq").unwrap();
+        db.campaign_right_set(
+            &m.id,
+            "Mundo Zq",
+            std::slice::from_ref(&m.ana_id),
+            crate::access::Right::CreatesNotes,
+            true,
+        )
+        .unwrap();
+        db.table_add(
+            &m.id,
+            &crate::db::TableRow {
+                id: 0,
+                table: "Mundo Zq".to_owned(),
+                kind: "chat".to_owned(),
+                account: m.ana_id.clone(),
+                by_name: "Ana".to_owned(),
+                at: "2026-11-05T12:00:00Z".to_owned(),
+                path: None,
+                pinned: false,
+                secret: false,
+                readers_hidden: false,
+                body: "{}".to_owned(),
+            },
+        )
+        .unwrap();
+        crate::campaign::forget(&m.r.server, &m.id);
+        let cripta = json!({ "path": "Mundo Zq/Cripta Zq.md" });
+        let read = m.ana.call("read_note", cripta.clone()).await;
+        assert_eq!(read["err"]["kind"], "not_found", "{read}");
+        let gone = m
+            .owner
+            .call("delete_entry", json!({ "path": "Mundo Zq" }))
+            .await;
+        let bin = gone["ok"]["path"].as_str().unwrap().to_owned();
+        let back = m
+            .owner
+            .call(
+                "trash_restore",
+                json!({ "path": bin, "today": "2026-11-05", "lang": "pt" }),
+            )
+            .await;
+        assert_eq!(back["ok"]["path"], "Mundo Zq", "{back}");
+        let db = &m.r.server.db;
+        let roots: Vec<String> = db
+            .campaigns_of(&m.id)
+            .unwrap()
+            .into_iter()
+            .map(|c| c.root)
+            .collect();
+        assert_eq!(roots, ["Mundo Zq"]);
+        let rights = db
+            .campaign_right_players(&m.id, "Mundo Zq", crate::access::Right::CreatesNotes)
+            .unwrap();
+        assert_eq!(rights, [m.ana_id.clone()]);
+        assert_eq!(db.table_count(&m.id, "Mundo Zq").unwrap(), 1);
+        let read = m.ana.call("read_note", cripta).await;
+        assert_eq!(read["err"]["kind"], "not_found", "{read}");
+        // Emptied from the bin: gone for good.
+        let gone = m
+            .owner
+            .call("delete_entry", json!({ "path": "Mundo Zq" }))
+            .await;
+        let bin = gone["ok"]["path"].as_str().unwrap().to_owned();
+        let purged = m
+            .owner
+            .call("trash_delete", json!({ "paths": [bin] }))
+            .await;
+        assert!(purged.get("ok").is_some(), "{purged}");
+        let db = &m.r.server.db;
+        assert!(db.campaigns_of(&m.id).unwrap().is_empty());
+        assert_eq!(db.campaign_unbinned(&m.id, ".trash").unwrap(), 0);
+        assert_eq!(db.table_count(&m.id, &bin).unwrap(), 0);
+    });
+}

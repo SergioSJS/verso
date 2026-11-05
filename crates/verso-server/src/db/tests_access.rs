@@ -582,5 +582,5 @@ fn schema_21_splits_send_files_and_keeps_what_players_could_do() {
         .conn()
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 21);
+    assert_eq!(version, 22);
 }
