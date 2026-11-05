@@ -1249,6 +1249,23 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
     }
 }
 
+/// The version of `path` a device's write replaced went into the bin at
+/// `bin` (ADR 0080 item 12): it keeps the access `path` has, its own or
+/// the one it follows, for a restore beside the file to give back — a
+/// restore is a move (item 5), and a move keeps a file's access (ADR 0113
+/// K.2). Without it the version came back as a new file of its folder.
+pub fn version_kept(server: &Server, folder: &str, path: &str, bin: &str) {
+    let Some(veil) = campaign::veil_of(server, folder) else {
+        return;
+    };
+    if !veil.in_table(path) {
+        return;
+    }
+    if let Err(e) = server.db.access_put(folder, bin, veil.effective_set(path)) {
+        crate::log::warn(&format!("keeping a replaced version's access: {e}"));
+    }
+}
+
 /// The paths a command that deletes, renames or moves names, which the
 /// players who see them are remembered for before it runs.
 fn losing(cmd: &str, args: &Value) -> Vec<String> {

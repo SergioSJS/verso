@@ -151,6 +151,7 @@ pub fn replaced(server: &Arc<Server>, folder: &str, kept: &str, original: &str, 
     if let Err(e) = server.db.put_trash_record(folder, &r) {
         crate::log::warn(&format!("the bin's record of {kept}: {e}"));
     }
+    crate::campaign_cmds::version_kept(server, folder, original, kept);
     soon(server, folder);
 }
 

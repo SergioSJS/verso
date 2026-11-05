@@ -11,6 +11,7 @@
 //! every player sees, and "Barão Zq.md" a note at the root, which no
 //! player sees. A move keeps the access a file had (ADR 0113 K.2).
 
+use base64::Engine;
 use serde_json::{Value, json};
 
 use crate::pause::{arrived, hold};
@@ -342,5 +343,48 @@ fn a_note_restored_without_its_folder_keeps_the_access_it_followed() {
             .await;
         assert_eq!(back["ok"]["path"], path, "{back}");
         still_hidden(&mut m, path).await;
+    });
+}
+
+/// The version of a hidden note a device's write replaced, restored from
+/// the bin beside the note: as hidden as the note it was.
+#[test]
+fn a_replaced_version_restored_beside_its_note_is_as_hidden_as_the_note() {
+    block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        let path = hidden_note(&mut m, "Praça/Carta Zq").await;
+        let base = crate::sync::sha256(b"zq\n");
+        let bytes: &[u8] = b"zq, outra vez\n";
+        let put = m
+            .owner
+            .call(
+                "sync_put",
+                json!({
+                    "path": path, "offset": 0, "size": bytes.len(), "hash": crate::sync::sha256(bytes),
+                    "base": base, "data": base64::engine::general_purpose::STANDARD.encode(bytes),
+                }),
+            )
+            .await;
+        assert_eq!(put["ok"]["done"], true, "{put}");
+        let list = m.owner.call("trash_list", json!({})).await;
+        let kept = list["ok"]["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["original"] == path.as_str() && i["replaced"] == true)
+            .map(|i| i["path"].as_str().unwrap().to_owned())
+            .unwrap_or_else(|| panic!("a replaced version in {list}"));
+        let back = m
+            .owner
+            .call(
+                "trash_restore",
+                json!({ "path": kept, "today": "2026-11-05", "lang": "pt" }),
+            )
+            .await;
+        let beside = back["ok"]["path"].as_str().unwrap().to_owned();
+        assert_ne!(beside, path, "{back}");
+        still_hidden(&mut m, &beside).await;
+        still_hidden(&mut m, &path).await;
     });
 }
