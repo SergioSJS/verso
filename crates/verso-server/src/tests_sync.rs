@@ -514,6 +514,63 @@ fn a_write_through_another_spelling_of_a_file_made_since_the_walk_keeps_one_entr
     });
 }
 
+/// A deletion or a rename a device names through another case of the file
+/// the log keeps reaches that file on a disk that folds names, and the log
+/// follows at once: the entry it keeps goes, and a rename names it as its
+/// source — never left for the next walk, up to a minute later, while
+/// devices are told of a file that is no longer there (the night stress's
+/// trace, 2026-11-04: `d/b.md` deleted, `d/B.md` still in the log).
+#[cfg(any(target_os = "macos", windows))]
+#[test]
+fn a_deletion_or_rename_through_another_case_follows_the_logs_entry() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let mut ws = opened(&r, &admin).await;
+        // The folder walked now: the next walk is a minute away.
+        call(&mut ws, 5, "sync_state", json!({})).await;
+        let b = send(&mut ws, 10, "d/B.md", b"# B\n", None).await;
+        assert_eq!(b["ok"]["done"], true, "{b}");
+        let c = send(&mut ws, 20, "C.md", b"# C\n", None).await;
+        assert_eq!(c["ok"]["done"], true, "{c}");
+        let gone = call(
+            &mut ws,
+            30,
+            "sync_delete",
+            json!({ "path": "d/b.md", "base": sha256(b"# B\n") }),
+        )
+        .await;
+        assert!(gone.get("ok").is_some(), "{gone}");
+        let moved = call(
+            &mut ws,
+            40,
+            "sync_rename",
+            json!({ "from": "c.md", "to": "D.md", "base": sha256(b"# C\n") }),
+        )
+        .await;
+        assert_eq!(moved["ok"]["path"], "D.md", "{moved}");
+        let state = call(&mut ws, 50, "sync_state", json!({})).await;
+        let files: Vec<String> = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|f| f["path"].as_str().map(str::to_owned))
+            .filter(|p| ["d/b.md", "c.md", "d.md"].contains(&p.to_lowercase().as_str()))
+            .collect();
+        assert_eq!(files, vec!["D.md".to_owned()], "{state}");
+        let log = call(&mut ws, 60, "sync_changes", json!({ "since": 0 })).await;
+        let d = log["ok"]["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .rev()
+            .find(|c| c["path"] == "D.md")
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(d["renamedFrom"], "C.md", "{log}");
+    });
+}
+
 /// One name is one file on the server (spec Q7, decided 2026-10-10;
 /// finding F20 of the sync campaign): a device whose file system keeps
 /// `Café.md` decomposed sends, fetches and deletes the file the server
@@ -1051,10 +1108,12 @@ fn a_file_larger_than_sync_carries_is_listed_never_read() {
     });
 }
 
-/// A file a device sent is recorded with the quick key the next walk's
-/// listing gives it — its length and its time on the disk — so that walk
-/// skips it instead of reading and hashing it again (R3 of 2026-10-11: the
-/// time was recorded as 0, and every file sent was read once more).
+/// A file a device sent is recorded with the quick key the walk's listing
+/// gives it — its length and its time on the disk — once it has settled,
+/// so that walks skip it instead of reading and hashing it again (R3 of
+/// 2026-10-11: the time was recorded as 0, and every file sent was read at
+/// every walk). Just written, it has no key: the next reconciliation reads
+/// it once (`sync::settled`, git's racy rule).
 #[test]
 fn a_file_sent_is_not_read_again_by_the_next_walk() {
     const NAME: &str = "Enviado-r3.md";
@@ -1065,12 +1124,17 @@ fn a_file_sent_is_not_read_again_by_the_next_walk() {
         let mut ws = opened(&r, &admin).await;
         let sent = send(&mut ws, 2, NAME, b"# enviado\n", None).await;
         assert_eq!(sent["ok"]["done"], true, "{sent}");
+        let fresh = r.server.db.known(&id, NAME).unwrap().unwrap().quick;
+        assert_eq!(fresh, "", "a file just written has no key yet");
+        // Settled, a reconciliation reads it once and keeps its key.
+        tokio::time::sleep(crate::sync::SETTLED + std::time::Duration::from_millis(200)).await;
+        let key = key_of(&r, &id);
+        crate::sync::reconcile(&r.server, &id, &key, None, &[]).unwrap();
         let recorded = r.server.db.known(&id, NAME).unwrap().unwrap().quick;
         assert!(!recorded.ends_with(":0"), "{recorded}");
         // The walk's listing of the file, as the next walk compares it.
         let walked = call(&mut ws, 10, "reindex", json!({})).await;
         assert!(walked.get("ok").is_some(), "{walked}");
-        let key = key_of(&r, &id);
         let listed = r
             .server
             .service
@@ -1079,11 +1143,172 @@ fn a_file_sent_is_not_read_again_by_the_next_walk() {
                     .entries()
                     .iter()
                     .find(|e| e.path == NAME)
-                    .map(|e| format!("{}:{}", e.len, e.modified)))
+                    .map(|e| crate::sync::quick_key(e.len, e.modified_nanos)))
             })
             .unwrap();
         assert_eq!(listed.as_deref(), Some(recorded.as_str()));
     });
+}
+
+/// A walk tells apart two bodies of one length written in one second: the
+/// quick key holds the time as finely as the disk keeps it, so a log entry
+/// left behind by a write it never heard of is read again and set right —
+/// with a key of whole seconds it was skipped as unchanged for good (the
+/// night stress, seed 3, 2026-11-04: `A.md` told as bytes the disk no
+/// longer held).
+#[test]
+fn a_walk_sets_right_a_file_rewritten_with_its_length_in_the_same_second() {
+    const NAME: &str = "Mesmo-segundo.md";
+    let nanos = |revision: &str| -> u128 { revision.split(':').next().unwrap().parse().unwrap() };
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let mut ws = opened(&r, &admin).await;
+        let key = key_of(&r, &id);
+        let mut tries = 0;
+        let second = loop {
+            tries += 1;
+            assert!(tries <= 50, "no two writes in one second, apart in time");
+            let first = format!("# {tries:03} um\n");
+            let sent = send(&mut ws, 100 * tries, NAME, first.as_bytes(), None).await;
+            assert_eq!(sent["ok"]["done"], true, "{sent}");
+            let known = r.server.db.known(&id, NAME).unwrap().unwrap();
+            let before = r
+                .server
+                .service
+                .with_key(&key, |ws| Ok(ws.hash_with_revision(NAME)?.revision))
+                .unwrap();
+            // The same length again, written past the log: what a write the
+            // log never heard of leaves behind.
+            let again = format!("# {tries:03} do\n");
+            let after = r
+                .server
+                .service
+                .with_key(&key, |ws| {
+                    Ok(ws.write_bytes(NAME, again.as_bytes(), Some(&before))?)
+                })
+                .unwrap();
+            let (a, b) = (nanos(&before), nanos(&after));
+            if a / 1_000_000_000 == b / 1_000_000_000 && a != b {
+                assert_eq!(known.hash, sha256(first.as_bytes()));
+                break again;
+            }
+            // Another second, or one tick of a coarse clock: start again.
+            let gone = call(
+                &mut ws,
+                100 * tries + 50,
+                "sync_delete",
+                json!({ "path": NAME, "base": sha256(again.as_bytes()) }),
+            )
+            .await;
+            assert!(gone.get("ok").is_some(), "{gone}");
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        };
+        // The first question since the server started walks the folder.
+        let state = call(&mut ws, 9000, "sync_state", json!({})).await;
+        let listed = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == NAME)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(listed["hash"], sha256(second.as_bytes()), "{state}");
+    });
+}
+
+/// A log kept by a server of before (quick keys of whole seconds) is never
+/// misread: such a key equals no listing's, so the next walk reads the file
+/// once — a hash the log held wrongly set right — and keeps the finer key;
+/// never a change skipped.
+#[test]
+fn a_quick_key_of_whole_seconds_kept_before_makes_the_walk_read_the_file() {
+    const NAME: &str = "Antigo.md";
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let mut ws = opened(&r, &admin).await;
+        let key = key_of(&r, &id);
+        let sent = send(&mut ws, 10, NAME, b"# um\n", None).await;
+        assert_eq!(sent["ok"]["done"], true, "{sent}");
+        // Rewritten past the log, the same length; the log kept the key
+        // of whole seconds an older server gave the bytes now there.
+        let before = r
+            .server
+            .service
+            .with_key(&key, |ws| Ok(ws.hash_with_revision(NAME)?.revision))
+            .unwrap();
+        let after = r
+            .server
+            .service
+            .with_key(&key, |ws| {
+                Ok(ws.write_bytes(NAME, b"# do\n", Some(&before))?)
+            })
+            .unwrap();
+        let nanos: u128 = after.split(':').next().unwrap().parse().unwrap();
+        let old = format!("5:{}", nanos / 1_000_000_000);
+        r.server
+            .db
+            .record(
+                &id,
+                (None, None),
+                &[],
+                &[(NAME.to_owned(), old.clone())],
+                (&crate::db::ReaderOf::new(), &[]),
+            )
+            .unwrap();
+        assert_eq!(r.server.db.known(&id, NAME).unwrap().unwrap().quick, old);
+        // The first question since the server started walks the folder.
+        let state = call(&mut ws, 20, "sync_state", json!({})).await;
+        let listed = state["ok"]["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["path"] == NAME)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(listed["hash"], sha256(b"# do\n"), "{state}");
+        // Its old key gone: just rewritten, it has none until it settles.
+        let kept = r.server.db.known(&id, NAME).unwrap().unwrap().quick;
+        assert_ne!(kept, old);
+        assert_eq!(kept, "");
+        let later = std::time::UNIX_EPOCH
+            + std::time::Duration::from_nanos(u64::try_from(nanos).unwrap())
+            + crate::sync::SETTLED;
+        assert_eq!(
+            crate::sync::settled(crate::sync::quick_key(5, nanos), later),
+            crate::sync::quick_key(5, nanos)
+        );
+    });
+}
+
+/// The racy rule on a disk that keeps whole seconds (FAT, HFS+, some
+/// network shares; a coarse clock's tick likewise): a file read in the
+/// second it was written has the key of those bytes, and a second write of
+/// its length in that second would leave the same key. Kept, the walk
+/// would skip the second write for good; the key is kept only for a file
+/// that stood unmodified 2 s before the reading began.
+#[test]
+fn a_quick_key_is_kept_only_for_a_file_that_settled() {
+    use crate::sync::{SETTLED, quick_key, settled};
+    use std::time::{Duration, UNIX_EPOCH};
+    // Written at 1000 s on a disk of whole seconds.
+    let coarse = quick_key(9, 1_000 * 1_000_000_000);
+    assert_eq!(coarse, "9:1000.000000000");
+    let at = |ms: u64| UNIX_EPOCH + Duration::from_millis(ms);
+    // Read in that second, and in the next: no key.
+    assert_eq!(settled(coarse.clone(), at(1_000_400)), "");
+    assert_eq!(settled(coarse.clone(), at(1_001_999)), "");
+    // Read 2 s after: kept.
+    assert_eq!(settled(coarse.clone(), at(1_000_000) + SETTLED), coarse);
+    // An older server's key of whole seconds, the same rule.
+    assert_eq!(settled("9:1000".to_owned(), at(1_001_000)), "");
+    assert_eq!(settled("9:1000".to_owned(), at(1_003_000)), "9:1000");
+    // No time from the disk: kept as before; unreadable: none.
+    assert_eq!(settled("9:0".to_owned(), at(1_000_000)), "9:0");
+    assert_eq!(settled("nada".to_owned(), at(1_003_000)), "");
 }
 
 /// A transfer left half done goes with its connection (R2 of 2026-10-11):

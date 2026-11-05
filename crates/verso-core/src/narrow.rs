@@ -133,9 +133,11 @@ impl Workspace {
             }
         }
         let modified = entry.modified.map_or(0, seconds_since_epoch);
+        let modified_nanos = entry.modified.map_or(0, nanos_since_epoch);
         if let Some(known) = self.entries.iter_mut().find(|e| e.path == relative) {
             known.len = entry.len;
             known.modified = modified;
+            known.modified_nanos = modified_nanos;
             return Ok(true);
         }
         let at = self
@@ -152,6 +154,7 @@ impl Workspace {
                 },
                 len: entry.len,
                 modified,
+                modified_nanos,
                 created: entry.created.map_or(0, seconds_since_epoch),
             },
         );

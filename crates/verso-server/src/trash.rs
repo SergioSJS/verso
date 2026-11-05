@@ -201,7 +201,39 @@ pub fn kept_size(server: &Server, folder: &str) -> (u64, u64) {
 
 /// Sweep the bin of `folder` now (item 3): what is past its time goes,
 /// then the oldest while the bin alone passes the quota (item 8).
+///
+/// Under the folder's window lock when a window has it open: a deletion,
+/// a version a write replaced and a restore change the bin under that lock,
+/// so none lands between the sweep's walk and what it removes or forgets
+/// (a record written after the walk, of a file the walk did not see, was
+/// forgotten; the night stress, 2026-11-04). With no window open, nothing
+/// of the window's changes the bin, and what the sweep removes is only
+/// what its walk found (`verso_core::trash::sweep`).
 pub fn sweep(server: &Server, folder: &str) -> Option<Swept> {
+    let key = lock(&server.keys)
+        .iter()
+        .find(|(_, f)| f.as_str() == folder)
+        .map(|(k, _)| k.clone());
+    if let Some(key) = key {
+        let mut swept = None;
+        // The window closed meanwhile: swept without its lock, below.
+        if server
+            .service
+            .with_key(&key, |_| {
+                swept = Some(sweep_now(server, folder));
+                Ok(())
+            })
+            .is_ok()
+            && let Some(swept) = swept
+        {
+            return swept;
+        }
+    }
+    sweep_now(server, folder)
+}
+
+/// [`sweep`], whatever lock its caller holds.
+fn sweep_now(server: &Server, folder: &str) -> Option<Swept> {
     let f = server.db.folder(folder).ok().flatten()?;
     // A folder whose directory is gone has no bin: the walk finds none.
     let path = server.folder_path(&f.dir)?;
