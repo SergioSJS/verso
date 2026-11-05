@@ -99,6 +99,31 @@ fn players_loading_cold_through_the_link_are_served_every_file() {
     });
 }
 
+/// Past its places, a connection to the link waits in the system's queue
+/// as long as the listener asked for, and is not refused: on Windows too,
+/// where a plain `listen(1024)` queued 200 and reset the next. Not on
+/// macOS, which queues its `kern.ipc.somaxconn` (128) whatever is asked.
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn past_its_places_the_link_queues_what_it_asked_for() {
+    // More than Windows' 200 for a plain `listen`, fewer than the 1 024
+    // asked.
+    const QUEUED: usize = 600;
+    run(async {
+        let tcp = super::link::bind().unwrap();
+        let port = tcp.local_addr().unwrap().port();
+        let mut queued = Vec::new();
+        for n in 0..QUEUED {
+            match TcpStream::connect(("127.0.0.1", port)).await {
+                Ok(s) => queued.push(s),
+                Err(e) => panic!("connection {n} refused, none accepted yet: {e}"),
+            }
+        }
+        drop(tcp);
+        drop(queued);
+    });
+}
+
 /// With every place of the link's listener held, a phone on the network
 /// and the owner's window at the table are still answered.
 #[test]

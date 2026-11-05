@@ -57,7 +57,8 @@ pub const LOCAL_PER_ADDRESS: u32 = 16;
 /// read link (their WebSockets, `crate::fair`). Past the 256 the next
 /// connection waits in the system's queue for one to close, and is never
 /// refused: `cloudflared` would answer a refused one with a 502 (the test
-/// of 2026-11-04). `[OPEN]` for the maintainer: 256.
+/// of 2026-11-04). How long that queue is on each system:
+/// `crate::local::link`'s `bind`. `[OPEN]` for the maintainer: 256.
 pub const LOCAL_LINK: usize = 256;
 
 // Five players' cold loads at once, some 50 files in flight each.

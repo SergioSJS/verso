@@ -154,7 +154,40 @@ impl Drop for Listener {
 
 /// The connections the system queues for the link's listener while its
 /// places are all held.
-const BACKLOG: u32 = 1024;
+const BACKLOG: i32 = 1024;
+
+/// [`BACKLOG`] as `listen` is to be told it. Windows reads a plain number
+/// as 200 at most, and refuses the connection past its queue with a reset,
+/// which `cloudflared` answers with a 502 (measured on Windows 11,
+/// 2026-11-04: `listen(1024)` queued 200 and refused the 201st). Asked
+/// `SOMAXCONN_HINT(n)`, written `-n`, it queues `n` itself (1 024
+/// measured). Linux queues what is asked, up to `net.core.somaxconn`
+/// (4 096), and past it drops the handshake for the client to send again.
+#[cfg(windows)]
+const LISTEN_BACKLOG: i32 = -BACKLOG;
+#[cfg(not(windows))]
+const LISTEN_BACKLOG: i32 = BACKLOG;
+
+/// The link's socket on `127.0.0.1`, at a port the system picks, with the
+/// long queue it asks for (`LISTEN_BACKLOG`): past its places a connection
+/// waits there for one (`listen::Plain::for_link`). macOS keeps the queue
+/// to its `kern.ipc.somaxconn`, 128, whatever is asked (only root changes
+/// that), and resets past it as Windows does: 158 queued, measured
+/// 2026-11-04. Called under a runtime.
+///
+/// socket2, not tokio's `TcpSocket`, whose `listen` takes no negative
+/// number and so cannot ask Windows for its long queue.
+pub(super) fn bind() -> std::io::Result<tokio::net::TcpListener> {
+    let socket = socket2::Socket::new(
+        socket2::Domain::IPV4,
+        socket2::Type::STREAM,
+        Some(socket2::Protocol::TCP),
+    )?;
+    socket.set_nonblocking(true)?;
+    socket.bind(&SocketAddr::from((Ipv4Addr::LOCALHOST, 0)).into())?;
+    socket.listen(LISTEN_BACKLOG)?;
+    tokio::net::TcpListener::from_std(socket.into())
+}
 
 /// Open the link's listener on `runtime`, for `server`: `127.0.0.1`, a
 /// port the system picks, plain HTTP, loopback peers alone, with places of
@@ -165,13 +198,7 @@ pub(super) fn open(
 ) -> Result<Listener, String> {
     let _enter = runtime.enter();
     let said = |e: std::io::Error| format!("the internet link's listener: {e}");
-    let socket = tokio::net::TcpSocket::new_v4().map_err(said)?;
-    socket
-        .bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))
-        .map_err(said)?;
-    // A long queue: past its places a connection waits there for one
-    // (`listen::Plain::for_link`); the system may keep it shorter.
-    let tcp = socket.listen(BACKLOG).map_err(said)?;
+    let tcp = bind().map_err(said)?;
     let port = tcp.local_addr().map_err(said)?.port();
     let slots = server
         .slots

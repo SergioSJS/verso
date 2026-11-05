@@ -105,6 +105,14 @@ if-addrs = "0.15"
 
 openssl = { version = "0.10", features = ["vendored"] }
 
+# The internet link's listener told the queue it asks for on Windows too
+# (`local/link.rs`, `LISTEN_BACKLOG`): tokio's `TcpSocket::listen` cannot
+# pass Windows' `SOMAXCONN_HINT`, and `unsafe` is forbidden, so no direct
+# call to `listen`. socket2 (MIT OR Apache-2.0) is already in the tree, the
+# same version, under tokio, hyper-util, lettre and mdns-sd; it adds no
+# crate.
+socket2 = "0.6"
+
 [dev-dependencies]
 tempfile = "3.27"
 # A directory made unwritable for the tests of storage.rs and tests_http.rs.

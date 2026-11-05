@@ -50,6 +50,8 @@ test release.
 
 - **People invited say the hour they were last seen** (ADR 0117). **Settings › Turn into a server › People invited** said only the day after *last seen on*; it now says the day and the hour, as the app's other dates do.
 
+- **On Windows, the internet link keeps a long queue of waiting connections** (ADR 0117). With the link's 256 connections all in use, the next ones wait in the system's queue for one to close. Windows kept that queue to 200, whatever Verso asked, and refused the connection after it, which Cloudflare shows a player as an error; it now keeps the 1,024 asked for, as Linux does.
+
 - **Stopping the internet link no longer reads *Serving to the phone*** (ADR 0117). With only the link ticked, cancelling its download or stopping it showed *Serving to the phone* on the status bar for a few seconds while serving stopped; it now says *Stopping the server…*, and the app's log says once that the link was stopped, with no warning (a link that fails to start is still one).
 
 - **Cancelling the internet link's download leaves its box unticked** (ADR 0117; the re-test of 2026-11-04). After **Cancel** while `cloudflared` downloaded, the box *By an internet link* could tick itself again and the panel said *The link turns on with the server.* beside *Cancelled: the link was not turned on.* The section drew a status the app had answered while the link was still starting after the one that said it was off; it now draws only the newest answer, and a link that went down is never wished for again by itself.
