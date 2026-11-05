@@ -195,6 +195,57 @@ fn a_window_move_names_each_files_own_old_path_in_the_log() {
     });
 }
 
+/// The same move with the watcher's reconciliation, which pairs by hash,
+/// run between the files' move and the move's own (seen on Windows,
+/// 2026-11-05): it records nothing of the move, which its own
+/// reconciliation then records with each file's old path.
+#[test]
+fn the_watchers_reconciliation_between_a_move_and_its_own_leaves_the_move() {
+    block_on(async {
+        let r = start().await;
+        let b = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &b).await;
+        let mut ws = opened(&r, &b).await;
+        let key =
+            crate::access::key(&r.server, &r.server.db.folder(&id).unwrap().unwrap()).unwrap();
+        let names = ["a", "b", "c", "d", "e", "f"];
+        for (i, n) in (10_u64..).zip(names) {
+            let note = json!({ "name": format!("Vazias/{n}"), "text": "" });
+            let made = call(&mut ws, i, "create_note", note).await;
+            assert!(made.get("ok").is_some(), "{made}");
+        }
+        let state = call(&mut ws, 20, "sync_state", json!({})).await;
+        let head = state["ok"]["head"].as_i64().unwrap();
+        // The window's path: the move, then what the watcher saw of it.
+        let args = json!({ "from": "Vazias", "to": "Cheias" });
+        let (answer, kept) = crate::sync::moving(&r.server, &key, ("rename_entry", &args), || {
+            r.server.service.with_key(&key, |ws| {
+                Ok(json!({ "path": ws.rename_entry("Vazias", "Cheias")?.path }))
+            })
+        });
+        let answer = answer.unwrap();
+        let seen: Vec<String> = names
+            .iter()
+            .flat_map(|n| [format!("Vazias/{n}.md"), format!("Cheias/{n}.md")])
+            .collect();
+        crate::sync::reconcile(&r.server, &id, &key, None, &seen).unwrap();
+        let moved = crate::sync::moves_of("rename_entry", &args, &answer);
+        let paths = crate::sync::paths_of(&args);
+        crate::sync::reconcile_moved(&r.server, &key, None, &paths, &moved);
+        drop(kept);
+        let after = call(&mut ws, 21, "sync_changes", json!({ "since": head })).await;
+        let list = after["ok"]["changes"].as_array().unwrap();
+        let mut renamed = 0;
+        for c in list.iter().filter(|c| !c["renamedFrom"].is_null()) {
+            let path = c["path"].as_str().unwrap();
+            let from = c["renamedFrom"].as_str().unwrap();
+            assert_eq!(from.replace("Vazias/", "Cheias/"), path, "{after}");
+            renamed += 1;
+        }
+        assert_eq!(renamed, names.len(), "{after}");
+    });
+}
+
 #[test]
 fn a_device_writes_only_over_the_file_it_based_its_change_on() {
     block_on(async {

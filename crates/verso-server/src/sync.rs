@@ -49,7 +49,7 @@ mod reader;
 pub use crate::transfers::Transfers;
 use crate::transfers::{Being, IDLE, Reading, Upload, room};
 use files::{put, read};
-pub(crate) use paths::moves_of;
+pub(crate) use paths::{Moving, moves_of, moving};
 use paths::{Now, reconcile_paths};
 
 /// How often a device's question walks the folder again.
@@ -198,7 +198,9 @@ pub fn reconcile_by(
 /// another file of the same bytes a pairing by hash meets first, nor
 /// missing because the bytes changed — and a device follows each rename
 /// as it was made (ADR 0079, decided 2026-10-31, B12). A folder's pair is
-/// every file the log knows under it.
+/// every file the log knows under it. The move ran under
+/// [`moving`], which keeps any reconciliation before this one from
+/// recording it.
 pub fn reconcile_moved(
     server: &Server,
     key: &str,
@@ -537,10 +539,25 @@ fn record_changes(
     (created, moved): (Vec<Created>, &HashMap<String, String>),
     (quick_only, read_from): (&[(String, String)], SystemTime),
 ) -> Result<i64, ContractError> {
+    // A window's move not yet recorded by its own reconciliation: as the
+    // log has it, its new paths waiting (`paths::moving`).
+    let (old, new) = paths::held_back(server, folder, known, moved);
+    let gone_now: Vec<(String, String)>;
+    let gone = if old.is_empty() {
+        gone
+    } else {
+        gone_now = gone
+            .iter()
+            .filter(|(p, _)| !old.contains(p))
+            .cloned()
+            .collect();
+        gone_now.as_slice()
+    };
     // A key only for a file that has settled (`settled`): one modified in
     // the 2 s before its reading began is read again by the next walk.
     let created: Vec<Created> = created
         .into_iter()
+        .filter(|(p, _, _, _)| !new.contains(p))
         .map(|(p, h, s, q)| (p, h, s, settled(q, read_from)))
         .collect();
     let quick_only: Vec<(String, String)> = quick_only

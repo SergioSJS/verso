@@ -65,6 +65,9 @@ pub struct Transfers {
     /// One reconciliation at a time per folder: two from the same state
     /// would log the same change twice.
     pub(crate) folders: Mutex<HashMap<String, Arc<Mutex<()>>>>,
+    /// Per folder, the files a window's move moved, new path → old, from
+    /// the move until its own reconciliation (`crate::sync::moving`).
+    pub(crate) moving: Mutex<HashMap<String, Vec<(String, String)>>>,
     /// When each folder was last walked for a device.
     pub(crate) walked: Mutex<HashMap<String, Instant>>,
     /// Per folder, the files of one name in two forms its last walk found,
