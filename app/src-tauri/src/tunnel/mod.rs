@@ -365,12 +365,24 @@ impl Manager {
         match up {
             Ok(view) => Ok(view),
             Err(why) => {
-                {
+                // Still this start's: it failed. Otherwise a stop ended it
+                // while it started — the person's Stop or Cancel, serving
+                // stopped, the app's end.
+                let failed = {
                     let mut phase = lock(&shared.phase);
-                    if matches!(&*phase, Phase::Starting { generation: g, .. } if *g == generation)
-                    {
+                    let ours = matches!(&*phase, Phase::Starting { generation: g, .. } if *g == generation);
+                    if ours {
                         *phase = Phase::Off(Some(LinkEnd::Failed));
                     }
+                    ours
+                };
+                if !failed {
+                    // Said once, at INFO, by the command that started it
+                    // (`local_server::platform`), as the person's own act,
+                    // whatever the start was doing when it heard the stop:
+                    // never a warning (the re-test of 2026-11-04).
+                    shared.emit();
+                    return Err(STOPPED.to_owned());
                 }
                 crate::log::write(
                     "WARN",
@@ -397,7 +409,7 @@ impl Manager {
             // the door is never opened.
             let _ops = lock(&shared.door_ops);
             if cancel.load(Ordering::SeqCst) {
-                return Err("the link was stopped".to_owned());
+                return Err(STOPPED.to_owned());
             }
             door.open()?
         };
@@ -446,7 +458,7 @@ impl Manager {
             if mine() {
                 door.set_origin(Some(&origin))
             } else {
-                Err("the link was stopped".to_owned())
+                Err(STOPPED.to_owned())
             }
         };
         if let Err(why) = said {
@@ -463,7 +475,7 @@ impl Manager {
                 drop(phase);
                 tunnel.stop();
                 close(door.as_ref());
-                return Err("the link was stopped".to_owned());
+                return Err(STOPPED.to_owned());
             }
             *phase = Phase::On(Running {
                 generation,

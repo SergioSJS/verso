@@ -755,6 +755,57 @@ fn cancel_during_the_download_ends_it_and_leaves_nothing() {
     assert!(files::names_in(dir.path()).is_empty());
 }
 
+/// The person's own Stop or Cancel while the link starts is no failure:
+/// the command that started it says so once, at INFO
+/// (`local_server::platform`), and the link warns of nothing — the re-test
+/// of 2026-11-04 still read `WARN host the internet link did not start:
+/// the link was stopped`. Whatever the start was doing when it heard the
+/// stop, it ends as stopped. A start that fails is still a warning.
+#[cfg(unix)]
+#[test]
+fn a_start_stopped_by_the_person_warns_of_nothing() {
+    let (m, _) = manager_with(CEILING);
+    let stopped_while = |words: &'static str| {
+        std::thread::scope(|s| {
+            let m = &m;
+            s.spawn(move || {
+                wait_for(m, Duration::from_secs(5), |v| {
+                    v.state == LinkState::Starting
+                });
+                m.stop(LinkEnd::Stopped);
+            });
+            m.start_after(Mode::Quick, |preparing| {
+                // As the download: it goes on until it hears the stop.
+                while preparing.downloaded(0, None) {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                Err(words.to_owned())
+            })
+        })
+    };
+    assert_eq!(stopped_while(STOPPED).unwrap_err(), STOPPED);
+    // Stopped while it did something else: still the person's stop.
+    let other = "cloudflared ended before the link was up (stopped-start test)";
+    assert_eq!(stopped_while(other).unwrap_err(), STOPPED);
+    for words in [STOPPED, other] {
+        let warned = crate::log::said(&format!("did not start: {words}"));
+        assert!(warned.is_empty(), "{warned:?}");
+    }
+    assert_eq!(m.view().ended, Some(LinkEnd::Stopped));
+    // A start that fails on its own is a warning, and ends as failed.
+    let why = "no network to download from (failed-start test)";
+    assert_eq!(
+        m.start_after(Mode::Quick, |_| Err(why.to_owned()))
+            .unwrap_err(),
+        why
+    );
+    assert_eq!(
+        crate::log::said(why),
+        vec![format!("WARN host the internet link did not start: {why}")]
+    );
+    assert_eq!(m.view().ended, Some(LinkEnd::Failed));
+}
+
 #[cfg(unix)]
 #[test]
 fn dropping_the_manager_kills_cloudflared() {

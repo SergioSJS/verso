@@ -50,7 +50,13 @@ test release.
 
 - **People invited say the hour they were last seen** (ADR 0117). **Settings › Turn into a server › People invited** said only the day after *last seen on*; it now says the day and the hour, as the app's other dates do.
 
-- **Stopping the internet link no longer reads *Serving to the phone*** (ADR 0117). With only the link ticked, cancelling its download or stopping it showed *Serving to the phone* on the status bar for a few seconds while serving stopped; it now says *Stopping the server…*, and the app's log says the link was stopped instead of a warning about phones.
+- **Stopping the internet link no longer reads *Serving to the phone*** (ADR 0117). With only the link ticked, cancelling its download or stopping it showed *Serving to the phone* on the status bar for a few seconds while serving stopped; it now says *Stopping the server…*, and the app's log says once that the link was stopped, with no warning (a link that fails to start is still one).
+
+- **Cancelling the internet link's download leaves its box unticked** (ADR 0117; the re-test of 2026-11-04). After **Cancel** while `cloudflared` downloaded, the box *By an internet link* could tick itself again and the panel said *The link turns on with the server.* beside *Cancelled: the link was not turned on.* The section drew a status the app had answered while the link was still starting after the one that said it was off; it now draws only the newest answer, and a link that went down is never wished for again by itself.
+
+- **The status bar's mark says the link is up when the panel does** (ADR 0117; the re-test of 2026-11-04). For up to 7 seconds after the link's panel said *The link is up.*, the mark on the status bar still read *Serving · turning the link on…*. The mark asked the app for its state apart from the panel and kept whichever answer came back last; the two now draw the same, newest answer.
+
+- **A read link's visitor sees the note opening, never the choice of a folder** (ADR 0105, ADR 0117; the re-test of 2026-11-04). In a WebKit browser such as Safari, on a quick link a minute old, a visitor saw *No folder* and *Choose a folder of this server.* for a moment before the note, with no error. Until its folder opens, a read link's window now says *Opening folder and scanning files…* instead, as the status bar does; and a connection that drops before the folder opened no longer leaves it on the start page: the folder is asked again once the next connection is up.
 
 - **A folder shared with you says on its own page why this computer does not serve it** (ADR 0117). A folder another account shared with you on a UniVerso, synced here, is not served from this computer; Settings said so beside the folder, and now the folder's page says it too, where the table strip would be: *Turn into a server — shared with you on …: only its owner can serve it*.
 

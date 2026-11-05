@@ -15,6 +15,7 @@ import { commands, type ContractError, type LocalLink, type LocalServerStatus } 
 import { button, h } from "../dom";
 import { errorSentence } from "../errors";
 import { busy } from "../reach";
+import { linkUp, linkWish } from "./localServerFresh";
 import { clockAt, linkStrings, linkWhy, megabytes, timeLeft } from "./localServerLinkStrings";
 import { ownAddress } from "./localServerOwn";
 import { drawQr } from "./qr";
@@ -113,6 +114,8 @@ export function linkBoxes(ctx: Ctx): Boxes {
 
   let status: LocalServerStatus | null = null;
   let wish = false;
+  /** The link was starting or on when last drawn. */
+  let wasUp = false;
   let cancelling = false;
   let timer = 0;
   let shownOrigin = "";
@@ -163,12 +166,15 @@ export function linkBoxes(ctx: Ctx): Boxes {
   const draw = (s: LocalServerStatus) => {
     status = s;
     const l = s.link;
-    const up = l.state === "on" || l.state === "starting";
+    const up = linkUp(s);
     net.checked = s.network;
     net.disabled = s.serving;
     netHelp.textContent = s.serving ? `${w.networkDesc} ${w.networkLocked}` : w.networkDesc;
-    if (up) wish = true;
-    else if (s.serving) wish = false;
+    // A link that went down is not wished again (Cancel during the
+    // download, the re-test of 2026-11-04): with nothing serving after it,
+    // an answer of while it started left the box ticked.
+    wish = linkWish(wish, wasUp, s);
+    wasUp = up;
     link.checked = wish;
     link.disabled = l.state === "starting";
     panel.hidden = !(wish || up || l.state === "offline" || (l.ended !== null && l.ended !== "stopped" && l.ended !== "quit"));
