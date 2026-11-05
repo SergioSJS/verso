@@ -452,7 +452,12 @@ printf '\n== unsafe only in app/src-tauri/src/web_clip/{macos,windows}.rs (ADR 0
 node scripts/check-unsafe.mjs
 dir="${VERSO_LINUX_DIR:-$HOME/.cache/verso-linux}"
 mkdir -p "$dir"
-rsync -a --delete --exclude target --exclude node_modules --exclude .git ./ "$dir/src/"
+# The target volume is shared by every worktree this script runs from, and
+# cargo decides what to rebuild by modification times: copying a file's own
+# time (rsync -a) let an older file from another branch look already built,
+# and verso-app was compiled against a stale verso-contract (2026-11-04). So
+# compare by content and leave a changed file with the time of the copy.
+rsync -rlpD --checksum --delete --exclude target --exclude node_modules --exclude .git ./ "$dir/src/"
 image="$(bash scripts/ci/image.sh)"
 # No incremental cache: it outgrew the rest of the build in the target
 # volume (22 GB of 33, 2026-10-09) and filled the Docker machine's disk.
