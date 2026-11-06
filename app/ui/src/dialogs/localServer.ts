@@ -18,7 +18,7 @@ import { phoneConnectedHeard, serveDroppedHeard, serveStoppedHeard } from "../no
 import { busy } from "../reach";
 import { asDialog, closed, opened } from "./a11y";
 import { servedFolders } from "./servedFolders";
-import { localStrings } from "./localServerStrings";
+import { eventSubject, eventWords, localStrings } from "./localServerStrings";
 import { linkBoxes, linkSentence, whyOf } from "./localServerLink";
 import { newest } from "./localServerFresh";
 import { linkStrings, markSaid } from "./localServerLinkStrings";
@@ -479,9 +479,9 @@ export function localServerBody(_item: Item): HTMLElement {
     if (r.data.length === 0) list.append(h("li", "ls-help", w.logEmpty));
     for (const e of r.data.slice(0, 60)) {
       const li = h("li");
-      const what = w.actions[e.action] ?? e.action;
-      li.append(h("time", "", when(e.at)), ` · ${what}`);
-      if (e.subject) li.append(` · ${e.subject}`);
+      // In words, never its code: a newer server's event has a sentence too.
+      li.append(h("time", "", when(e.at)), ` · ${eventWords(e.action)}`);
+      if (e.subject) li.append(` · ${eventSubject(e.subject)}`);
       if (e.address) li.append(` · ${e.address}`);
       list.append(li);
     }
