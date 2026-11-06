@@ -5,6 +5,8 @@
 // What the board says, in both of the interface's languages (ADR 0035,
 // ADR 0057).
 
+import { prettyKeys } from "../keyNames";
+
 const pt = {
   boardMode: "Board",
   textMode: "Texto",
@@ -15,10 +17,10 @@ const pt = {
   insert: "Inserir",
   insertTitle: "Pôr no board uma imagem, uma nota ou um arquivo, um texto ou um link",
   looseArrows: "Setas soltas",
-  looseHint: "Seta livre, presa a nenhum cartão: segure ⌘ ao desenhar, ou Inserir › Setas soltas",
+  looseHint: `Seta livre, presa a nenhum cartão: segure ${prettyKeys("Mod")} ao desenhar, ou Inserir › Setas soltas`,
   looseHintTouch: "Seta livre, presa a nenhum cartão: Inserir › Setas soltas",
   looseOnHint: "Setas soltas ligado: a seta não prende nos cartões (desligue em Inserir)",
-  looseArrowsTitle: "Ligado: a seta nova não prende nos cartões (segurar ⌘ enquanto desenha faz o mesmo)",
+  looseArrowsTitle: `Ligado: a seta nova não prende nos cartões (segurar ${prettyKeys("Mod")} enquanto desenha faz o mesmo)`,
   addImage: "Imagem ou PDF do computador…",
   addImageTitle: "Copiar para a pasta imagens ou PDFs do computador e pô-los no board (ou arraste, ou cole)",
   addText: "Cartão de texto",
@@ -32,7 +34,7 @@ const pt = {
   promoteNeedsArrow: "Selecione uma seta ligada a duas notas para promovê-la a relação.",
   outline: "Sumário",
   search: "Buscar no board",
-  searchTitle: "Buscar nos cartões — nome, texto e o conteúdo das notas — e nas anotações (⌘F); Enter vai ao próximo",
+  searchTitle: `Buscar nos cartões — nome, texto e o conteúdo das notas — e nas anotações (${prettyKeys("Mod-f")}); Enter vai ao próximo`,
   searchCount: (i: number, n: number) => `${i} de ${n}`,
   noMatches: "Nada encontrado",
   outlineTitle: "Mostrar ou esconder o sumário do board: a mesma coisa em lista, navegável pelo teclado",
@@ -185,10 +187,10 @@ const en: BoardStrings = {
   insert: "Insert",
   insertTitle: "Put a picture, a note or a file, a text or a link on the board",
   looseArrows: "Loose arrows",
-  looseHint: "A free arrow, attached to no card: hold ⌘ while drawing, or Insert › Loose arrows",
+  looseHint: `A free arrow, attached to no card: hold ${prettyKeys("Mod")} while drawing, or Insert › Loose arrows`,
   looseHintTouch: "A free arrow, attached to no card: Insert › Loose arrows",
   looseOnHint: "Loose arrows on: arrows do not attach to cards (turn it off in Insert)",
-  looseArrowsTitle: "On: a new arrow does not attach to cards (holding ⌘ while drawing does the same)",
+  looseArrowsTitle: `On: a new arrow does not attach to cards (holding ${prettyKeys("Mod")} while drawing does the same)`,
   addImage: "Picture or PDF from the computer…",
   addImageTitle: "Copy pictures or PDFs from the computer into the folder and put them on the board (or drop or paste them)",
   addText: "Text card",
@@ -202,7 +204,7 @@ const en: BoardStrings = {
   promoteNeedsArrow: "Select an arrow bound to two notes to promote it to a relation.",
   outline: "Outline",
   search: "Search the board",
-  searchTitle: "Search the cards — name, text and the notes' content — and the annotations (⌘F); Enter goes to the next",
+  searchTitle: `Search the cards — name, text and the notes' content — and the annotations (${prettyKeys("Mod-f")}); Enter goes to the next`,
   searchCount: (i: number, n: number) => `${i} of ${n}`,
   noMatches: "Nothing found",
   outlineTitle: "Show or hide the board's outline: the same content as a list, navigable by keyboard",

@@ -20,6 +20,13 @@ in the real app.
 
 ## Not yet checked
 
+### Keys written the platform's way (fix/release-0.8.5, 2026-11-06)
+
+Every chord the window writes comes from `app/ui/src/keyNames.ts`; `app/ui/test/keyNames.test.mjs` builds the catalogs as a Windows and a Linux window and finds no Mac glyph. What the test does not see is the real window.
+
+- [ ] **Windows** (A, Windows): Settings › General › Developer console reads *View › Open Console (Ctrl+Alt+I)*; Settings › Appearance › Window zoom reads *Ctrl with + − 0, or Ctrl with the wheel*; a board's ☰ menu shows *Export… Ctrl+Shift+E*, its search's tooltip *(Ctrl+F)*.
+- [ ] **macOS** (A, macOS): the same rows read *(⌘⌥I)*, *⌘ with + − 0, or ⌃ with the wheel*, *⌘⇧E*, *(⌘F)*.
+
 ### Sound files in the Linux app (fix/linux-audio, 2026-11-04)
 
 On Linux the table's music and a note's audio player now get their file as a blob (`app/ui/src/audio/source.ts`). VM 104 has no sound card (only PipeWire's Dummy Output): there it was seen playing (`currentTime` advancing, no error), not heard.

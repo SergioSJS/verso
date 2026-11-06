@@ -6,6 +6,8 @@
 // languages (ADR 0035): the map's commands, the pins, the tiles, the
 // secret pins and the way back from the reader's view.
 
+import { prettyKeys } from "../keyNames";
+
 const pt = {
   useAsMap: "Usar como mapa",
   useAsMapTitle: "Trava a imagem, manda para o fundo e a trata como mapa: notas fixadas nela mantêm o tamanho em qualquer zoom",
@@ -20,7 +22,7 @@ const pt = {
   pinNeedsMap: "Nenhuma imagem do board é um mapa ainda: selecione uma imagem e use “Usar como mapa”.",
   pinned: (name: string) => `Nota “${name}” fixada no mapa.`,
   pinOpen: (name: string) => `Abrir ${name}`,
-  pinRemoved: (name: string) => `Alfinete de “${name}” removido do mapa (⌘Z desfaz).`,
+  pinRemoved: (name: string) => `Alfinete de “${name}” removido do mapa (${prettyKeys("Mod-z")} desfaz).`,
   pinsHeading: "Alfinetes do mapa",
   mapsHeading: "Mapas",
   noPins: "Nenhum alfinete. Arraste uma nota da árvore para o mapa, ou use “Fixar uma nota aqui…”.",
@@ -60,7 +62,7 @@ const en: typeof pt = {
   pinNeedsMap: "No picture on the board is a map yet: select a picture and use “Use as map”.",
   pinned: (name) => `Note “${name}” pinned on the map.`,
   pinOpen: (name) => `Open ${name}`,
-  pinRemoved: (name) => `Pin of “${name}” removed from the map (⌘Z undoes it).`,
+  pinRemoved: (name) => `Pin of “${name}” removed from the map (${prettyKeys("Mod-z")} undoes it).`,
   pinsHeading: "Pins on the map",
   mapsHeading: "Maps",
   noPins: "No pins. Drag a note from the tree onto the map, or use “Pin a note here…”.",
