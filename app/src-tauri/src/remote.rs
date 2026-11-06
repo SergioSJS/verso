@@ -819,6 +819,8 @@ pub(crate) async fn server_open<R: tauri::Runtime>(
     // The window's own folder closes when no other window shows it, and a
     // connection it had is dropped.
     app.state::<App>().service.release(&label);
+    // So does the one a seat held for its sync (ADR 0117 D13 Q3).
+    crate::local_server::seat::stand(&app, &label);
     lock(&app.state::<App>().remotes).insert(label, remote);
     let _ = window.set_title(&format!("{} — Verso", info.name));
     // The next start brings this window back (ADR 0065).

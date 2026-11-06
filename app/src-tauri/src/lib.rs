@@ -351,6 +351,9 @@ async fn install<R: tauri::Runtime>(
     remote::release(app, window.label());
     let service = Arc::clone(&app.state::<App>().service);
     let (info, catch_up) = service.attach(window.label(), opened);
+    // A seat that held the folder for its sync lets it go, the window on
+    // it now (ADR 0117 D13 Q3).
+    local_server::seat::stand(app, window.label());
     // The folder it showed may be shown by no window now; the one it
     // shows syncs if it is set to (ADR 0079).
     settle(app);
@@ -1364,6 +1367,8 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             session::window_gone(app, label);
             // Its folder closes when no other window shows it (ADR 0065).
             app.state::<App>().service.release(label);
+            // And so does the one its seat held for its sync (ADR 0117 D13 Q3).
+            local_server::seat::stand(app, label);
             // Its terminals end with it; a reload keeps them (ADR 0115 Q6).
             app.state::<App>().terminals.end_of(label);
             // So does its share of audio (ADR 0116 item 17).

@@ -49,7 +49,7 @@ pub(super) async fn sit<R: tauri::Runtime>(
     let path = known_path(&app, &key).map_err(|e| refused(&e))?;
     let local = server(&app)?;
     let seat = Arc::new(blocking(move || local.sit(&path)).await?);
-    let (remote, heard) = dial(Arc::clone(&seat), key).await?;
+    let (remote, heard) = dial(Arc::clone(&seat), key.clone()).await?;
     remote::hear(&app, &label, &remote, heard);
     let opened = remote
         .call("open_server_folder", json!({ "id": seat.folder() }))
@@ -59,7 +59,16 @@ pub(super) async fn sit<R: tauri::Runtime>(
                 .unwrap_or_else(|_| failed("the server refused"))
         })?;
     let info: FolderInfo = serde_json::from_value(opened).map_err(|e| failed(e.to_string()))?;
-    // This computer's folder closes when no other window shows it.
+    // This computer's folder closes when no other window shows it — unless
+    // it syncs with a UniVerso: then the seat holds it open, so that its
+    // sync goes on while the window is at the table (decided 2026-11-06,
+    // "Não deve parar"). What the players and the window write through
+    // this computer's server lands in the same files, and the folder's
+    // watcher hands it to the sync as any change made here.
+    let config = state.service.config().map(Path::to_path_buf);
+    if crate::sync::synced(config.as_deref(), &key).is_some() {
+        state.service.join(&held(&label), &key);
+    }
     state.service.release(&label);
     lock(&state.remotes).insert(label, remote);
     let _ = window.set_title(&format!("{} — Verso", info.name));
@@ -70,6 +79,21 @@ pub(super) async fn sit<R: tauri::Runtime>(
     );
     crate::session::remember(&app);
     Ok(info)
+}
+
+/// The name the seat of window `label` holds this computer's folder by,
+/// in the service, while the folder syncs: a client that is no window.
+fn held(label: &str) -> String {
+    format!("seat:{label}")
+}
+
+/// Window `label` shows a folder again (this computer's, a server's, a
+/// file alone) or is gone: what its seat held is let go — after the
+/// window took its new folder, so that a folder it comes back to stays
+/// open, and its sync running, in between. Serving stopping does not let
+/// it go: the window is about to come back to it.
+pub(crate) fn stand<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) {
+    app.state::<App>().service.release(&held(label));
 }
 
 /// The window's connection through the seat's door, in memory, its

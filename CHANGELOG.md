@@ -52,6 +52,8 @@ test release.
 
 ### Fixed
 
+- **A served folder that syncs with a UniVerso keeps syncing while its window sits at the table** (the maintainer, 2026-11-06: *"Não deve parar"*; ADR 0117). Once a window on a served folder with a table sat at it, the folder stopped syncing with its UniVerso until the window came back to it: what the players and the game master wrote at the table stayed on this computer, and what came from other computers waited. Now the sync goes on while the window is at the table, through serving stopping and the window coming back to the folder.
+
 - **Pair a phone and Before turning on sit in the middle of the window** (the maintainer's screenshot, 2026-11-05: "Pair a phone" sat low and narrow over Settings, scrolling inside although there was room). The two dialogs of **Settings › Turn into a server** are centred in the window and held within it; on a wide window **Pair a phone** shows the QR beside the address list, the address, the code and the fingerprint, with no scrollbar; on a phone it takes the width.
 
 - **A browser's Verso page no longer fills its console with "[TAURI] Couldn't find callback id …"** (the maintainer's console on a player's page, 2026-11-05: about 47 of them). The page in a browser answered its own events with Tauri's test stand-in, which never forgot a listener that went away (a closed dialog, a one-time wait), so every later event warned of it. The page now answers its events itself; nothing else changes for whoever uses it.

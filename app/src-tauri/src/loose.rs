@@ -221,6 +221,7 @@ pub(crate) async fn install_loose<R: tauri::Runtime>(
             .await
             .map_err(|e| failed(e.to_string()))??;
     remote::release(app, window.label());
+    crate::local_server::seat::stand(app, window.label());
     settle(app);
     *lock(&app.state::<App>().loose_window) = Some(window.label().to_owned());
     let _ = window.set_title(&format!("{} — Verso", info.name));

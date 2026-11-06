@@ -372,7 +372,22 @@ ticked in Settings, whole or in part) by D2. **Gone:** 0096 item 11 by D4.
   as the smallest trigger: sitting whenever a folder is served was not
   taken, because a seated window is a server's client and a folder's sync
   with a UniVerso runs only while a window shows the folder itself
-  (`sync.rs`) — sitting only for a table keeps that as it was. For a served
+  (`sync.rs`) — sitting only for a table keeps that as it was.
+  *(Revised in place 2026-11-06, the maintainer, asked whether that sync
+  may pause while the window sits: "Não deve parar".)* A served folder's
+  sync with a UniVerso **does not pause** while a window sits at the table
+  this computer serves from it: the seat holds this computer's folder open
+  in the app's service (a client that is no window, `seat:<label>`,
+  `local_server/seat.rs`) while the folder syncs, so the sync's task goes
+  on; what the window and the players write through this computer's
+  server lands in the same files and the folder's watcher hands it to the
+  sync, and what the UniVerso sends comes in as a change outside Verso
+  that this computer's server reconciles (the hides of 0113 hold, D8).
+  The hold is let go once the window shows a folder again (the same one
+  as it comes back when serving stops, so the sync runs on throughout) or
+  closes. No new opening: the app's service keeps the one session it had
+  for the folder before the window sat, as while serving with the window
+  on the folder itself. For a served
   folder that also syncs with a UniVerso, a table made in its window while
   this app serves it is this computer's (D4.1: the host is the window the
   table is made in); the table's dialog says where it is hosted.
