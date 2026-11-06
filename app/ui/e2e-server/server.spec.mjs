@@ -216,6 +216,10 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   const bare = await bareAccount(page, browser, `sem-pasta-${test.info().project.name}@verso.test`);
   await expect(bare.getByRole("heading", { name: "Escolha uma pasta deste servidor." })).toBeVisible();
   await expect(bare.getByRole("button", { name: "Escolher uma pasta" })).toBeVisible();
+  // It may make no folder and has none: nothing to create is offered — no
+  // example vault to import (ADR 0074 item 6, amended 2026-11-06).
+  await bare.waitForLoadState("networkidle");
+  await expect(bare.locator(".lesson button", { hasText: "Importar cofre de exemplo" })).toHaveCount(0);
   await expect(bare.locator(".lesson .keys")).toHaveCount(0);
   await expect(bare.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
   await expect(bare.locator("#open .folder-lock")).toBeHidden();

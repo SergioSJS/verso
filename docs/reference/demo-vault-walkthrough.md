@@ -1968,3 +1968,11 @@ Both vaults hold lessons 00 to 38, in seven blocks: I. Começando (00–06), II.
 4. Note 35 reads in this order: the terminal (on, opening, the warning, keys, closing, each system), the `verso` command, agents through MCP, AI agents in the terminal; its links to `#Agentes de IA (MCP)` and `#O terminal` land on their headings. Level: S (the headings), H.
 5. Import into a folder that holds the earlier demo untouched: the old copy of each renamed lesson goes to the folder's trash once its new name is written (`DEMO_RETIRED` lists each old path with its new one); a lesson the person edited is kept and named. The two old terminal lessons were merged, not renamed (git follows neither into the new 35), so their untouched copies stay in such a folder. Level: H; E: `import.spec.mjs`, `test/demoImport.test.mjs`.
 6. The site's wiki is made from these vaults (ADR 0058 points 16–18): import it again in the `versomd-site` repository and read the pages of the lessons that moved. Level: A.
+
+## Where a player lands on a server (ADR 0074 item 6, amended 2026-11-06)
+
+On a server, with a table whose player (a reader invited to that one folder, who may not create folders) is signed in in another browser, and a note hidden from them:
+
+1. The player opens `/` (or signs in afresh in a private window): the window opens their folder at once, never *Escolha uma pasta deste servidor*. A link to a folder of the server they are not in opens their folder too. Level: H; E: `e2e-server/link-landing.spec.mjs` ("a player with one folder lands in it").
+2. The player opens `/?folder=<the table's id>&note=<the hidden note's path>` (and the same with a path that does not exist, or `../x.md`): their folder opens with no tab for it, no message names it, and the address bar keeps only `?folder=`. A note they see, in the same kind of link, opens as a tab. Level: H; E: `e2e-server/link-landing.spec.mjs` ("a link to a note a player may not open").
+3. An account with no folder that may not create folders lands on *Escolha uma pasta deste servidor* with *Escolher uma pasta* and no *Importar cofre de exemplo*. An admin with no folder still has both. Level: H; E: `e2e-server/server.spec.mjs` ("an invited reader"), `test/landing.test.mjs`.

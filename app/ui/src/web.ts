@@ -12,7 +12,7 @@
 import { setByApp, setStateFallback, state, stateWasKept } from "./web/api";
 import { offline } from "./web/offline/manager";
 import { o } from "./web/offline/strings";
-import { currentFolderId, startBridge, startVisitorBridge } from "./web/bridge";
+import { currentFolderId, linkedNote, startBridge, startVisitorBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
 import { ensureClipboard } from "./web/clipboard";
@@ -182,6 +182,15 @@ async function start(): Promise<void> {
   });
   const window_ = await import("./main");
   openHeld();
+  // A link's note (`/?folder=…&note=…`) opens as a tab once its folder is
+  // shown — if the person sees it. One they do not (hidden from them, not
+  // there, outside the folder) opens nothing and is named nowhere: the
+  // folder alone, as a hidden note's read answers "not found" (ADR 0113).
+  void window_.started.then(() => {
+    const note = linkedNote();
+    if (!note) return;
+    if (window_.allNotes.includes(note) || window_.allFiles.includes(note)) window_.openNote(note, false);
+  }, () => undefined);
   if (section) {
     const { loadCan } = await import("./can");
     await loadCan();

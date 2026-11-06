@@ -5,6 +5,7 @@
 // What the hover preview says (ADR 0085), in both languages (ADR 0035):
 // the card, the command, the setting.
 
+import { prettyKeys } from "../keyNames";
 import { LANG } from "../strings";
 
 const pt = {
@@ -21,7 +22,7 @@ const pt = {
   command: "Ver a prévia do link sob o cursor",
   noLink: "Nenhum link sob o cursor para mostrar.",
   setting: "Prévia ao passar o mouse",
-  settingDesc: "Mostra a nota de um link quando o ponteiro para sobre ele — na Leitura, nos painéis, no grafo e no board; no modo Editar, com ⌘ ou Ctrl apertado. Desligada, a prévia continua no comando “Ver a prévia do link sob o cursor” e no toque.",
+  settingDesc: `Mostra a nota de um link quando o ponteiro para sobre ele — na Leitura, nos painéis, no grafo e no board; no modo Editar, com ${prettyKeys("Mod")} apertado. Desligada, a prévia continua no comando “Ver a prévia do link sob o cursor” e no toque.`,
 };
 
 const en: typeof pt = {
@@ -36,7 +37,7 @@ const en: typeof pt = {
   command: "Preview the link under the cursor",
   noLink: "No link under the cursor to preview.",
   setting: "Preview on hover",
-  settingDesc: "Shows the note a link names when the pointer rests on it — in Reading, the panels, the graph and the board; in Edit mode, with ⌘ or Ctrl held. Off, the preview stays in the command “Preview the link under the cursor” and on touch.",
+  settingDesc: `Shows the note a link names when the pointer rests on it — in Reading, the panels, the graph and the board; in Edit mode, with ${prettyKeys("Mod")} held. Off, the preview stays in the command “Preview the link under the cursor” and on touch.`,
 };
 
 export type PreviewStrings = typeof pt;

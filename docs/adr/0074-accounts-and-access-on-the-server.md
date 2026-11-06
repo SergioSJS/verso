@@ -38,7 +38,7 @@
   device's name, kept with its session, may be set by the person in
   Settings › Servers, the system's name by default — the maintainer's
   *"Sim para todos"* of that evening, recorded in
-  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisions, item 8). 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) item 14 (C.5): the device token moves from `servers.json` to the system's keychain (to be built). 2026-10-23 — item 4: an account that already exists accepts an invitation with the account it has (signed in, one button; not signed in, the sign-in fields on the invitation's page, then the join; an invitation made for an e-mail serves that account only; what the account already has is never lowered) — the maintainer: *"recebi um convite para entrar numa mesa nova e fui tentar entrar com a Ana e deu que o usuário já existia com esse e-mail... não tem fluxo de usuário igual aceitar convite de mesa diferente?"*.
+  [0079](0079-sync-a-local-folder-with-a-server.md) (Revisions, item 8). 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) item 14 (C.5): the device token moves from `servers.json` to the system's keychain (to be built). 2026-10-23 — item 4: an account that already exists accepts an invitation with the account it has (signed in, one button; not signed in, the sign-in fields on the invitation's page, then the join; an invitation made for an e-mail serves that account only; what the account already has is never lowered) — the maintainer: *"recebi um convite para entrar numa mesa nova e fui tentar entrar com a Ana e deu que o usuário já existia com esse e-mail... não tem fluxo de usuário igual aceitar convite de mesa diferente?"*. 2026-11-06 — item 6: where a player lands in a server's window (one folder: straight into it; a link's note they cannot open: their folder alone, the note named nowhere; no create action for someone who may not create), closing "F2" — the maintainer's *"bora"* on the findings of the real-app walk as worded.
 
 ## Context
 
@@ -165,6 +165,30 @@ Proposed; the maintainer decided the six questions on 2026-10-09
    maintainer named is a game master and players on one server. Creating
    folders is a permission the admin grants, off for a new member, so an
    invited player only sees the folders shared with them.
+   *Amended 2026-11-06* (the maintainer's real-app walk of a player in a
+   browser, findings 5a–5c, *"bora"* on them as worded; this closes the
+   question "F2: should `/` open a player's sole folder directly?", raised
+   in the round of 2026-11-03 and recorded in no ADR until now —
+   `[DECIDED 2026-11-06]`):
+   - **A player with exactly one folder lands in it.** An account that may
+     not create folders and has exactly one folder (its own or shared with
+     it), arriving at the window's start page — after signing in, at `/`,
+     or from a link to a folder it is not a member of — is taken straight
+     into that folder. An account that may create folders, or has none or
+     several, gets the start page as before; a new window (0065) still
+     starts there.
+   - **A link's note the person cannot open opens their folder without
+     it.** `/?folder=<id>&note=<path>` opens the folder (the link's, when
+     the person is a member; otherwise as above) and the note as a tab only
+     when it is in what the person sees. A note hidden from them, missing,
+     or outside the folder (`..`, an absolute path) opens nothing and is
+     named nowhere — not in the page, not in the address — the same neutral
+     answer as a hidden note's read ([0113](0113-one-access-model-for-a-table.md)).
+     In a browser such a link is never a note's window of its own.
+   - **Nothing to create is offered to someone who may not create.** The
+     start page offers "Import the example vault" only to an account that
+     may create folders or writes in one of its folders; a reader of every
+     folder it has is offered no create action.
 7. *Proposed; accepted as written on 2026-10-09.* **Sessions in the browser: an opaque token in a cookie, kept on the
    server.** On sign-in the server makes a random 256-bit token, stores
    its SHA-256 with the account, the device's name and the dates, and

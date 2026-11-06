@@ -111,6 +111,7 @@ export async function reloadWindow(): Promise<boolean> {
 }
 export const UNSHIFT: Record<string, string> = { "{": "[", "}": "]", "|": "\\", "<": ",", ">": ".", "?": "/", ":": ";", '"': "'", "~": "`", "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=" };
 import { MAC } from "./platform";
+import { prettyKeys, withKeys } from "./keyNames";
 
 export { MAC };
 /** The combination a key event is, as `Mod-Shift-x`; empty when it is only
@@ -132,15 +133,9 @@ export function comboOf(e: KeyboardEvent): string {
   parts.push(key);
   return parts.join("-");
 }
-/** `Mod-Shift-p` shown as the keys on this machine: ⌘⇧P, Ctrl+Shift+P. */
-export function prettyKeys(combo: string): string {
-  if (!combo) return "";
-  return combo.split(/-(?=.)/).map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p === "ArrowLeft" ? "←" : p === "ArrowRight" ? "→" : p === "ArrowUp" ? "↑" : p === "ArrowDown" ? "↓" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
-}
-/** `label (⌘B)`: a tooltip with the keys as this machine writes them. */
-export function withKeys(label: string, combo: string): string {
-  return combo ? `${label} (${prettyKeys(combo)})` : label;
-}
+// How a chord is written (⌘⇧P, Ctrl+Shift+P) lives in keyNames.ts, where
+// the string catalogs can reach it too.
+export { prettyKeys, withKeys };
 /** A control named after a command: its tooltip shows the command's keys
  *  as bound now, and `paintKeyHints` keeps it so after a change. */
 export function keyHint(el: HTMLElement, label: string, id: string): void {

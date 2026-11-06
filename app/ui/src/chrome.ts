@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { commands } from "./bindings";
 import { importDemoVault } from "./demo";
 import { el, h, ui } from "./dom";
 import { refreshFrame } from "./frame";
@@ -11,6 +12,7 @@ import { ribbon } from "./main";
 import { openFolderDialog } from "./open";
 import { page } from "./settings";
 import { t } from "./strings";
+import { mayOfferExample } from "./web/landing";
 
 /* ---------- Toggles ---------- */
 export const toggleSideButton = el<HTMLButtonElement>("toggle-side");
@@ -98,7 +100,9 @@ export function lesson(): void {
   // In a browser the folders are the server's: the page says where they
   // are chosen, and offers the choice; the desktop's keys and its folders
   // of this computer mean nothing there. The example still imports — into
-  // a server folder the person may write to, chosen first.
+  // a server folder the person may write to, chosen first — offered only
+  // to someone who may make a folder or write in one: a player who reads
+  // is offered nothing to create (ADR 0074 item 6, amended 2026-11-06).
   if (document.documentElement.dataset["host"] === "server") {
     const choose = h("button", "lesson-import", t.lessonServerOpen);
     choose.type = "button";
@@ -106,7 +110,10 @@ export function lesson(): void {
     choose.addEventListener("click", () => void openFolderDialog());
     importBtn.classList.add("lesson-secondary");
     const actions = h("div", "lesson-actions");
-    actions.append(choose, importBtn);
+    actions.append(choose);
+    void commands.serverFolders(location.origin).then((r) => {
+      if (r.status === "ok" && mayOfferExample(r.data) && box.isConnected) actions.append(importBtn);
+    });
     box.append(h("h1", "", t.lessonServerTitle), h("p", "", t.lessonServerBody), actions);
     ui.panes.replaceChildren(box);
     return;
