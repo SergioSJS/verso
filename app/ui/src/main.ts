@@ -15,8 +15,8 @@
 import { openFolderSwitcher } from "./panel/folderSwitcher";
 import { ready } from "./earlyClicks";
 import { watchDeskOnPhone } from "./deskOnPhone";
-import { mayShare, openShareDialog } from "./shares";
-import { campaignRootItems, hearCampaign } from "./campaign";
+import { loadShares, mayShare, openShareDialog } from "./shares";
+import { campaignRootItems, hearCampaign, loadCampaign } from "./campaign";
 import { sh } from "./shareStrings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -826,7 +826,12 @@ export const started: Promise<void> = (async () => {
     // The desktop serving to a phone: its status mark, a phone asking, a
     // stop by itself (ADR 0096). Once the side has answered: a phone's window
     // starts with the desktop's set of capabilities and would ask the status.
-    if (can("local_folders")) hearLocalServer(openFolderBy);
+    // Once the window sat at its own table, the owner's rows read the
+    // server's shares and tables before they act (localServerSeat.ts).
+    if (can("local_folders")) hearLocalServer(openFolderBy, async () => {
+      await loadShares();
+      await loadCampaign();
+    });
     // (and a browser that keeps a server's folder offline says so the same way, ADR 0092 item 7)
     if (!popout && (can("local_folders") || offline.available)) hearSync((section) => settingsDialog.show(section));
   });

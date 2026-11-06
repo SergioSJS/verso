@@ -430,6 +430,36 @@ impl LocalServer {
     }
 }
 
+impl LocalServer {
+    /// How many tables this server holds in the served folder at `folder`
+    /// (its path, as the host knows it): 0 while serving is off, or for a
+    /// folder not served. A window on it with one sits by itself (ADR 0117
+    /// D4 Q3, revised 2026-11-05).
+    #[must_use]
+    pub fn tables_in(&self, folder: &Path) -> u32 {
+        let running = lock(&self.shared.inner);
+        let Some(r) = running.as_ref() else {
+            return 0;
+        };
+        let key = verso_core::folder_key(folder);
+        let name = r
+            .policy
+            .folders
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .find(|(_, p)| verso_core::folder_key(p) == key)
+            .map(|(n, _)| n.clone());
+        let Some(Ok(Some(f))) = name.map(|n| r.server.db.folder_by_dir(&n)) else {
+            return 0;
+        };
+        r.server
+            .db
+            .campaigns_of(&f.id)
+            .map_or(0, |c| u32::try_from(c.len()).unwrap_or(u32::MAX))
+    }
+}
+
 /// Serving stops: the seat's session ends with it (the door closes with
 /// the runtime).
 pub(super) fn close(r: &Running) {

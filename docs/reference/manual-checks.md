@@ -39,7 +39,7 @@ D9, one line per row (A, with the link on and a real player in a browser, unless
 - [ ] **Accounts, roles, invitations, shares**: an invited reader cannot edit; an editor can; an account creates no folder on the computer; ending an invitation before it is used makes its link open nothing.
 - [ ] **One access model and the hides**: a folder served in part is invisible to an invited account given nothing of it, by name and by id; a note hidden from a player stays hidden after a reload.
 - [ ] **A table in a subfolder** (R1, 2026-11-05): tick the vault (e.g. *verso-rpg-test*) and choose only *Campanha Fractal* inside it; the window makes *Campanha Fractal* a table; a player invited to it sees *Campanha Fractal* alone (list, search, a note of another folder typed in the address), and the paired phone lists only the chosen folder.
-- [ ] **Campaign folder**: **Sentar à mesa**, make the folder a table, invite, release a note: the player sees it only once released. A phone is offered none of this.
+- [ ] **Campaign folder**: with the folder served, right-click it and **Tornar esta pasta uma mesa** (no seat step), invite, release a note: the player sees it only once released. A phone is offered none of this.
 - [ ] **Chat, rolls, secret rolls, 3D dice**: a player rolls and chats; a secret roll reaches only the game master; the dice fall on both screens.
 - [ ] **Images at the table**: a player's image reaches the table through the link; an image over the tunnel's upload bound is refused in words (the measured numbers belong in the ADR's "As built").
 - [ ] **Music and shared audio**: the game master's music is heard by a player through the link; a ten-minute **Compartilhar áudio** stays in sync (binary WebSocket, no UDP).

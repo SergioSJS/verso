@@ -93,8 +93,8 @@ com mesa, inclusive, daria para aproveitar a mesma tela."*
   ([0110](0110-a-table-is-a-campaign-folder.md); `app/ui/src/tableCard.ts`,
   which today shows nothing on a folder of this computer): any folder or
   subfolder, served from this computer, then made a table, given access and
-  invited to as on a UniVerso. Sitting at the table (D13 Q3) is offered
-  there too. A subfolder for a player is what it is on a UniVerso — a share
+  invited to as on a UniVerso. Sitting at the table (D13 Q3) happens there
+  by itself (revised 2026-11-05). A subfolder for a player is what it is on a UniVerso — a share
   of it (*Share…*, or its invitation) or a table rooted in it — not a served
   root of the app's own (D1).
 - **Inviting is at the folder's page**, as on a UniVerso: a table's
@@ -345,7 +345,26 @@ ticked in Settings, whole or in part) by D2. **Gone:** 0096 item 11 by D4.
 - **Q2** Two boxes under one switch; the link may run alone, on loopback.
 - **Q3** The owner's window sits at the table as a client of its own server,
   through an in-memory door (no socket), with an owner session minted in
-  process; *Sentar à mesa* / *Sit at the table*. Built (S4).
+  process. Built (S4). *(Revised in place 2026-11-05, the maintainer trying
+  the build: "PQ EU PRECISO CLICAR NUM BOTÃO SENTAR À MESA se eu estou com o
+  app aberto?! … esse ato de 'sentar numa mesa' deveria acontecer ao ativar
+  uma pasta como mesa aberta.")* There is **no** *Sentar à mesa* and no
+  *Sair da mesa*: a window whose folder this app serves, while it serves,
+  sits **by itself** — (a) when its folder already has a table on this
+  computer's server (opened, or served while open; the host says how many
+  in `LocalFolder.tables`), and (b) at the owner's first act on it: the
+  folder's menu offers *Tornar esta pasta uma mesa* / *Tornar a pasta toda
+  uma mesa*, *Compartilhar…* and the read link as on a UniVerso, and the
+  click sits first, then does it (`seatFirst`, `localServerSeat.ts`). The
+  seat underneath is the same (`localServerSitAtTable`); it leaves by
+  itself when serving stops, as built. Chosen by the session building it
+  as the smallest trigger: sitting whenever a folder is served was not
+  taken, because a seated window is a server's client and a folder's sync
+  with a UniVerso runs only while a window shows the folder itself
+  (`sync.rs`) — sitting only for a table keeps that as it was. For a served
+  folder that also syncs with a UniVerso, a table made in its window while
+  this app serves it is this computer's (D4.1: the host is the window the
+  table is made in); the table's dialog says where it is hosted.
 - **Q4** The owner's click in the app is the fresh proof; no owner password.
 - **Q5** A player's identifier is an e-mail-shaped string; nothing is sent.
 - **Q6** Twelve hours, with *Extend*. **Q7** `flate2` + `tar`.

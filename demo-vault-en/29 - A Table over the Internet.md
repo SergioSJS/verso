@@ -52,7 +52,7 @@ The panel gives the reason in words. The usual ones:
 
 First, check **Your name for the players**: it is how the table sees you in the chat, the rolls and the list. It starts as this computer's user name; change it and tap **Save name**.
 
-You invite from the **folder's page**, as on a UniVerso, in the window sitting at the table (section 3 below):
+You invite from the **folder's page**, as on a UniVerso, in the window of the served folder (section 3 below):
 
 1. **A table:** in the table's card, **Invite players › Generate link**. **A folder with no table:** **Share…** in the folder's menu, type the person's e-mail and the role (**reads** or **edits**), then **Share**; no account has that e-mail yet, so the dialog offers **Make an invitation link**. Either way the link shows **once**: copy it and send it to the person however you like. It is good for **7 days** and for **one person only**.
 2. The player opens the link, makes the account with **any e-mail of theirs** (**nothing is sent**: the e-mail is only a sign-in name), a name and a password, and then signs in at the table address.
@@ -66,19 +66,19 @@ Whoever comes in sees only what you shared, with the role you gave. How to run t
 
 ---
 
-## 3. Sit at the table
+## 3. Your window at the table
 
-Serving does not open the table in **your** window. To run it, go to **This window at the table** and use **Sit at the table** on the window's folder. The window becomes a client of your own server, as the owner: it has the Table, the campaign and the invitations, as on a UniVerso. The status bar shows **At the table**.
+There is no button to sit at the table. With the server on and the window's folder served, a folder's menu (right-click, or touch and hold) has **Make this folder a table**, and the list's background has **Make the whole folder a table** — as on a UniVerso. Choosing it makes the window a client of your own server, as the owner, and the table is made there: the Table, the campaign and the invitations, as on a UniVerso. **Share…** and the read link do the same. A served folder that **already has** a table is sat at as soon as you open it, or as soon as you turn the server on with it open. The table can be in any folder inside it, and each player sees only her table's folder.
 
-**Leave the table** (in the section, or on the status bar's mark) goes back to this computer's folder. If the server **stops** with the window seated, it goes back to the computer's folder by itself and says so. Next time, Verso opens the computer's folder, never the table.
+If the server **stops**, the window goes back to the computer's folder by itself and says so. Next time, Verso opens the computer's folder, never the table.
 
 ### Share a folder
 
-In the window sitting at the table, **Share…** in a folder's menu gives it to a person you invited, with the role **reads** or **edits** (never **owner**). The click in the app counts as your confirmation: no password is asked. The share stays from one session to the next, and you revoke it in the same dialog. It holds in a folder served only in part too: the folders chosen in it are what your phones see, and any folder inside it can be shared or made a table. Players and phones share nothing here.
+In the window of the served folder, **Share…** in a folder's menu gives it to a person you invited, with the role **reads** or **edits** (never **owner**). The click in the app counts as your confirmation: no password is asked. The share stays from one session to the next, and you revoke it in the same dialog. It holds in a folder served only in part too: the folders chosen in it are what your phones see, and any folder inside it can be shared or made a table. Players and phones share nothing here.
 
 ### Read links
 
-Under **Read links**, **Turn read links on** starts **off**. On, you make a link in a note's or a folder's menu **in the window sitting at the table**, and whoever has it reads, with no account and without editing. Turning it off **closes every link at once**; on again reopens the ones you did not revoke. A link opens only what it shows, in a folder served whole or in part.
+Under **Read links**, **Turn read links on** starts **off**. On, you make a link in a note's or a folder's menu **in the window of the served folder**, and whoever has it reads, with no account and without editing. Turning it off **closes every link at once**; on again reopens the ones you did not revoke. A link opens only what it shows, in a folder served whole or in part.
 
 ---
 

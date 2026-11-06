@@ -206,6 +206,7 @@ fn rows<R: tauri::Runtime>(
                     verso_core::served_attachments(&path, &parts)
                 },
                 received_from: received_from(config, &key),
+                tables: local.tables_in(&path),
                 key,
             }
         })

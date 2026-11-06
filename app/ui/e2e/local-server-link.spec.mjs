@@ -303,42 +303,51 @@ test("my own address: the three steps written out, the login, a taken name said,
   await expect(own.getByText("1. Tenha um domínio e adicione-o à Cloudflare", { exact: false })).toBeVisible();
 });
 
-test("the window sits at its own table and leaves; serving stopped under it brings this computer's folder back", async ({ app, page }) => {
+test("a served folder's window sits at its table by itself: making a table, opening one, no seat button", async ({ app, page }) => {
+  // ADR 0117 D4 Q3, revised 2026-11-05 (the maintainer: "PQ EU PRECISO
+  // CLICAR NUM BOTÃO SENTAR À MESA se eu estou com o app aberto?!").
   await app.open();
+  // Not served: the folder's menu has no table row (a folder of this
+  // computer alone has none).
+  await page.locator("#tree-root").dispatchEvent("contextmenu", { clientX: 40, clientY: 40 });
+  await expect(page.getByRole("menuitem", { name: "Tornar a pasta toda uma mesa" })).toHaveCount(0);
+  await app.key("Escape");
   await section(app);
   const body = page.locator(".settings-body");
-  const sit = body.getByRole("button", { name: "Sentar à mesa" });
-  await expect(sit).toBeDisabled();
-  await expect(body.getByText("Marque a pasta desta janela e ligue o servidor", { exact: false })).toBeVisible();
+  await expect(body.getByRole("button", { name: "Sentar à mesa" })).toHaveCount(0);
+  await expect(body.getByText("Esta janela na mesa")).toHaveCount(0);
   await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
-  await expect(sit).toBeEnabled();
-  await sit.click();
-  await expect(body.getByText("Na mesa de Vault.").first()).toBeVisible();
-  // Seated, the side is the server, and still no browser's offline copy here.
+  await expect(page.locator("#local-mark")).toBeVisible();
   await app.key("Escape");
-  await section(app);
-  await expect(page.locator(".settings-nav-item", { hasText: /^(Sem rede|Offline)$/ })).toHaveCount(0);
+  // Served: the owner's row is there, and it sits first, then makes the table.
+  await page.locator("#tree-root").dispatchEvent("contextmenu", { clientX: 40, clientY: 40 });
+  await page.getByRole("menuitem", { name: "Tornar a pasta toda uma mesa" }).click();
+  const made = page.getByRole("dialog", { name: /^Mesa da pasta/ });
+  await expect(made).toBeVisible();
+  await expect.poll(() => app.calls("local_server_sit_at_table")).toHaveLength(1);
+  await expect.poll(() => app.calls("campaign_make")).toEqual([{ root: "" }]);
   // The next start opens this computer's folder, never the seat.
   expect(await page.evaluate(() => localStorage.getItem("verso.lastFolder"))).toBe("harness");
-  // The way back is on the status bar too, with Settings closed.
   await app.key("Escape");
-  await page.locator("#local-mark").getByRole("button", { name: "Sair da mesa" }).click();
+  // No way "out of the table" to press: the mark has only its Stop.
   await expect(page.locator("#local-mark").getByRole("button", { name: "Sair da mesa" })).toHaveCount(0);
-  await expect(page.locator("#status")).toContainText("De volta à pasta deste computador.");
-  // Sitting again, then serving stopped: back by itself, and said.
-  await section(app);
-  await page.locator(".settings-body").getByRole("button", { name: "Sentar à mesa" }).click();
-  await expect(page.locator(".settings-body").getByText("Na mesa de Vault.").first()).toBeVisible();
-  await app.key("Escape");
+  // Serving stopped under it: back to this computer's folder, said.
   await page.locator("#local-mark").getByRole("button", { name: "Parar de servir ao celular" }).click();
   await expect(page.locator("#status")).toContainText("O servidor parou: a janela voltou à pasta deste computador.");
-  // The person's own stop is said by that line alone: no "session ended"
-  // notice with a way to Servers, and no browser's offline copy in Settings.
   await expect(page.getByText("Sessão encerrada", { exact: false })).toHaveCount(0);
-  await expect(page.getByText("O servidor encerrou a sessão deste computador", { exact: false })).toHaveCount(0);
+  // Served again, the folder has its table: the window sits by itself.
+  await section(app);
+  await page.locator(".settings-body").getByRole("button", { name: "Ligar o servidor" }).click();
+  const before = page.getByRole("dialog", { name: "Antes de ligar" });
+  if (await before.isVisible()) await before.getByRole("button", { name: "Entendi, ligar" }).click();
+  await expect.poll(() => app.calls("local_server_sit_at_table")).toHaveLength(2);
+  await expect(page.locator("#status")).toContainText("Na mesa de Vault.");
+  await app.key("Escape");
+  await page.locator("#tree-root").dispatchEvent("contextmenu", { clientX: 40, clientY: 40 });
+  await expect(page.getByRole("menuitem", { name: /^Mesa/ }).first()).toBeVisible();
+  await app.key("Escape");
   await section(app);
   await expect(page.locator(".settings-nav-item", { hasText: /^(Sem rede|Offline)$/ })).toHaveCount(0);
-  await expect(page.locator(".settings-nav-item", { hasText: "Servidores" })).toHaveCount(1);
 });

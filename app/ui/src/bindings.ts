@@ -3152,6 +3152,12 @@ export type LocalFolder = {
 	 *  own that syncs has none and is served like any other.
 	 */
 	received_from: string | null,
+	/**
+	 *  How many tables this computer's server holds in this folder while it
+	 *  serves it; 0 while serving is off. A window on a served folder with
+	 *  one sits at its table by itself (ADR 0117 D4 Q3, revised 2026-11-05).
+	 */
+	tables: number,
 };
 
 /**  One invitation of this computer's server, as the section lists it. */

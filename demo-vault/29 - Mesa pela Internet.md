@@ -52,7 +52,7 @@ O painel diz o motivo em palavras. Os mais comuns:
 
 Antes, confira **Seu nome para os jogadores**: é como a mesa vê você no chat, nas rolagens e na lista. Começa com o nome do usuário deste computador; troque e toque em **Salvar nome**.
 
-Você convida pela **página da pasta**, como num UniVerso, na janela sentada à mesa (seção 3 abaixo):
+Você convida pela **página da pasta**, como num UniVerso, na janela da pasta servida (seção 3 abaixo):
 
 1. **Uma mesa:** no cartão da mesa, **Convidar jogadores › Gerar link**. **Uma pasta sem mesa:** **Compartilhar…** no menu da pasta, escreva o e-mail da pessoa e o papel (**lê** ou **edita**) e toque em **Compartilhar**; nenhuma conta tem esse e-mail ainda, então o diálogo oferece **Gerar link de convite**. Nos dois casos o link aparece **uma vez**: copie e mande à pessoa por onde preferir. Vale por **7 dias** e serve para **uma pessoa só**.
 2. A jogadora abre o link, cria a conta com **qualquer e-mail dela** (**nada é enviado**: o e-mail só serve de nome de entrada), um nome e uma senha, e depois entra pelo endereço da mesa.
@@ -66,19 +66,19 @@ Quem entra vê só o que você compartilhou, com o papel que você deu. Como mes
 
 ---
 
-## 3. Sentar à mesa
+## 3. A sua janela na mesa
 
-Servir não abre a mesa na **sua** janela. Para mestrar, vá a **Esta janela na mesa** e use **Sentar à mesa** na pasta da janela. A janela passa a ser cliente do seu próprio servidor, como dona: tem a Mesa, a campanha e os convites, como num UniVerso. A barra de status mostra **Na mesa**.
+Não há botão para sentar à mesa. Com o servidor ligado e a pasta da janela servida, o menu de uma pasta (clique com o botão direito, ou toque e segure) tem **Tornar esta pasta uma mesa**, e o fundo da lista de notas tem **Tornar a pasta toda uma mesa** — como num UniVerso. Ao escolher, a janela passa a ser cliente do seu próprio servidor, como dona, e a mesa nasce nele: a Mesa, a campanha e os convites, como num UniVerso. **Compartilhar…** e o link de leitura fazem o mesmo. Uma pasta servida que **já tem** mesa senta sozinha assim que você a abre, ou assim que liga o servidor com ela aberta. A mesa pode ficar em qualquer subpasta, e cada jogadora vê só a pasta da mesa dela.
 
-**Sair da mesa** (na seção, ou na marca da barra de status) volta à pasta deste computador. Se o servidor **parar** com a janela sentada, ela volta sozinha para a pasta do computador e avisa. Na próxima vez, o Verso abre a pasta do computador, nunca a mesa.
+Se o servidor **parar**, a janela volta sozinha para a pasta do computador e avisa. Na próxima vez, o Verso abre a pasta do computador, nunca a mesa.
 
 ### Compartilhar uma pasta
 
-Na janela sentada à mesa, **Compartilhar…** no menu de uma pasta a entrega a uma pessoa que você convidou, com o papel **lê** ou **edita** (nunca **dona**). O clique no app vale como a sua confirmação: nenhuma senha é pedida. O compartilhamento fica de uma sessão para a outra, e você o revoga no mesmo diálogo. Vale também numa pasta servida só em parte: as subpastas escolhidas são o que os seus celulares veem, e qualquer subpasta pode ser compartilhada ou virar mesa. Jogadoras e celulares não compartilham nada aqui.
+Na janela da pasta servida, **Compartilhar…** no menu de uma pasta a entrega a uma pessoa que você convidou, com o papel **lê** ou **edita** (nunca **dona**). O clique no app vale como a sua confirmação: nenhuma senha é pedida. O compartilhamento fica de uma sessão para a outra, e você o revoga no mesmo diálogo. Vale também numa pasta servida só em parte: as subpastas escolhidas são o que os seus celulares veem, e qualquer subpasta pode ser compartilhada ou virar mesa. Jogadoras e celulares não compartilham nada aqui.
 
 ### Links de leitura
 
-Em **Links de leitura**, **Ligar os links de leitura** vem **desligado**. Ligado, você cria um link no menu de uma nota ou pasta **na janela sentada à mesa**, e quem o tiver lê, sem conta e sem editar. Desligar **fecha todos os links na hora**; ligar de novo reabre os que você não revogou. Um link abre só o que ele mostra, numa pasta servida inteira ou em parte.
+Em **Links de leitura**, **Ligar os links de leitura** vem **desligado**. Ligado, você cria um link no menu de uma nota ou pasta **na janela da pasta servida**, e quem o tiver lê, sem conta e sem editar. Desligar **fecha todos os links na hora**; ligar de novo reabre os que você não revogou. Um link abre só o que ele mostra, numa pasta servida inteira ou em parte.
 
 ---
 

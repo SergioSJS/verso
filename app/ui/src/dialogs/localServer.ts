@@ -26,7 +26,7 @@ import { linkStrings, markSaid } from "./localServerLinkStrings";
 import { invitations } from "./localServerInvites";
 import { accountsBlock } from "./localServerAccounts";
 import { playersBlock } from "./localServerPlayers";
-import { hearSeat, onSeatChange, seatBlock, seatOnMark, setOpener } from "./localServerSeat";
+import { hearSeat, lookAgain, onSeatChange, setOpener } from "./localServerSeat";
 import type { openFolderBy } from "../open";
 import { drawQr } from "./qr";
 
@@ -76,7 +76,25 @@ async function refreshMark(): Promise<void> {
 }
 
 /** The mark, from the host's status `s`. */
+/** Whether this app serves now, as the mark last drew it: Settings shows
+ *  the owner's Account while it does (masterAccount.ts). */
+let servingNow = false;
+export function serves(): boolean {
+  return servingNow;
+}
+
+function setServing(on: boolean): void {
+  if (on === servingNow) return;
+  servingNow = on;
+  // Settings' list of sections follows (the owner's Account), and the
+  // window's folder may have become served, or stopped being: it sits at
+  // its table by itself (localServerSeat.ts).
+  dispatchEvent(new Event("verso:serving"));
+  lookAgain();
+}
+
 function drawMark(s: LocalServerStatus): void {
+  setServing(s.serving);
   if (!s.supported) return markOff();
   // Starting the link alone, nothing serves yet: the mark says so, with
   // its Stop, while cloudflared downloads (Linux has no tray).
@@ -113,10 +131,10 @@ function drawMark(s: LocalServerStatus): void {
   const said = markSaid(s, w.mark(s.phones_connected));
   if (text) text.textContent = said;
   mark.title = s.link.state === "on" && s.link.origin ? s.link.origin : s.serving ? where(s) : said;
-  seatOnMark(mark);
 }
 
 function markOff(): void {
+  setServing(false);
   mark?.remove();
   mark = null;
 }
@@ -124,10 +142,10 @@ function markOff(): void {
 /** Listen to the host, once: the mark follows, a phone's first connection
  *  and a stop by itself are notifications (ADR 0084), a phone asking opens
  *  the question wherever the person is. */
-export function hearLocalServer(open: typeof openFolderBy): void {
+export function hearLocalServer(open: typeof openFolderBy, reload: () => Promise<void>): void {
   if (heard) return;
   heard = true;
-  setOpener(open);
+  setOpener(open, reload);
   void listen<Heard>("local-server", (e) => {
     const p = e.payload;
     void refreshMark();
@@ -192,8 +210,6 @@ export function localServerBody(_item: Item): HTMLElement {
   const players = playersBlock(say);
   // Other people's desktop apps, read links, passkeys (ADR 0117 D9).
   const accounts = accountsBlock(say);
-  // The window at its own table (ADR 0117 D4 Q3).
-  const seat = seatBlock(say);
   const unsupported = h("p", "ls-warn", w.unsupported);
   unsupported.hidden = true;
 
@@ -482,7 +498,7 @@ export function localServerBody(_item: Item): HTMLElement {
     // The mark from the answer the section draws, at once.
     drawMark(s);
     unsupported.hidden = s.supported;
-    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, ownerName.el, invites.el, players.el, accounts.el, seat.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
+    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, ownerName.el, invites.el, players.el, accounts.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
     if (!s.supported) return;
     keep.checked = s.keep_on;
     most.value = String(s.max_connected);
@@ -505,7 +521,6 @@ export function localServerBody(_item: Item): HTMLElement {
     if (!s.serving && s.stopped_because) say(w.stoppedNet);
     const f = await commands.localServerFolders();
     if (f.status === "ok") drawFolders(f.data, s.serving);
-    seat.draw(s, f.status === "ok" ? f.data : []);
     await invites.draw(s);
     await players.draw(s);
     await accounts.draw(s);
@@ -595,7 +610,6 @@ export function localServerBody(_item: Item): HTMLElement {
   box.append(
     block(lead, unsupported, runRow, said, boxes.el, blocked, keepLabel, keepHelp),
     block(foldersHead, foldersLead, folders),
-    block(seat.el),
     block(ownerName.el),
     block(invites.el),
     block(players.el),

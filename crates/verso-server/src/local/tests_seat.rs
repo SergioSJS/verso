@@ -473,8 +473,11 @@ fn the_window_sits_at_a_folder_served_in_part() {
             .id;
         assert_eq!(seat.folder(), vault);
         let mut gm = seated(&seat).await;
+        assert_eq!(lab.local.tables_in(&campanha(&lab)), 0);
         let made = ask(&mut gm, 2, "campaign_make", json!({ "root": "Segredo" })).await;
         assert!(made.get("ok").is_some(), "{made}");
+        // What a window on the folder is told, to sit by itself.
+        assert_eq!(lab.local.tables_in(&campanha(&lab)), 1);
         assert_eq!(
             seat.get(&format!("/f/{vault}/Segredo/x.png"))
                 .unwrap()
@@ -496,6 +499,8 @@ fn the_window_sits_at_a_folder_served_in_part() {
             .get(&format!("/f/{vault}/Segredo/x.png"), Some(&phone))
             .await;
         assert_eq!(status, 404, "the phone by the vault's id");
+        lab.local.stop();
+        assert_eq!(lab.local.tables_in(&campanha(&lab)), 0, "not serving");
     });
 }
 

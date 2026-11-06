@@ -30,6 +30,7 @@ import { askServerProof } from "./serverProver";
 import { roleWord, sh } from "./shareStrings";
 import { loadReadLinks, openReadLinkDialog } from "./readLinks";
 import { rl } from "./readLinkStrings";
+import { seatFirst, servedHere } from "./seatState";
 
 /** The folders of the open folder shared with someone, by path. */
 const shared = new Map<string, FolderShare>();
@@ -40,6 +41,9 @@ export function mayShare(): boolean {
   // The server says who the person is (ADR 0113): the game master of a
   // folder's table is its owner. A host with no such answer (a folder of
   // this computer synced to a server, until S8) keeps the share list's own.
+  // A folder this app serves, the window not at its table yet: its owner
+  // has the rows, and the first sits (ADR 0117 D4 Q3, revised 2026-11-05).
+  if (servedHere()) return true;
   const a = folderAccess();
   return a ? a.seat === "master" : owner;
 }
@@ -150,6 +154,16 @@ function askFirst(where: HTMLElement, question: string, yes: () => Promise<void>
 
 /** The share dialog of the folder at `path` (`""` the whole folder). */
 export function openShareDialog(path: string): void {
+  // A folder this app serves, the window not at its table yet: it sits
+  // first, and the share is the server's (ADR 0117 D4 Q3, 2026-11-05).
+  if (servedHere()) {
+    void seatFirst().then((ok) => ok && drawShareDialog(path));
+    return;
+  }
+  drawShareDialog(path);
+}
+
+function drawShareDialog(path: string): void {
   const whole = path === "";
   // A layer of the page like the window's other dialogs, not a `<dialog>`
   // in the browser's top layer: what opens over it — the palette, a menu —

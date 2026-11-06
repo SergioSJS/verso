@@ -65,8 +65,8 @@ export class LocalServerHarness {
   private dropped: string[] = [];
   /** Folders the harness knows, one of them syncing with a server. */
   private folders: LocalFolder[] = [
-    { key: "harness", name: "Vault", place: "", ticked: false, parts: [], missing: [], attachments: null, received_from: null },
-    { key: "synced", name: "Compartilhada", place: "", ticked: false, parts: [], missing: [], attachments: null, received_from: "notas.exemplo" },
+    { key: "harness", name: "Vault", place: "", ticked: false, parts: [], missing: [], attachments: null, received_from: null, tables: 0 },
+    { key: "synced", name: "Compartilhada", place: "", ticked: false, parts: [], missing: [], attachments: null, received_from: "notas.exemplo", tables: 0 },
     // As the maintainer's list: many folders, two of the same name, told
     // apart only by the directory they are in (a name, never a path).
     ...[
@@ -80,9 +80,12 @@ export class LocalServerHarness {
       ["Diario", "Documents"],
       ["Estudos", "Documents"],
       ["Projetos", "code"],
-    ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, parts: [], missing: [], attachments: null, received_from: null })),
+    ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, parts: [], missing: [], attachments: null, received_from: null, tables: 0 })),
   ];
   private maxConnected = 4;
+  /** How many tables the server holds in the window's folder: the
+   *  harness's campaign says (`harness.ts`). */
+  tablesOf: () => number = () => 0;
   private fingerprint = "AB:CD:EF:01:23:45:67:89";
   /** The identity's generation: replaced, the fingerprint changes. */
   private generation = 1;
@@ -227,7 +230,10 @@ export class LocalServerHarness {
       const gone = this.serving || this.dropped.length > 0 ? parts.filter((p) => this.dropped.includes(`${f.name}/${p}`)) : [];
       // The vault's setting names "Anexos": it goes along unless it is, or holds, a chosen folder.
       const attach = f.key === "harness" && parts.length > 0 && !parts.some((p) => p === "Anexos" || p.startsWith("Anexos/")) ? "Anexos" : null;
-      return { ...f, ticked: this.ticked.has(f.key), parts, missing: gone, attachments: attach };
+      // The server's tables of the window's folder while it serves (the
+      // harness's campaign is the server's database).
+      const tables = this.serving && f.key === "harness" && this.ticked.has(f.key) ? this.tablesOf() : 0;
+      return { ...f, ticked: this.ticked.has(f.key), parts, missing: gone, attachments: attach, tables };
     });
   }
 

@@ -90,8 +90,9 @@ test("the window at its own table makes a read link: off, it says where to turn 
   await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
-  await body.getByRole("button", { name: "Sentar à mesa" }).click();
-  await expect(body.getByText("Na mesa de Vault.").first()).toBeVisible();
+  // No seat to press (ADR 0117 D4 Q3, revised 2026-11-05): the note's
+  // menu sits the window first.
+  await expect(page.locator("#local-mark")).toBeVisible();
   await app.key("Escape");
   const files = await app.files();
   const note = files.find((f) => f.endsWith(".md") && !f.includes("/") && !f.startsWith("."));
@@ -99,6 +100,7 @@ test("the window at its own table makes a read link: off, it says where to turn 
   await row.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Copiar link de leitura…" }).click();
   let dialog = page.getByRole("dialog", { name: /Link de leitura de/ });
+  await expect(page.locator("#status")).toContainText("Na mesa de Vault.");
   await expect(dialog).toContainText("Ligue em Ajustes › Transformar em servidor › Links de leitura.");
   await expect(dialog.getByRole("button", { name: "Criar link" })).toBeHidden();
   await dialog.getByRole("button", { name: "Fechar" }).click();

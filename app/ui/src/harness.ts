@@ -14,6 +14,7 @@
 
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+import { eventCall } from "./web/events";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import type { Capabilities, LooseFileInfo, Mentions, Opened, PickedFiles } from "./bindings";
 import { FOLDER_CAN } from "./can";
@@ -210,7 +211,10 @@ const campaign = new Campaign(core);
 // A synced folder's table and campaign are the server's while the sync's
 // link is up (ADR 0107 item 9): reached over the link the rooms play, and
 // unavailable with it down, as the host answers; the status says "none".
-const link = (): boolean | null => (core.sync.on && rooms ? rooms.up : null);
+// The window seated at its own server's table (ADR 0117 D4 Q3): the
+// tables are that server's, up while it sits.
+const link = (): boolean | null => (core.localServer.isSeated() ? true : core.sync.on && rooms ? rooms.up : null);
+core.localServer.tablesOf = () => campaign.tables.length;
 if (table) table.linked = link;
 // The folder's tables are the campaign's (one log per table, ADR 0107 as amended 2026-10-23).
 if (table) table.roots = () => (campaign.up ? campaign.tables.map((t) => t.root) : []);
@@ -235,7 +239,7 @@ for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "
 // The owner of a synced folder reaches the server's shares while its link is
 // up: the game master's rows of the menu are the owner's (ADR 0081).
 const sharesOwn = core.handlers["share_list"]!;
-core.handlers["share_list"] = (a) => (core.sync.on && core.sync.role === "owner" && rooms?.up ? [{ id: null, path: "", people: [], attachments: null, missing: false }] : sharesOwn(a));
+core.handlers["share_list"] = (a) => ((core.sync.on && core.sync.role === "owner" && rooms?.up) || core.localServer.isSeated() ? [{ id: null, path: "", people: [], attachments: null, missing: false }] : sharesOwn(a));
 const tableParam = params.get("table");
 if (tableParam === "owner" || tableParam === "player") {
   campaign.up = true;
@@ -269,19 +273,21 @@ mockWindows("main");
 // Answered in a task of its own, as the app's IPC answers: never within the
 // event that asked (an Enter that confirms a name must not also press the
 // button of the plan its answer opens).
-mockIPC(
-  (cmd, args) =>
-    new Promise((resolve, reject) =>
-      setTimeout(() => {
-        try {
-          resolve(core.invoke(cmd, args));
-        } catch (e) {
-          reject(e);
-        }
-      }, 0),
-    ),
-  { shouldMockEvents: true },
-);
+// The window's events are answered as the web page answers them (web/events.ts:
+// Tauri's own stand-in forgot no listener on `unlisten`), at once as before.
+mockIPC((cmd, args) => {
+  const heard = eventCall(cmd, (args ?? {}) as Record<string, unknown>);
+  if (heard.handled) return Promise.resolve(heard.value);
+  return new Promise((resolve, reject) =>
+    setTimeout(() => {
+      try {
+        resolve(core.invoke(cmd, args));
+      } catch (e) {
+        reject(e);
+      }
+    }, 0),
+  );
+});
 
 // The page's `Notification`, as the plugin's script makes it in the app.
 notifications.install((cmd, args) => (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__.invoke(cmd, args));
