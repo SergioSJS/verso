@@ -624,6 +624,8 @@ pub struct Cache {
     /// The files a player is told of, by folder and account, with the log
     /// head and the generation they were told at.
     pub(crate) told_files: Mutex<HashMap<Account, Told>>,
+    /// The bytes of files kept from someone that went outside Verso.
+    pub(crate) gone_outside: crate::campaign_outside::Remembered,
 }
 
 impl Cache {

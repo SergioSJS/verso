@@ -256,6 +256,69 @@ fn reconcile_held(
     paths: &[String],
     moved: &HashMap<String, String>,
 ) -> Result<i64, ContractError> {
+    let mut seen = found(server, folder, key, paths)?;
+    // One side of a rename outside Verso alone, of a file kept from
+    // someone, in a listing as of the index's last walk: the folder is
+    // walked again and read again, so that both sides are in this one
+    // step (`campaign_outside::look_again`).
+    if crate::campaign_outside::look_again(
+        server,
+        folder,
+        (&seen.known, &seen.gone),
+        &seen.created,
+        moved,
+    ) {
+        server.service.walk_quietly(key);
+        seen = found(server, folder, key, paths)?;
+    }
+    let Found {
+        known,
+        gone,
+        created,
+        quick_only,
+        same,
+        twins,
+        too_large,
+        read_from,
+    } = seen;
+    crate::twins::found(server, folder, twins);
+    server.transfers.large.found(server, folder, too_large);
+    let head = record_changes(
+        server,
+        (folder, key),
+        (by, paths),
+        (&known, &gone),
+        (created, moved),
+        (&quick_only, read_from),
+    )?;
+    // A window's write the watcher recorded first (C3, seen on Windows):
+    // offered to the history with its author, as `reconcile_paths` does.
+    if by.names_someone() {
+        crate::history::recorded(server, (folder, key), by, &same, false);
+    }
+    Ok(head)
+}
+
+/// What a reconciliation found, before anything is recorded.
+struct Found {
+    known: HashMap<String, crate::db::Known>,
+    gone: Vec<(String, String)>,
+    created: Vec<Created>,
+    quick_only: Vec<(String, String)>,
+    same: Vec<crate::db::Recorded>,
+    twins: Vec<crate::twins::Twin>,
+    too_large: Vec<(String, u64)>,
+    read_from: SystemTime,
+}
+
+/// The folder's files against its log, read where the listing does not
+/// vouch for them ([`reconcile_held`]).
+fn found(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    paths: &[String],
+) -> Result<Found, ContractError> {
     let fail = |e: String| verso_service::failed(e);
     // Before anything is read: what the reads find is vouched for as of
     // this moment (`settled`).
@@ -270,7 +333,6 @@ fn reconcile_held(
         &known,
     );
     let held: HashSet<String> = twins.iter().map(|t| t.held.clone()).collect();
-    crate::twins::found(server, folder, twins);
     let files: Vec<(String, u64, u128)> = files
         .into_iter()
         .filter(|(p, _, _)| !held.contains(p))
@@ -388,26 +450,21 @@ fn reconcile_held(
             created.push((path, hash, size, quick));
         }
     }
-    server.transfers.large.found(server, folder, too_large);
     let gone: Vec<(String, String)> = known
         .iter()
         .filter(|(p, _)| !present.contains(p.as_str()))
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
-    let head = record_changes(
-        server,
-        (folder, key),
-        by,
-        (&known, &gone),
-        (created, moved),
-        (&quick_only, read_from),
-    )?;
-    // A window's write the watcher recorded first (C3, seen on Windows):
-    // offered to the history with its author, as `reconcile_paths` does.
-    if by.names_someone() {
-        crate::history::recorded(server, (folder, key), by, &same, false);
-    }
-    Ok(head)
+    Ok(Found {
+        known,
+        gone,
+        created,
+        quick_only,
+        same,
+        twins,
+        too_large,
+        read_from,
+    })
 }
 
 /// The hash of the file at `path`, its length and the revision it was read
@@ -530,11 +587,11 @@ type Created = (String, String, i64, String);
 /// changed (a new one of the same bytes as one gone is a rename; one a
 /// window's move names, `moved`: new path → old, is that rename whatever
 /// its bytes), the quick keys refreshed — and tell the devices on the
-/// folder the new head.
+/// folder the new head. `written`: the paths the caller wrote.
 fn record_changes(
     server: &Server,
     (folder, key): (&str, &str),
-    by: Author<'_>,
+    (by, written): (Author<'_>, &[String]),
     (known, gone): (&HashMap<String, crate::db::Known>, &[(String, String)]),
     (created, moved): (Vec<Created>, &HashMap<String, String>),
     (quick_only, read_from): (&[(String, String)], SystemTime),
@@ -631,7 +688,13 @@ fn record_changes(
     }
     // A file renamed or deleted outside Verso keeps who sees it, before
     // the players are told (`campaign_outside`).
-    crate::campaign_outside::followed(server, folder, (&changes, gone), (known, moved));
+    // What the caller wrote through Verso carried its access already.
+    let written: HashSet<&str> = if by.names_someone() {
+        written.iter().map(String::as_str).collect()
+    } else {
+        HashSet::new()
+    };
+    crate::campaign_outside::followed(server, folder, (&changes, gone, &written), (known, moved));
     // A note a player saw that was deleted, or renamed: the players' devices
     // are told it went — decided in the step that records it, from what was
     // remembered before it ran (ADR 0110 item 4, amended 2026-10-23).

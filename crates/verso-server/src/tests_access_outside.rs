@@ -151,3 +151,132 @@ fn a_deletion_outside_verso_leaves_no_access_behind() {
         assert!(!ana_sees(&mut m, "Praça/Cofre Zq/Placa.md").await);
     });
 }
+
+/// Renames on the server's disk, by hand, then the watcher's batches as
+/// they may come (seen on Windows, 2026-11-06): a batch named one side of
+/// the rename only — a file's earlier write, read again once it was gone,
+/// or the new name alone — and the other side in a later batch.
+fn outside_in_two(m: &Mesa, (from, to): (&str, &str), first: &str) {
+    let mut root = verso_fs::Root::open(m.r.campanha(), Vec::new()).unwrap();
+    let (_, report) = root.rename(Path::new(from), Path::new(to)).unwrap();
+    assert!(report.warnings().is_empty());
+    let then = if first == from { to } else { from };
+    for path in [first, then] {
+        crate::sync::reconcile(&m.r.server, &m.id, &key_of(m), None, &[path.to_owned()]).unwrap();
+    }
+}
+
+/// A rename outside Verso whose old name a batch reports alone: the walk
+/// looks again before it records a file kept from someone as gone, and
+/// finds the new one — never a deletion, then a new file of its folder's.
+#[test]
+fn a_rename_outside_verso_seen_first_as_a_deletion_keeps_the_file_hidden() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Praça/Carta Zq", "zq carta\n").await;
+        access(&mut m, "Praça/Carta Zq.md", "none").await;
+        let (from, to) = ("Praça/Carta Zq.md", "Praça/Carta velha Zq.md");
+        outside_in_two(&m, (from, to), from);
+        assert!(!ana_sees(&mut m, to).await);
+    });
+}
+
+/// The same, its new name reported alone: the file it may be, still
+/// listed, is looked at again before the new one takes its folder's.
+#[test]
+fn a_rename_outside_verso_seen_first_as_a_new_file_keeps_the_file_hidden() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Praça/Carta Zq", "zq carta\n").await;
+        access(&mut m, "Praça/Carta Zq.md", "none").await;
+        // Settled: the log's quick key of the old name is kept, and a
+        // listing that still names it vouches for it unread.
+        std::thread::sleep(crate::sync::SETTLED + std::time::Duration::from_millis(200));
+        let walked = m.owner.call("reindex", json!({})).await;
+        assert!(walked.get("ok").is_some(), "{walked}");
+        crate::sync::reconcile(&m.r.server, &m.id, &key_of(&m), None, &[]).unwrap();
+        let (from, to) = ("Praça/Carta Zq.md", "Praça/Carta velha Zq.md");
+        outside_in_two(&m, (from, to), to);
+        assert!(!ana_sees(&mut m, to).await);
+    });
+}
+
+/// A file of `text` put at `path` on the server's disk, by hand.
+fn by_hand(m: &Mesa, path: &str, text: &str) {
+    use std::io::Write;
+    let mut f = tempfile::NamedTempFile::new_in(m.r.campanha()).unwrap();
+    f.write_all(text.as_bytes()).unwrap();
+    f.persist(m.r.campanha().join(path)).unwrap();
+}
+
+/// A rename outside Verso whose new name no step found with the old one —
+/// on Windows a file is renamed by `link` then `unlink`, and the old name
+/// was read gone after the listing was taken, before the new name was in
+/// it (2026-11-06): the new file of those bytes, found later, is born
+/// hidden. A note of the same bytes written through Verso is not.
+#[test]
+fn a_rename_outside_verso_whose_new_name_comes_a_step_later_leaves_the_file_hidden() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Praça/Carta Zq", "zq carta\n").await;
+        access(&mut m, "Praça/Carta Zq.md", "none").await;
+        outside(&m, &[], &["Praça/Carta Zq.md"]);
+        by_hand(&m, "Praça/Carta velha Zq.md", "zq carta\n");
+        let found = ["Praça/Carta velha Zq.md".to_owned()];
+        crate::sync::reconcile(&m.r.server, &m.id, &key_of(&m), None, &found).unwrap();
+        assert!(!ana_sees(&mut m, "Praça/Carta velha Zq.md").await);
+        note(&mut m, "Praça/Carta nova", "zq carta\n").await;
+        assert!(ana_sees(&mut m, "Praça/Carta nova.md").await);
+    });
+}
+
+/// The rename's middle, two names for one file's bytes, found before the
+/// old name goes: the new one is born hidden, and stays so once the old
+/// one has gone.
+#[test]
+fn a_rename_outside_verso_found_with_both_names_leaves_the_file_hidden() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Praça/Carta Zq", "zq carta\n").await;
+        access(&mut m, "Praça/Carta Zq.md", "none").await;
+        by_hand(&m, "Praça/Carta velha Zq.md", "zq carta\n");
+        let found = ["Praça/Carta velha Zq.md".to_owned()];
+        crate::sync::reconcile(&m.r.server, &m.id, &key_of(&m), None, &found).unwrap();
+        assert!(!ana_sees(&mut m, "Praça/Carta velha Zq.md").await);
+        outside(&m, &[], &["Praça/Carta Zq.md"]);
+        assert!(!ana_sees(&mut m, "Praça/Carta velha Zq.md").await);
+    });
+}
+
+/// A note written through Verso of the bytes of a file kept from someone
+/// that went outside, its write found first by the watcher's step (C3,
+/// seen on Windows): kept hidden by that step, it follows its folder once
+/// its writer's own step names it.
+#[test]
+fn a_note_written_through_verso_found_first_by_the_watcher_follows_its_folder() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Praça/Carta Zq", "zq carta\n").await;
+        access(&mut m, "Praça/Carta Zq.md", "none").await;
+        outside(&m, &[], &["Praça/Carta Zq.md"]);
+        let path = "Praça/Carta nova.md";
+        by_hand(&m, path, "zq carta\n");
+        let named = [path.to_owned()];
+        crate::sync::reconcile(&m.r.server, &m.id, &key_of(&m), None, &named).unwrap();
+        assert!(!ana_sees(&mut m, path).await);
+        let admin =
+            m.r.server
+                .db
+                .account_by_email("admin@casa.lan")
+                .unwrap()
+                .unwrap();
+        let (server, key) = (&m.r.server, key_of(&m));
+        crate::sync::reconcile(server, &m.id, &key, Some(&admin.id), &named).unwrap();
+        assert!(ana_sees(&mut m, path).await);
+    });
+}

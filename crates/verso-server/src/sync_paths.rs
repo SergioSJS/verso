@@ -124,10 +124,11 @@ pub(super) fn reconcile_paths(
         .filter(|(p, _)| !present.contains(p.as_str()))
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
+    let written: Vec<String> = paths.iter().map(|(p, _)| p.clone()).collect();
     let head = record_changes(
         server,
         (folder, key),
-        by,
+        (by, &written),
         (&known, &gone),
         (created, &HashMap::new()),
         (&quick_only, read_from),
