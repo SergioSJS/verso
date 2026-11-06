@@ -142,7 +142,7 @@ pub fn router(server: Arc<Server>) -> Router {
             get(crate::api::invitation).post(crate::api::accept),
         )
         .route("/api/signout", post(crate::api::sign_out))
-        .route("/api/me", get(crate::api::me))
+        .route("/api/me", get(crate::api::me).patch(profile))
         .route(
             "/api/me/settings",
             get(crate::api::settings).put(crate::api::set_settings),
@@ -162,6 +162,18 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/", page())
         .fallback_service(static_files);
     crate::http::guarded(table, server)
+}
+
+/// A person's own name and language, as on a UniVerso (`crate::http`'s
+/// `PATCH /api/me`): an invited player renames themself, and the table's
+/// next lines carry the new name. A paired phone is the owner's device: it
+/// renames no one (the owner's name is set in the app's Settings), and is
+/// answered as an unknown route is, as every account route is to it.
+async fn profile(ctx: Ctx, body: Json<crate::api::Profile>) -> ApiResult<Response> {
+    if ctx.who.as_ref().is_some_and(|w| w.phone.is_some()) {
+        return Err(ApiError::not_found());
+    }
+    crate::api::profile(ctx, body).await
 }
 
 /// Before a route of an account: a paired phone is answered as an unknown

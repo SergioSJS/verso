@@ -46,6 +46,8 @@ test release.
 
 ### Fixed
 
+- **A player of this computer's server can change their name** (the maintainer, 2026-11-05: "o NOME … NÃO CONSIGO ALTERAR"). On the account page of a table served from this computer (on the network or by the internet link), **Save** on the name answered nothing and the name stayed: the app's server did not take the change a UniVerso takes. It does now, and the table's next lines and rolls carry the new name. A paired phone is the owner's device and still renames no one (the owner's name is in **Settings › Turn into a server**).
+
 - **Sound files play in the Linux app** (ADR 0116). The table's music and the audio players in notes said the file could not be played. On Linux, the app's web engine (WebKitGTK) plays media only from web addresses, not from the address Verso gives a folder's files, though it reads the file's bytes from there. Now, on Linux only, Verso reads the file first and hands the bytes to the player. A note's player reads its file when you press play, so its length shows from then on. The dice sounds were never affected. macOS, Windows and the web keep playing the file from its address.
 
 - **People invited say the hour they were last seen** (ADR 0117). **Settings › Turn into a server › People invited** said only the day after *last seen on*; it now says the day and the hour, as the app's other dates do.

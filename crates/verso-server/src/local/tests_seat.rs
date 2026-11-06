@@ -279,6 +279,68 @@ fn a_new_name_for_the_players_reaches_the_seats_next_lines() {
     });
 }
 
+/// A player of this app's server renames themself on their account page
+/// (the maintainer, 2026-11-05: *"o NOME … NÃO CONSIGO ALTERAR"*): the
+/// app's server routes `PATCH /api/me` as a UniVerso does, the account
+/// says the new name, and the table's next line from them carries it. A
+/// paired phone renames no one: it is the owner's device.
+#[test]
+fn a_player_renames_themself_and_the_table_says_the_new_name() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        let seat = lab.local.sit(&campanha(&lab)).unwrap();
+        let mut gm = seated(&seat).await;
+        let made = ask(&mut gm, 2, "campaign_make", json!({ "root": "" })).await;
+        assert!(made.get("ok").is_some(), "{made}");
+        seat.acted("campaign_invite").unwrap();
+        let invited = ask(&mut gm, 3, "campaign_invite", json!({ "root": "" })).await;
+        let link = invited["ok"]["link"].as_str().unwrap_or_default().to_owned();
+        let cookie = accept(&lab, &link).await;
+
+        let renamed = lab
+            .client
+            .patch(lab.url("/api/me"))
+            .header("origin", lab.origin())
+            .header("cookie", &cookie)
+            .header("x-verso-csrf", super::tests_devices::csrf(&lab, &cookie).await)
+            .json(&json!({ "name": "Ana Clara", "lang": "pt" }))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(renamed.status().as_u16(), 200, "the name is routed");
+        let (_, me) = lab.get("/api/me", Some(&cookie)).await;
+        assert_eq!(me["account"]["name"], "Ana Clara", "{me}");
+
+        let mut ana = lab.connect(&cookie).await.unwrap();
+        assert!(message(&mut ana).await.get("hello").is_some());
+        let opened = ask(&mut ana, 1, "open_server_folder", json!({ "id": seat.folder() })).await;
+        assert!(opened.get("ok").is_some(), "{opened}");
+        let look = json!({ "color": "#3b82f6", "styles": null });
+        assert!(ask(&mut gm, 4, "table_join", look.clone()).await.get("ok").is_some());
+        assert!(ask(&mut ana, 2, "table_join", look).await.get("ok").is_some());
+        let said = ask(&mut ana, 3, "table_say", json!({ "text": "Oi, mesa" })).await;
+        assert_eq!(said["ok"]["by"], "Ana Clara", "{said}");
+        let entry = heard(&mut gm, "table-entry", |p| p["text"] == "Oi, mesa").await;
+        assert_eq!(entry["by"], "Ana Clara", "{entry}");
+
+        // A phone is the owner's device: the route is not its.
+        let phone = lab.pair("iPhone", true, Role::Editor).await.unwrap();
+        let res = lab
+            .client
+            .patch(lab.url("/api/me"))
+            .header("origin", lab.origin())
+            .header("cookie", &phone)
+            .header("x-verso-csrf", super::tests_devices::csrf(&lab, &phone).await)
+            .json(&json!({ "name": "Outro", "lang": "pt" }))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 404);
+        assert_ne!(lab.local.owner_name().unwrap(), "Outro");
+    });
+}
+
 /// The seat's token opens nothing but through its door: not on the
 /// network's listener, not through the internet link's, not beside a
 /// phone's cookie; a phone runs no `local_server_` command, the seat's
