@@ -471,3 +471,28 @@ test("g. a board and a picture Ana has open drop their content when the game mas
     await openNoteBy(ana.page, "Livre");
   });
 });
+
+test("h. the last file Ana sees, hidden again while she has it open, drops its content: an empty list is no reason to keep it", async ({ browser, page: gm }, info) => {
+  const files = { "Zqunica.md": "# Zqunica\n\nzqmarcaunica\n" };
+  await scenario(browser, gm, info, "ultima", files, async ({ folder, ana }) => {
+    await openFolder(ana.page, folder.id);
+    const file = await accessDialog(gm, "Zqunica.md");
+    await choose(file, "Toda a mesa", "Vê");
+    await expect(file).toContainText("Salvo");
+    await gm.keyboard.press("Escape");
+    await expect.poll(() => ana.page.locator('#notes li[data-path="Zqunica.md"]').count(), { timeout: 30_000 }).toBe(1);
+    await openNoteBy(ana.page, "Zqunica");
+    await expect(ana.page.locator(".leaf:not([hidden])")).toContainText("zqmarcaunica", { timeout: 30_000 });
+    // Hidden again: nothing is left for her in the folder, and the tab must still let go.
+    const back = await accessDialog(gm, "Zqunica.md");
+    await choose(back, "Toda a mesa", "Não vê");
+    await expect(back).toContainText("Salvo");
+    await gm.keyboard.press("Escape");
+    await expect.poll(() => entries(ana.page), { timeout: 30_000 }).toEqual([]);
+    const dead = ana.page.locator(".leaf.unshared");
+    await expect(dead).toHaveCount(1, { timeout: 30_000 });
+    await expect(dead).toContainText("Este arquivo não é mais compartilhado com você");
+    await expect(ana.page.locator(".leaf:not([hidden])")).not.toContainText("Apagada ou movida");
+    expect(await traces(ana.page, ["Zqunica", "zqmarcaunica"]), await where(ana.page, "Zqunica")).toEqual([]);
+  });
+});

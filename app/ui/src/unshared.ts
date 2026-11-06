@@ -27,7 +27,9 @@ import { t } from "./strings";
  *  `listAll` has filled `allEntries`. */
 export function dropUnshared(): void {
   const access = folderAccessNow();
-  if (!access?.table || access.seat === "master" || allEntries.size === 0) return;
+  // An empty list is a list: hiding the last file a player sees leaves it
+  // empty, and that tab must let go too (2026-11-06).
+  if (!access?.table || access.seat === "master") return;
   const leaves = spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves));
   const gone = new Set<string>();
   for (const leaf of leaves) {
