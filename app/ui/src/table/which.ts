@@ -51,3 +51,12 @@ export function tableLabel(root: string, folder: string): string {
   const at = root.lastIndexOf("/");
   return at < 0 ? root : root.slice(at + 1);
 }
+
+/** What the panel draws for the choice it is joined by: the folder's
+ *  tables, the table it is at, whether it lists them. `joined` is the table
+ *  the window is at now, `null` while a join is on its way — the table the
+ *  choice names, then: a choice asked again before its join answers (the
+ *  same folder opened twice) must not leave the header without its name. */
+export function panelPick(roots: string[], choice: Choice, joined: string | null): { roots: string[]; current: string | null; choosing: boolean } {
+  return { roots, current: joined ?? (choice.kind === "table" ? choice.root : null), choosing: choice.kind === "choose" };
+}
