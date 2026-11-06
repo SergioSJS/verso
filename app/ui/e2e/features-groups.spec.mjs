@@ -55,6 +55,11 @@ for (const [lang, general, rpgNav, all, none, link, rpgLine] of [
     await expect(body.locator(".setting-title", { hasText: lang === "en" ? "Oracles" : "Oráculos" }).first()).toBeVisible();
     await page.locator(".settings-search").fill(lang === "en" ? "texture" : "textura");
     await expect(body.locator(".setting-title", { hasText: lang === "en" ? "3D dice: texture" : "Dados 3D: textura" })).toBeVisible();
+    // A setting whose title starts with the word searched comes before one
+    // that only says it in its words (the maintainer, 2026-11-05: "nome"
+    // put the account's *Nome* last).
+    await page.locator(".settings-search").fill(lang === "en" ? "folder note" : "nome");
+    await expect(body.locator(".setting-title").first()).toHaveText(lang === "en" ? /^Folder note/ : /^Nome/);
     await page.locator(".settings-search").fill("");
 
     // A feature with its own page links to it.

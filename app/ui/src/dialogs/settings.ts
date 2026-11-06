@@ -74,6 +74,7 @@ import { themeGallery } from "../theme/gallery";
 import { openMoreThemes } from "../theme/more";
 import { W as lookWords } from "../theme/strings";
 import type { ItemCtx, SettingItem } from "./settings/types";
+import { searched } from "./settings/search";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
 export let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
@@ -978,7 +979,7 @@ export class SettingsDialog {
     this.revealCurrent();
     this.box.classList.toggle("phone-list", this.phoneList && !q);
     this.box.classList.toggle("phone-page", !this.phoneList || !!q);
-    const items = this.items().filter((it) => (q ? `${it.group ?? ""} ${it.title} ${it.desc}`.toLowerCase().includes(q) : it.section === this.section));
+    const items = q ? searched(this.items(), q) : this.items().filter((it) => it.section === this.section);
     const frag = document.createDocumentFragment();
     let lastSection = "";
     let lastGroup = "";
