@@ -363,3 +363,152 @@ fn a_rename_outside_verso_not_yet_reconciled_is_hidden_from_a_player() {
         }
     });
 }
+
+/// The level `who` is given of `path` when reading it, `None` when not
+/// shown it.
+async fn level(who: &mut crate::tests_campaign::Win, path: &str) -> Option<String> {
+    let read = who.call("read_note", json!({ "path": path })).await;
+    read["ok"]["access"]["level"].as_str().map(str::to_owned)
+}
+
+/// The rows of a set: each account with its level.
+fn rows(whole: &str, rows: &[(&str, &str)]) -> Value {
+    let rows: Vec<Value> = rows
+        .iter()
+        .map(|(who, level)| json!({ "account": who, "level": level }))
+        .collect();
+    json!({ "kind": "set", "set": { "whole": whole, "rows": rows }, "secret_name": null })
+}
+
+async fn access_rows(m: &mut Mesa, path: &str, whole: &str, of: &[(&str, &str)]) {
+    let done = m
+        .owner
+        .call(
+            "access_set",
+            json!({ "paths": [path], "change": rows(whole, of) }),
+        )
+        .await;
+    assert!(done.get("ok").is_some(), "{done}");
+}
+
+/// A file copied by hand on the server's disk, its original still in the
+/// table, and the watcher's reconciling of the copy.
+fn copied(m: &Mesa, text: &str, to: &str) {
+    by_hand(m, to, text);
+    let found = [to.to_owned()];
+    crate::sync::reconcile(&m.r.server, &m.id, &key_of(m), None, &found).unwrap();
+}
+
+/// A copy of a hidden note (the maintainer, 2026-11-06: "Cópia herda do
+/// original") is hidden: one hidden by a set of its own, and one hidden by
+/// its folder, the copy put where the players see.
+#[test]
+fn a_copy_outside_verso_of_a_hidden_note_is_hidden() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Praça/Carta Zq", "zq carta\n").await;
+        access(&mut m, "Praça/Carta Zq.md", "none").await;
+        note(&mut m, "Cofre Zq/Mapa Zq", "zq mapa do cofre\n").await;
+        access(&mut m, "Cofre Zq", "none").await;
+        copied(&m, "zq carta\n", "Praça/Carta cópia Zq.md");
+        copied(&m, "zq mapa do cofre\n", "Praça/Mapa cópia Zq.md");
+        for path in ["Praça/Carta cópia Zq.md", "Praça/Mapa cópia Zq.md"] {
+            assert!(!ana_sees(&mut m, path).await, "{path}");
+        }
+    });
+}
+
+/// A copy of a note Ana edits and Bia sees: Ana edits the copy, Bia sees
+/// it. A note of the same bytes written through Verso follows its folder.
+#[test]
+fn a_copy_outside_verso_of_a_note_ana_edits_is_edited_by_ana() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Praça/Diário Zq", "zq diário\n").await;
+        let ana = m.ana_id.clone();
+        access_rows(&mut m, "Praça/Diário Zq.md", "see", &[(&ana, "edit")]).await;
+        copied(&m, "zq diário\n", "Praça/Diário cópia Zq.md");
+        let copy = "Praça/Diário cópia Zq.md";
+        assert_eq!(level(&mut m.ana, copy).await.as_deref(), Some("edit"));
+        assert_eq!(level(&mut m.bia, copy).await.as_deref(), Some("see"));
+        note(&mut m, "Praça/Diário novo", "zq diário\n").await;
+        let new = "Praça/Diário novo.md";
+        assert_eq!(level(&mut m.ana, new).await.as_deref(), Some("see"));
+    });
+}
+
+/// A copy of a visible note is visible: one shown by its folder, copied
+/// beside it, and one shown by a set of its own, copied into a folder the
+/// players do not see.
+#[test]
+fn a_copy_outside_verso_of_a_visible_note_is_visible() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Cofre Zq/Aviso", "aviso a todos\n").await;
+        access(&mut m, "Cofre Zq", "none").await;
+        note(&mut m, "Praça/Edital", "edital da praça\n").await;
+        access(&mut m, "Praça/Edital.md", "see").await;
+        copied(&m, "água\n", "Praça/Fonte cópia.md");
+        copied(&m, "edital da praça\n", "Cofre Zq/Edital cópia.md");
+        for path in ["Praça/Fonte cópia.md", "Cofre Zq/Edital cópia.md"] {
+            assert!(ana_sees(&mut m, path).await, "{path}");
+        }
+        assert!(!ana_sees(&mut m, "Cofre Zq/Aviso.md").await);
+    });
+}
+
+/// Several notes of the copy's bytes, of different access: the copy takes
+/// the narrowest, each player at the lowest level any of them gives.
+#[test]
+fn a_copy_outside_verso_of_notes_of_different_access_takes_the_narrowest() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        let (ana, bia) = (m.ana_id.clone(), m.bia_id.clone());
+        note(&mut m, "Praça/Selo um Zq", "zq selo\n").await;
+        access_rows(&mut m, "Praça/Selo um Zq.md", "see", &[(&ana, "edit")]).await;
+        note(&mut m, "Praça/Selo dois Zq", "zq selo\n").await;
+        access_rows(
+            &mut m,
+            "Praça/Selo dois Zq.md",
+            "none",
+            &[(&ana, "edit"), (&bia, "see")],
+        )
+        .await;
+        note(&mut m, "Praça/Selo três Zq", "zq selo\n").await;
+        access_rows(&mut m, "Praça/Selo três Zq.md", "edit", &[(&ana, "see")]).await;
+        copied(&m, "zq selo\n", "Praça/Selo cópia Zq.md");
+        let copy = "Praça/Selo cópia Zq.md";
+        assert_eq!(level(&mut m.ana, copy).await.as_deref(), Some("see"));
+        assert_eq!(level(&mut m.bia, copy).await.as_deref(), Some("see"));
+    });
+}
+
+/// A note written through Verso of the bytes of a note Ana edits, its
+/// write found first by the watcher's step (C3): given the copy's access by
+/// that step, it follows its folder once its writer's own step names it.
+#[test]
+fn a_note_written_through_verso_found_first_as_a_copy_follows_its_folder() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Praça/Diário Zq", "zq diário\n").await;
+        let ana = m.ana_id.clone();
+        access_rows(&mut m, "Praça/Diário Zq.md", "see", &[(&ana, "edit")]).await;
+        let path = "Praça/Diário novo.md";
+        copied(&m, "zq diário\n", path);
+        assert_eq!(level(&mut m.ana, path).await.as_deref(), Some("edit"));
+        let admin =
+            m.r.server
+                .db
+                .account_by_email("admin@casa.lan")
+                .unwrap()
+                .unwrap();
+        let (server, key) = (&m.r.server, key_of(&m));
+        crate::sync::reconcile(server, &m.id, &key, Some(&admin.id), &[path.to_owned()]).unwrap();
+        assert_eq!(level(&mut m.ana, path).await.as_deref(), Some("see"));
+    });
+}
