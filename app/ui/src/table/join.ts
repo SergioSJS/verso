@@ -34,7 +34,7 @@ import { announce } from "./addToNote";
 import { armChime, chosen, earnsChime, playChime, typingInTable } from "./chime";
 import { stylesOf, type ServerTable, type TableEntry } from "./model";
 import { chooseEvent, lastChosen, rememberChosen, setPick } from "./pick";
-import { whichTable, tableLabel, tableNames, type Choice } from "./which";
+import { whichTable, tableLabel, tableNames, panelPick, type Choice } from "./which";
 import { setTableNamer } from "../seatState";
 import { local, setTableSource, tableOn, tableOnScreen } from "./record";
 import { noticeKey, reachOf, rejoin, tryServerTable, type Reach, type SyncDetail } from "./reach";
@@ -134,8 +134,7 @@ async function rejoinNow(): Promise<void> {
   local.setNotice(null);
   const choice = wanted();
   joinedKey = keyOf(choice);
-  const roots = campaign().tables.map((t) => t.root);
-  setPick({ roots, current: choice.kind === "table" ? choice.root : null, choosing: choice.kind === "choose" });
+  setPick(panelPick(campaign().tables.map((t) => t.root), choice, null));
   if (!tableOn() || !currentFolder) {
     setTableSource(local);
     void joinSound(null, currentFolder);
@@ -217,13 +216,16 @@ function joinedLabel(folder: string): string {
 
 /** The active note or the folder's tables changed: the panel is at the table they say, if that is another one. */
 function follow(): void {
-  const key = keyOf(wanted());
+  const choice = wanted();
+  const key = keyOf(choice);
   if (key !== joinedKey) {
     // Set now: a second change before the rejoin runs must not queue another.
     joinedKey = key;
     void retry();
   }
-  else setPick({ roots: campaign().tables.map((t) => t.root), current: current?.table ?? null, choosing: joinedKey === "choose" });
+  // The same choice: the panel at the table the window is at, or, while its
+  // join is on its way (`current` null), the one the choice names.
+  else setPick(panelPick(campaign().tables.map((t) => t.root), choice, current?.table ?? null));
 }
 
 /** Start following the folder: shown, role changed, switch flipped, the

@@ -52,6 +52,8 @@ test release.
 
 ### Fixed
 
+- **The Mesa panel keeps the table's name when the same folder is opened again.** A player taken straight into their only folder who then chose it again from **Switch folder** had the panel's header without the table's name (*Mesa: …*) until they opened another note: the header was redrawn while the table was being joined again and named none. It names the table being joined.
+
 - **The status bar's Stop says what it stops** (ADR 0117; the walk of 2026-11-06). Its name for a screen reader and its tooltip said *Stop serving to the phone* even while the computer served only the internet link. It now says *Stop serving on your network*, *Stop the internet link* or *Stop serving on your network and by the internet link*, as it is at that moment.
 
 - **The window at its own table names the table** (ADR 0117; the walk of 2026-11-06). Sitting at the table of a folder this computer serves, the status line named the folder (*At Mesa Demo's table.*) when the table was *Campanha Fractal*, a folder inside it. It now names the table the window is at — the active note's, or the only one — and, when no note says which of several, each of them.
