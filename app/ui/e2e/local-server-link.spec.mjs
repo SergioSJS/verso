@@ -327,6 +327,8 @@ test("a served folder's window sits at its table by itself: making a table, open
   const made = page.getByRole("dialog", { name: /^Mesa da pasta/ });
   await expect(made).toBeVisible();
   await expect.poll(() => app.calls("local_server_sit_at_table")).toHaveLength(1);
+  // Where it is hosted, before its link is made (the maintainer, 2026-11-05).
+  await expect(made.getByText("Hospedada em: este computador (https://192.168.1.20:51234)")).toBeVisible();
   await expect.poll(() => app.calls("campaign_make")).toEqual([{ root: "" }]);
   // The next start opens this computer's folder, never the seat.
   expect(await page.evaluate(() => localStorage.getItem("verso.lastFolder"))).toBe("harness");

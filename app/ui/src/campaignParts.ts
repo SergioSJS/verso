@@ -13,6 +13,7 @@
 
 import { commands, type CampaignPlayer, type CampaignTable, type ContractError } from "./bindings";
 import { serverLink } from "./can";
+import { hostedAt } from "./hostedAt";
 import { campaign, noteAudience, releaseAll, releaseNotes, setTable, tableFor } from "./campaign";
 import { cp } from "./campaignStrings";
 import { h, ui } from "./dom";
@@ -157,6 +158,13 @@ export function openSwitch(root: string, id: string): HTMLElement {
  *  button and the day it stops working. */
 export function inviteBlock(root: string): HTMLElement {
   const box = h("div", "cd-invite");
+  // Where the table is hosted, before its link is made (hostedAt.ts).
+  const hosted = h("p", "cd-hint cd-hosted");
+  hosted.hidden = true;
+  void hostedAt().then((line) => {
+    hosted.textContent = line ?? "";
+    hosted.hidden = line === null;
+  });
   const hint = h("p", "cd-hint");
   const make = h("button", "btn", cp.inviteMake);
   make.type = "button";
@@ -200,7 +208,7 @@ export function inviteBlock(root: string): HTMLElement {
   });
   const row = h("div", "cd-row");
   row.append(make, fb.el);
-  box.append(hint, row, made);
+  box.append(hosted, hint, row, made);
   return box;
 }
 

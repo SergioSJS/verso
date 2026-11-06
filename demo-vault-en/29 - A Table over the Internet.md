@@ -54,7 +54,7 @@ First, check **Your name for the players**: it is how the table sees you in the 
 
 You invite from the **folder's page**, as on a UniVerso, in the window of the served folder (section 3 below):
 
-1. **A table:** in the table's card, **Invite players › Generate link**. **A folder with no table:** **Share…** in the folder's menu, type the person's e-mail and the role (**reads** or **edits**), then **Share**; no account has that e-mail yet, so the dialog offers **Make an invitation link**. Either way the link shows **once**: copy it and send it to the person however you like. It is good for **7 days** and for **one person only**.
+1. **A table:** in the table's card, **Invite players › Make link**. Above the button, **Hosted on** says where the table is: *this computer* with the address the invitation will carry (the internet link, if it is on; else your network's), or the **UniVerso** the window is on. **A folder with no table:** **Share…** in the folder's menu, type the person's e-mail and the role (**reads** or **edits**), then **Share**; no account has that e-mail yet, so the dialog offers **Make an invitation link**. Either way the link shows **once**: copy it and send it to the person however you like. It is good for **7 days** and for **one person only**.
 2. The player opens the link, makes the account with **any e-mail of theirs** (**nothing is sent**: the e-mail is only a sign-in name), a name and a password, and then signs in at the table address.
 3. In **Settings › Turn into a server**, the **Invitations** list shows every invitation of this server (waiting, accepted by…, ended, expired) and **End** closes one still waiting.
 

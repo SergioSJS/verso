@@ -54,7 +54,7 @@ Antes, confira **Seu nome para os jogadores**: é como a mesa vê você no chat,
 
 Você convida pela **página da pasta**, como num UniVerso, na janela da pasta servida (seção 3 abaixo):
 
-1. **Uma mesa:** no cartão da mesa, **Convidar jogadores › Gerar link**. **Uma pasta sem mesa:** **Compartilhar…** no menu da pasta, escreva o e-mail da pessoa e o papel (**lê** ou **edita**) e toque em **Compartilhar**; nenhuma conta tem esse e-mail ainda, então o diálogo oferece **Gerar link de convite**. Nos dois casos o link aparece **uma vez**: copie e mande à pessoa por onde preferir. Vale por **7 dias** e serve para **uma pessoa só**.
+1. **Uma mesa:** no cartão da mesa, **Convidar jogadores › Gerar link**. Acima do botão, **Hospedada em** diz onde a mesa está: *este computador* com o endereço que o convite vai levar (o link da internet, se estiver ligado; senão o da sua rede), ou o **UniVerso** em que a janela está. **Uma pasta sem mesa:** **Compartilhar…** no menu da pasta, escreva o e-mail da pessoa e o papel (**lê** ou **edita**) e toque em **Compartilhar**; nenhuma conta tem esse e-mail ainda, então o diálogo oferece **Gerar link de convite**. Nos dois casos o link aparece **uma vez**: copie e mande à pessoa por onde preferir. Vale por **7 dias** e serve para **uma pessoa só**.
 2. A jogadora abre o link, cria a conta com **qualquer e-mail dela** (**nada é enviado**: o e-mail só serve de nome de entrada), um nome e uma senha, e depois entra pelo endereço da mesa.
 3. Em **Ajustes › Transformar em servidor**, a lista **Convites** mostra todos os convites deste servidor (esperando, aceito por…, encerrado, expirado) e **Encerrar** fecha um que ainda espera.
 
