@@ -24,11 +24,17 @@ import { pickFiles } from "./pickFiles";
 import { readLinkCall } from "./readLinkOwner";
 import { FULL_RETRY, phonesFullMost } from "./phonesFull";
 import { w } from "./strings";
+import { linkNotePath, soleFolder, type Listed } from "./landing";
 import { sortMessage } from "../table/sound/frameHeader";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: unknown) => void };
 
 const params = new URLSearchParams(location.search);
+/** The folder and the note a link names (`/?folder=…&note=…`): the note is
+ *  opened in that folder's window, as a tab, once the folder is shown and
+ *  only if the person sees it (web.ts); never a window of its own here. */
+const linkFolder = params.get("folder");
+const linkNote = linkNotePath(params.get("note"));
 let socket: WebSocket | null = null;
 let open = false;
 let nextId = 1;
@@ -72,6 +78,13 @@ let onLinkEnded: (() => void) | null = null;
 let linkEnded = false;
 /** Where a live share's frames go (`audio_share_hear`, the desktop host's channel answered here). */
 let audioFrames: { onmessage: (bytes: ArrayBuffer) => void } | null = null;
+
+/** The note a link names, to open as a tab once its folder is shown: only
+ *  when the folder open is the link's own (a link to a folder the person is
+ *  not in opens theirs, without the note), and a path inside it. */
+export function linkedNote(): string | null {
+  return linkNote && linkFolder && folderId === linkFolder ? linkNote : null;
+}
 
 /** The folder the tab shows, for the pages around the window. */
 export function currentFolderId(): string | null {
@@ -415,15 +428,24 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
       return done(await openFolder(id));
     }
     case "open_initial": {
-      if (!folderId || openedOnce) return done(null);
-      const info = await openFolder(folderId).catch(() => {
-        // A folder of the address one may no longer enter: the start page,
-        // with no role.
-        folderId = null;
-        remember(null);
-        setRole(null);
-        return null;
-      });
+      if (openedOnce) return done(null);
+      let info = folderId
+        ? await openFolder(folderId).catch(() => {
+            // A folder of the address one may no longer enter: the start
+            // page, with no role.
+            folderId = null;
+            remember(null);
+            setRole(null);
+            return null;
+          })
+        : null;
+      // A player with one folder, landing on the start page, is taken into
+      // it (ADR 0074 item 6, decided 2026-11-06); a new window (ADR 0065)
+      // still starts on the start page.
+      if (!info && !params.get("window")) {
+        const sole = await api<Listed>("GET", "/api/folders").then(soleFolder, () => null);
+        if (sole) info = await openFolder(sole).catch(() => null);
+      }
       // The contract's answer names what was opened (ADR 0114): in a
       // browser it is always a folder of the server, never a loose file.
       return done(info ? { kind: "folder", info } : null);
@@ -434,8 +456,10 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     case "new_window":
       window.open(a.sameFolder && folderId ? `/?folder=${encodeURIComponent(folderId)}&window=1` : "/?window=1", "_blank");
       return done(null);
+    // A tab of the browser is never a note's window of its own: a link's
+    // note opens as a tab of the folder's window (`linkedNote`).
     case "popout_target":
-      return done(params.get("note"));
+      return done(null);
     case "return_to_main":
       location.href = `/?folder=${encodeURIComponent(folderId ?? "")}`;
       return done(null);
@@ -607,7 +631,14 @@ async function notificationCall(cmd: string, a: Record<string, unknown>): Promis
  *  the start page), and how the person chooses a folder. */
 export function startBridge(choose: () => Promise<string | null>): void {
   chooser = choose;
-  const label = params.get("note") ? "note-1" : params.get("window") ? "window-1" : "main";
+  const label = params.get("window") ? "window-1" : "main";
+  // The note's name leaves the address once the window has it: a note the
+  // person may not see is named nowhere on their page.
+  if (params.has("note")) {
+    const url = new URL(location.href);
+    url.searchParams.delete("note");
+    history.replaceState(history.state, "", url);
+  }
   mockWindows(label);
   mockIPC(
     async (cmd, args) => {

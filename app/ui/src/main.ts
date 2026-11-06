@@ -864,3 +864,7 @@ export const started: Promise<void> = (async () => {
 export { armDrag } from "./layout/drag";
 export { landIn } from "./layout/pane";
 export { persistSoon, openNote } from "./layout/spaces";
+// What a server's window asks once it is up (web.ts: a link's note), through
+// the entry: an import of its own from web.ts would split the chunks and
+// run settings.ts before main.ts's first read of it.
+export { allFiles, allNotes } from "./folder";

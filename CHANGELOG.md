@@ -14,6 +14,8 @@ test release.
 
 ### Fixed
 
+- **A player on a server lands in their folder, and a link to a note they cannot see opens it without the note** ([ADR 0074](docs/adr/0074-accounts-and-access-on-the-server.md) item 6, amended 2026-11-06). A link `/?folder=…&note=…` naming a note hidden from the player, missing or outside the folder left them on *Choose a folder of this server* — and offered *Import the example vault* to a reader who may create nothing. Now such a link opens their folder alone, naming the note nowhere (not even in the address), and a note they do see opens as a tab; a player with a single folder is taken straight into it after signing in or at `/`; and the start page offers the example vault only to someone who may create a folder or writes in one.
+
 - **Every key shown in the app is written the platform's way** (ADR 0035). Settings › General on Windows named the console's key as the Mac writes it, *(⌥⌘I)*; the zoom row, the board's search, loose-arrow and export hints, the map's undo message, the panel tabs' hint, the graph's help and the hover-preview setting wrote ⌘ or "Alt+" by hand too. Now every chord comes from the one formatter the hotkeys page and the menus use: ⌘⌥⇧ on macOS, Ctrl+Alt+Shift on Windows and Linux, also in a browser on a server.
 
 - **The last note a player sees, hidden again while it is open, leaves their tab** (ADR 0113). When the game master hid the only note a player still saw, the player's open tab kept its whole text under "Deleted or moved on another device": the live teardown skipped an empty list, and the tab took the hide for a deletion. Now an empty list is torn down like any other, and a player's tab whose file is gone always turns neutral ("No longer shared with you"), never keeping the text.
