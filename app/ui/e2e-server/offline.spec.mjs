@@ -22,6 +22,11 @@ function watch(page) {
     // A connection that fails while the network is off is the test's doing.
     if (m.type() === "error" && !/Failed to load resource|WebSocket|net::ERR|offline|Failed to fetch|network|reading 'invoke'/i.test(m.text())) errors.push(m.text());
   });
+  // The window's events in a tab warned "[TAURI] Couldn't find callback id"
+  // (a console warning, not an error: it slipped past; events.ts).
+  page.on("console", (m) => {
+    if (m.type() === "warning" && /\[TAURI\]/.test(m.text())) errors.push(m.text());
+  });
   page.on("pageerror", (e) => {
     // A page being replaced (a reload, the sign-in page after a sign-out) has
     // its host's bridge gone for a moment: not the feature's.

@@ -25,6 +25,7 @@ import { readLinkCall } from "./readLinkOwner";
 import { FULL_RETRY, phonesFullMost } from "./phonesFull";
 import { saidOnClose } from "./openingRefused";
 import { bridgeReady } from "./localTable";
+import { eventCall } from "./events";
 import { w } from "./strings";
 import { sortMessage } from "../table/sound/frameHeader";
 
@@ -652,6 +653,9 @@ export function startBridge(choose: () => Promise<string | null>): void {
       // The system's notifications (ADR 0084 item 9): what Tauri's plugin
       // asks of the desktop's host, the browser's API answers.
       if (cmd.startsWith("plugin:notification|")) return notificationCall(cmd, a);
+      // The window's events: answered here, not by Tauri's mock (events.ts).
+      const heard = eventCall(cmd, a);
+      if (heard.handled) return heard.value;
       // The window's own Tauri calls (its title, its close handler) mean
       // nothing in a tab.
       if (cmd.startsWith("plugin:")) return null;
@@ -662,7 +666,6 @@ export function startBridge(choose: () => Promise<string | null>): void {
       if (onThisDevice()) return offline.answer(folderId!, cmd, a);
       return request(cmd, a);
     },
-    { shouldMockEvents: true },
   );
   const internals = (window as unknown as { __TAURI_INTERNALS__: { convertFileSrc: (path: string, protocol?: string) => string } }).__TAURI_INTERNALS__;
   internals.convertFileSrc = (path: string) =>

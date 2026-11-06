@@ -21,6 +21,11 @@ function watch(page) {
   page.on("console", (m) => {
     if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(m.text());
   });
+  // The window's events in a tab warned "[TAURI] Couldn't find callback id"
+  // (a console warning, not an error: it slipped past; events.ts).
+  page.on("console", (m) => {
+    if (m.type() === "warning" && /\[TAURI\]/.test(m.text())) errors.push(m.text());
+  });
   page.on("pageerror", (e) => errors.push(String(e)));
   return errors;
 }
