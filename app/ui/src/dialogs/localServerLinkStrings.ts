@@ -117,7 +117,8 @@ const pt = {
   invEndNamed: (what: string) => `Encerrar o convite ${what}`,
   invEnded: "Convite encerrado: o link não abre mais nada.",
   // The window at its own table (D4 Q3): it sits by itself (localServerSeat.ts).
-  sat: (name: string) => `Na mesa de ${name}.`,
+  satAt: (tables: string[], folder: string): string =>
+    tables.length > 1 ? `Nas mesas ${tables.join(", ")}.` : `Na mesa de ${tables[0] ?? folder}.`,
   seatGone: "O servidor parou: a janela voltou à pasta deste computador.",
   // The status bar's mark.
   markLink: "Servindo · link na internet",
@@ -228,7 +229,7 @@ const en: typeof pt = {
   invEnd: "End",
   invEndNamed: (what) => `End the invitation ${what}`,
   invEnded: "Invitation ended: its link opens nothing any more.",
-  sat: (name) => `At ${name}'s table.`,
+  satAt: (tables, folder) => (tables.length > 1 ? `At the tables ${tables.join(", ")}.` : `At the table ${tables[0] ?? folder}.`),
   seatGone: "The server stopped: the window went back to this computer's folder.",
   markLink: "Serving · internet link",
   markLinkStarting: "Serving · turning the link on…",

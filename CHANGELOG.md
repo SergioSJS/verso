@@ -52,6 +52,8 @@ test release.
 
 ### Fixed
 
+- **The window at its own table names the table** (ADR 0117; the walk of 2026-11-06). Sitting at the table of a folder this computer serves, the status line named the folder (*At Mesa Demo's table.*) when the table was *Campanha Fractal*, a folder inside it. It now names the table the window is at — the active note's, or the only one — and, when no note says which of several, each of them.
+
 - **See the paired phones goes to the paired phones** (ADR 0117; the walk of 2026-11-06). In **Settings › Account**, **See the paired phones** opened **Turn into a server** at its top, the phones far below; it now opens the section at **Paired phones**, with the focus there. The block's heading **Where you come in as the owner** is no longer said again by the row right under it.
 
 - **Serving on … is said once** (ADR 0117; the walk of 2026-11-06). Turning the server on in **Settings › Turn into a server** showed *Serving on 192.168.3.147:49955.* twice, one under the other: in the line beside the switch and again in the note under it. The line beside the switch says it alone now, and so it is with *Off.* when serving stops.

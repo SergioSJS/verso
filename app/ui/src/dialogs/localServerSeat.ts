@@ -27,7 +27,7 @@ import { currentFolder, folderName, LAST_FOLDER, secondary } from "../folder";
 import type { openFolderBy } from "../open";
 import { whyOf } from "./localServerLink";
 import { linkStrings } from "./localServerLinkStrings";
-import { setSeatState, setSitter } from "../seatState";
+import { setSeatState, setSitter, tablesHere } from "../seatState";
 
 /** This computer's folder the window sat from, and the server's folder
  *  it sits at now (its key as the window shows it). */
@@ -112,7 +112,9 @@ async function sit(): Promise<boolean> {
     rememberLocal(from.key);
     // What the owner's rows read is the server's now: asked before they act.
     await after?.();
-    say(w.sat(folderName));
+    // The table by its name (*Campanha Fractal*), not the folder's: the
+    // walk of 2026-11-06 read "Na mesa de Mesa Demo."
+    say(w.satAt(tablesHere(), folderName));
     tell();
     return true;
   })();

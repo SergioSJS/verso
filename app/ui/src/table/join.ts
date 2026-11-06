@@ -34,7 +34,8 @@ import { announce } from "./addToNote";
 import { armChime, chosen, earnsChime, playChime, typingInTable } from "./chime";
 import { stylesOf, type ServerTable, type TableEntry } from "./model";
 import { chooseEvent, lastChosen, rememberChosen, setPick } from "./pick";
-import { whichTable, tableLabel, type Choice } from "./which";
+import { whichTable, tableLabel, tableNames, type Choice } from "./which";
+import { setTableNamer } from "../seatState";
 import { local, setTableSource, tableOn, tableOnScreen } from "./record";
 import { noticeKey, reachOf, rejoin, tryServerTable, type Reach, type SyncDetail } from "./reach";
 import { paceWait } from "./send";
@@ -229,6 +230,8 @@ function follow(): void {
  *  dice look changed, or a test saying the table came up. */
 export function installServerTable(): void {
   armChime();
+  // The window at its own server's table says which table by name.
+  setTableNamer(() => tableNames(wanted(), folderName));
   for (const ev of ["verso:folder-shown", "verso:role", "verso:features-changed", "verso:table-retry"]) addEventListener(ev, () => void retry());
   // A web window's connection came back: the server knows it as a new connection, at no table, so it hears no news
   // of the table (its music, its share) until it joins again.

@@ -53,3 +53,16 @@ export async function seatFirst(): Promise<boolean> {
   if (!servedHere() || !sitter) return true;
   return sitter();
 }
+
+/** The names of the table the window is at, handed by the table's module
+ *  (table/join.ts) as the sitter is: importing it reorders the bundle. */
+let namer: (() => string[]) | null = null;
+export function setTableNamer(fn: () => string[]): void {
+  namer = fn;
+}
+
+/** The table the window is at, by name (several when no note says which);
+ *  none before the table's module starts or for a folder with no table. */
+export function tablesHere(): string[] {
+  return namer ? namer() : [];
+}

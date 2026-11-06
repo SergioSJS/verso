@@ -72,3 +72,24 @@ test("the two languages have the same events", () => {
   root.lang = "en";
   assert.deepEqual(Object.keys(S.localStrings().actions).sort(), pt);
 });
+
+await esbuild.build({
+  entryPoints: ["src/dialogs/localServerLinkStrings.ts"],
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  outfile: "test/.bundles/localServerLinkWords.test-bundle.mjs",
+  logLevel: "error",
+});
+const L = await import("./.bundles/localServerLinkWords.test-bundle.mjs");
+
+test("the window at its own table is said at the table by its name, in both languages", () => {
+  root.lang = "pt-BR";
+  assert.equal(L.linkStrings().satAt(["Campanha Fractal"], "Mesa Demo"), "Na mesa de Campanha Fractal.");
+  assert.equal(L.linkStrings().satAt(["Cripta", "Sala"], "Mesa Demo"), "Nas mesas Cripta, Sala.");
+  // No table known yet (sat to make one): the folder's.
+  assert.equal(L.linkStrings().satAt([], "Vault"), "Na mesa de Vault.");
+  root.lang = "en";
+  assert.equal(L.linkStrings().satAt(["Campanha Fractal"], "Mesa Demo"), "At the table Campanha Fractal.");
+  assert.equal(L.linkStrings().satAt(["Cripta", "Sala"], "Mesa Demo"), "At the tables Cripta, Sala.");
+});

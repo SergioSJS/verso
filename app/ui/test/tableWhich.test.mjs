@@ -60,3 +60,17 @@ test("the panel names a table by its folder's name; the folder itself by the fol
   assert.equal(m.tableLabel("Cripta", "Campanha"), "Cripta");
   assert.equal(m.tableLabel("Mundo/Cripta", "Campanha"), "Cripta");
 });
+
+// The window at its own server's table says which (the walk of 2026-11-06:
+// "Na mesa de Mesa Demo." named the folder, the table is Campanha Fractal).
+test("the window at its own table names the table it is at, not the folder", () => {
+  const roots = ["Campanhas/Campanha Fractal"];
+  assert.deepEqual(m.tableNames(m.whichTable(roots, "", null, null), "Mesa Demo"), ["Campanha Fractal"]);
+  // The folder itself a table: its name.
+  assert.deepEqual(m.tableNames(m.whichTable([""], "", null, null), "Mesa Demo"), ["Mesa Demo"]);
+  // Several: the one of the active note; none said, each of them.
+  const two = ["Cripta", "Sala"];
+  assert.deepEqual(m.tableNames(m.whichTable(two, "Sala/Mapa.md", null, null), "Mesa Demo"), ["Sala"]);
+  assert.deepEqual(m.tableNames(m.whichTable(two, "Notas.md", null, null), "Mesa Demo"), ["Cripta", "Sala"]);
+  assert.deepEqual(m.tableNames(m.whichTable([], "", null, null), "Mesa Demo"), []);
+});
