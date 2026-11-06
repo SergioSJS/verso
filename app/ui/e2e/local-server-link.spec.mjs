@@ -180,10 +180,24 @@ test("the status bar's mark says the link is up the moment the panel does, whate
   await expect(live).toHaveText("Link no ar.");
 });
 
-test("your name for the players: the system's user at first, changed and kept, never empty", async ({ app, page }) => {
+test("your name for the players: in Account while serving, the system's user at first, changed and kept, never empty", async ({ app, page }) => {
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
+  // Not serving: no Account for the owner; the section says where the name is.
+  await expect(page.locator(".settings-nav-item", { hasText: /^Conta$/ })).toHaveCount(0);
+  await expect(body.getByRole("textbox", { name: "Seu nome para os jogadores" })).toHaveCount(0);
+  await expect(body.getByText("ficam em Ajustes › Conta", { exact: false })).toBeVisible();
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await expect(page.locator("#local-mark")).toBeVisible();
+  // The master's Account (ADR 0117 D2, revised 2026-11-05): the name, the
+  // language, where he comes in — no password, no passkey.
+  await page.locator(".settings-nav-item", { hasText: /^Conta$/ }).click();
+  await expect(body.locator(".setting-title", { hasText: "Idioma" })).toBeVisible();
+  await expect(body.getByText("Nesta janela", { exact: false })).toBeVisible();
+  await expect(body.getByText(/senha atual|chaves de acesso/i)).toHaveCount(0);
   const name = body.getByRole("textbox", { name: "Seu nome para os jogadores" });
   await expect(name).toHaveValue("Sérgio");
   await expect(name).toHaveAccessibleDescription(/Como os jogadores veem você no chat/);
@@ -198,6 +212,9 @@ test("your name for the players: the system's user at first, changed and kept, n
   await expect(name).toHaveValue("Mestre Sérgio");
   const overflow = await body.evaluate((el) => el.scrollWidth - el.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
+  // The way to the phones paired, where they are ended.
+  await body.getByRole("button", { name: "Ver os celulares pareados" }).click();
+  await expect(page.locator('.settings-nav-item[aria-current="true"]')).toContainText("Transformar em servidor");
 });
 
 test("neither box ticked does not start; a link that fails says why in words, and one that drops says the table is offline", async ({ app, page }) => {

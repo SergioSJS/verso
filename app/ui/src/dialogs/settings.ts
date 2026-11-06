@@ -7,7 +7,9 @@ import { can, host } from "../can";
 import { IMPORT_CEILING_MB, importSetting } from "../attachName";
 import { historyStrings } from "./historyStrings";
 import { serverStrings, serversBody } from "./servers";
-import { localServerBody, phonesConnected, restartNote } from "./localServer";
+import { localServerBody, phonesConnected, restartNote, serves } from "./localServer";
+import { masterAccountItems } from "./masterAccount";
+import { isSeated } from "../seatState";
 import { localStrings } from "./localServerStrings";
 import { syncBody, syncStrings } from "./sync";
 import { offline } from "../web/offline/manager";
@@ -97,6 +99,10 @@ export class SettingsDialog {
     this.notice.setAttribute("role", "status");
     this.notice.hidden = true;
     asDialog(this.el, t.settings, () => this.hide());
+    // Serving on or off with Settings open: the owner's Account comes or goes.
+    addEventListener("verso:serving", () => {
+      if (!this.el.hidden) this.paintNav(this.search.value.trim().toLowerCase());
+    });
     this.search.type = "search";
     this.search.placeholder = t.searchSettings;
     this.search.setAttribute("aria-label", t.searchSettings);
@@ -197,8 +203,13 @@ export class SettingsDialog {
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe", category: "system" as const }] : []),
       ...(can("local_folders") ? [{ id: "localserver", label: localStrings().section, icon: "globe", category: "system" as const }] : []),
       ...(can("agents") || can("terminal") ? [{ id: "cli", label: t.sCli, icon: "terminal", category: "system" as const }] : []),
-      ...(can("account") && signedIn() ? [{ id: "account", label: t.sAccount, icon: "user", category: "system" as const }] : []),
+      ...((can("account") && signedIn()) || this.masterHere() ? [{ id: "account", label: t.sAccount, icon: "user", category: "system" as const }] : []),
     ];
+  }
+  /** This app serves, or the window sits at its own table: the owner has
+   *  an Account here (ADR 0117 D2, revised 2026-11-05). */
+  private masterHere(): boolean {
+    return can("local_folders") && (serves() || isSeated());
   }
   private item(title: string, desc: string, control: HTMLElement | null, scope?: Scope): HTMLElement {
     const row = h("div", "setting");
@@ -505,12 +516,15 @@ export class SettingsDialog {
       renderCard();
       return wrap;
     });
-    add("general", t.language, t.languageDesc, () => {
+    const language = (): HTMLElement => {
       const sel = this.select([["auto", t.themeAuto], ["pt-BR", "Português (Brasil)"], ["en", "English"]], settings.lang, (v) => { settings.lang = v; saveSettings(); pushMenuLanguage(); void this.reloadForLanguage(); });
       // Each language's name in its own language, said so.
       for (const o of Array.from(sel.options)) if (o.value !== "auto") o.lang = o.value;
       return sel;
-    });
+    };
+    add("general", t.language, t.languageDesc, language);
+    // The game master's Account while this app serves (masterAccount.ts).
+    if (this.masterHere() && !(can("account") && signedIn())) out.push(...masterAccountItems((a, b, c) => this.item(a, b, c), { title: t.language, desc: t.languageDesc, control: language }, (section) => { this.section = section; this.search.value = ""; this.paint(); }));
     out.push(...featureItems(this.ctx()));
     // Each kind of notification: a toast and the list, the list only, or
     // nothing (ADR 0084 item 8) — the person's layer, with the account on
@@ -959,8 +973,9 @@ export class SettingsDialog {
     if (tab.left < row.left) this.nav.scrollLeft -= row.left - tab.left;
     else if (tab.right > row.right) this.nav.scrollLeft += tab.right - row.right;
   }
-  paint(): void {
-    const q = this.search.value.trim().toLowerCase();
+  /** The list of sections: also when one comes or goes with the page open
+   *  (serving on or off: the owner's Account). */
+  private paintNav(q: string): void {
     const navItems: HTMLElement[] = [];
     let lastCategory = "";
     for (const sec of this.sections()) {
@@ -977,6 +992,10 @@ export class SettingsDialog {
     }
     this.nav.replaceChildren(...navItems);
     this.revealCurrent();
+  }
+  paint(): void {
+    const q = this.search.value.trim().toLowerCase();
+    this.paintNav(q);
     this.box.classList.toggle("phone-list", this.phoneList && !q);
     this.box.classList.toggle("phone-page", !this.phoneList || !!q);
     const items = q ? searched(this.items(), q) : this.items().filter((it) => it.section === this.section);

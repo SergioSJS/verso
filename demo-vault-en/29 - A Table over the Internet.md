@@ -50,7 +50,7 @@ The panel gives the reason in words. The usual ones:
 
 ## 2. Invite the players
 
-First, check **Your name for the players**: it is how the table sees you in the chat, the rolls and the list. It starts as this computer's user name; change it and tap **Save name**.
+First, check **Settings › Account**, which is there while the server is on: **Your name for the players** is how the table sees you in the chat, the rolls and the list. It starts as this computer's user name; change it and tap **Save name**. Account also has the language and **Where you come in as the owner** (this window and the paired phones). There is no password: your click in the app is the proof that it is you.
 
 You invite from the **folder's page**, as on a UniVerso, in the window of the served folder (section 3 below):
 

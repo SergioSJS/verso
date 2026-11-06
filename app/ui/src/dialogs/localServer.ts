@@ -21,7 +21,6 @@ import { servedFolders } from "./servedFolders";
 import { localStrings } from "./localServerStrings";
 import { linkBoxes, linkSentence, whyOf } from "./localServerLink";
 import { newest } from "./localServerFresh";
-import { ownerNameBlock } from "./localServerOwnerName";
 import { linkStrings, markSaid } from "./localServerLinkStrings";
 import { invitations } from "./localServerInvites";
 import { accountsBlock } from "./localServerAccounts";
@@ -202,8 +201,9 @@ export function localServerBody(_item: Item): HTMLElement {
   const lead = h("p", "ls-lead", w.lead);
   // The two boxes under the switch, and the link (ADR 0117 D1).
   const boxes = linkBoxes({ say, redraw: () => void redraw() });
-  // The owner's name as the players see it.
-  const ownerName = ownerNameBlock(say);
+  // The owner's name as the players see it is in Settings › Account (ADR
+  // 0117 D2, revised 2026-11-05: one place, the account's): said here.
+  const ownerName = { el: h("p", "ls-help", w.ownerNameMoved) };
   // Invitations (ADR 0117 D3 item 2).
   const invites = invitations(say);
   // The people invited: a new password, sessions, remove (ADR 0117 D9).
@@ -517,7 +517,6 @@ export function localServerBody(_item: Item): HTMLElement {
     pairHelp.hidden = onNet;
     pairHelp.textContent = s.serving ? linkStrings().pairNeedsNetwork : w.pairNeedsOn;
     boxes.draw(s);
-    ownerName.draw(s);
     if (!s.serving && s.stopped_because) say(w.stoppedNet);
     const f = await commands.localServerFolders();
     if (f.status === "ok") drawFolders(f.data, s.serving);

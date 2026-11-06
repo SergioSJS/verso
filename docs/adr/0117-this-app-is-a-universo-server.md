@@ -106,6 +106,17 @@ com mesa, inclusive, daria para aproveitar a mesma tela."*
   sessions, remove) — no form that invites (built, `a9c9b5b60`) — and a
   **read-only list** of what is served (each entry opens its folder's page;
   not built, R4).
+- *(Revised in place 2026-11-05, the maintainer: "por que quando o mestre
+  transforma o app num servidor ele não tem o menu de Conta? Só
+  jogadores?")* **The game master has an Account** in this app's Settings
+  while it serves (or the window sits at its own table): his name for the
+  players — moved there from *Transformar em servidor*, its one place —
+  the language (the app's own setting, the same control as *Geral*'s), and
+  where he comes in as the owner (this window and the paired phones, with
+  a way to them in *Transformar em servidor*, where a phone is ended). No
+  password or passkey row: the owner has none here (D5, D14 (b)). Built
+  with the host's existing commands (`localServerOwnerName`,
+  `localServerStatus`), no new route (`dialogs/masterAccount.ts`).
 
 ### D3. N tables, N served folders, several active `[DECIDED 2026-11-04]`
 

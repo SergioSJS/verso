@@ -50,7 +50,7 @@ O painel diz o motivo em palavras. Os mais comuns:
 
 ## 2. Convidar as jogadoras
 
-Antes, confira **Seu nome para os jogadores**: é como a mesa vê você no chat, nas rolagens e na lista. Começa com o nome do usuário deste computador; troque e toque em **Salvar nome**.
+Antes, confira **Ajustes › Conta**, que aparece enquanto o servidor está ligado: **Seu nome para os jogadores** é como a mesa vê você no chat, nas rolagens e na lista. Começa com o nome do usuário deste computador; troque e toque em **Salvar nome**. A Conta também tem o idioma e **Onde você entra como dono** (esta janela e os celulares pareados). Não há senha: o seu clique no app é a prova de que é você.
 
 Você convida pela **página da pasta**, como num UniVerso, na janela da pasta servida (seção 3 abaixo):
 
