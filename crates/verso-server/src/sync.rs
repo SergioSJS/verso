@@ -256,6 +256,8 @@ fn reconcile_held(
     paths: &[String],
     moved: &HashMap<String, String>,
 ) -> Result<i64, ContractError> {
+    #[cfg(test)]
+    crate::pause::at("reconcile-begun", folder);
     let mut seen = found(server, folder, key, paths)?;
     // One side of a rename outside Verso alone, of a file kept from
     // someone, in a listing as of the index's last walk: the folder is
@@ -719,7 +721,8 @@ fn record_changes(
             &notices,
         )
         .map_err(verso_service::failed)?;
-    if !notices.is_empty() {
+    // And the paths the log keeps now are the veil's (`Veil::live`).
+    if !notices.is_empty() || !changes.is_empty() {
         crate::campaign::forget_files(server, folder);
     }
     // Each text file's new bytes a version, a rename followed, a deletion

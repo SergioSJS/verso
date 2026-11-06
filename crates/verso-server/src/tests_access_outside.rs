@@ -280,3 +280,86 @@ fn a_note_written_through_verso_found_first_by_the_watcher_follows_its_folder() 
         assert!(ana_sees(&mut m, path).await);
     });
 }
+
+/// A rename outside Verso the index has learned and the folder's log not
+/// yet: the watcher's batch walked, its reconciliation held before it reads
+/// anything. Until it records the rename, the new name is a path the
+/// server has not judged — hidden from a player by every door (list,
+/// search, read, graph, backlinks, entries); the game master sees it.
+#[test]
+fn a_rename_outside_verso_not_yet_reconciled_is_hidden_from_a_player() {
+    crate::tests::block_on(async {
+        let mut m = mesa().await;
+        praca(&mut m).await;
+        note(&mut m, "Praça/Carta Zq", "zqjanela [[Fonte]]\n").await;
+        access(&mut m, "Praça/Carta Zq.md", "none").await;
+        let made = m
+            .owner
+            .call(
+                "create_file",
+                json!({ "path": "Praça/Selo Zq.png", "base64": crate::tests_campaign::PNG }),
+            )
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        access(&mut m, "Praça/Selo Zq.png", "none").await;
+        let (from, to) = ("Praça/Carta Zq.md", "Praça/Carta velha Zq.md");
+        let (heard, go) = crate::pause::hold("reconcile-begun", &m.id);
+        let mut root = verso_fs::Root::open(m.r.campanha(), Vec::new()).unwrap();
+        for (from, to) in [(from, to), ("Praça/Selo Zq.png", "Praça/Selo velho Zq.png")] {
+            let (_, report) = root.rename(Path::new(from), Path::new(to)).unwrap();
+            assert!(report.warnings().is_empty());
+        }
+        // The watcher's batch: the index walks, then its reconciliation.
+        m.r.server.service.walk_quietly(&key_of(&m));
+        crate::pause::arrived(heard).await;
+        let gm = m.owner.call("list_notes", json!({})).await;
+        assert!(strings(&gm["ok"]).contains(&to.to_owned()), "{gm}");
+        let told = [
+            ("list_notes", json!({})),
+            ("list_files", json!({})),
+            ("list_entries", json!({})),
+            ("search", json!({ "words": "zqjanela", "limit": 20 })),
+            ("read_note", json!({ "path": to })),
+            ("read_text", json!({ "path": to })),
+            ("read_file_text", json!({ "path": to })),
+            ("graph", json!({})),
+            ("backlinks", json!({ "path": "Praça/Fonte.md" })),
+            ("links", json!({ "path": to })),
+        ];
+        let mut shown = Vec::new();
+        for (cmd, args) in told {
+            let text = m.ana.call(cmd, args).await.to_string();
+            if ["Carta velha", "zqjanela", "Selo velho"]
+                .iter()
+                .any(|w| text.contains(w))
+            {
+                shown.push(format!("{cmd}: {text}"));
+            }
+        }
+        let ana = crate::tests::sign_in(&m.r, "ana@casa.lan", "a senha da ana").await;
+        for path in [to, "Praça/Selo velho Zq.png"] {
+            let (status, _) =
+                crate::tests::get(&m.r, &format!("/f/{}/{path}", m.id), Some(&ana)).await;
+            let none = path.replace("velh", "nunc");
+            let (absent, _) =
+                crate::tests::get(&m.r, &format!("/f/{}/{none}", m.id), Some(&ana)).await;
+            if status != absent {
+                shown.push(format!("/f/{path}: {status}, {absent} for none"));
+            }
+        }
+        assert!(shown.is_empty(), "{shown:#?}");
+        go.send(()).unwrap();
+        crate::sync::reconcile(&m.r.server, &m.id, &key_of(&m), None, &[]).unwrap();
+        assert!(!ana_sees(&mut m, to).await);
+        let files = m.ana.call("list_files", json!({})).await;
+        assert!(!files.to_string().contains("Selo velho"), "{files}");
+        // Ana was told nothing of them on the way.
+        for heard in m.ana.hear(300).await {
+            let heard = heard.to_string();
+            assert!(
+                !heard.contains("Carta velha") && !heard.contains("Selo velho"),
+                "{heard}"
+            );
+        }
+    });
+}

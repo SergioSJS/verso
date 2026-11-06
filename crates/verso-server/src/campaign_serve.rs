@@ -285,6 +285,10 @@ fn judge(ws: &mut Workspace, p: &Player, name: &str, args: &Value) -> Verdict {
                 edits |= p.sees_secrets(&path);
                 continue;
             }
+            // Not judged yet, even for one who would edit it.
+            if p.veil.unlogged(&path) {
+                return Verdict::Hidden;
+            }
             if note_like(&path) {
                 if p.edits(&path) {
                     if is_board(&path) {
@@ -364,7 +368,7 @@ pub fn answer(
     args: Value,
 ) -> Option<Result<Value, ContractError>> {
     verso_service::reader::for_reader(name)?;
-    Some(run(service, client, p, name, args))
+    Some(run(service, client, &p.live(), name, args))
 }
 
 fn run(
@@ -848,8 +852,9 @@ pub fn is_hidden(
     let Some(veil) = crate::campaign::veil_for_key(server, key_of_folder) else {
         return false;
     };
-    // Whose eyes: the account's, else the public's (fails closed).
-    let veil = account.map_or(veil.clone(), |a| veil.view(a));
+    // Whose eyes: the account's, else the public's (fails closed); a file
+    // the log does not keep yet is not judged, and hidden.
+    let veil = account.map_or(veil.clone(), |a| veil.view(a)).live();
     let p = path.to_owned();
     server
         .service
@@ -939,7 +944,8 @@ pub fn tell_summary(server: &crate::state::Server, client: &str, info: &mut Valu
     if !crate::access::filtered(&asker, crate::access::has_table(server, &folder)) {
         return;
     }
-    let Some(veil) = crate::campaign::veil_of(server, &folder).map(|v| v.view(&account)) else {
+    let Some(veil) = crate::campaign::veil_of(server, &folder).map(|v| v.view(&account).live())
+    else {
         return;
     };
     let scope = crate::shares::scope_here(server, client);

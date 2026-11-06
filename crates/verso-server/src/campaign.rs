@@ -123,9 +123,16 @@ pub struct Veil {
     /// The tables could not be read: this veil serves nothing and is never
     /// written from ([`Veil::is_unreadable`]).
     unreadable: bool,
+    /// The paths the folder's log keeps, by key: those whose access a
+    /// reconciliation has judged (`campaign_outside::followed`).
+    logged: Arc<HashSet<String>>,
+    /// Whether a file of a table the log does not keep yet is hidden: the
+    /// veil a player is answered by ([`Veil::live`]).
+    live: bool,
     /// The veil as each player sees it, made on first need.
     views: Mutex<HashMap<String, Arc<Veil>>>,
     union: OnceLock<Arc<Veil>>,
+    live_view: OnceLock<Arc<Veil>>,
 }
 
 impl Veil {
@@ -227,7 +234,28 @@ impl Veil {
         )
     }
 
+    /// This veil as a player is answered by it, now: a file of a table the
+    /// folder's log does not keep yet is hidden. The index learns a file
+    /// before the reconciliation that judges its access — a hidden note
+    /// renamed outside Verso is, until then, a new file of its folder's
+    /// (2026-11-06) — and what has not been judged is not shown. Never the
+    /// veil of a step that records: what it records is not in the log yet.
+    #[must_use]
+    pub fn live(&self) -> Arc<Veil> {
+        if self.live {
+            return self.derived(self.viewer.clone(), true).into();
+        }
+        Arc::clone(
+            self.live_view
+                .get_or_init(|| Arc::new(self.derived(self.viewer.clone(), true))),
+        )
+    }
+
     fn derive(&self, viewer: Viewer) -> Veil {
+        self.derived(viewer, false)
+    }
+
+    fn derived(&self, viewer: Viewer, live: bool) -> Veil {
         Veil {
             folder: self.folder.clone(),
             tables: self.tables.clone(),
@@ -241,8 +269,11 @@ impl Veil {
             viewer,
             restricted: self.restricted,
             unreadable: self.unreadable,
+            logged: Arc::clone(&self.logged),
+            live,
             views: Mutex::new(HashMap::new()),
             union: OnceLock::new(),
+            live_view: OnceLock::new(),
         }
     }
 
@@ -406,6 +437,9 @@ impl Veil {
         if !self.in_table(path) {
             return false;
         }
+        if self.unlogged(path) {
+            return true;
+        }
         // An attachment is a file of the table too: an access of its own
         // (or its folder's) wins (ADR 0113 K.3); with none, it is served
         // only through a released note, or as an image the table shows. A
@@ -428,6 +462,13 @@ impl Veil {
                     })
             }
         }
+    }
+
+    /// Whether `path`, a file of a table, is one the folder's log does not
+    /// keep yet, to the veil a player is answered by ([`Veil::live`]).
+    #[must_use]
+    pub fn unlogged(&self, path: &str) -> bool {
+        self.live && self.in_table(path) && !self.logged.contains(&key(path))
     }
 
     /// Whether a note (by its name, not an attachment) is hidden.
@@ -774,6 +815,7 @@ pub(crate) fn build(db: &crate::db::Db, folder: &str) -> Result<Option<Arc<Veil>
     // that no shared log may carry, and a log that is the same for everyone
     // cannot be cut afterwards without moving the numbers a device counted.
     let restricted = true;
+    let logged = db.manifest_paths(folder)?.iter().map(|p| key(p)).collect();
     Ok(Some(Arc::new(Veil {
         folder: folder.to_owned(),
         tables,
@@ -787,8 +829,11 @@ pub(crate) fn build(db: &crate::db::Db, folder: &str) -> Result<Option<Arc<Veil>
         viewer: Viewer::Public,
         restricted,
         unreadable: false,
+        logged: Arc::new(logged),
+        live: false,
         views: Mutex::new(HashMap::new()),
         union: OnceLock::new(),
+        live_view: OnceLock::new(),
     })))
 }
 
@@ -824,8 +869,11 @@ pub fn unreadable(folder: &str) -> Arc<Veil> {
         viewer: Viewer::Public,
         restricted: true,
         unreadable: true,
+        logged: Arc::default(),
+        live: false,
         views: Mutex::new(HashMap::new()),
         union: OnceLock::new(),
+        live_view: OnceLock::new(),
     })
 }
 
@@ -937,6 +985,17 @@ impl Player {
     #[must_use]
     pub fn edits(&self, path: &str) -> bool {
         self.sees_secrets(path)
+    }
+
+    /// The player as a command is answered, now ([`Veil::live`]).
+    #[must_use]
+    pub fn live(&self) -> Player {
+        Player {
+            veil: self.veil.live(),
+            account: self.account.clone(),
+            editor: self.editor,
+            asker: self.asker.clone(),
+        }
     }
 }
 
