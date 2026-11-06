@@ -50,7 +50,8 @@ describe("the example vault is offered only to someone who may create", () => {
     // chrome.ts's lesson on a server: the import button joins the actions
     // only once mayOfferExample says so.
     const src = readFileSync("src/chrome.ts", "utf8");
-    const server = src.slice(src.indexOf('dataset["host"] === "server"'), src.indexOf("ui.panes.replaceChildren(box);"));
+    const start = src.indexOf('dataset["host"] === "server"');
+    const server = src.slice(start, src.indexOf("ui.panes.replaceChildren(box);", start));
     assert.match(server, /actions\.append\(choose\);/);
     assert.match(server, /mayOfferExample\(r\.data\)[^\n]*actions\.append\(importBtn\)/);
     assert.doesNotMatch(server, /actions\.append\(choose, importBtn\)/);
