@@ -319,7 +319,7 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   // The open folder's tree is there at once, with no button to open it.
   await expect(body.locator(".ls-here .ls-serves")).toHaveText(", serve tudo");
   await expect(body.getByRole("button", { name: /^Escolher pastas/ })).toHaveCount(0);
-  await expect(body.getByText("Marque só o que o celular pode ver.", { exact: false })).toBeVisible();
+  await expect(body.getByText("Marque só o que os seus celulares podem ver;", { exact: false })).toBeVisible();
   await expect(body.getByText("Desmarcar a última pasta para de servir este cofre", { exact: false })).toBeVisible();
   // Nothing to go back to while all of it is served: the button is not there.
   await expect(body.getByRole("button", { name: "Servir a pasta inteira" })).toHaveCount(0);
