@@ -36,8 +36,23 @@
 .ls-log summary, .ls-adv summary { cursor: pointer; font: 600 .9rem var(--ui); color: var(--ink); }
 .ls-log-list { font-size: .84rem; color: var(--ink-2); padding-top: .4rem; }
 .ls-log-list time { color: var(--ink-3); }
-/* The pairing dialog. */
-.ls-dialog { width: min(30rem, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+/* The dialogs of the section (Antes de ligar, Parear um celular), on the
+   page's overlay (.quick): centred in the window and held within it, the
+   overlay's own top padding (12vh, the switcher's) left out — it pushed the
+   pairing dialog down, past the window's bottom, scrolling inside (the
+   maintainer's screenshot, 2026-11-05). */
+.quick:has(> .ls-dialog) { padding: 16px; justify-content: center; }
+.ls-dialog { width: min(32rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; box-sizing: border-box; }
+/* Pairing: the QR beside what is read and chosen, where the window is wide
+   enough, so it all fits without a scrollbar. */
+.ls-dialog:has(.ls-qr) { width: min(48rem, calc(100vw - 32px)); }
+@media (min-width: 46rem) {
+  .ls-dialog .ls-pair-body { display: grid; grid-template-columns: min(15rem, 36vw) minmax(0, 1fr); column-gap: 1.4rem; row-gap: .55rem; align-items: start; text-align: start; }
+  .ls-dialog .ls-pair-body > * { grid-column: 2; }
+  .ls-dialog .ls-pair-body > :first-child { grid-column: 1 / -1; }
+  .ls-dialog .ls-pair-body > .ls-qr { grid-column: 1; grid-row: 2 / span 12; width: 100%; }
+  .ls-dialog .ls-pair-body > .btn { justify-self: start; }
+}
 .ls-pair-body { display: flex; flex-direction: column; align-items: center; gap: .7rem; text-align: center; }
 .ls-qr { width: min(18rem, 70vw); height: auto; border: 1px solid var(--hair); border-radius: 8px; background: #fff; }
 .ls-facts { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; margin: 0; text-align: start; font-size: .9rem; width: 100%; }

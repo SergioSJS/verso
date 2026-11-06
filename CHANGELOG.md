@@ -52,6 +52,8 @@ test release.
 
 ### Fixed
 
+- **Pair a phone and Before turning on sit in the middle of the window** (the maintainer's screenshot, 2026-11-05: "Pair a phone" sat low and narrow over Settings, scrolling inside although there was room). The two dialogs of **Settings › Turn into a server** are centred in the window and held within it; on a wide window **Pair a phone** shows the QR beside the address list, the address, the code and the fingerprint, with no scrollbar; on a phone it takes the width.
+
 - **A browser's Verso page no longer fills its console with "[TAURI] Couldn't find callback id …"** (the maintainer's console on a player's page, 2026-11-05: about 47 of them). The page in a browser answered its own events with Tauri's test stand-in, which never forgot a listener that went away (a closed dialog, a one-time wait), so every later event warned of it. The page now answers its events itself; nothing else changes for whoever uses it.
 
 - **Searching Settings lists first the setting the word names** (the maintainer, 2026-11-05: searching "nome" put the account's **Name** last). A setting whose title is the word searched comes first, then one whose title starts with it, then one with a word of its title starting with it, then those that only say it in their description; each page's results stay together under its heading. Accents and capitals do not matter.

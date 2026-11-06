@@ -473,3 +473,50 @@ test("the recent folders are a group that is shut by default, remembered, with t
   await expect(recent).not.toHaveAttribute("open", "");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("verso-served-recent-open"))).toBe("0");
 });
+
+/** Where a dialog's box sits in the window, and whether it scrolls inside. */
+async function placed(page, name) {
+  const box = page.getByRole("dialog", { name }).locator(".ls-dialog");
+  return box.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, vw: innerWidth, vh: innerHeight, scrolls: el.scrollHeight > el.clientHeight + 1 };
+  });
+}
+
+// The maintainer's screenshot, 2026-11-05: "Parear um celular" sat low and
+// narrow over Settings, scrolling inside although there was room. The
+// section's dialogs are centred in the window and held within it; at a
+// desktop size the pairing dialog has its QR beside the facts and does not
+// scroll; on a phone it fits the width.
+for (const [size, wide] of [[{ width: 1280, height: 800 }, true], [{ width: 390, height: 844 }, false]]) {
+  test(`the section's dialogs are centred and held within the window, ${size.width}×${size.height} @layout`, async ({ app, page }) => {
+    await page.setViewportSize(size);
+    await app.open();
+    await section(app);
+    const body = page.locator(".settings-body");
+    await body.getByRole("checkbox", { name: /^Vault/ }).check();
+    await body.getByRole("button", { name: "Ligar o servidor" }).click();
+    const first = await placed(page, "Antes de ligar");
+    for (const p of [first]) {
+      expect(Math.abs(p.left + p.right - p.vw)).toBeLessThanOrEqual(2);
+      expect(Math.abs(p.top + p.bottom - p.vh)).toBeLessThanOrEqual(2);
+      expect(p.scrolls).toBe(false);
+    }
+    await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+    await body.getByRole("button", { name: "Parear um celular" }).click();
+    await expect(page.getByRole("dialog", { name: "Parear um celular" }).getByText("BCDF-GHJK")).toBeVisible();
+    const pair = await placed(page, "Parear um celular");
+    expect(Math.abs(pair.left + pair.right - pair.vw)).toBeLessThanOrEqual(2);
+    expect(pair.top).toBeGreaterThanOrEqual(15);
+    expect(pair.bottom).toBeLessThanOrEqual(pair.vh - 15);
+    expect(pair.right - pair.left).toBeLessThanOrEqual(pair.vw - 30);
+    if (wide) {
+      expect(pair.scrolls).toBe(false);
+      expect(pair.width).toBeGreaterThan(640);
+    }
+    // Escape closes it, and the focus goes back to Settings.
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Parear um celular" })).toHaveCount(0);
+    await expect(page.locator(".settings")).toBeVisible();
+  });
+}
