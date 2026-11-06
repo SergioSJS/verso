@@ -224,7 +224,9 @@ const pt = {
   // The status mark.
   mark: (n: number) => (n === 0 ? "Servindo ao celular" : n === 1 ? "Servindo · 1 celular" : `Servindo · ${n} celulares`),
   markStop: "Parar",
-  markStopLabel: "Parar de servir ao celular",
+  // What the mark's Stop stops: the network, the internet link, or both.
+  markStopLabel: (net: boolean, link: boolean): string =>
+    net && link ? "Parar de servir na sua rede e pelo link na internet" : link ? "Parar o link na internet" : net ? "Parar de servir na sua rede" : "Parar de servir",
   // The updater's dialog.
   restartPhones: (n: number) => (n === 1 ? "1 celular está conectado e vai ser desconectado." : `${n} celulares estão conectados e vão ser desconectados.`),
   failed: "Não foi possível.",
@@ -438,7 +440,8 @@ const en: typeof pt = {
   },
   mark: (n: number) => (n === 0 ? "Serving to the phone" : n === 1 ? "Serving · 1 phone" : `Serving · ${n} phones`),
   markStop: "Stop",
-  markStopLabel: "Stop serving to the phone",
+  markStopLabel: (net, link) =>
+    net && link ? "Stop serving on your network and by the internet link" : link ? "Stop the internet link" : net ? "Stop serving on your network" : "Stop serving",
   restartPhones: (n: number) => (n === 1 ? "1 phone is connected and will be disconnected." : `${n} phones are connected and will be disconnected.`),
   failed: "That did not work.",
 };

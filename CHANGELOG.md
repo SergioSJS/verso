@@ -52,6 +52,8 @@ test release.
 
 ### Fixed
 
+- **The status bar's Stop says what it stops** (ADR 0117; the walk of 2026-11-06). Its name for a screen reader and its tooltip said *Stop serving to the phone* even while the computer served only the internet link. It now says *Stop serving on your network*, *Stop the internet link* or *Stop serving on your network and by the internet link*, as it is at that moment.
+
 - **The window at its own table names the table** (ADR 0117; the walk of 2026-11-06). Sitting at the table of a folder this computer serves, the status line named the folder (*At Mesa Demo's table.*) when the table was *Campanha Fractal*, a folder inside it. It now names the table the window is at — the active note's, or the only one — and, when no note says which of several, each of them.
 
 - **See the paired phones goes to the paired phones** (ADR 0117; the walk of 2026-11-06). In **Settings › Account**, **See the paired phones** opened **Turn into a server** at its top, the phones far below; it now opens the section at **Paired phones**, with the focus there. The block's heading **Where you come in as the owner** is no longer said again by the row right under it.

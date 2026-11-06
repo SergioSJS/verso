@@ -93,3 +93,19 @@ test("the window at its own table is said at the table by its name, in both lang
   assert.equal(L.linkStrings().satAt(["Campanha Fractal"], "Mesa Demo"), "At the table Campanha Fractal.");
   assert.equal(L.linkStrings().satAt(["Cripta", "Sala"], "Mesa Demo"), "At the tables Cripta, Sala.");
 });
+
+// The status bar's Stop said "to the phone" while it served the internet
+// link (the walk of 2026-11-06): it says what it stops.
+test("the mark's Stop says what it stops: the network, the link, or both", () => {
+  root.lang = "pt-BR";
+  const pt = S.localStrings().markStopLabel;
+  assert.equal(pt(true, false), "Parar de servir na sua rede");
+  assert.equal(pt(false, true), "Parar o link na internet");
+  assert.equal(pt(true, true), "Parar de servir na sua rede e pelo link na internet");
+  root.lang = "en";
+  const en = S.localStrings().markStopLabel;
+  assert.equal(en(true, false), "Stop serving on your network");
+  assert.equal(en(false, true), "Stop the internet link");
+  assert.equal(en(true, true), "Stop serving on your network and by the internet link");
+  for (const [net, link] of [[true, false], [false, true], [true, true]]) assert.doesNotMatch(en(net, link), /phone/);
+});

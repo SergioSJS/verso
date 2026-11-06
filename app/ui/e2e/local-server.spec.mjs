@@ -45,7 +45,7 @@ test("it is off, serves only the ticked folders, and says what the system will a
   // Settings is modal: the mark's Stop is reached with it closed.
   await app.key("Escape");
   await expect(page.locator(".quick.settings")).toBeHidden();
-  await page.locator("#local-mark").getByRole("button", { name: "Parar de servir ao celular" }).click();
+  await page.locator("#local-mark").getByRole("button", { name: "Parar de servir na sua rede" }).click();
   await expect(page.locator("#local-mark")).toHaveCount(0);
   await section(app);
   await expect(page.locator(".settings-body").getByText("Desligado.").first()).toBeVisible();

@@ -68,8 +68,11 @@ test("the link alone serves: its address with Copy and a QR, the hours left with
   await expect(body.getByRole("img", { name: "QR do endereço https://exemplo-de-mesa.trycloudflare.com" })).toBeVisible();
   await body.getByRole("button", { name: "Prorrogar por 12 horas" }).click();
   await expect(body.getByText(/Prorrogado: o mesmo link, agora até \d\d:\d\d\./)).toBeVisible();
-  // The status bar says the link, with Stop beside it.
+  // The status bar says the link, with Stop beside it saying what it stops
+  // (the walk of 2026-11-06: "to the phone" while it served the link).
   await expect(page.locator("#local-mark")).toContainText("Servindo · link na internet");
+  // (Under Settings on a phone: its name, not its being on screen.)
+  await expect(page.locator("#local-mark .ls-mark-stop")).toHaveAttribute("aria-label", "Parar o link na internet");
   // A phone's width: nothing runs off the side.
   const overflow = await body.evaluate((el) => el.scrollWidth - el.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
@@ -174,6 +177,8 @@ test("the status bar's mark says the link is up the moment the panel does, whate
   await page.evaluate(() => window.__harness.core.localServer.releaseStatus("reverse"));
   await expect(live).toHaveText("Link no ar.");
   await expect(mark).toContainText("Servindo · link na internet");
+  // Both on: its Stop says both.
+  await expect(mark.locator(".ls-mark-stop")).toHaveAttribute("aria-label", "Parar de servir na sua rede e pelo link na internet");
   // And it stays so.
   await page.waitForTimeout(300);
   await expect(mark).toContainText("Servindo · link na internet");
@@ -358,7 +363,7 @@ test("a served folder's window sits at its table by itself: making a table, open
   // No way "out of the table" to press: the mark has only its Stop.
   await expect(page.locator("#local-mark").getByRole("button", { name: "Sair da mesa" })).toHaveCount(0);
   // Serving stopped under it: back to this computer's folder, said.
-  await page.locator("#local-mark").getByRole("button", { name: "Parar de servir ao celular" }).click();
+  await page.locator("#local-mark").getByRole("button", { name: "Parar de servir na sua rede" }).click();
   await expect(page.locator("#status")).toContainText("O servidor parou: a janela voltou à pasta deste computador.");
   await expect(page.getByText("Sessão encerrada", { exact: false })).toHaveCount(0);
   // Served again, the folder has its table: the window sits by itself.

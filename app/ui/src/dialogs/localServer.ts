@@ -109,7 +109,6 @@ function drawMark(s: LocalServerStatus): void {
     const text = h("span", "ls-mark-text");
     const stop = button("ghost ls-mark-stop", w.markStop);
     stop.textContent = w.markStop;
-    stop.setAttribute("aria-label", w.markStopLabel);
     stop.addEventListener("click", () => {
       busy(stop, true);
       void commands.localServerStop().then(() => {
@@ -129,6 +128,14 @@ function drawMark(s: LocalServerStatus): void {
   // Up only once it has its address; until then, "turning the link on".
   const said = markSaid(s, w.mark(s.phones_connected));
   if (text) text.textContent = said;
+  // The Stop says what it stops, as it is now (the walk of 2026-11-06: "to
+  // the phone" while it served the internet link).
+  const stop = mark.querySelector<HTMLElement>(".ls-mark-stop");
+  if (stop) {
+    const label = w.markStopLabel(s.serving && s.port !== null, s.link.state === "on" || s.link.state === "starting");
+    stop.setAttribute("aria-label", label);
+    stop.title = label;
+  }
   mark.title = s.link.state === "on" && s.link.origin ? s.link.origin : s.serving ? where(s) : said;
 }
 
