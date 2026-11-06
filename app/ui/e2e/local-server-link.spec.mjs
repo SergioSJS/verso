@@ -212,9 +212,14 @@ test("your name for the players: in Account while serving, the system's user at 
   await expect(name).toHaveValue("Mestre Sérgio");
   const overflow = await body.evaluate((el) => el.scrollWidth - el.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
-  // The way to the phones paired, where they are ended.
+  // Its heading names the row: not said again under it (the walk of 2026-11-06).
+  await expect(body.getByText("Onde você entra como dono", { exact: true })).toHaveCount(1);
+  // The way to the phones paired, where they are ended: to them, not the section's top.
   await body.getByRole("button", { name: "Ver os celulares pareados" }).click();
   await expect(page.locator('.settings-nav-item[aria-current="true"]')).toContainText("Transformar em servidor");
+  const paired = body.getByRole("heading", { name: "Celulares pareados" });
+  await expect(paired).toBeFocused();
+  await expect(paired).toBeInViewport();
 });
 
 test("neither box ticked does not start; a link that fails says why in words, and one that drops says the table is offline", async ({ app, page }) => {

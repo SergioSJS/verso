@@ -13,6 +13,7 @@
 
 import { commands } from "../bindings";
 import { h } from "../dom";
+import { showPhonesNext } from "./localServer";
 import { ownerNameBlock } from "./localServerOwnerName";
 import { localStrings } from "./localServerStrings";
 import type { SettingItem } from "./settings/types";
@@ -48,8 +49,15 @@ export function masterAccountItems(item: Item, language: { title: string; desc: 
       node: () => {
         const go = h("button", "btn", w.ownerWhereGo);
         go.type = "button";
-        go.addEventListener("click", () => open("localserver"));
-        const row = item(w.ownerWhere, w.ownerWhereNow(0), go);
+        // To the paired phones themselves, not the section's top.
+        go.addEventListener("click", () => {
+          showPhonesNext();
+          open("localserver");
+        });
+        // The group's heading names it: the row does not say it again
+        // under it (the walk of 2026-11-06).
+        const row = item("", w.ownerWhereNow(0), go);
+        row.querySelector(".setting-title")?.remove();
         const desc = row.querySelector<HTMLElement>(".setting-desc");
         void commands.localServerStatus().then((r) => {
           if (r.status === "ok" && desc) desc.textContent = w.ownerWhereNow(r.data.phones_paired);

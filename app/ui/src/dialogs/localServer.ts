@@ -185,6 +185,14 @@ export function restartNote(n: number): string {
 
 /* ---------- The section ---------- */
 
+/** The next section drawn goes to its paired phones: *Ver os celulares
+ *  pareados* in Settings › Account (masterAccount.ts) went to the top of
+ *  the section, the phones far below (the walk of 2026-11-06). */
+let toPhones = false;
+export function showPhonesNext(): void {
+  toPhones = true;
+}
+
 type Item = (title: string, desc: string, control: HTMLElement | null) => HTMLElement;
 
 export function localServerBody(_item: Item): HTMLElement {
@@ -305,6 +313,8 @@ export function localServerBody(_item: Item): HTMLElement {
   const pairHelp = h("p", "ls-help", w.pairNeedsOn);
   // Phones.
   const phonesHead = h("h3", "ls-h", w.pairedTitle);
+  phonesHead.id = "ls-paired";
+  phonesHead.tabIndex = -1;
   const phones = h("ul", "ls-phones");
   const danger = h("div", "ls-danger");
   // Certificate.
@@ -527,6 +537,13 @@ export function localServerBody(_item: Item): HTMLElement {
     drawCert(s);
     drawDanger();
     await drawLog();
+    // Drawn whole, the blocks above have their height: the phones are
+    // where they stay.
+    if (toPhones && phonesHead.isConnected) {
+      toPhones = false;
+      phonesHead.scrollIntoView({ block: "start" });
+      phonesHead.focus({ preventScroll: true });
+    }
   };
   redraws.add(() => void redraw());
 
