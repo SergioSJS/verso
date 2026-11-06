@@ -14,6 +14,7 @@ test release.
 
 ### Fixed
 
+- **The last note a player sees, hidden again while it is open, leaves their tab** (ADR 0113). When the game master hid the only note a player still saw, the player's open tab kept its whole text under "Deleted or moved on another device": the live teardown skipped an empty list, and the tab took the hide for a deletion. Now an empty list is torn down like any other, and a player's tab whose file is gone always turns neutral ("No longer shared with you"), never keeping the text.
 - **Sound files play in the Linux app** (ADR 0116). The table's music and the audio players in notes said the file could not be played. On Linux, the app's web engine (WebKitGTK) plays media only from web addresses, not from the address Verso gives a folder's files, though it reads the file's bytes from there. Now, on Linux only, Verso reads the file first and hands the bytes to the player. A note's player reads its file when you press play, so its length shows from then on. The dice sounds were never affected. macOS, Windows and the web keep playing the file from its address.
 
 - **The page of a folder's root lists its notes again** (since 0.4; the re-test of 2026-11-04). The table on the root's page said *Invalid expression: : empty expression* over *0 results*: the page's base wrote `filters:` with nothing after it, which was read as an empty filter instead of none. A base whose `filters:` (or a view's) is empty now has no filter, so a saved `index.base` with that line shows its notes too.
