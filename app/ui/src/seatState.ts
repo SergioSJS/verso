@@ -10,6 +10,7 @@
 
 let seated = false;
 let served = false;
+let seatKey: string | null = null;
 
 /** The window sits at its own server's table. */
 export function isSeated(): boolean {
@@ -22,9 +23,20 @@ export function servedHere(): boolean {
   return !seated && served;
 }
 
-export function setSeatState(next: { seated: boolean; served: boolean }): void {
+/** The key of this computer's folder the window sat from, while it sits:
+ *  that folder's sync is the window's to show (ADR 0117 D13 Q3,
+ *  2026-11-06). */
+export function seatedFrom(): string | null {
+  return seated ? seatKey : null;
+}
+
+export function setSeatState(next: { seated: boolean; served: boolean; key?: string | null }): void {
   seated = next.seated;
   served = next.served;
+  const key = next.key ?? null;
+  const moved = key !== seatKey;
+  seatKey = key;
+  if (moved) dispatchEvent(new Event("verso:seat-state"));
 }
 
 /** How the window sits, handed by the seat's module when it starts

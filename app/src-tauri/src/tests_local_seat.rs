@@ -338,16 +338,10 @@ fn waited(what: &str, mut done: impl FnMut() -> bool) {
     }
 }
 
-/// A served folder that syncs with a UniVerso goes on syncing while its
-/// window sits at the table this computer serves from it (decided
-/// 2026-11-06, "Não deve parar"): what the window writes at the table
-/// reaches the UniVerso, what another computer sends there reaches the
-/// table's player, and serving stopping and the window coming back to the
-/// folder leave the same sync running, the folder the window's again.
-#[test]
-fn a_synced_folder_goes_on_syncing_while_its_window_sits_at_its_table() {
-    use super::tests_sync::{device, serve, sync, text, write};
-    let universo = serve(&[]);
+/// A UniVerso, the app signed in to it, and the app's folder served by
+/// the link, with its key.
+fn signed_in() -> (super::tests_sync::Running, Served, String) {
+    let universo = super::tests_sync::serve(&[]);
     let s = served(true);
     let config = s.app.state::<App>().service.config().map(Path::to_path_buf);
     verso_core::servers::keep(
@@ -364,6 +358,19 @@ fn a_synced_folder_goes_on_syncing_while_its_window_sits_at_its_table() {
         .as_str()
         .unwrap()
         .to_owned();
+    (universo, s, key)
+}
+
+/// A served folder that syncs with a UniVerso goes on syncing while its
+/// window sits at the table this computer serves from it (decided
+/// 2026-11-06, "Não deve parar"): what the window writes at the table
+/// reaches the UniVerso, what another computer sends there reaches the
+/// table's player, and serving stopping and the window coming back to the
+/// folder leave the same sync running, the folder the window's again.
+#[test]
+fn a_synced_folder_goes_on_syncing_while_its_window_sits_at_its_table() {
+    use super::tests_sync::{device, sync, text, write};
+    let (universo, s, key) = signed_in();
     let on = call(
         &s.webview,
         "folder_sync_start",
@@ -389,6 +396,24 @@ fn a_synced_folder_goes_on_syncing_while_its_window_sits_at_its_table() {
         still.is_some_and(|t| Arc::ptr_eq(&t, &running)),
         "the sync stopped when the window sat at the table"
     );
+    // The seated window shows its folder's sync and acts on it, as the
+    // window on the folder itself does: the status, a pause and its
+    // resume, a pass now.
+    let shown = call(&s.webview, "folder_sync", json!({})).unwrap();
+    assert_eq!(
+        (&shown["on"], shown["key"].as_str()),
+        (&json!(true), Some(key.as_str())),
+        "{shown}"
+    );
+    call(&s.webview, "folder_sync_pause", json!({ "paused": true })).unwrap();
+    waited("the pause was said to the seated window", || {
+        call(&s.webview, "folder_sync", json!({})).unwrap()["state"] == "paused"
+    });
+    call(&s.webview, "folder_sync_pause", json!({ "paused": false })).unwrap();
+    call(&s.webview, "folder_sync_now", json!({})).unwrap();
+    // What it may change is the table's to say, never the UniVerso's.
+    let rights = call(&s.webview, "sync_rights", json!({ "paths": ["Sessao.md"] }));
+    assert!(rights.is_err(), "{rights:?}");
     let mut ana = invite_ana(&s);
 
     // Written at the table: on the UniVerso.
@@ -461,4 +486,76 @@ fn a_synced_folder_goes_on_syncing_while_its_window_sits_at_its_table() {
     );
     let status = call(&s.webview, "folder_sync", json!({})).unwrap();
     assert_eq!(status["on"], true, "{status}");
+}
+
+/// The seat's hold follows the folder's sync, turned on or off while the
+/// window sits, from any window (2026-11-06): turned on in another window
+/// on the folder, the sync goes on once that window closes; turned off at
+/// the table, the folder is let go; turned on at the table again, with the
+/// folder closed here, it opens and syncs what the table writes.
+#[test]
+fn the_seats_hold_follows_the_sync_turned_on_or_off_while_seated() {
+    use super::tests_sync::{device, sync, text};
+    let (universo, s, key) = signed_in();
+    let service = || Arc::clone(&s.app.state::<App>().service);
+    call(&s.webview, "local_server_sit_at_table", json!({})).unwrap();
+    // Not synced when it sat: nothing held, the folder closed here.
+    assert!(service().clients_of(&key).is_empty());
+    let other = device(&universo, &universo.owner, &[]);
+
+    // Turned on from another window on the folder, which then closes.
+    let second = tauri::WebviewWindowBuilder::new(&s.app, "window-2", Default::default())
+        .build()
+        .unwrap();
+    call(&second, "reopen_folder", json!({ "key": key })).unwrap();
+    call(
+        &second,
+        "folder_sync_start",
+        json!({ "url": universo.url, "folder": universo.folder, "name": null }),
+    )
+    .unwrap();
+    waited("the folder reached the UniVerso", || {
+        sync(&other);
+        text(&other, "Sessao.md").is_some()
+    });
+    waited("the seat held the folder once it synced", || {
+        service().clients_of(&key).contains(&"seat:main".to_owned())
+    });
+    // The window closes, as the host lets one go.
+    service().release("window-2");
+    sync_commands::settle(s.app.handle());
+    assert!(
+        sync_commands::running(s.app.handle(), &key).is_some(),
+        "the sync stopped with the other window"
+    );
+
+    // Turned off at the table: the folder is let go here.
+    call(&s.webview, "folder_sync_stop", json!({})).unwrap();
+    waited("the seat let the folder go", || {
+        service().clients_of(&key).is_empty()
+            && sync_commands::running(s.app.handle(), &key).is_none()
+    });
+
+    // Turned on at the table again, the folder closed here: it opens, and
+    // what the table writes reaches the UniVerso.
+    let on = call(
+        &s.webview,
+        "folder_sync_start",
+        json!({ "url": universo.url, "folder": universo.folder, "name": null }),
+    )
+    .unwrap();
+    assert_eq!(on["key"], key, "{on}");
+    waited("the seat held the folder again", || {
+        service().clients_of(&key) == vec!["seat:main".to_owned()]
+    });
+    call(
+        &s.webview,
+        "create_note",
+        json!({ "name": "Depois", "text": "# Depois\n" }),
+    )
+    .unwrap();
+    waited("the table's note reached the UniVerso", || {
+        sync(&other);
+        text(&other, "Depois.md").is_some()
+    });
 }

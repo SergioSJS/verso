@@ -387,7 +387,18 @@ ticked in Settings, whole or in part) by D2. **Gone:** 0096 item 11 by D4.
   as it comes back when serving stops, so the sync runs on throughout) or
   closes. No new opening: the app's service keeps the one session it had
   for the folder before the window sat, as while serving with the window
-  on the folder itself. For a served
+  on the folder itself. The same day, the two ends that left open: the
+  hold **follows the sync** turned on or off while the window sits, from
+  any window (and a share revoked): held while the folder syncs, opened
+  again here if no window had it, let go once it does not
+  (`seat::follow`, run as each sync task starts and ends); and the seated
+  window **shows the folder's sync** as a window on the folder does — the
+  status bar, an error, a pause before deleting and its yes, conflict
+  copies, turning it on or off (the sync's commands take the seat's
+  folder, `key_of`) — while for its notes, table and access the window's
+  folder does not sync: those are the table's server's (`sync_rights` and
+  the live notes keep refusing a seated window; the window's
+  `verso:sync-state` says off). For a served
   folder that also syncs with a UniVerso, a table made in its window while
   this app serves it is this computer's (D4.1: the host is the window the
   table is made in); the table's dialog says where it is hosted.

@@ -18,6 +18,7 @@ import { errorSentence, fail } from "../errors";
 import { addressOf, attempt, reachStrings } from "../reach";
 import { currentFolder, folderName } from "../folder";
 import { liveTogether } from "../settings";
+import { seatedFrom } from "../seatState";
 import { drawSyncOn } from "./syncView";
 import { type Cloud, chooser, cloudProblem, deviceNameRow, drawCloudForm } from "./syncCloud";
 
@@ -318,7 +319,12 @@ function bar(): HTMLButtonElement {
  *  rooms (collab.ts, ADR 0082): on or off, its state, the role there and
  *  the person's setting. */
 export function tellSyncState(): void {
-  const st = status;
+  // Seated at the table served from this computer's folder, the window
+  // shows that folder's sync (its key is not the window's folder's), but
+  // its notes, table and access are the table's server's: for them the
+  // window's folder does not sync.
+  const seats = status !== null && status.key !== "" && status.key !== currentFolder;
+  const st = seats ? null : status;
   const detail = { on: st?.on ?? false, state: st?.state ?? "off", role: st?.role ?? "", live: liveTogether() };
   dispatchEvent(new CustomEvent("verso:sync-state", { detail }));
 }
@@ -365,10 +371,12 @@ function took(next: SyncStatus): void {
 export function hearSync(open: (section: string) => void): void {
   openSection = open;
   void listen<SyncStatus>("sync-status", (e) => {
-    if (e.payload.key !== currentFolder) return;
+    if (e.payload.key !== currentFolder && e.payload.key !== seatedFrom()) return;
     took(e.payload);
   });
   addEventListener("verso:folder-shown", () => void refresh());
+  // Sat or left: the folder whose sync the window shows may be another.
+  addEventListener("verso:seat-state", () => void refresh());
   void refresh();
 }
 

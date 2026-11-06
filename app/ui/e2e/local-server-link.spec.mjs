@@ -370,3 +370,50 @@ test("a served folder's window sits at its table by itself: making a table, open
   await section(app);
   await expect(page.locator(".settings-nav-item", { hasText: /^(Sem rede|Offline)$/ })).toHaveCount(0);
 });
+
+test("a seated window shows its folder's sync and answers it: the bar, a pause before deleting, a conflict copy, its yes", async ({ app, page }) => {
+  // The maintainer, 2026-11-06: the folder's sync with a UniVerso goes on
+  // while the window sits at its own table ("Não deve parar"), and every
+  // act gives visible feedback: the seated window says it as the window on
+  // the folder does.
+  await app.open();
+  const synced = { key: "harness", on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "owner", state: "synced", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: "2026-11-06T12:00:00Z", message: null, problem: null, versions: null, revoked: null, cloud: null };
+  await page.evaluate((st) => {
+    window.__states = [];
+    addEventListener("verso:sync-state", (e) => window.__states.push(e.detail.on));
+    window.__harness.core.sync = st;
+  }, synced);
+  await app.emit("sync-status", synced);
+  const bar = page.locator("#sync-state");
+  await expect(bar).toHaveText("Sincronizada");
+  // Served, the window sits at its table by itself as the table is made.
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await expect(page.locator("#local-mark")).toBeVisible();
+  await app.key("Escape");
+  await page.locator("#tree-root").dispatchEvent("contextmenu", { clientX: 40, clientY: 40 });
+  await page.getByRole("menuitem", { name: "Tornar a pasta toda uma mesa" }).click();
+  await expect(page.getByRole("dialog", { name: /^Mesa da pasta/ })).toBeVisible();
+  await expect.poll(() => app.calls("local_server_sit_at_table")).toHaveLength(1);
+  await app.key("Escape");
+  // Seated: the folder's sync is still the bar's.
+  await expect(bar).toHaveText("Sincronizada");
+  // A pass of the sync pauses before deleting, with a conflict copy.
+  const paused = { ...synced, state: "paused", deletions: 12, conflicts: ["Sessao (conflito, Mac, 2026-11-06 15.34).md"] };
+  await page.evaluate((st) => (window.__harness.core.sync = st), paused);
+  await app.emit("sync-status", paused);
+  await expect(bar).toHaveText("Pausada · 12 a apagar · 1 conflito");
+  await expect(bar).toHaveClass(/warn/);
+  // The bar opens the section, where the person says yes.
+  await bar.click();
+  await expect(page.getByRole("alert")).toContainText("12 arquivos seriam apagados");
+  await page.getByRole("alert").getByRole("button", { name: "Apagar os 12" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Apagar os 12" }).click();
+  await expect.poll(() => app.calls("folder_sync_confirm").then((c) => c.length)).toBe(1);
+  // For the table's notes, access and chat the window's folder does not
+  // sync: they are the table's server's.
+  expect(await page.evaluate(() => window.__states.at(-1))).toBe(false);
+});

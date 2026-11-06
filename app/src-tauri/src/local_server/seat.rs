@@ -96,6 +96,70 @@ pub(crate) fn stand<R: tauri::Runtime>(app: &tauri::AppHandle<R>, label: &str) {
     app.state::<App>().service.release(&held(label));
 }
 
+/// The windows seated at the table served from this computer's folder `key`.
+fn seated_labels(state: &App, key: &str) -> Vec<String> {
+    lock(&state.remotes)
+        .iter()
+        .filter(|(_, r)| r.seat.as_ref().is_some_and(|(_, k)| k == key))
+        .map(|(label, _)| label.clone())
+        .collect()
+}
+
+/// Whether a window sits at the table served from this computer's folder
+/// `key`.
+pub(crate) fn seated_at(state: &App, key: &str) -> bool {
+    !seated_labels(state, key).is_empty()
+}
+
+/// The folder `key`'s sync was turned on or off, or its task ended: each
+/// window seated at the table served from that folder holds it while it
+/// syncs and lets it go once it does not (2026-11-06: the hold follows the
+/// sync from any window, not only as it was when the window sat). A
+/// folder no window shows here any more is opened again for the hold.
+pub(crate) async fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) {
+    let state = app.state::<App>();
+    let seated = seated_labels(&state, key);
+    let config = state.service.config().map(Path::to_path_buf);
+    let syncs = crate::sync::synced(config.as_deref(), key).is_some();
+    for label in seated {
+        let holder = held(&label);
+        if !syncs {
+            state.service.release(&holder);
+            continue;
+        }
+        if state.service.join(&holder, key) {
+            continue;
+        }
+        let (service, again, who) = (Arc::clone(&state.service), key.to_owned(), holder.clone());
+        let opened = tauri::async_runtime::spawn_blocking(move || {
+            service.open(&who, move |c| Workspace::reopen(&again, c))
+        })
+        .await;
+        match opened {
+            Ok(Ok(opened)) => {
+                let (_, catch_up) = state.service.attach(&holder, opened);
+                if let Some(catch_up) = catch_up {
+                    let service = Arc::clone(&state.service);
+                    tauri::async_runtime::spawn_blocking(move || service.catch_up(&catch_up));
+                }
+            }
+            Ok(Err(e)) => log::write(
+                "ERROR",
+                "host",
+                &format!(
+                    "the seat could not hold its folder for its sync: {}",
+                    e.message
+                ),
+            ),
+            Err(e) => log::write(
+                "ERROR",
+                "host",
+                &format!("the seat could not hold its folder for its sync: {e}"),
+            ),
+        }
+    }
+}
+
 /// The window's connection through the seat's door, in memory, its
 /// contract checked as any server's is.
 pub(crate) async fn dial(

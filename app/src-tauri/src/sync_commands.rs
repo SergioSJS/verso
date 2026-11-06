@@ -66,12 +66,19 @@ pub(crate) fn start<R: tauri::Runtime>(
     lock(&app.state::<App>().syncs).insert(key.to_owned(), Arc::clone(&s));
     let (ctx, app, task) = (context(app), app.clone(), Arc::clone(&s));
     tauri::async_runtime::spawn(async move {
+        // A window seated at the table served from this folder holds it
+        // first, so that the sync goes on while it sits (ADR 0117 D13 Q3).
+        crate::local_server::seat::follow(&app, &task.key).await;
         sync::run(ctx, Arc::clone(&task)).await;
-        let state = app.state::<App>();
-        let mut syncs = lock(&state.syncs);
-        if syncs.get(&task.key).is_some_and(|t| Arc::ptr_eq(t, &task)) {
-            syncs.remove(&task.key);
+        {
+            let state = app.state::<App>();
+            let mut syncs = lock(&state.syncs);
+            if syncs.get(&task.key).is_some_and(|t| Arc::ptr_eq(t, &task)) {
+                syncs.remove(&task.key);
+            }
         }
+        // Turned off, by the person or a revoked share: a seat lets go.
+        crate::local_server::seat::follow(&app, &task.key).await;
     });
     s
 }
@@ -93,7 +100,10 @@ pub(crate) fn settle<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let state = app.state::<App>();
     let mut syncs = lock(&state.syncs);
     syncs.retain(|key, s| {
-        let shown = !state.service.clients_of(key).is_empty();
+        // A window seated at the table served from the folder counts, its
+        // hold perhaps still opening (ADR 0117 D13 Q3).
+        let shown = !state.service.clients_of(key).is_empty()
+            || crate::local_server::seat::seated_at(&state, key);
         if !shown {
             s.stop();
         }
@@ -112,8 +122,24 @@ pub(crate) fn touched<R: tauri::Runtime>(
     }
 }
 
-/// The folder of this window, which syncs only if it is this computer's.
+/// The folder of this window, which syncs only if it is this computer's:
+/// for a window seated at the table served from this computer's folder,
+/// that folder (ADR 0117 D13 Q3, 2026-11-06) — its sync is shown and acted
+/// on there as in a window on the folder itself.
 pub(crate) fn key_of<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    window: &tauri::Window<R>,
+) -> Result<String, ContractError> {
+    match remote::of(app, window.label()) {
+        Some(r) => r.seat.as_ref().map(|(_, key)| key.clone()).ok_or_else(|| {
+            refused("a folder of a server is already there: only a folder of this computer syncs")
+        }),
+        None => own_key_of(app, window),
+    }
+}
+
+/// The folder of this computer the window shows itself, never a seat's.
+fn own_key_of<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     window: &tauri::Window<R>,
 ) -> Result<String, ContractError> {
@@ -143,10 +169,12 @@ pub(crate) fn folder_sync<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
 ) -> Result<SyncStatus, ContractError> {
-    if remote::of(&app, window.label()).is_some() {
-        return Ok(off(""));
-    }
-    let key = key_of(&app, &window)?;
+    let Ok(key) = key_of(&app, &window) else {
+        if remote::of(&app, window.label()).is_some() {
+            return Ok(off(""));
+        }
+        return Err(no_folder());
+    };
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
     Ok(running(&app, &key)
         .map_or_else(|| sync::off_status(config.as_deref(), &key), |s| s.status()))
@@ -163,7 +191,10 @@ pub(crate) fn sync_rights<R: tauri::Runtime>(
     window: tauri::Window<R>,
     paths: Vec<String>,
 ) -> Result<verso_contract::SyncRights, ContractError> {
-    let s = syncer(&app, &window)?;
+    // A seated window's rights are its table's, which its server says: not
+    // the UniVerso's.
+    let key = own_key_of(&app, &window)?;
+    let s = running(&app, &key).ok_or_else(|| refused("this folder does not sync"))?;
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
     Ok(s.rights_told(config.as_deref(), &paths))
 }

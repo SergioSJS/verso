@@ -74,7 +74,7 @@ export function onSeatChange(fn: () => void): void {
 }
 
 function tell(): void {
-  setSeatState({ seated: seated !== null, served: servedHere() });
+  setSeatState({ seated: seated !== null, served: servedHere(), key: seated?.key ?? null });
   for (const fn of changed) fn();
   dispatchEvent(new Event("verso:campaign-status"));
 }
