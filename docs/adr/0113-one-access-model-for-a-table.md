@@ -654,6 +654,34 @@ choice.
    move never changes who sees it; a moved folder carries its set the same way,
    and the files that followed it keep following it. A rename inside the same
    folder changes nothing.
+   `[DECIDED 2026-11-05]` **Outside Verso** (the audit of 2026-11-05; the
+   maintainer: *"pode seguir as recomendações"*): a file renamed or deleted
+   on the server's disk, by hand or by a program, found by the watcher or the
+   walk (`crates/verso-server/src/campaign_outside.rs`). A rename the server
+   is sure of — one file gone, one new of the same bytes — carries the
+   file's access as a move does; a new file it cannot pair for sure, where a
+   file gone with it (or gone outside in the last ten minutes) was kept from
+   some players by a set of its own, is born hidden; a file deleted takes the
+   set it had of its own with it. A file the folder's log does not keep yet
+   is hidden from a player until a reconciliation has judged it. A file
+   written through Verso carried its access in its own session and is not
+   touched by these rules.
+   `[DECIDED 2026-11-06]` **A copy outside Verso takes the original's
+   access.** The maintainer: *"Cópia herda do original"* (a copy inherits
+   from the original). A new file found on the server's disk, not written
+   through Verso, with the bytes of a file still in a table, is a copy: it
+   takes the original's set of its own — who sees it and who edits it —
+   wherever it is put (born hidden only when the original is hidden). An
+   original with no set of its own leaves the copy following its folder,
+   as every new file does, unless the original's folder (or its table,
+   closed) keeps it from more players than the copy's folder would: then
+   the copy is given what the original has. The middle of a rename (both
+   names there at once, as Windows renames) is such a copy, so the renamed
+   file keeps its access once the old name goes. *Chosen in the code:* of
+   several originals of different access, the copy takes the narrowest —
+   each player, and the whole table, at the lowest level any of them gives
+   (`copy_of`). This revises the 2026-11-05 rule above, where a new file of
+   the bytes of a file still there was born hidden.
 3. **An attachment with an explicit access and a file that embeds it.** Not
    asked; *chosen in the code*, `[DECIDED 2026-10-31]`: an **explicit access on the
    attachment wins**; with none, it follows the notes and boards that embed or

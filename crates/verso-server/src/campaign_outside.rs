@@ -19,7 +19,14 @@
 //!   bytes) is born hidden when one of those gone had access of its own
 //!   narrower than the new file would take from its folder: it may be that
 //!   file. Any other new file follows its folder, as every new file does;
-//! - a file gone otherwise takes the access it had of its own with it.
+//! - a file gone otherwise takes the access it had of its own with it;
+//! - a new file of the bytes of a file still in the table — a copy made by
+//!   hand on the server's disk — takes that file's access (the maintainer,
+//!   2026-11-06: "Cópia herda do original"): its set of its own, who sees
+//!   and who edits; with none, the copy follows its folder, unless the
+//!   original's own folder (or its table, closed) keeps it from more, then
+//!   as the original. Of several originals of different access, each
+//!   player is given the lowest level any of them gives (`copy_of`).
 //!
 //! Both sides of a rename are judged in one step when they can be: a
 //! reconciliation that finds one side alone of a file with access of its
@@ -28,8 +35,9 @@
 //! the old name can be read gone after the listing was taken, before the
 //! new name was in it (2026-11-06) — the walk is not sure, and the new file
 //! is born hidden: one no one wrote through Verso, of the bytes of a file
-//! kept from someone that went outside a while ago (`Remembered`) or that
-//! is still there (the rename's middle, two names for one file).
+//! kept from someone that went outside a while ago (`Remembered`). The
+//! rename's middle, two names for one file, is a copy: the new name takes
+//! the old one's access, and keeps it once the old name has gone.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
@@ -96,20 +104,23 @@ const REMEMBERED_MOST: usize = 1024;
 /// their own, and when. Only in memory: the two sides of a rename come
 /// seconds apart, not across a restart.
 ///
-/// And the new files kept hidden so, by folder, for a short while: on
-/// Windows the watcher may record a window's write before the write's own
-/// step does (C3), and a note written through Verso is then found, by
-/// nobody — its writer's step gives it back its folder's access.
+/// And the new files kept hidden so, or given a copy's access, by folder,
+/// with the set they were given, for a short while: on Windows the watcher
+/// may record a window's write before the write's own step does (C3), and
+/// a note written through Verso is then found, by nobody — its writer's
+/// step gives it back its folder's access.
 #[derive(Default)]
 pub struct Remembered {
     gone: Mutex<HashMap<String, Vec<Kept>>>,
-    hid: Mutex<HashMap<String, Vec<(String, Instant)>>>,
+    hid: Mutex<HashMap<String, Vec<Kept>>>,
 }
 
-/// How long a new file kept hidden waits for its writer's own step.
+/// How long a new file kept hidden (or given a copy's access) waits for
+/// its writer's own step.
 const WRITER_WITHIN: Duration = Duration::from_secs(30);
 
-/// A file's bytes (hash), the set it had of its own, and when it went.
+/// A file's bytes (hash), the set it had of its own, and when it went; or
+/// a new file's path, the set it was given, and when.
 type Kept = (String, NodeSet, Instant);
 
 impl Remembered {
@@ -140,30 +151,34 @@ impl Remembered {
         }
     }
 
-    fn hidden(&self, folder: &str, path: &str) {
+    fn hidden(&self, folder: &str, path: &str, set: NodeSet) {
         let mut all = lock(&self.hid);
         let list = all.entry(folder.to_owned()).or_default();
-        list.retain(|(_, at)| at.elapsed() < WRITER_WITHIN);
-        list.push((path.to_owned(), Instant::now()));
+        list.retain(|(_, _, at)| at.elapsed() < WRITER_WITHIN);
+        list.push((path.to_owned(), set, Instant::now()));
         if list.len() > REMEMBERED_MOST {
             let extra = list.len() - REMEMBERED_MOST;
             list.drain(..extra);
         }
     }
 
-    /// Those of `written` kept hidden a moment ago, let go.
-    fn written<'a>(&self, folder: &str, written: &HashSet<&'a str>) -> Vec<&'a str> {
+    /// Those of `written` kept hidden (or given a copy's access) a moment
+    /// ago, with the set they were given, let go.
+    fn written<'a>(&self, folder: &str, written: &HashSet<&'a str>) -> Vec<(&'a str, NodeSet)> {
         let mut all = lock(&self.hid);
         let Some(list) = all.get_mut(folder) else {
             return Vec::new();
         };
-        list.retain(|(_, at)| at.elapsed() < WRITER_WITHIN);
-        let out: Vec<&str> = written
+        list.retain(|(_, _, at)| at.elapsed() < WRITER_WITHIN);
+        let out: Vec<(&str, NodeSet)> = written
             .iter()
-            .filter(|w| list.iter().any(|(p, _)| p == *w))
-            .copied()
+            .filter_map(|w| {
+                list.iter()
+                    .find(|(p, _, _)| p == *w)
+                    .map(|(_, s, _)| (*w, s.clone()))
+            })
             .collect();
-        list.retain(|(p, _)| !out.contains(&p.as_str()));
+        list.retain(|(p, _, _)| !out.iter().any(|(w, _)| w == p));
         if list.is_empty() {
             all.remove(folder);
         }
@@ -185,13 +200,14 @@ pub fn followed(
         return;
     };
     let mut changed = false;
-    // A file kept hidden here a moment ago that its writer's step names:
-    // written through Verso, it follows its folder as every new note does.
+    // A file kept hidden here a moment ago, or given a copy's access, that
+    // its writer's step names: written through Verso, it follows its folder
+    // as every new note does — unless its access was changed since.
     if !written.is_empty() {
-        for path in server.campaigns.gone_outside.written(folder, written) {
+        for (path, given) in server.campaigns.gone_outside.written(folder, written) {
             if veil
                 .own_set(path)
-                .is_some_and(|s| s.normalized() == NodeSet::default().normalized())
+                .is_some_and(|s| s.normalized() == given.clone().normalized())
             {
                 match server.db.access_follow(folder, path) {
                     Ok(()) => changed = true,
@@ -231,6 +247,7 @@ pub fn followed(
     } else {
         server.campaigns.gone_outside.of(folder)
     };
+    // The files still there of a found file's bytes: its originals.
     let mut still_of: HashMap<&str, Vec<&str>> = HashMap::new();
     if !found.is_empty() {
         let went: HashSet<&str> = gone.iter().map(|(p, _)| p.as_str()).collect();
@@ -256,26 +273,33 @@ pub fn followed(
             continue;
         }
         // Not sure which: hidden, when it may be a file kept from someone —
-        // one gone in this step, or (found, not written) gone a while ago
-        // or still there under its old name.
+        // one gone in this step, or (found, not written) gone a while ago.
+        // Found, not written, of the bytes of a file still there: a copy,
+        // with its original's access.
         let would = veil.effective_set(path);
         let kept = |o: &&str| veil.own_set(o).is_some_and(|s| narrower(&s, &would));
-        let mut may_be = olds.iter().any(kept);
-        if !may_be && !written.contains(path) {
-            may_be = remembered
+        let mut set = olds.iter().any(kept).then(NodeSet::default);
+        if set.is_none() && !written.contains(path) {
+            set = if remembered
                 .iter()
                 .any(|(h, s)| h == hash && narrower(s, &would))
-                || still_of.get(hash).is_some_and(|ps| ps.iter().any(kept));
+            {
+                Some(NodeSet::default())
+            } else {
+                still_of
+                    .get(hash)
+                    .and_then(|originals| copy_of(&veil, path, originals, &would))
+            };
         }
-        if may_be {
-            match server.db.access_put(folder, path, NodeSet::default()) {
+        if let Some(set) = set {
+            match server.db.access_put(folder, path, set.clone()) {
                 Ok(()) => {
                     changed = true;
                     if !written.contains(path) {
-                        server.campaigns.gone_outside.hidden(folder, path);
+                        server.campaigns.gone_outside.hidden(folder, path, set);
                     }
                 }
-                Err(e) => crate::log::warn(&format!("keeping a file hidden: {e}")),
+                Err(e) => crate::log::warn(&format!("keeping a file's access: {e}")),
             }
         }
     }
@@ -316,6 +340,60 @@ fn carry(server: &Server, folder: &str, veil: &campaign::Veil, (from, to): (&str
         Some(set) if set != veil.effective_set(to) => server.db.access_put(folder, to, set).is_ok(),
         _ => false,
     }
+}
+
+/// The access a copy at `to` of `originals` (files still in a table, of
+/// the copy's bytes) takes, where it would follow `would` from its folder
+/// (the maintainer, 2026-11-06: "Cópia herda do original"). An original
+/// with a set of its own gives it, whatever the copy's folder; one with
+/// none gives what it follows, where narrower than `would` — the copy
+/// otherwise follows its folder; an original in another table, closed,
+/// gives hidden. Of several, each player has the lowest level any gives,
+/// the whole table too: the narrowest. `None`: the copy follows its folder.
+fn copy_of(
+    veil: &campaign::Veil,
+    to: &str,
+    originals: &[&str],
+    would: &NodeSet,
+) -> Option<NodeSet> {
+    let table = veil.table(to).map(|t| t.root.as_str());
+    let mut own = false;
+    let mut most: Option<NodeSet> = None;
+    for o in originals {
+        let Some(t) = veil.table(o) else {
+            continue;
+        };
+        let set = if !t.open && table != Some(t.root.as_str()) {
+            own = true;
+            NodeSet::default()
+        } else if let Some(set) = veil.own_set(o) {
+            own = true;
+            set
+        } else {
+            lowest(&veil.effective_set(o), would)
+        };
+        most = Some(match most {
+            Some(m) => lowest(&m, &set),
+            None => set,
+        });
+    }
+    let set = most?.normalized();
+    (own || set != would.clone().normalized()).then_some(set)
+}
+
+/// For each player and the whole table, the lower level of `a` and `b`.
+fn lowest(a: &NodeSet, b: &NodeSet) -> NodeSet {
+    let rows = a
+        .rows
+        .keys()
+        .chain(b.rows.keys())
+        .map(|who| (who.clone(), a.of(who).min(b.of(who))))
+        .collect();
+    NodeSet {
+        whole: a.whole.min(b.whole),
+        rows,
+    }
+    .normalized()
 }
 
 /// Whether `a` keeps someone from more than `b` does: a lower level for the
