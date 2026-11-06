@@ -37,6 +37,8 @@ test("it is off, serves only the ticked folders, and says what the system will a
   await vault.check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false }).first()).toBeVisible();
+  // Said once, beside the switch: not again under it (the walk of 2026-11-06).
+  await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false })).toHaveCount(1);
   // The folders are locked while it serves, and the mark is in the status bar.
   await expect(vault).toBeDisabled();
   await expect(page.locator("#local-mark")).toContainText("Servindo");

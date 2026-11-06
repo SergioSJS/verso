@@ -537,7 +537,8 @@ export function localServerBody(_item: Item): HTMLElement {
         const r = await commands.localServerStop();
         busy(run, false);
         if (r.status !== "ok") return failed(r.error);
-        say(w.off);
+        // The state line beside the switch says it: not twice.
+        say("");
         return redraw();
       }
       // At least one box (ADR 0117 D1): the network, the link, or both.
@@ -551,7 +552,10 @@ export function localServerBody(_item: Item): HTMLElement {
         const r = await commands.localServerStart();
         busy(run, false);
         if (r.status !== "ok") return failed(r.error);
-        say(w.serving(where(r.data)));
+        // "Servindo em …" is the state line's, beside the switch: said
+        // here too, it showed twice, one under the other (the walk of
+        // 2026-11-06).
+        say("");
         // Chosen folders no longer on the disk were left out: said here and
         // in the notifications, not only in the row.
         if (r.data.dropped.length > 0) {
