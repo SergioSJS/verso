@@ -19,7 +19,7 @@ use super::tests::{Lab, Ws, call, run};
 use super::tests_accounts::{NAME, accept};
 use super::tests_parts::{NEEDLE, lab_in_part, set_chosen};
 use super::{LocalSettings, lock};
-use crate::db::{NewReadLink, Role};
+use crate::db::Role;
 use crate::state::Server;
 
 fn server_of(lab: &Lab) -> Arc<Server> {
@@ -275,13 +275,13 @@ fn the_owner_makes_a_link_and_it_opens_only_what_it_names() {
     });
 }
 
-/// A link never opens a folder served in part (the hide lock, ADR 0117 D3
-/// item 1, for a link's reader): links made while the folder was served
-/// whole — to all of it, to a note, to the very sub-folder later chosen —
-/// open nothing once it is served in part, and neither does one made by
-/// mistake on its id; a link to a folder no longer served opens nothing.
+/// A link opens what its maker shared whether the folder is served whole
+/// or in part (ADR 0117 R1, 2026-11-05: the folder is the owner's; the hide
+/// lock is the owner's phones' alone): links made while it was whole keep
+/// opening once it is served in part, a sub-folder's link nothing beside
+/// that sub-folder; a link to a folder no longer served opens nothing.
 #[test]
-fn a_read_link_never_opens_a_part_nor_a_folder_not_served() {
+fn a_read_link_keeps_to_what_it_shared_and_dies_with_its_folder() {
     run(async {
         let mut lab = lab_in_part(&[]);
         lab.serve();
@@ -299,33 +299,30 @@ fn a_read_link_never_opens_a_part_nor_a_folder_not_served() {
         lab.local.stop();
         set_chosen(&lab, &["Projetos"]);
         lab.serve();
-        let server = server_of(&lab);
-        let vault = server.db.folder_by_dir("Campanha").unwrap().unwrap();
-        let owner = server.db.local_owner().unwrap();
-        let (mistake, _) = server
-            .db
-            .make_read_link(&NewReadLink {
-                folder: &vault.id,
-                kind: "folder",
-                path: "",
-                made_by: &owner.id,
-                expires: None,
-                password: None,
-            })
-            .unwrap();
-        for t in links.iter().chain([&mistake]) {
-            for path in [
-                format!("/r/{t}/state"),
-                format!("/r/{t}/f/Segredo/x.png"),
-                format!("/r/{t}/f/img.png"),
-                format!("/r/{t}/f/Projetos/img.png"),
-            ] {
-                let (status, text) = visit(&lab, &path).await;
-                assert_eq!(status, 404, "{path}");
-                assert!(!text.contains(NEEDLE), "{path}");
-            }
-            assert_eq!(visitor_ws(&lab, t).await.err(), Some(404), "{t}");
+        for t in &links {
+            assert_eq!(visit(&lab, &format!("/r/{t}/state")).await.0, 200, "{t}");
         }
+        // The sub-folder's link: its files, nothing beside them.
+        let sub = &links[2];
+        // The visitor's page opens its window first, as it does.
+        let mut seen = reader(&lab, sub).await;
+        let listed = call(&mut seen, 2, "list_notes", json!({})).await;
+        assert!(listed.to_string().contains("a.md"), "{listed}");
+        assert!(!listed.to_string().contains("Raiz"), "{listed}");
+        assert_eq!(visit(&lab, &format!("/r/{sub}/f/img.png")).await.0, 200);
+        for path in [
+            format!("/r/{sub}/f/Segredo/x.png"),
+            format!("/r/{sub}/f/..%2fRaiz.md"),
+            format!("/r/{sub}/f/Raiz.md"),
+        ] {
+            let (status, text) = visit(&lab, &path).await;
+            assert!(status >= 400, "{path}: {status}");
+            assert!(!text.contains(NEEDLE), "{path}");
+        }
+        // The note's link: that note, no other.
+        let note = &links[1];
+        let (status, text) = visit(&lab, &format!("/r/{note}/f/Segredo/x.png")).await;
+        assert!(status >= 400, "{status}: {text}");
         // The folder no longer served at all: its links open nothing.
         lab.local.stop();
         set_chosen(&lab, &[]);

@@ -301,11 +301,12 @@ fn the_seat_is_no_device_and_its_token_opens_nothing_elsewhere() {
     });
 }
 
-/// A folder served in part is no device's (ADR 0117 D3 item 1): not by
-/// its id, not by a part's share, not in the list, not as a file, not by
-/// sync — even with grants made by mistake.
+/// A folder served in part is no device's that was given nothing of it
+/// (ADR 0117 R1, 2026-11-05: what a player reaches is what a share or a
+/// table gives them, `tests_subfolders`): not by its id, not by the phones'
+/// part, not in the list, not as a file, not by sync.
 #[test]
-fn a_device_never_reaches_a_folder_served_in_part() {
+fn a_device_reaches_nothing_of_a_folder_served_in_part_it_was_not_given() {
     run(async {
         let mut lab = lab_in_part(&["Projetos"]);
         lab.serve();
@@ -314,16 +315,6 @@ fn a_device_never_reaches_a_folder_served_in_part() {
         let share = server.db.shares_of(&vault.id).unwrap().remove(0);
         let made = lab.local.invite_for_tests(None, None).unwrap();
         let cookie = accept(&lab, &made.link, "caio@example.org", "Caio").await;
-        let caio = server
-            .db
-            .account_by_email("caio@example.org")
-            .unwrap()
-            .unwrap();
-        server.db.grant(&vault.id, &caio.id, Role::Editor).unwrap();
-        server
-            .db
-            .grant_share(&share.id, &caio.id, Role::Editor)
-            .unwrap();
         let token = device_token(&lab, &cookie, "Verso · Mac do Caio").await;
         let (status, folders) = bearer_get(&lab, "/api/folders", &token).await;
         assert_eq!(status, 200);

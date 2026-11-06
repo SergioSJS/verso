@@ -4,12 +4,23 @@
 
 //! A folder served **in part** (ADR 0096 item 2, amended 2026-10-16): the
 //! person ticks a folder and chooses only some of the folders inside it.
-//! Each chosen folder reaches the phone as a folder of its own, by the
-//! confinement of a share (ADR 0081 items 1, 2 and 11): the folder is
-//! registered, because a share needs a folder to belong to, but it is
-//! held by an account that is not the phones' ([`crate::db::VAULT_HOLDER`]),
-//! so its own id opens nothing for a phone; the phone's owner account is
-//! given one share per chosen folder, and a phone opens those ids.
+//! Each chosen folder reaches **the owner's phones** as a folder of its
+//! own, by the confinement of a share (ADR 0081 items 1, 2 and 11): the
+//! owner account is given one share per chosen folder, and a phone opens
+//! those ids; the folder's own id opens nothing for a phone (the hide
+//! lock, [`super::Policy::hides`], judged in `crate::access::role`).
+//!
+//! **R1 (ADR 0117 D1, D2; built 2026-11-05).** The ticked folder itself is
+//! registered as **the owner's**, whole or in part, as a UniVerso holds a
+//! folder of its owner's: the owner's window sits at it and makes tables
+//! and shares in any folder inside it, and a player reaches a subfolder
+//! only by a share given to them or a table rooted there — no rule of the
+//! app's own. The chosen folders are the phones' alone: a share the owner
+//! account is granted in one of the owner's own folders is a phone's part
+//! (the owner needs no grant in a folder he owns), and nothing else is.
+//! (Until R1 the folder served in part was held by another account,
+//! `VAULT_HOLDER`, so its owner's window could not sit at it: the
+//! maintainer ticked *Campanha Fractal* inside his vault and got nothing.)
 //!
 //! The attachments go along as the share's attachments folder, read-only
 //! and **files only, never a note**: the one folder Obsidian's settings name
@@ -28,8 +39,8 @@ use crate::db::{Db, Role};
 /// What the policy keeps of the folders served in part.
 #[derive(Default)]
 pub struct Parts {
-    /// The ids of the registered folders no phone may reach: those served
-    /// in part. A second lock on the door beside the holder's ownership.
+    /// The ids of the registered folders no phone may reach by their own
+    /// id: those served in part (their chosen folders are the phones').
     hidden: RwLock<HashSet<String>>,
     /// Each share's name as a phone lists it: the folder's own, made unique
     /// against the other folders served (`Projetos`, `Projetos (2)`).
@@ -51,7 +62,8 @@ impl Parts {
 
 impl super::Policy {
     /// Whether registered folder `id` is served in part: no phone reaches
-    /// it by its own id.
+    /// it by its own id. The owner's window and the players are not judged
+    /// by it (R1): the shares and tables say what a player reaches.
     #[must_use]
     pub fn hides(&self, id: &str) -> bool {
         self.parts
@@ -61,7 +73,8 @@ impl super::Policy {
             .contains(id)
     }
 
-    /// A share of a folder served in part, by its name on the phone.
+    /// A phones' part — a share of a folder served in part that the owner
+    /// is in — by its name on the phone.
     #[must_use]
     pub fn part_name(&self, share: &str) -> Option<String> {
         self.parts
@@ -160,12 +173,13 @@ pub fn plan(
 }
 
 /// The database's folders and shares follow what is ticked and chosen: a
-/// folder no longer served is forgotten (its shares and grants go with it),
-/// a whole one is the owner's and keeps the shares the owner made, one in
-/// part is the holder's with a share per chosen folder given to the owner
-/// at the most a phone may have, a share no longer chosen is deleted, and
-/// every part's attachments folder is set again from the vault's settings
-/// — or cleared.
+/// folder no longer served is forgotten (its shares and grants go with it);
+/// every ticked folder is the owner's and keeps the shares the owner made
+/// (R1); one in part gives the owner a share per chosen folder at the most
+/// a phone may have — the phones' parts — and a part no longer chosen loses
+/// the owner's grant (the share goes with it when no one else is in it); a
+/// whole folder has no part left; every part's attachments folder is set
+/// again from the vault's settings, or cleared.
 pub fn reconcile(
     db: &Db,
     owner: &str,
@@ -176,8 +190,6 @@ pub fn reconcile(
             db.forget_folder(&f.id)?;
         }
     }
-    // The holder is made only when a folder is served in part.
-    let mut holder: Option<String> = None;
     let mut hidden = HashSet::new();
     let mut names = HashMap::new();
     let mut dropped = Vec::new();
@@ -189,47 +201,37 @@ pub fn reconcile(
         .map(|(n, _)| n.clone())
         .collect();
     for (name, s) in served {
-        let want = if s.parts.is_empty() {
-            owner.to_owned()
-        } else {
-            match &holder {
-                Some(h) => h.clone(),
-                None => {
-                    let h = db.vault_holder()?.id;
-                    holder = Some(h.clone());
-                    h
-                }
-            }
-        };
         let mut folder = db.folder_by_dir(name)?;
-        // A folder that changed between whole and in part is registered
-        // again, under the owner it should have.
+        // A folder registered under another owner — before R1, one served
+        // in part was the holder's — is registered again as the owner's.
         if let Some(f) = &folder
             && !db
                 .members(&f.id)?
                 .iter()
-                .any(|(a, r)| a.id == want && *r == Role::Owner)
+                .any(|(a, r)| a.id == owner && *r == Role::Owner)
         {
             db.forget_folder(&f.id)?;
             folder = None;
         }
         let folder = match folder {
             Some(f) => f,
-            None => db.create_folder(name, &want)?,
+            None => db.create_folder(name, owner)?,
         };
-        // A whole folder's shares are the ones its owner made from the
-        // window at the table (ADR 0081; ADR 0117 D9): kept from one start
-        // to the next, as a UniVerso keeps them. A folder that was served in
-        // part was registered again above, its parts' shares gone with it.
+        // The phones' parts are the shares the owner is in: a part no
+        // longer chosen (or every part, for a whole folder) loses the
+        // owner's grant, and the share goes when no player is in it either.
+        // The shares the owner made for players stay, as a UniVerso keeps
+        // them (ADR 0081; ADR 0117 D9).
+        for share in db.shares_of(&folder.id)? {
+            let part = db.share_role(&share.id, owner)?.is_some();
+            if part && !s.present.contains(&share.path) {
+                db.revoke_share(&share.id, owner)?;
+            }
+        }
         if s.parts.is_empty() {
             continue;
         }
         hidden.insert(folder.id.clone());
-        for share in db.shares_of(&folder.id)? {
-            if !s.present.contains(&share.path) {
-                db.delete_share(&share.id)?;
-            }
-        }
         for part in &s.parts {
             if !s.present.contains(part) {
                 dropped.push((s.path.to_string_lossy().into_owned(), part.clone()));

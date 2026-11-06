@@ -315,34 +315,21 @@ fn sign_in_through_the_link_is_limited_by_the_forwarded_address() {
     });
 }
 
-/// A folder served in part is no player's (ADR 0117 D3 item 1): not by its
-/// own id, not by a share of a part, not in a list, not as a file — even
-/// with a grant made by mistake — and no invitation names it. The owner's
-/// phone opens its parts as before.
+/// A folder served in part is no player's that was given nothing of it
+/// (ADR 0117 R1, 2026-11-05: a player reaches a subfolder by a share or a
+/// table root only, `tests_subfolders`): not by its own id, not by the
+/// phones' part, not in a list, not as a file. The owner's phone opens its
+/// parts as before.
 #[test]
-fn a_player_never_reaches_a_folder_served_in_part() {
+fn a_player_given_nothing_reaches_nothing_of_a_folder_served_in_part() {
     run(async {
         let mut lab = lab_in_part(&["Projetos"]);
         lab.serve();
         let server = Arc::clone(&lock(&lab.local.shared.inner).as_ref().unwrap().server);
         let vault = server.db.folder_by_dir("Campanha").unwrap().unwrap();
         let share = server.db.shares_of(&vault.id).unwrap().remove(0);
-        // No invitation names it: its page has no table to sit at and no
-        // share to make (local::tests_shares, tests_seat); the lock below
-        // holds whatever a grant says.
         let made = lab.local.invite_for_tests(None, None).unwrap();
         let cookie = accept(&lab, &made.link, "eva@example.org", "Eva").await;
-        let eva = server
-            .db
-            .account_by_email("eva@example.org")
-            .unwrap()
-            .unwrap();
-        // Grants made by mistake: the lock holds anyway.
-        server.db.grant(&vault.id, &eva.id, Role::Editor).unwrap();
-        server
-            .db
-            .grant_share(&share.id, &eva.id, Role::Editor)
-            .unwrap();
         let (_, folders) = lab.get("/api/folders", Some(&cookie)).await;
         let listed = folders.to_string();
         assert!(

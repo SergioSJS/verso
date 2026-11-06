@@ -76,9 +76,13 @@ account, and who sees what inside it comes only from the UniVerso's own
 **shares** ([0081](0081-sharing-between-people-on-one-universo.md)) and
 **tables** ([0110](0110-a-table-is-a-campaign-folder.md),
 [0113](0113-one-access-model-for-a-table.md)) — no rule of the app's own
-decides it. 0096's "served in part" (a holder account owning the folder,
-the hide lock on its id, the parts as shares of the owner) stays **for the
-owner's own phones only**, as built; no player reaches anything by it.
+decides it. 0096's "served in part" (the hide lock on its id, the parts as
+shares of the owner) stays **for the owner's own phones only**; no player
+reaches anything by it. *(2026-11-05, R1 built:)* a folder served in part
+is registered as the owner's too — the holder account that owned it went —
+so the owner's window sits at it and makes tables and shares in any folder
+inside it; the hide lock judges phones alone; the owner's grant in a share
+of his own folder is a phone's part and is shown to no one as a person.
 
 ### D2. Per folder or subfolder, on the folder's page `[DECIDED 2026-11-04]`
 
@@ -245,9 +249,9 @@ session). "Through the link" results are the spike's (As built).
 |---|---|---|
 | Live co-editing in the browser, presence | **Works**, accounts and phones; through the link PASS (two accounts, named carets, 85–115 ms) | `local/allow.rs`, `presence.rs` |
 | Another person's desktop app signs in and syncs (0074 item 8, 0079, 0082) | **Built** (S11, `d3077a49b`); phones run no `sync_*`; listed in Settings with *End* (`f6ad84687`) | `local/devices.rs` |
-| Accounts, roles, invitations, shares | **Built** (S3 `49e1d91ed`; shares from the seat `ab79feac8`; people managed `27eece626`). **Changes (R1):** invitations and shares to a served subfolder. An account makes no folder on a laptop | `local/invites.rs`, `shares.rs` |
-| One access model (0113) | **Works**: `may()` for accounts and phones. The lock on what is not served holds for every non-owner (built); its meaning changes with D2 (R1) | `access.rs:23-31` |
-| Tables (0110 phase 1) | **Works** from the seat (S4 `32bacc553`), N per served folder; in a served subfolder **R1** (the code's `[OPEN]` of S4) | `local/seat.rs` |
+| Accounts, roles, invitations, shares | **Built** (S3 `49e1d91ed`; shares from the seat `ab79feac8`; people managed `27eece626`); invitations and shares to a served subfolder (R1, 2026-11-05). An account makes no folder on a laptop | `local/invites.rs`, `shares.rs` |
+| One access model (0113) | **Works**: `may()` for accounts and phones. The hide lock of a folder served in part holds for the owner's phones alone (R1, 2026-11-05) | `access.rs:23-31` |
+| Tables (0110 phase 1) | **Works** from the seat (S4 `32bacc553`), N per served folder, in any subfolder of it, served whole or in part (R1, 2026-11-05) | `local/seat.rs`, `local/parts.rs` |
 | Chat, rolls, secret rolls, 3D dice (0107) | **Works**; through the link PASS (secret roll at the protocol) | `collab_dice.rs` |
 | Images at the table | **Works**; the table's limit binds, not Cloudflare (none up to 120 MiB) | `table_image.rs` |
 | Music and shared audio (0116) | **Works**, the game master alone controls; a short share PASS through the link; a ten-minute share not yet tried (manual check) | `audio_relay.rs` |
@@ -377,7 +381,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | Changed | Invitations made at the folder's page; Settings lists them and the people, invites no one (D2) | **Built** (`a9c9b5b60`); the share dialog's invitation mailed by a UniVerso that mails (`3b054132d`) | `shares.rs`, `app/ui/src/shares.ts`, `dialogs/localServerInvites.ts` |
 | Changed | The refusal of a synced folder → only a folder received from another account is refused (D4) | **Built** (`96123d8f4`) | `local_server/platform.rs` (`received_from`) |
 | Changed | A player accepting an invitation is told to the table's windows | **Built** (`22a2eea9d`) | `campaign_cmds::people_changed` |
-| To build | A served subfolder for players = a share or a table root on the owner's registered folder (D1, D2) — nothing of the app's own | Not built: R1 | `local/parts.rs` (unchanged for phones) |
+| Changed | A served subfolder for players = a share or a table root on the owner's registered folder (D1, D2) — nothing of the app's own | **Built** 2026-11-05 (R1) | `local/parts.rs`, `access.rs`, `shares.rs`, `readlinks.rs`, `local/tests_subfolders.rs` |
 | To build | The folder's page: serve from this computer, *Sit*, the table's link; Settings' read-only list (D2) | Not built: R4 | `tableCard.ts`, `dialogs/servedFolders.ts` |
 | To build | The owner pairs through the link (D5, decided 2026-11-04) | Not built: R3 | `local/routes.rs`, `web/localTable.ts` |
 | To build | The UniVerso's link from the admin console (D4.2, decided 2026-11-04; revises 0077 item 6) | Not built: R5 | `console.rs`, `app/ui/src/web/console.ts` |
@@ -390,7 +394,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 
 | Step | What | Tier |
 |---|---|---|
-| R1 | Served subfolders the lean way: the ticked folder registered as the owner's; a player reaches a subfolder by a share or a table root only; 0096's parts kept for phones. Tests: a player in A never reaches B or the rest (id, share, list, file, link, device); the owner's phones as before | Opus |
+| R1 | **Built 2026-11-05.** Served subfolders the lean way: the ticked folder registered as the owner's; a player reaches a subfolder by a share or a table root only; 0096's parts kept for phones. Tests (`local/tests_subfolders.rs`): a player in A never reaches B or the rest (id, share, list, file, link, device); the owner's phones as before. Found by the maintainer, 2026-11-05: he ticked *Campanha Fractal* inside his vault and got nothing — the window could not sit at a folder served in part | Opus |
 | R2 | ~~Synced folders served; a received share refused~~ — **built** (`96123d8f4`); the host per table follows D4.1 with nothing more to build | — |
 | R3 | The owner pairs through the link (D5). Tests: the code works only once approved in the app; limits by forwarded address; no owner role through it | Opus |
 | R4 | The folder's page: serve from this computer, *Sit*, *Copy the table's link*; Settings' read-only list. Both languages, keyboard, 390×844, e2e in Docker | Sonnet |

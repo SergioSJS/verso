@@ -24,7 +24,7 @@ It is **one feature**, **Turn into a server**, with two boxes: serving **on your
 ## 1. Turn the link on
 
 1. Open the campaign's folder in Verso and go to **Settings › Turn into a server**.
-2. Under **Folders served**, tick the campaign's folder. None comes ticked. For a table, serve the **whole folder**: it is the one you will invite people to and sit at. A folder of yours that also syncs with a UniVerso can be served from here just the same: what the players change here goes up to the UniVerso through the sync, like any change on this computer. The one thing not served is a folder **someone else** shared with you: its owner serves it.
+2. Under **Folders served**, tick the campaign's folder. None comes ticked. The table can be in it or in **any folder inside it**. **Choosing folders** inside it says only what **your phones** see; the players see only what you share or put at a table. A folder of yours that also syncs with a UniVerso can be served from here just the same: what the players change here goes up to the UniVerso through the sync, like any change on this computer. The one thing not served is a folder **someone else** shared with you: its owner serves it.
 3. Under **Where to serve**, tick **By an internet link (Cloudflare, testing mode)**. If you do not want to serve phones on your network, leave **On my network** unticked: with the link alone, the computer accepts nothing from your home network.
 4. Tap **Turn the server on**. **The first time**, Verso downloads **cloudflared**, Cloudflare's program that opens the link (about 40 MB), and checks its sum before using it. It takes a moment; the panel shows how many MB have come, and **Cancel** stops it right there — nothing turns on afterwards and the half-downloaded file is deleted.
 5. When **The link is up.** shows, the panel gives **The table's address**, with **Copy link** and **Show the link's QR**. The status bar now says **Serving · internet link**, and the **Verso icon** in the Mac's menu bar (or Windows' notification area) gains a line **Internet link on**; on Linux there is only the status bar's mark. A new link can take up to a minute to open: if the page does not open at once, wait a moment and try again.
@@ -68,17 +68,17 @@ Whoever comes in sees only what you shared, with the role you gave. How to run t
 
 ## 3. Sit at the table
 
-Serving does not open the table in **your** window. To run it, go to **This window at the table** and use **Sit at the table** on the window's folder (it has to be served whole). The window becomes a client of your own server, as the owner: it has the Table, the campaign and the invitations, as on a UniVerso. The status bar shows **At the table**.
+Serving does not open the table in **your** window. To run it, go to **This window at the table** and use **Sit at the table** on the window's folder. The window becomes a client of your own server, as the owner: it has the Table, the campaign and the invitations, as on a UniVerso. The status bar shows **At the table**.
 
 **Leave the table** (in the section, or on the status bar's mark) goes back to this computer's folder. If the server **stops** with the window seated, it goes back to the computer's folder by itself and says so. Next time, Verso opens the computer's folder, never the table.
 
 ### Share a folder
 
-In the window sitting at the table, **Share…** in a folder's menu gives it to a person you invited, with the role **reads** or **edits** (never **owner**). The click in the app counts as your confirmation: no password is asked. The share stays from one session to the next, and you revoke it in the same dialog. A folder served only in part, and the sub-folders you chose in it, are never shared: they belong to your phones. Players and phones share nothing here.
+In the window sitting at the table, **Share…** in a folder's menu gives it to a person you invited, with the role **reads** or **edits** (never **owner**). The click in the app counts as your confirmation: no password is asked. The share stays from one session to the next, and you revoke it in the same dialog. It holds in a folder served only in part too: the folders chosen in it are what your phones see, and any folder inside it can be shared or made a table. Players and phones share nothing here.
 
 ### Read links
 
-Under **Read links**, **Turn read links on** starts **off**. On, you make a link in a note's or a folder's menu **in the window sitting at the table**, and whoever has it reads, with no account and without editing. Turning it off **closes every link at once**; on again reopens the ones you did not revoke. A link never opens a folder served only in part.
+Under **Read links**, **Turn read links on** starts **off**. On, you make a link in a note's or a folder's menu **in the window sitting at the table**, and whoever has it reads, with no account and without editing. Turning it off **closes every link at once**; on again reopens the ones you did not revoke. A link opens only what it shows, in a folder served whole or in part.
 
 ---
 

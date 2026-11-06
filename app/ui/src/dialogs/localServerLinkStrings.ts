@@ -124,7 +124,7 @@ const pt = {
   leave: "Sair da mesa",
   sat: (name: string) => `Na mesa de ${name}.`,
   leftTable: "De volta à pasta deste computador.",
-  seatNeeds: "Marque a pasta desta janela (inteira) e ligue o servidor para sentar à mesa dela.",
+  seatNeeds: "Marque a pasta desta janela e ligue o servidor para sentar à mesa dela.",
   seatGone: "O servidor parou: a janela voltou à pasta deste computador.",
   // The status bar's mark.
   markLink: "Servindo · link na internet",
@@ -242,7 +242,7 @@ const en: typeof pt = {
   leave: "Leave the table",
   sat: (name) => `At ${name}'s table.`,
   leftTable: "Back to this computer's folder.",
-  seatNeeds: "Tick this window's folder (all of it) and turn the server on to sit at its table.",
+  seatNeeds: "Tick this window's folder and turn the server on to sit at its table.",
   seatGone: "The server stopped: the window went back to this computer's folder.",
   markLink: "Serving · internet link",
   markLinkStarting: "Serving · turning the link on…",

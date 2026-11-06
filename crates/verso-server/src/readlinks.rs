@@ -158,13 +158,10 @@ pub fn live(server: &Server, token: &str) -> Result<Option<Live>, String> {
     let Some(folder) = server.db.folder(&link.folder)? else {
         return Ok(None);
     };
-    // "This app is a server" (ADR 0117 D9, S12): a link never opens a
-    // folder served in part — the hide lock holds for a link's reader as
-    // for everyone, whatever link was made before the folder was narrowed.
-    // (A folder no longer served has no folder for the link to open.)
-    if server.local.as_ref().is_some_and(|l| l.hides(&folder.id)) {
-        return Ok(None);
-    }
+    // "This app is a server" (ADR 0117 D9, S12): a link opens what its
+    // maker shared, in a folder served whole or in part — the owner's
+    // (R1, 2026-11-05); the hide lock is the owner's phones' only. A folder
+    // no longer served has no folder for the link to open.
     Ok(Some(Live { link, folder }))
 }
 

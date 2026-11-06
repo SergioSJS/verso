@@ -136,7 +136,7 @@ export function seatBlock(say: (text: string) => void): { el: HTMLElement; draw:
       return;
     }
     const f = folders.find((x) => x.key === currentFolder);
-    can = s.serving && !!f?.ticked && f.parts.length === 0;
+    can = s.serving && !!f?.ticked;
     here.textContent = currentFolder ? w.seatHere(folderName) : "";
     act.textContent = w.sit;
     act.title = w.sit;

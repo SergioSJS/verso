@@ -446,7 +446,6 @@ export class LocalServerHarness {
     local_server_sit_at_table: (): FolderInfo => {
       if (!this.serving) refuse("turn serving on first, with this folder ticked");
       if (!this.ticked.has("harness")) refuse("this folder is not served: tick it to serve it");
-      if ((this.parts.get("harness") ?? []).length > 0) refuse("this folder is served in part: serve all of it to sit at its table");
       this.seated = true;
       this.log("seat_opened", "Vault");
       return { name: "Vault", key: "seat:harness", index: { indexed: 0, unchanged: 0, removed: 0, placeholders: 0, problems: [], unwatched: null, unindexed: null }, late_outside_changes: null };

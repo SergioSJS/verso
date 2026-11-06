@@ -49,7 +49,7 @@ test("the link alone serves: its address with Copy and a QR, the hours left with
   await expect(body.getByText("Link no ar.", { exact: true })).toHaveCount(1);
   // The section's lead and the folders' say the players and the link, not only the phone.
   await expect(body.getByText(/aos jogadores em qualquer lugar por um link na internet/)).toBeVisible();
-  await expect(body.getByText("Só as pastas marcadas aqui são vistas pelo celular e pelos jogadores.", { exact: false })).toBeVisible();
+  await expect(body.getByText("Só as pastas marcadas aqui são servidas; nenhuma vem marcada.", { exact: false })).toBeVisible();
   // Right under it: a new quick link takes a moment to open everywhere.
   await expect(body.locator(".ls-link-state + p")).toHaveText("Um link novo pode levar até um minuto para abrir.");
   await expect(body.getByText("https://exemplo-de-mesa.trycloudflare.com")).toBeVisible();
@@ -309,7 +309,7 @@ test("the window sits at its own table and leaves; serving stopped under it brin
   const body = page.locator(".settings-body");
   const sit = body.getByRole("button", { name: "Sentar à mesa" });
   await expect(sit).toBeDisabled();
-  await expect(body.getByText("Marque a pasta desta janela (inteira) e ligue o servidor", { exact: false })).toBeVisible();
+  await expect(body.getByText("Marque a pasta desta janela e ligue o servidor", { exact: false })).toBeVisible();
   await body.getByRole("checkbox", { name: /^Vault/ }).check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();

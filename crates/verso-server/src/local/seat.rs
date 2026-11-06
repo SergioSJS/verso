@@ -24,9 +24,9 @@
 //!
 //! The session lives as long as serving: a stop ends it, a start sweeps
 //! one a crash left. It is no phone (it has no row in `phones`), so the
-//! allowlist does not judge it and it counts against no phone's ceiling;
-//! the hide lock of a folder served in part holds for it as for everyone
-//! (`crate::access::role`).
+//! allowlist does not judge it and it counts against no phone's ceiling,
+//! and the hide lock of a folder served in part, the phones', does not
+//! hold for it (ADR 0117 R1): it sits at all of the folder.
 //!
 //! The owner's fresh proof (ADR 0083 item 6), which inviting a person to
 //! the table needs, is the owner's click in the app (Q4, as ADR 0096 item 6
@@ -137,8 +137,8 @@ pub struct Answer {
     pub body: Vec<u8>,
 }
 
-/// The owner's window's seat at a folder this computer serves whole,
-/// handed to the host. Its token is the seat's session's; it opens nothing
+/// The owner's window's seat at a folder this computer serves, whole or
+/// in part (R1), handed to the host. Its token is the seat's session's; it opens nothing
 /// but through [`Seat::connect`] and [`Seat::get`].
 pub struct Seat {
     folder: String,
@@ -376,7 +376,7 @@ fn open(r: &Running) -> Result<Door, String> {
 
 impl LocalServer {
     /// The owner's window sits at the table of `folder`, a folder this
-    /// computer serves whole (ADR 0117 D4 Q3): the seat the host connects
+    /// computer serves, whole or in part (ADR 0117 D4 Q3, R1): the seat the host connects
     /// through. The seat's session is made at the first sitting of a run
     /// and serves every window that sits until serving stops. `Err` says
     /// why not, in words the person reads.
@@ -401,15 +401,9 @@ impl LocalServer {
             .folder_by_dir(&name)?
             .ok_or_else(|| "this folder is not served: tick it to serve it".to_owned())?
             .id;
-        // A folder served in part is no one's by its own id, the owner's
-        // window's included (the hide lock); its parts are shares of it, and
-        // a table in one is not offered here — [OPEN] for the maintainer:
-        // ADR 0117 does not say whether the window sits at a part's table.
-        if r.policy.hides(&id) {
-            return Err(
-                "this folder is served in part: serve all of it to sit at its table".to_owned(),
-            );
-        }
+        // A folder served in part is the owner's too (ADR 0117 R1,
+        // 2026-11-05): the window sits at all of it and makes its tables in
+        // any folder inside; the chosen folders are the owner's phones'.
         if r.seat.as_ref().is_none_or(|d| d.tx.is_closed()) {
             r.seat = Some(open(r)?);
             r.policy.audit(&r.server, "seat_opened", Some(&name), None);

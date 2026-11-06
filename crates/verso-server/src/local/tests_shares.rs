@@ -13,12 +13,12 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 
+use super::lock;
 use super::seat::Seat;
 use super::tests::{Lab, call, next, run};
 use super::tests_accounts::accept;
 use super::tests_devices::csrf;
 use super::tests_parts::{NEEDLE, lab_in_part, set_chosen};
-use super::{LocalSettings, lock};
 use crate::db::Role;
 use crate::state::Server;
 
@@ -244,103 +244,120 @@ fn a_player_and_a_phone_share_nothing() {
     });
 }
 
-/// `Campanha` served in part (`Projetos` chosen) beside `Mesa` served
-/// whole, the owner's window at Mesa's table; Rui invited.
-async fn in_part_beside_a_table() -> (Lab, Seat, String) {
+/// `Campanha` served in part (`Projetos` chosen, the owner's phones'), the
+/// owner's window at it (ADR 0117 R1, 2026-11-05: the folder is the
+/// owner's, whole or in part); Rui invited, given nothing yet.
+async fn in_part_at_its_table() -> (Lab, Seat, String) {
     let mut lab = lab_in_part(&["Projetos"]);
-    let mesa = lab.notes.path().join("Mesa");
-    crate::data::ensure_dir(&mesa).unwrap();
-    crate::data::write_for_tests(&mesa.join("Cena.md"), "# Cena\n");
-    let mut folders = lab.local.settings().unwrap().folders;
-    folders.push(mesa.to_string_lossy().into_owned());
-    lab.local
-        .set_settings(&LocalSettings {
-            folders,
-            ..lab.local.settings().unwrap()
-        })
-        .unwrap();
     lab.serve();
-    let seat = lab.local.sit(&mesa).unwrap();
+    let seat = lab.local.sit(&campanha(&lab)).unwrap();
     let player = invited(&lab, RUI).await;
     (lab, seat, player)
 }
 
-/// A folder served in part has no shares to show or make, the owner's
-/// window's included, even with a grant on it made by mistake (the hide
-/// lock, `crate::access::role`): no answer names a path inside it, and
-/// none of its parts' ids is a folder to share.
+/// The owner's window shares inside a folder served in part as on a
+/// UniVerso: the phones' part is listed with no person in it (the owner's
+/// own grant is the phones' mark, never a person the folder was shared
+/// with); a folder not chosen is shared, and its player reaches it alone.
 #[test]
-fn no_share_is_made_of_a_folder_served_in_part() {
+fn the_owners_window_shares_inside_a_folder_served_in_part() {
     run(async {
-        let (lab, seat, _player) = in_part_beside_a_table().await;
+        let (lab, seat, player) = in_part_at_its_table().await;
         let server = server_of(&lab);
         let vault = server.db.folder_by_dir("Campanha").unwrap().unwrap();
-        let owner = server.db.local_owner().unwrap();
-        let part = server.db.share_at(&vault.id, "Projetos").unwrap().unwrap();
-        // A grant on the vault made by mistake: the lock still holds.
-        server.db.grant(&vault.id, &owner.id, Role::Owner).unwrap();
-        for id in [vault.id.as_str(), part.id.as_str()] {
-            let (status, listed) = seat_asks(&seat, "GET", &shares_of(id), None);
-            assert_eq!(status, 404, "{id}: {listed}");
-            assert!(!listed.to_string().contains("Projetos"), "{listed}");
-            for path in ["Projetos", "Segredo", "Diario"] {
-                seat.acted("share_grant").unwrap();
-                let (status, made) = seat_asks(
-                    &seat,
-                    "PUT",
-                    &shares_of(id),
-                    Some(&json!({ "path": path, "email": RUI, "role": "reader" })),
-                );
-                assert_eq!(status, 404, "{id} {path}: {made}");
-            }
-        }
-        assert!(server.db.share_at(&vault.id, "Segredo").unwrap().is_none());
-        assert!(server.db.share_at(&vault.id, "Diario").unwrap().is_none());
-        let rui = server.db.account_by_email(RUI).unwrap().unwrap();
-        assert!(server.db.share_role(&part.id, &rui.id).unwrap().is_none());
-        // The table beside it is shared as any whole folder is.
-        crate::data::ensure_dir(&lab.notes.path().join("Mesa/Pistas")).unwrap();
-        let (status, made) = share(&seat, "Pistas", RUI, "reader");
+        assert_eq!(seat.folder(), vault.id);
+        let (status, listed) = seat_asks(&seat, "GET", &shares_of(&vault.id), None);
+        assert_eq!(status, 200, "{listed}");
+        assert!(
+            !listed["shares"]
+                .to_string()
+                .contains(crate::db::LOCAL_OWNER),
+            "{listed}"
+        );
+        assert!(shared_with(&lab, &player).await.is_empty());
+        let (status, made) = share(&seat, "Segredo", RUI, "reader");
         assert_eq!(status, 200, "{made}");
-    });
-}
-
-/// A part's share given to a player by mistake opens nothing for them: not
-/// listed, not opened by its id, no note of it read (the hide lock for
-/// every account, `shares::scope_for`).
-#[test]
-fn a_part_given_to_a_player_by_mistake_opens_nothing() {
-    run(async {
-        let (lab, _seat, player) = in_part_beside_a_table().await;
-        let server = server_of(&lab);
-        let vault = server.db.folder_by_dir("Campanha").unwrap().unwrap();
-        let part = server.db.share_at(&vault.id, "Projetos").unwrap().unwrap();
-        let rui = server.db.account_by_email(RUI).unwrap().unwrap();
-        server
-            .db
-            .grant_share(&part.id, &rui.id, Role::Editor)
-            .unwrap();
-        let (_, mine) = lab.get("/api/folders", Some(&player)).await;
-        assert!(!mine.to_string().contains(&part.id), "{mine}");
-        assert!(!mine.to_string().contains("Projetos"), "{mine}");
+        let shares = shared_with(&lab, &player).await;
+        assert_eq!(shares.len(), 1, "{shares:?}");
+        let segredo = server.db.share_at(&vault.id, "Segredo").unwrap().unwrap();
+        assert_eq!(shares[0]["id"], segredo.id.as_str());
         let mut ws = lab.connect(&player).await.unwrap();
         assert!(next(&mut ws).await.get("hello").is_some());
-        let opened = call(&mut ws, 1, "open_server_folder", json!({ "id": part.id })).await;
-        assert!(opened.get("ok").is_none(), "{opened}");
-        let read = call(&mut ws, 2, "read_note", json!({ "path": "a.md" })).await;
-        assert!(read.get("ok").is_none(), "{read}");
-        assert!(!read.to_string().contains("linha de projeto"), "{read}");
-        let (status, _) = lab
-            .get(&format!("/f/{}/img.png", part.id), Some(&player))
+        let part = server.db.share_at(&vault.id, "Projetos").unwrap().unwrap();
+        for (n, id) in [&vault.id, &part.id].into_iter().enumerate() {
+            let opened = call(
+                &mut ws,
+                n as u64 + 1,
+                "open_server_folder",
+                json!({ "id": id }),
+            )
             .await;
-        assert_ne!(status, 200, "a part's file to a player");
+            assert!(opened.get("ok").is_none(), "{id}: {opened}");
+        }
+        let opened = call(
+            &mut ws,
+            5,
+            "open_server_folder",
+            json!({ "id": segredo.id }),
+        )
+        .await;
+        assert!(opened.get("ok").is_some(), "{opened}");
+        let read = call(&mut ws, 6, "read_note", json!({ "path": "c.md" })).await;
+        assert!(read.get("ok").is_some(), "{read}");
+        let out = call(&mut ws, 7, "read_note", json!({ "path": "../Raiz.md" })).await;
+        assert!(out.get("ok").is_none(), "{out}");
     });
 }
 
-/// A share of a folder served whole ends when the folder is narrowed to
-/// parts — even of the very folder then chosen — and does not come back.
+/// A chosen folder — the phones' part — shared with a player opens for
+/// them, that folder alone, and stays the phones' part: one share, two
+/// kinds of people, each kept at the next start.
 #[test]
-fn a_share_made_while_whole_ends_when_the_folder_is_served_in_part() {
+fn a_chosen_folder_shared_with_a_player_opens_that_folder_alone() {
+    run(async {
+        let (mut lab, seat, player) = in_part_at_its_table().await;
+        let (status, made) = share(&seat, "Projetos", RUI, "editor");
+        assert_eq!(status, 200, "{made}");
+        let shares = shared_with(&lab, &player).await;
+        assert_eq!(shares.len(), 1, "{shares:?}");
+        let mut ws = lab.connect(&player).await.unwrap();
+        assert!(next(&mut ws).await.get("hello").is_some());
+        let opened = call(
+            &mut ws,
+            1,
+            "open_server_folder",
+            json!({ "id": shares[0]["id"] }),
+        )
+        .await;
+        assert!(opened.get("ok").is_some(), "{opened}");
+        let read = call(&mut ws, 2, "read_note", json!({ "path": "a.md" })).await;
+        assert!(read.to_string().contains("linha de projeto"), "{read}");
+        for path in ["../Raiz.md", "../Segredo/c.md", "Raiz.md"] {
+            let out = call(&mut ws, 3, "read_note", json!({ "path": path })).await;
+            assert!(out.get("ok").is_none(), "{path}: {out}");
+            assert!(!out.to_string().contains(NEEDLE), "{path}");
+        }
+        drop(ws);
+        drop(seat);
+        lab.local.stop();
+        lab.serve();
+        assert_eq!(shared_with(&lab, &player).await.len(), 1);
+        let phone = lab.pair("iPhone", true, Role::Editor).await.unwrap();
+        let (_, theirs) = lab.get("/api/folders", Some(&phone)).await;
+        assert_eq!(
+            theirs["folders"].as_array().map(Vec::len),
+            Some(1),
+            "{theirs}"
+        );
+    });
+}
+
+/// A share made while the folder was served whole stays when it is served
+/// in part, as a UniVerso keeps it (R1: the chosen folders are the phones'
+/// alone), and back to whole the phones' part goes while the player's
+/// share stays.
+#[test]
+fn a_share_made_while_whole_stays_when_the_folder_is_served_in_part() {
     run(async {
         let mut lab = lab_in_part(&[]);
         lab.serve();
@@ -355,13 +372,22 @@ fn a_share_made_while_whole_ends_when_the_folder_is_served_in_part() {
         lab.local.stop();
         set_chosen(&lab, &["Projetos"]);
         lab.serve();
-        let (_, mine) = lab.get("/api/folders", Some(&player)).await;
-        assert_eq!(
-            shared_with(&lab, &player).await,
-            Vec::<Value>::new(),
-            "{mine}"
-        );
-        assert!(!mine.to_string().contains("Projetos"), "{mine}");
+        assert_eq!(shared_with(&lab, &player).await.len(), 2);
+        lab.local.stop();
+        set_chosen(&lab, &[]);
+        lab.serve();
+        assert_eq!(shared_with(&lab, &player).await.len(), 2);
+        let server = server_of(&lab);
+        let vault = server.db.folder_by_dir("Campanha").unwrap().unwrap();
+        let owner = server.db.local_owner().unwrap();
+        for share in server.db.shares_of(&vault.id).unwrap() {
+            assert_eq!(
+                server.db.share_role(&share.id, &owner.id).unwrap(),
+                None,
+                "{}",
+                share.path
+            );
+        }
     });
 }
 

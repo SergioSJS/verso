@@ -65,6 +65,8 @@ mod tests_serving;
 #[cfg(test)]
 mod tests_shares;
 #[cfg(test)]
+mod tests_subfolders;
+#[cfg(test)]
 mod tests_tokens;
 
 use std::collections::HashMap;

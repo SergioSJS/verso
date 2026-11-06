@@ -25,7 +25,7 @@ use crate::state::Server;
 const PASSWORD: &str = "uma senha longa da mesa 2026";
 
 /// The running server, as the tests look into it.
-fn server_of(lab: &Lab) -> Arc<Server> {
+pub(super) fn server_of(lab: &Lab) -> Arc<Server> {
     Arc::clone(&lock(&lab.local.shared.inner).as_ref().unwrap().server)
 }
 
@@ -48,7 +48,7 @@ async fn window(seat: &Seat) -> WebSocketStream<tokio::io::DuplexStream> {
 }
 
 /// The next text message, whatever it is.
-async fn message<S>(ws: &mut WebSocketStream<S>) -> Value
+pub(super) async fn message<S>(ws: &mut WebSocketStream<S>) -> Value
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
@@ -65,7 +65,7 @@ where
 }
 
 /// A command's answer; what comes before it is passed over.
-async fn ask<S>(ws: &mut WebSocketStream<S>, id: u64, cmd: &str, args: Value) -> Value
+pub(super) async fn ask<S>(ws: &mut WebSocketStream<S>, id: u64, cmd: &str, args: Value) -> Value
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
@@ -93,7 +93,7 @@ where
 }
 
 /// The seat's connection with its folder open.
-async fn seated(seat: &Seat) -> WebSocketStream<tokio::io::DuplexStream> {
+pub(super) async fn seated(seat: &Seat) -> WebSocketStream<tokio::io::DuplexStream> {
     let mut ws = window(seat).await;
     let hello = message(&mut ws).await;
     assert!(hello.get("hello").is_some(), "{hello}");
@@ -295,7 +295,10 @@ fn a_player_renames_themself_and_the_table_says_the_new_name() {
         assert!(made.get("ok").is_some(), "{made}");
         seat.acted("campaign_invite").unwrap();
         let invited = ask(&mut gm, 3, "campaign_invite", json!({ "root": "" })).await;
-        let link = invited["ok"]["link"].as_str().unwrap_or_default().to_owned();
+        let link = invited["ok"]["link"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned();
         let cookie = accept(&lab, &link).await;
 
         let renamed = lab
@@ -303,7 +306,10 @@ fn a_player_renames_themself_and_the_table_says_the_new_name() {
             .patch(lab.url("/api/me"))
             .header("origin", lab.origin())
             .header("cookie", &cookie)
-            .header("x-verso-csrf", super::tests_devices::csrf(&lab, &cookie).await)
+            .header(
+                "x-verso-csrf",
+                super::tests_devices::csrf(&lab, &cookie).await,
+            )
             .json(&json!({ "name": "Ana Clara", "lang": "pt" }))
             .send()
             .await
@@ -314,11 +320,27 @@ fn a_player_renames_themself_and_the_table_says_the_new_name() {
 
         let mut ana = lab.connect(&cookie).await.unwrap();
         assert!(message(&mut ana).await.get("hello").is_some());
-        let opened = ask(&mut ana, 1, "open_server_folder", json!({ "id": seat.folder() })).await;
+        let opened = ask(
+            &mut ana,
+            1,
+            "open_server_folder",
+            json!({ "id": seat.folder() }),
+        )
+        .await;
         assert!(opened.get("ok").is_some(), "{opened}");
         let look = json!({ "color": "#3b82f6", "styles": null });
-        assert!(ask(&mut gm, 4, "table_join", look.clone()).await.get("ok").is_some());
-        assert!(ask(&mut ana, 2, "table_join", look).await.get("ok").is_some());
+        assert!(
+            ask(&mut gm, 4, "table_join", look.clone())
+                .await
+                .get("ok")
+                .is_some()
+        );
+        assert!(
+            ask(&mut ana, 2, "table_join", look)
+                .await
+                .get("ok")
+                .is_some()
+        );
         let said = ask(&mut ana, 3, "table_say", json!({ "text": "Oi, mesa" })).await;
         assert_eq!(said["ok"]["by"], "Ana Clara", "{said}");
         let entry = heard(&mut gm, "table-entry", |p| p["text"] == "Oi, mesa").await;
@@ -331,7 +353,10 @@ fn a_player_renames_themself_and_the_table_says_the_new_name() {
             .patch(lab.url("/api/me"))
             .header("origin", lab.origin())
             .header("cookie", &phone)
-            .header("x-verso-csrf", super::tests_devices::csrf(&lab, &phone).await)
+            .header(
+                "x-verso-csrf",
+                super::tests_devices::csrf(&lab, &phone).await,
+            )
             .json(&json!({ "name": "Outro", "lang": "pt" }))
             .send()
             .await
@@ -430,36 +455,32 @@ fn the_window_sits_with_the_link_alone() {
     });
 }
 
-/// The hide lock holds for the owner's window too: a folder served in part
-/// has no table here, and its id opens nothing through the door — as a
-/// folder, as a file, in the list.
+/// The owner's window sits at a folder served in part (ADR 0117 R1,
+/// 2026-11-05; before, it was refused and the maintainer's *Campanha
+/// Fractal* had no table): all of it, its id, its files and the list; the
+/// hide lock is the owner's phones' alone.
 #[test]
-fn the_hide_lock_holds_for_the_seat() {
+fn the_window_sits_at_a_folder_served_in_part() {
     run(async {
         let mut lab = lab_in_part(&["Projetos"]);
-        // A second folder, served whole, to sit at.
-        let mesa = lab.notes.path().join("Mesa");
-        crate::data::ensure_dir(&mesa).unwrap();
-        crate::data::write_for_tests(&mesa.join("Sessao.md"), "# Sessao\n");
-        let mut settings = lab.local.settings().unwrap();
-        settings.folders.push(mesa.to_string_lossy().into_owned());
-        lab.local.set_settings(&settings).unwrap();
         lab.serve();
-        let refused = lab.local.sit(&campanha(&lab)).unwrap_err();
-        assert!(refused.contains("served in part"), "{refused}");
-        let hidden = server_of(&lab)
+        let seat = lab.local.sit(&campanha(&lab)).unwrap();
+        let vault = server_of(&lab)
             .db
             .folder_by_dir("Campanha")
             .unwrap()
             .unwrap()
             .id;
-        let seat = lab.local.sit(&mesa).unwrap();
-        let mut gm = window(&seat).await;
-        assert!(message(&mut gm).await.get("hello").is_some());
-        let opened = ask(&mut gm, 1, "open_server_folder", json!({ "id": hidden })).await;
-        assert_eq!(opened["err"]["kind"], "not_found", "{opened}");
-        let file = seat.get(&format!("/f/{hidden}/Raiz.md")).unwrap();
-        assert_eq!(file.status, 404);
+        assert_eq!(seat.folder(), vault);
+        let mut gm = seated(&seat).await;
+        let made = ask(&mut gm, 2, "campaign_make", json!({ "root": "Segredo" })).await;
+        assert!(made.get("ok").is_some(), "{made}");
+        assert_eq!(
+            seat.get(&format!("/f/{vault}/Segredo/x.png"))
+                .unwrap()
+                .status,
+            200
+        );
         let listed = seat.get("/api/folders").unwrap();
         let listed: Value = serde_json::from_slice(&listed.body).unwrap();
         let ids: Vec<&str> = listed["folders"]
@@ -468,7 +489,13 @@ fn the_hide_lock_holds_for_the_seat() {
             .iter()
             .filter_map(|f| f["id"].as_str())
             .collect();
-        assert!(!ids.contains(&hidden.as_str()), "{listed}");
+        // The vault alone: the phones' part is not the window's.
+        assert_eq!(ids, [vault.as_str()], "{listed}");
+        let phone = lab.pair("iPhone", true, Role::Editor).await.unwrap();
+        let (status, _) = lab
+            .get(&format!("/f/{vault}/Segredo/x.png"), Some(&phone))
+            .await;
+        assert_eq!(status, 404, "the phone by the vault's id");
     });
 }
 

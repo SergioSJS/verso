@@ -24,7 +24,7 @@ Você quer jogar com gente que não está na sua casa, sem alugar servidor nem e
 ## 1. Ligar o link
 
 1. Abra a pasta da campanha no Verso e vá em **Ajustes › Transformar em servidor**.
-2. Em **Pastas servidas**, marque a pasta da campanha. Nenhuma vem marcada. Para a mesa, sirva a **pasta inteira**: é ela que você vai convidar e é nela que você vai sentar. Uma pasta sua que também sincroniza com um UniVerso pode ser servida daqui do mesmo jeito: o que as jogadoras mudam aqui sobe para o UniVerso pela sincronização, como qualquer mudança neste computador. Só não se serve uma pasta que **outra pessoa** compartilhou com você: quem serve é a dona dela.
+2. Em **Pastas servidas**, marque a pasta da campanha. Nenhuma vem marcada. A mesa pode ficar nela ou em **qualquer subpasta** dela. **Escolher pastas** dentro dela diz só o que os **seus celulares** veem; as jogadoras veem só o que você compartilha ou põe numa mesa. Uma pasta sua que também sincroniza com um UniVerso pode ser servida daqui do mesmo jeito: o que as jogadoras mudam aqui sobe para o UniVerso pela sincronização, como qualquer mudança neste computador. Só não se serve uma pasta que **outra pessoa** compartilhou com você: quem serve é a dona dela.
 3. Em **Onde servir**, marque **Por um link na internet (Cloudflare, modo de teste)**. Se não quiser servir celulares na sua rede, deixe **Na minha rede** desmarcada: com só o link, o computador não aceita nada pela rede da casa.
 4. Toque em **Ligar o servidor**. Na **primeira vez** o Verso baixa o **cloudflared**, o programa da Cloudflare que abre o link (cerca de 40 MB), e confere a soma dele antes de usar. Demora um pouco; o painel mostra quantos MB já vieram, e **Cancelar** para tudo ali mesmo — nada liga depois e o arquivo pela metade é apagado.
 5. Quando aparecer **Link no ar.**, o painel mostra o **Endereço da mesa**, com **Copiar link** e **Mostrar o QR do link**. A barra de status passa a dizer **Servindo · link na internet**, e o **ícone do Verso** na barra de menus do Mac (ou na área de notificação do Windows) ganha uma linha **Link pela internet ligado**; no Linux fica só a marca da barra de status. Um link novo pode levar até um minuto para abrir: se a página não abrir na hora, espere um pouco e tente de novo.
@@ -68,17 +68,17 @@ Quem entra vê só o que você compartilhou, com o papel que você deu. Como mes
 
 ## 3. Sentar à mesa
 
-Servir não abre a mesa na **sua** janela. Para mestrar, vá a **Esta janela na mesa** e use **Sentar à mesa** na pasta da janela (ela precisa estar servida inteira). A janela passa a ser cliente do seu próprio servidor, como dona: tem a Mesa, a campanha e os convites, como num UniVerso. A barra de status mostra **Na mesa**.
+Servir não abre a mesa na **sua** janela. Para mestrar, vá a **Esta janela na mesa** e use **Sentar à mesa** na pasta da janela. A janela passa a ser cliente do seu próprio servidor, como dona: tem a Mesa, a campanha e os convites, como num UniVerso. A barra de status mostra **Na mesa**.
 
 **Sair da mesa** (na seção, ou na marca da barra de status) volta à pasta deste computador. Se o servidor **parar** com a janela sentada, ela volta sozinha para a pasta do computador e avisa. Na próxima vez, o Verso abre a pasta do computador, nunca a mesa.
 
 ### Compartilhar uma pasta
 
-Na janela sentada à mesa, **Compartilhar…** no menu de uma pasta a entrega a uma pessoa que você convidou, com o papel **lê** ou **edita** (nunca **dona**). O clique no app vale como a sua confirmação: nenhuma senha é pedida. O compartilhamento fica de uma sessão para a outra, e você o revoga no mesmo diálogo. Uma pasta servida só em parte, e as subpastas que você escolheu nela, nunca se compartilham: são dos seus celulares. Jogadoras e celulares não compartilham nada aqui.
+Na janela sentada à mesa, **Compartilhar…** no menu de uma pasta a entrega a uma pessoa que você convidou, com o papel **lê** ou **edita** (nunca **dona**). O clique no app vale como a sua confirmação: nenhuma senha é pedida. O compartilhamento fica de uma sessão para a outra, e você o revoga no mesmo diálogo. Vale também numa pasta servida só em parte: as subpastas escolhidas são o que os seus celulares veem, e qualquer subpasta pode ser compartilhada ou virar mesa. Jogadoras e celulares não compartilham nada aqui.
 
 ### Links de leitura
 
-Em **Links de leitura**, **Ligar os links de leitura** vem **desligado**. Ligado, você cria um link no menu de uma nota ou pasta **na janela sentada à mesa**, e quem o tiver lê, sem conta e sem editar. Desligar **fecha todos os links na hora**; ligar de novo reabre os que você não revogou. Um link nunca abre uma pasta servida só em parte.
+Em **Links de leitura**, **Ligar os links de leitura** vem **desligado**. Ligado, você cria um link no menu de uma nota ou pasta **na janela sentada à mesa**, e quem o tiver lê, sem conta e sem editar. Desligar **fecha todos os links na hora**; ligar de novo reabre os que você não revogou. Um link abre só o que ele mostra, numa pasta servida inteira ou em parte.
 
 ---
 
