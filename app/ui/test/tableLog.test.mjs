@@ -50,6 +50,22 @@ test("the log keeps time order: a late arrival goes where it belongs", () => {
   assert.deepEqual(log.all().map((e) => e.by), ["Ana", "Cris", "Bia"]);
 });
 
+test("a server's entries of the same millisecond keep the order of their numbers, an older page included", () => {
+  // 130 messages said within one ms: the join holds 31 to 130, the page asked for after it 1 to 30.
+  const log = new m.TableLog();
+  const said = (n) => ({ ...mk(3, { by: `n${n}` }), id: String(n) });
+  for (let n = 31; n <= 130; n++) log.add(said(n));
+  for (let n = 1; n <= 30; n++) log.add(said(n));
+  assert.deepEqual(log.all().map((e) => e.id), Array.from({ length: 130 }, (_, i) => String(i + 1)));
+  // Out of order, and across ms: time first, then the number; 9 is past 10 as text, not as a number.
+  const mixed = new m.TableLog();
+  for (const [n, s] of [[10, 4], [12, 3], [9, 4], [11, 3], [2, 5]]) mixed.add({ ...mk(s), id: String(n) });
+  assert.deepEqual(mixed.all().map((e) => e.id), ["11", "12", "9", "10", "2"]);
+  // Not a server's number (a room's roll): after the entries of its ms, as before.
+  mixed.add(mk(3, { by: "Ana" }));
+  assert.equal(mixed.all()[2].by, "Ana");
+});
+
 test("only the last MOST_KEPT entries are kept", () => {
   const log = new m.TableLog();
   for (let i = 0; i < m.MOST_KEPT + 25; i++) log.add(m.entryOfRoll("n.md", roll({ at: new Date(at(0) + i).toISOString(), total: i }), { mine: true }));
