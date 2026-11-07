@@ -49,6 +49,50 @@ pub(crate) struct Running {
     /// folder, while its own [`start`] already holds a permit: a test that
     /// waited for two could leave every permit held and every test waiting.
     _permit: Option<tokio::sync::SemaphorePermit<'static>>,
+    /// The server's port on `::1`, held: see [`loopback`].
+    _v6: Option<V6Hold>,
+}
+
+/// The two ends of a connection on `::1`, one at a test server's port: no
+/// other socket there has the port, and a connection to it is refused at
+/// once (macOS leaves one to a socket bound and not listening unanswered).
+pub(crate) type V6Hold = (tokio::net::TcpStream, tokio::net::TcpStream);
+
+/// A listener for a test server on 127.0.0.1, its port held on `::1`
+/// while the server runs ([`V6Hold`]). The tests ask `localhost`, which a
+/// client tries on `::1` first, where nothing listens. But ephemeral ports
+/// run through one range for both families, and a port taken on 127.0.0.1
+/// is free on `::1`: when the count came round to the server's port as a
+/// client connected to it there, the client's socket got that port and
+/// connected to itself (TCP's simultaneous open), or two such clients to
+/// each other, and read its own request back: hyper's `Parse(Version)`, or
+/// `IncompleteMessage` for the one whose peer gave up first (seen in
+/// `tests_audience_review` on 2026-11-05, ports 49784 and 49786 at once).
+pub(crate) async fn loopback() -> (tokio::net::TcpListener, Option<V6Hold>) {
+    loop {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        // No IPv6 loopback here: no client socket can be on it either.
+        let Ok(peer) = tokio::net::TcpListener::bind("[::1]:0").await else {
+            return (listener, None);
+        };
+        let end = tokio::net::TcpSocket::new_v6().unwrap();
+        match end.bind(SocketAddr::from((std::net::Ipv6Addr::LOCALHOST, port))) {
+            Ok(()) => {}
+            // Taken on `::1` (or kept by Windows): another port.
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::AddrInUse | std::io::ErrorKind::PermissionDenied
+                ) =>
+            {
+                continue;
+            }
+            Err(e) => panic!("binding [::1]:{port}: {e}"),
+        }
+        let (ours, theirs) = tokio::join!(end.connect(peer.local_addr().unwrap()), peer.accept());
+        return (listener, Some((ours.unwrap(), theirs.unwrap().0)));
+    }
 }
 
 impl Running {
@@ -144,7 +188,7 @@ pub(crate) async fn start_with(edit: impl FnOnce(&mut Config)) -> Running {
     };
     // The port is known before the configuration is final, so a test may
     // ask for a public address that is this server's own: "@self".
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let (listener, v6) = loopback().await;
     edit(&mut config);
     let own = listener.local_addr().unwrap().port();
     match config.public_url.as_deref() {
@@ -179,6 +223,7 @@ pub(crate) async fn start_with(edit: impl FnOnce(&mut Config)) -> Running {
         _dirs: (data, folders),
         _stop: tx,
         _permit: Some(permit),
+        _v6: v6,
     }
 }
 
@@ -962,7 +1007,7 @@ fn the_server_serves_its_own_tls() {
             tls::acceptor(&dir.path().join("cert.pem"), &dir.path().join("key.pem")).unwrap();
         assert!(tls::acceptor(&dir.path().join("key.pem"), &dir.path().join("key.pem")).is_err());
         let r = start_with(|c| c.tls = Some(("/c".into(), "/k".into()))).await;
-        let tcp = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let (tcp, _v6) = loopback().await;
         let port = tcp.local_addr().unwrap().port();
         let listener = tls::TlsListener::new(tcp, acceptor, Arc::clone(&r.server.slots)).unwrap();
         let server = Arc::clone(&r.server);
@@ -1194,7 +1239,7 @@ fn without_web_a_browser_gets_no_window_and_the_app_still_connects() {
             .db
             .create_session(&admin.id, "device", "app", "127.0.0.1")
             .unwrap();
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let (listener, v6) = loopback().await;
         let port = listener.local_addr().unwrap().port();
         let s = Arc::clone(&off);
         tokio::spawn(async move {
@@ -1206,6 +1251,7 @@ fn without_web_a_browser_gets_no_window_and_the_app_still_connects() {
             _dirs: (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap()),
             _stop: tokio::sync::oneshot::channel().0,
             _permit: None,
+            _v6: v6,
         };
         let (_, st) = get(&probe, "/api/state", None).await;
         assert_eq!(st["web"], false);
