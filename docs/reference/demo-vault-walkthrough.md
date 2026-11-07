@@ -310,8 +310,11 @@ point 13).
     headings keep their places, the paragraph under the pointer has no box
     inside the selection. The caret clicked into a heading, or onto a `---`
     divider, moves nothing either; the caret on a blank line makes it a
-    full line. Level: H; E: `selection-spacing.spec.mjs`. Caught: a select
-    all made a 400 px note 492 px tall (2026-11-07).
+    full line. The selection is one even shade, light and dark, over gaps,
+    spaces and line ends, and starts where the headings' text does though
+    the first line is a quote; over a code block it shows on the code.
+    Level: H; E: `selection-spacing.spec.mjs`. Caught: a select all made a
+    400 px note 492 px tall, and painted two shades in WebKit (2026-11-07).
 
 ## 4. Organizing: properties, bases, daily notes
 

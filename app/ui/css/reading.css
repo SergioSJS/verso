@@ -316,7 +316,22 @@ html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
 .editor.live .cm-activeLineGutter {
   background: none !important;
 }
-.editor .cm-selectionBackground, .editor .cm-editor ::selection { background: var(--selection) !important; }
+/* One selection layer in the editor: CodeMirror's drawn one, which covers
+   whole lines, gaps and line ends alike. The browser's own selection painted
+   over it gave a second shade (WebKit paints ::selection darker than the
+   colour asked for), in strips at gaps, spaces and line ends; it is
+   transparent on the lines. Lines and spans that paint their own background
+   (code, callouts, inline code, highlights) hide the drawn layer under them,
+   so there the browser's selection is the one that shows. Reading and the
+   rest of the window keep base.css's ::selection. The rectangles are
+   src/editor/evenSelection.ts's: CodeMirror's own, in its layer, are hidden
+   (they start where the first line on screen is indented), its iOS
+   selection handles kept. */
+.editor .cm-selectionBackground { background: var(--selection) !important; }
+.editor .cm-selectionLayer .cm-selectionBackground { display: none; }
+.editor .cm-editor .cm-line::selection, .editor .cm-editor .cm-line ::selection { background: transparent !important; }
+.editor .cm-editor :is(.cm-lp-fence, .cm-lp-callout, .cm-lp-code, .cm-lp-mark)::selection,
+.editor .cm-editor :is(.cm-lp-fence, .cm-lp-callout, .cm-lp-code, .cm-lp-mark) ::selection { background: var(--selection) !important; }
 .editor.source .cm-scroller { font-family: var(--mono); font-size: calc(.9rem * var(--note-scale, 1)); line-height: 1.6; }
 .editor.source .cm-gutters { display: flex; background: none; border: 0; color: var(--ink-3); font-size: .78rem; }
 .editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2) !important; }
