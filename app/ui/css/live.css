@@ -1,5 +1,11 @@
 /* Live preview marks */
 .editor .cm-line.cm-lp-h { font-family: var(--heading-font, var(--display)); color: var(--heading-color, var(--ink)); font-weight: 600; line-height: 1.2; padding-top: .8em; letter-spacing: -.015em; font-variation-settings: "opsz" 48, "SOFT" 30; }
+/* The empty image CodeMirror puts beside the hidden `#` (its widget
+   buffer) sits at text-top by default and sticks out of a heading's 1.2
+   line, a pixel taller than the same line with its `#` shown under the
+   caret or a selection. At the line's top (1em in a 1.2em line) it stays
+   inside: revealing a heading moves nothing. */
+.editor .cm-line.cm-lp-h .cm-widgetBuffer { vertical-align: top; }
 .editor .cm-line.cm-lp-h1 { font-size: 1.65em; }
 .editor .cm-line.cm-lp-h2 { font-size: 1.35em; }
 .editor .cm-line.cm-lp-h3 { font-size: 1.12em; }
@@ -255,7 +261,8 @@
 
 /* A blank line between two blocks (ADR 0061, revised 2026-10-22): a thin gap
    while the caret is elsewhere (it is full height under the caret, which is
-   not decorated), and a further blank line of the same run at 0.6 of a line.
+   not decorated; a selection over it leaves it thin, revised 2026-11-07),
+   and a further blank line of the same run at 0.6 of a line.
    The editor's line is 1.7: the gap is 0.4 of it, the extra one 0.6. */
 .editor .cm-line.cm-lp-gap { line-height: .68; overflow: hidden; }
 .editor .cm-line.cm-lp-gap-extra { line-height: 1.02; overflow: hidden; }
@@ -266,6 +273,8 @@
   text-align: center;
   padding: .2em 0;
 }
+/* The rule's `---` under the caret or a selection: the drawn rule's height. */
+.editor .cm-line.cm-lp-hr-src { padding: .2em 0; }
 .editor .cm-line.cm-lp-hr-line::before {
   content: "";
   position: absolute;

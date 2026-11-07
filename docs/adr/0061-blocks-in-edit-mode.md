@@ -299,6 +299,18 @@ they are drawing, and Source mode is unchanged.
    clicks to go on writing). The block model and the handles do not change: a
    block is still bounded by its blank line, and the handles read the
    editor's own geometry.
+
+   *Revised 2026-11-07*, on the maintainer's report in session: "um bug
+   irritante no modo de edição ao selecionar texto, ele aumenta os espaços"
+   (an annoying bug in Edit mode: selecting text makes the spaces grow). A
+   ⌘A or a drag over the note made every gap inside the selection a full
+   line, and the note jumped about a quarter taller. Only the caret makes a
+   gap a full line now: under a selection it stays thin, as it has no mark
+   to show and what is typed replaces the selection. Selecting never
+   changes the vertical rhythm: a line the selection or the caret reveals
+   keeps its rendered height (a heading with its `#`, a rule's `---`), and
+   the hover outline of D6 is not drawn on a block the selection already
+   covers.
 2. **Reading: space comes from the blocks' margins only.** A blank line in
    the source never adds space — no empty paragraph, no `<br>`, no wrapper
    (checked by machine: five blank lines and one give the same distance). The
