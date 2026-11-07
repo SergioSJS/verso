@@ -68,7 +68,14 @@ pub(crate) fn start<R: tauri::Runtime>(
     tauri::async_runtime::spawn(async move {
         // A window seated at the table served from this folder holds it
         // first, so that the sync goes on while it sits (ADR 0117 D13 Q3).
-        crate::local_server::seat::follow(&app, &task.key).await;
+        // A hold that cannot open the folder is the sync's error, said in
+        // every window of the folder until it is tried again.
+        while let Err(why) = crate::local_server::seat::follow(&app, &task.key).await {
+            task.hold_failed(&ctx, &why);
+            if !task.woken().await {
+                break;
+            }
+        }
         sync::run(ctx, Arc::clone(&task)).await;
         {
             let state = app.state::<App>();
@@ -78,14 +85,27 @@ pub(crate) fn start<R: tauri::Runtime>(
             }
         }
         // Turned off, by the person or a revoked share: a seat lets go.
-        crate::local_server::seat::follow(&app, &task.key).await;
+        // Still on (no window shows the folder), a hold that cannot open
+        // it has no sync left to say it in: the log does.
+        if let Err(why) = crate::local_server::seat::follow(&app, &task.key).await {
+            log::write(
+                "ERROR",
+                "host",
+                &format!("the seat could not hold its folder for its sync: {why}"),
+            );
+        }
     });
     s
 }
 
 /// A folder just shown in a window: its sync starts if it syncs.
 pub(crate) fn resume<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) {
-    if running(app, key).is_some() {
+    if let Some(s) = running(app, key) {
+        // Waiting for a seat's hold that could not open the folder: shown
+        // here, the folder is open again, and it is tried at once.
+        if s.holding() {
+            s.poke();
+        }
         return;
     }
     let config = app.state::<App>().service.config().map(Path::to_path_buf);

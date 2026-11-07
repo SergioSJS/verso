@@ -96,6 +96,7 @@ const pt = {
     table_closed: "a mesa está fechada pelo mestre: a sincronização volta sozinha quando ela abrir",
     version: "o servidor está numa versão diferente deste app: atualize o que estiver atrás",
     folder_gone: "a pasta do servidor sumiu, ou esta conta não tem mais acesso a ela",
+    held: "a pasta deste computador não pôde ser aberta para seguir sincronizando enquanto você está à mesa: tente de novo",
     failed: "algo deu errado; o log do app diz o quê",
   } as Record<string, string>,
   /** The `version` problem with what each side runs. */
@@ -193,6 +194,7 @@ const en: typeof pt = {
     table_closed: "the table is closed by the game master: sync resumes by itself when it opens",
     version: "the server runs another version than this app: update the one that is behind",
     folder_gone: "the server's folder is gone, or this account no longer reaches it",
+    held: "this computer's folder could not be opened to go on syncing while you sit at the table: try again",
     failed: "something went wrong; the app's log says what",
   },
   versions: (v: SyncVersions): string =>

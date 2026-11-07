@@ -398,7 +398,12 @@ ticked in Settings, whole or in part) by D2. **Gone:** 0096 item 11 by D4.
   folder, `key_of`) — while for its notes, table and access the window's
   folder does not sync: those are the table's server's (`sync_rights` and
   the live notes keep refusing a seated window; the window's
-  `verso:sync-state` says off). For a served
+  `verso:sync-state` says off). A hold that cannot open the folder
+  again (moved, its drive gone) is the sync's error, problem `held`, said
+  in every window of the folder — the seated one too — with the reason in
+  its language and **Sync now** to try again; the folder shown in a window
+  again tries it at once, and the log keeps the line (2026-11-07, the rule
+  that every act gives visible feedback; `sync/hold.rs`). For a served
   folder that also syncs with a UniVerso, a table made in its window while
   this app serves it is this computer's (D4.1: the host is the window the
   table is made in); the table's dialog says where it is hosted.

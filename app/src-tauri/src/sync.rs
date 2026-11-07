@@ -24,6 +24,7 @@ use super::*;
 use crate::{cloud, dns::SendRetrying};
 
 mod cloud_only;
+mod hold;
 pub(crate) mod live;
 mod seat;
 mod transfer;

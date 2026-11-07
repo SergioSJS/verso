@@ -427,3 +427,40 @@ test("a seated window shows its folder's sync and answers it: the bar, a pause b
   // sync: they are the table's server's.
   expect(await page.evaluate(() => window.__states.at(-1))).toBe(false);
 });
+
+test("a seated window whose folder could not be held open says its sync stopped, and Sync now tries again", async ({ app, page }) => {
+  // Every act gives visible feedback: the seat holds this computer's folder
+  // open for its sync while the window sits (ADR 0117 D13 Q3); when it
+  // cannot open it, the sync's error says so, in the seated window too.
+  await app.open();
+  const synced = { key: "harness", on: true, server: "https://notas.casa", folder: "f1", folder_name: "Campanha", role: "owner", state: "synced", sending: 0, receiving: 0, deletions: null, conflicts: [], refused: [], cloud_only: [], log: [], last: "2026-11-06T12:00:00Z", message: null, problem: null, versions: null, revoked: null, cloud: null };
+  await page.evaluate((st) => (window.__harness.core.sync = st), synced);
+  await app.emit("sync-status", synced);
+  const bar = page.locator("#sync-state");
+  await expect(bar).toHaveText("Sincronizada");
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await expect(page.locator("#local-mark")).toBeVisible();
+  await app.key("Escape");
+  await page.locator("#tree-root").dispatchEvent("contextmenu", { clientX: 40, clientY: 40 });
+  await page.getByRole("menuitem", { name: "Tornar a pasta toda uma mesa" }).click();
+  await expect(page.getByRole("dialog", { name: /^Mesa da pasta/ })).toBeVisible();
+  await expect.poll(() => app.calls("local_server_sit_at_table")).toHaveLength(1);
+  await app.key("Escape");
+  await expect(bar).toHaveText("Sincronizada");
+  // The hold could not open the folder: the sync stopped, and says why.
+  const held = { ...synced, state: "error", message: "the seat could not hold its folder for its sync: no folder of this computer by that key", problem: "held" };
+  await page.evaluate((st) => (window.__harness.core.sync = st), held);
+  await app.emit("sync-status", held);
+  const why = "a pasta deste computador não pôde ser aberta para seguir sincronizando enquanto você está à mesa: tente de novo";
+  await expect(bar).toHaveText(`Erro: ${why}`);
+  await expect(bar).toHaveClass(/warn/);
+  // The bar opens the section, which says it and offers to try again.
+  await bar.click();
+  await expect(page.locator(".sync-problem")).toHaveText(why.charAt(0).toUpperCase() + why.slice(1));
+  await page.getByRole("button", { name: "Sincronizar agora" }).click();
+  await expect.poll(() => app.calls("folder_sync_now").then((c) => c.length)).toBe(1);
+});

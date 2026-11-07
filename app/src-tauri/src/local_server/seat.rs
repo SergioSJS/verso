@@ -115,12 +115,17 @@ pub(crate) fn seated_at(state: &App, key: &str) -> bool {
 /// window seated at the table served from that folder holds it while it
 /// syncs and lets it go once it does not (2026-11-06: the hold follows the
 /// sync from any window, not only as it was when the window sat). A
-/// folder no window shows here any more is opened again for the hold.
-pub(crate) async fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &str) {
+/// folder no window shows here any more is opened again for the hold; why
+/// it could not be is the `Err`, the sync's to say (`Syncer::hold_failed`).
+pub(crate) async fn follow<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    key: &str,
+) -> Result<(), String> {
     let state = app.state::<App>();
     let seated = seated_labels(&state, key);
     let config = state.service.config().map(Path::to_path_buf);
     let syncs = crate::sync::synced(config.as_deref(), key).is_some();
+    let mut failed = Ok(());
     for label in seated {
         let holder = held(&label);
         if !syncs {
@@ -143,21 +148,11 @@ pub(crate) async fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>, key: &s
                     tauri::async_runtime::spawn_blocking(move || service.catch_up(&catch_up));
                 }
             }
-            Ok(Err(e)) => log::write(
-                "ERROR",
-                "host",
-                &format!(
-                    "the seat could not hold its folder for its sync: {}",
-                    e.message
-                ),
-            ),
-            Err(e) => log::write(
-                "ERROR",
-                "host",
-                &format!("the seat could not hold its folder for its sync: {e}"),
-            ),
+            Ok(Err(e)) => failed = Err(e.message),
+            Err(e) => failed = Err(e.to_string()),
         }
     }
+    failed
 }
 
 /// The window's connection through the seat's door, in memory, its

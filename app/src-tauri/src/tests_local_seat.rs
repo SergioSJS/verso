@@ -559,3 +559,78 @@ fn the_seats_hold_follows_the_sync_turned_on_or_off_while_seated() {
         text(&other, "Depois.md").is_some()
     });
 }
+
+/// A seat's hold that cannot open its folder again is not silent (the rule
+/// that every act gives visible feedback): the sync turned on at the table,
+/// its folder closed here and not to be opened, is an error every window
+/// of the folder hears — the seated one asking its sync, and the event —
+/// as `held`, and Sync now tries the hold again once the folder opens.
+#[test]
+fn a_seats_hold_that_cannot_open_its_folder_says_so_and_is_tried_again() {
+    use super::tests_sync::{device, sync, text};
+    let (universo, s, key) = signed_in();
+    let service = || Arc::clone(&s.app.state::<App>().service);
+    let heard: Told = Arc::default();
+    {
+        let heard = Arc::clone(&heard);
+        s.app.listen_any("sync-status", move |e| {
+            let payload = serde_json::from_str(e.payload()).unwrap_or(Value::Null);
+            lock(&heard).push(("sync-status".to_owned(), payload));
+        });
+    }
+    call(&s.webview, "local_server_sit_at_table", json!({})).unwrap();
+    assert!(service().clients_of(&key).is_empty());
+    // The folder cannot be opened again by its key: the sidecar beside its
+    // index, which says which folder the key is, reads as no folder.
+    let index = service().config().unwrap().join("index");
+    let sidecar = format!("{key}.json");
+    let kept = {
+        let mut root = verso_fs::Root::open(&index, Vec::new()).unwrap();
+        let handle = root.handle(Path::new(&sidecar)).unwrap();
+        root.read(handle).unwrap().0
+    };
+    let put = |bytes: &[u8]| {
+        use std::io::Write;
+        let mut f = tempfile::NamedTempFile::new_in(&index).unwrap();
+        f.write_all(bytes).unwrap();
+        f.persist(index.join(&sidecar)).unwrap();
+    };
+    put(b"{}");
+    call(
+        &s.webview,
+        "folder_sync_start",
+        json!({ "url": universo.url, "folder": universo.folder, "name": null }),
+    )
+    .unwrap();
+    let held = |st: &Value| st["key"] == key && st["state"] == "error" && st["problem"] == "held";
+    waited("the seated window's sync says the hold failed", || {
+        held(&call(&s.webview, "folder_sync", json!({})).unwrap())
+    });
+    assert!(
+        lock(&heard).iter().any(|(_, st)| held(st)),
+        "the windows were not told: {:?}",
+        lock(&heard)
+    );
+    let st = call(&s.webview, "folder_sync", json!({})).unwrap();
+    assert!(
+        st["message"]
+            .as_str()
+            .is_some_and(|m| m.starts_with("the seat could not hold its folder")),
+        "{st}"
+    );
+    assert!(service().clients_of(&key).is_empty());
+
+    // Openable again, Sync now tries the hold: it holds, and the sync runs.
+    put(&kept);
+    call(&s.webview, "folder_sync_now", json!({})).unwrap();
+    waited("the seat held the folder once asked again", || {
+        service().clients_of(&key) == vec!["seat:main".to_owned()]
+    });
+    let other = device(&universo, &universo.owner, &[]);
+    waited("the folder reached the UniVerso", || {
+        sync(&other);
+        text(&other, "Sessao.md").is_some()
+    });
+    let st = call(&s.webview, "folder_sync", json!({})).unwrap();
+    assert_ne!(st["problem"], "held", "{st}");
+}
