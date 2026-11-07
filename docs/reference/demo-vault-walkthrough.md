@@ -303,6 +303,15 @@ point 13).
     it is no encryption. A note with no secret block offers no toggle.
     Opening and toggling write nothing. Level: H; E: `secret.spec.mjs`;
     U: `test/secret.test.mjs`.
+17. Note 11 in Editar, dark theme ([ADR 0061](../adr/0061-blocks-in-edit-mode.md)
+    item 9, revised 2026-11-07): ⌘A, then a drag from the top to the end:
+    every line shows its Markdown (`>`, `#`, `**`, `[[ ]]`) and nothing
+    moves up or down — the blank lines between blocks stay thin gaps, the
+    headings keep their places, the paragraph under the pointer has no box
+    inside the selection. The caret clicked into a heading, or onto a `---`
+    divider, moves nothing either; the caret on a blank line makes it a
+    full line. Level: H; E: `selection-spacing.spec.mjs`. Caught: a select
+    all made a 400 px note 492 px tall (2026-11-07).
 
 ## 4. Organizing: properties, bases, daily notes
 
