@@ -18,6 +18,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { commands } from "./bindings";
 import { h } from "./dom";
+import { host, loadCan } from "./can";
 import { MAC } from "./platform";
 import { t } from "./strings";
 
@@ -211,8 +212,17 @@ function controls(): HTMLElement {
   return bar;
 }
 
-/** Set the window's frame up, once, at start. */
+/** Set the window's frame up, once, at start. In the app, once the host
+ *  has said what it is: a phone's window is the system's whole screen
+ *  (`Host::Mobile`, the Android app), with nothing to draw. */
 export function installFrame(): void {
+  if (!isTauri()) return setUp();
+  void loadCan().then(() => {
+    if (host() !== "mobile") setUp();
+  });
+}
+
+function setUp(): void {
   frame = which();
   if (!frame) return;
   document.body.classList.add("framed", `framed-${frame}`);

@@ -148,7 +148,10 @@ fn cli_state_now() -> CliState {
             something_at(&dest),
         )
     }
-    #[cfg(not(any(windows, target_os = "linux")))]
+    // A phone has no command line to link (the Android app, Phase 0).
+    #[cfg(target_os = "android")]
+    return CliState::Unbundled;
+    #[cfg(not(any(windows, target_os = "linux", target_os = "android")))]
     {
         let Some(ours) = bundled_cli() else {
             return CliState::Unbundled;

@@ -3,4 +3,5 @@
 /src/main/assets/tauri.conf.json
 /tauri.build.gradle.kts
 /proguard-tauri.pro
-/tauri.properties
+/tauri.properties# The bundle resources Tauri copies at each build (ui-web).
+/src/main/assets/

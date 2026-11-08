@@ -34,13 +34,15 @@ use verso_contract::{
     CollabOracle, CollabRoll, CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind,
     FileEntry, Focus, FocusesSummary, FolderBlocks, FolderChanged, FolderDataFile, FolderDataKind,
     FolderDataList, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
-    Host, IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus,
-    Mentions, MissingLink, MovedEntries, NoteText, ObsidianPeriodic, Opened, OracleAsk, OracleDraw,
-    Renamed, ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
+    IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus, Mentions,
+    MissingLink, MovedEntries, NoteText, ObsidianPeriodic, Opened, OracleAsk, OracleDraw, Renamed,
+    ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
+#[cfg(target_os = "android")]
+mod android;
 mod audio_share;
 mod boards;
 mod campaign;
@@ -60,6 +62,7 @@ mod log;
 mod loose;
 mod menu;
 mod menu_spec;
+mod mobile;
 mod notes;
 mod protocol;
 mod pty;
@@ -390,19 +393,9 @@ async fn pick_folder<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Option<FolderInfo>, ContractError> {
     may_switch(&app, &window)?;
-    let (tx, mut rx) = tauri::async_runtime::channel(1);
-    let parent = window.clone();
-    app.dialog()
-        .file()
-        .set_parent(&parent)
-        .pick_folder(move |picked| {
-            let _ = tx.try_send(picked);
-        });
-    let picked = rx.recv().await.flatten();
-    let Some(picked) = picked else {
+    let Some(path) = mobile::pick_folder(&app, &window).await? else {
         return Ok(None);
     };
-    let path = picked.into_path().map_err(|e| failed(e.to_string()))?;
     install(&app, &window, move |config| Workspace::open(&path, config))
         .await
         .map(Some)
@@ -487,7 +480,7 @@ fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), Contra
     // The single instance let go first: a restart does not run the plugins'
     // exit, and the new process, finding the old one still holding it,
     // would hand itself over and exit — and then the old one exits too.
-    tauri_plugin_single_instance::destroy(&app);
+    mobile::release_instance(&app);
     session::quitting(&app);
     app.restart();
 }
@@ -622,31 +615,11 @@ fn capabilities<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Capabilities, ContractError> {
     let live = live_latency(&app, window.label());
-    let mut can = vec![
-        Can::Write,
-        Can::Reveal,
-        Can::CopyPath,
-        Can::Windows,
-        Can::WebViews,
-        Can::Agents,
-        Can::Updates,
-        Can::Devtools,
-        Can::LocalFolders,
-    ];
-    if live.is_some() {
-        can.push(Can::Collab);
-    }
     // A window of files without a folder has no index, no tree, no bin, no
     // sync (ADR 0114 items 18 and 25); every other window shows a folder.
-    if app.state::<App>().service.is_loose(window.label()) {
-        can.retain(|c| !matches!(c, Can::Reveal | Can::CopyPath));
-    } else {
-        can.extend_from_slice(Can::FOLDER);
-        // A shell of this computer (ADR 0115 item 6): never in a window of
-        // files opened without their folder (ADR 0114 item 9).
-        can.push(Can::Terminal);
-        // Capture is the desktop host's alone (ADR 0116 item 27).
-        can.push(Can::AudioShare);
+    let mut can = mobile::local_can(app.state::<App>().service.is_loose(window.label()));
+    if live.is_some() {
+        can.push(Can::Collab);
     }
     // A folder of this computer alone is the person's own: no seat to tell.
     // A synced one carries the server's answer for it (ADR 0113 S8), the
@@ -655,7 +628,7 @@ fn capabilities<R: tauri::Runtime>(
         .and_then(|s| s.seat())
         .and_then(|v| serde_json::from_value(v).ok());
     Ok(Capabilities {
-        host: Host::Desktop,
+        host: mobile::HOST,
         can,
         latency_ms: live,
         access,
@@ -1123,6 +1096,15 @@ impl<R: tauri::Runtime> Drop for Opening<R> {
     }
 }
 
+/// The app on a phone: Tauri's entry, no command line.
+#[cfg(mobile)]
+#[tauri::mobile_entry_point]
+pub fn run_mobile() {
+    if let Err(e) = run(None) {
+        log::write("ERROR", "host", &format!("the app stopped: {e}"));
+    }
+}
+
 /// Open the window and serve it until it closes.
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     // Before any TLS: the sync's WebSocket, the server calls, the updater.
@@ -1131,8 +1113,7 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     let initial_folder = initial_folder.map(|p| std::path::absolute(&p).unwrap_or(p));
     // First of the plugins, as the plugin asks: a second launch hands its
     // folder over and exits before anything else of it starts.
-    let builder =
-        tauri::Builder::default().plugin(tauri_plugin_single_instance::init(second_launch));
+    let builder = mobile::builder();
     // A web process that dies leaves the Linux window white for good: watch
     // each webview once, from its first page load (src/recover.rs).
     #[cfg(target_os = "linux")]
@@ -1227,6 +1208,8 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             }
         }
     });
+    // An Android app learns where its storage is in `setup` (android.rs).
+    #[cfg(not(target_os = "android"))]
     log::open();
     // "This app is a server" says its life in the app's own log (ADR 0096
     // item 14): the server crate's lines, which go to standard error
@@ -1245,6 +1228,8 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     );
     builder
         .setup(|app| {
+            #[cfg(target_os = "android")]
+            android::setup(app);
             // Serving to a phone is off at every start unless the person
             // asked it to keep on (ADR 0096 item 1).
             local_server::auto_start(app.handle());
@@ -1281,7 +1266,9 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             app.state::<App>()
                 .started
                 .store(true, std::sync::atomic::Ordering::SeqCst);
-            // The folder windows the last session had open (ADR 0065).
+            // The folder windows the last session had open (ADR 0065); a
+            // phone has one window, on its own folder.
+            #[cfg(desktop)]
             session::restore(app.handle());
             Ok(())
         })

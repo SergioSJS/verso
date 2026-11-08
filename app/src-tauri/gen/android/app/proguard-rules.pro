@@ -19,3 +19,5 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# The Kotlin half of the certificate check, reached only through JNI.
+-keep, includedescriptorclasses class org.rustls.platformverifier.** { *; }

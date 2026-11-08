@@ -855,8 +855,15 @@ fn binary_going<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     going: &fetch::Going<'_>,
 ) -> Result<PathBuf, String> {
-    let pin = fetch::pin_here()
-        .ok_or_else(|| "no cloudflared is published for this system".to_owned())?;
+    // No `cloudflared` is fetched on a phone: the Android app will carry
+    // its own (Phase 1); until then the link stays off there, in words.
+    let pin = fetch::pin_here().ok_or_else(|| {
+        if cfg!(target_os = "android") {
+            "the internet link is not available on the phone yet".to_owned()
+        } else {
+            "no cloudflared is published for this system".to_owned()
+        }
+    })?;
     let (path, fresh) = fetch::ensure_going(&dir(app)?, pin, &mut fetch::download_sized, going)?;
     if fresh {
         run::version_check(&path, fetch::VERSION)?;

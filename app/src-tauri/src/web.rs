@@ -132,11 +132,11 @@ pub(crate) fn destroy_web_view<R: tauri::Runtime>(wv: tauri::Webview<R>) {
     crate::log::write("INFO", "host", &format!("web page closed: {}", wv.label()));
     let _ = wv.with_webview(|pw| crate::audio_share::suspend_page_media(&pw));
     let _ = wv.eval(SILENCE);
-    let _ = wv.hide();
+    let _ = crate::mobile::show_view(&wv, false);
     web_clip::release(&wv);
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(UNLOAD_MS));
-        if let Err(e) = wv.close() {
+        if let Err(e) = crate::mobile::close_view(&wv) {
             crate::log::write(
                 "WARN",
                 "host",
@@ -328,19 +328,19 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
     let label = next_web_label();
     // The window that asks hosts the page: the main one, or a note's own.
     let chrome = chrome_offset(&window);
-    let wv = window
-        .add_child(
-            pages_profile(
-                tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url)),
-                &window,
-            )
-            .user_agent(WEB_USER_AGENT)
-            .on_navigation(web_only)
-            .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
-            tauri::LogicalPosition::new(visible.x, visible.y + chrome),
-            tauri::LogicalSize::new(visible.w.max(1.0), visible.h.max(1.0)),
+    let wv = crate::mobile::add_view(
+        &window,
+        pages_profile(
+            tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url)),
+            &window,
         )
-        .map_err(|e| failed(e.to_string()))?;
+        .user_agent(WEB_USER_AGENT)
+        .on_navigation(web_only)
+        .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
+        tauri::LogicalPosition::new(visible.x, visible.y + chrome),
+        tauri::LogicalSize::new(visible.w.max(1.0), visible.h.max(1.0)),
+    )
+    .map_err(|e| failed(e.to_string()))?;
     lock(&state.web_views).insert(label.clone(), window.label().to_owned());
     crate::log::write(
         "INFO",
@@ -424,7 +424,7 @@ pub(crate) fn web_visible<R: tauri::Runtime>(
 ) -> Result<(), ContractError> {
     let wv = own_web_view(&window, &state, &label)?;
     web_clip::show(&wv, visible);
-    (if visible { wv.show() } else { wv.hide() }).map_err(|e| failed(e.to_string()))
+    crate::mobile::show_view(&wv, visible).map_err(|e| failed(e.to_string()))
 }
 
 /// Close a web page's view (its tab closed).

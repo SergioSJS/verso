@@ -142,8 +142,7 @@ pub(crate) fn file_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, path: Pa
         );
         let _ = app.emit("open-note", (label.clone(), relative));
         if let Some(w) = app.get_window(&label) {
-            let _ = w.unminimize();
-            let _ = w.set_focus();
+            crate::mobile::raise(&w);
         }
         return;
     }
@@ -161,8 +160,7 @@ pub(crate) fn file_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, path: Pa
         Some(label) => {
             *lock(&state.loose_window) = Some(label.clone());
             if let Some(w) = app.get_window(&label) {
-                let _ = w.unminimize();
-                let _ = w.set_focus();
+                crate::mobile::raise(&w);
             }
             let _ = app.emit("file-handed", label);
         }
@@ -297,7 +295,7 @@ pub(crate) fn pick_file_and_hand<R: tauri::Runtime>(
         .file()
         .add_filter("Markdown, JSON, YAML, TOML, XML, CSV", &PICKER_EXTENSIONS);
     if let Some(parent) = parent {
-        dialog = dialog.set_parent(parent);
+        dialog = crate::mobile::dialog_over(dialog, parent);
     }
     dialog.pick_file(move |picked| {
         if let Some(path) = picked.and_then(|p| p.into_path().ok()) {
@@ -313,6 +311,7 @@ pub(crate) fn pick_file_and_hand<R: tauri::Runtime>(
 /// folder into a window of its own (`folder_handed`, ADR 0065), or, with
 /// none, brings a window forward. The second process exits; its arguments
 /// are its command line, a relative folder read from its own directory.
+#[cfg(desktop)]
 pub(crate) fn second_launch<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     argv: Vec<String>,
@@ -339,8 +338,7 @@ pub(crate) fn second_launch<R: tauri::Runtime>(
                     .map(|(_, w)| w)
             });
             if let Some(w) = window {
-                let _ = w.unminimize();
-                let _ = w.set_focus();
+                crate::mobile::raise(w);
             }
         }
     }
@@ -405,8 +403,7 @@ pub(crate) fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Ha
     if let Some(label) = window_showing(app, &key)
         && let Some(w) = app.get_window(&label)
     {
-        let _ = w.unminimize();
-        let _ = w.set_focus();
+        crate::mobile::raise(&w);
         return;
     }
     // Folders wait in line: two handed before a window took the first
@@ -603,9 +600,7 @@ pub(crate) async fn loose_save_copy<R: tauri::Runtime>(
     let (tx, mut rx) = tauri::async_runtime::channel(1);
     let parent = window.clone();
     let (filter_name, filter_exts) = copy_filter(&name);
-    app.dialog()
-        .file()
-        .set_parent(&parent)
+    crate::mobile::dialog_over(app.dialog().file(), &parent)
         .set_file_name(&name)
         .add_filter(filter_name, filter_exts)
         .save_file(move |picked| {

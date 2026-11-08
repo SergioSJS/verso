@@ -262,10 +262,16 @@ impl std::error::Error for CoreError {}
 /// sidecar, the log — is this machine's (ADR 0070), so it goes in the
 /// local profile, not in `%APPDATA%`, the roaming one a company network
 /// copies between machines; `HOME` is usually unset there.
+///
+/// A host whose system names no such place in the environment — an Android
+/// app, whose private storage only the system's API tells — names it once
+/// with [`set_host_config_dir`]; `$VERSO_CONFIG_DIR` still wins.
 pub fn config_dir() -> Result<PathBuf, CoreError> {
     let get = |name: &str| std::env::var_os(name).filter(|v| !v.is_empty());
+    let verso = get("VERSO_CONFIG_DIR")
+        .or_else(|| HOST_CONFIG_DIR.get().map(|d| d.clone().into_os_string()));
     config_dir_from(
-        get("VERSO_CONFIG_DIR").as_deref(),
+        verso.as_deref(),
         get("XDG_CONFIG_HOME").as_deref(),
         if cfg!(windows) {
             get("LOCALAPPDATA")
@@ -277,6 +283,16 @@ pub fn config_dir() -> Result<PathBuf, CoreError> {
         cfg!(target_os = "macos"),
     )
     .ok_or(CoreError::NoConfigDir)
+}
+
+/// The host's own configuration directory, when it named one.
+static HOST_CONFIG_DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// Name the configuration directory for a host the environment says
+/// nothing of (the Android app's private storage), before anything reads
+/// it. Once: `false` when one was named already, which stays.
+pub fn set_host_config_dir(dir: PathBuf) -> bool {
+    HOST_CONFIG_DIR.set(dir).is_ok()
 }
 
 /// [`config_dir`] as a pure function of its inputs, for tests. `None`

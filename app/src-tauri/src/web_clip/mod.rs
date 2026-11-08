@@ -94,13 +94,11 @@ fn shift(chrome: f64) -> f64 {
 /// The view cut to the visible part, its page not moved: the place
 /// before the containers, and the fallback when one cannot be built.
 fn clamp<R: tauri::Runtime>(wv: &tauri::Webview<R>, visible: Rect) -> tauri::Result<()> {
-    wv.set_position(tauri::LogicalPosition::new(visible.x, visible.y))
-        .and_then(|()| {
-            wv.set_size(tauri::LogicalSize::new(
-                visible.w.max(1.0),
-                visible.h.max(1.0),
-            ))
-        })
+    crate::mobile::place_view(
+        wv,
+        tauri::LogicalPosition::new(visible.x, visible.y),
+        tauri::LogicalSize::new(visible.w.max(1.0), visible.h.max(1.0)),
+    )
 }
 
 /// Put a web view's page at `slot`, drawn only inside `visible` (logical

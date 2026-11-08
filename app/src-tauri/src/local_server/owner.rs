@@ -62,7 +62,7 @@ fn full_name() -> Option<String> {
     gecos_name(&String::from_utf8_lossy(&out.stdout))
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "android"))]
 fn full_name() -> Option<String> {
     None
 }

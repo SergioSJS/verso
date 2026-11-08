@@ -10,6 +10,9 @@ publish.workspace = true
 
 [lib]
 name = "verso_app"
+# The Android app loads the app as a shared library (`cdylib`, Phase 0 of
+# the Android app); the desktop's binary and tests link the `rlib`.
+crate-type = ["cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -173,6 +176,19 @@ block2 = "0.6"
 # through tauri/wry; this only names it directly. It replaces nothing of ours.
 objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "WKWebView"] }
 libc = "0.2"
+
+[target.'cfg(target_os = "android")'.dependencies]
+# The Android app (Phase 0): its own folder is made in its private storage
+# the way a server makes one (`verso_fs::server::make_folder`, src/android.rs)
+# — the workspace's crate, a dev-dependency here already.
+verso-fs = { path = "../../crates/verso-fs" }
+# The system's certificate check for TLS needs the app's context once
+# (src/android.rs `init_tls`): reqwest's verifier (MIT OR Apache-2.0, in the
+# tree already through reqwest) and the `jni` it speaks (0.22, MIT OR
+# Apache-2.0, in the tree already through it), whose `jni_mangle` names the
+# activity's native method. They replace nothing of ours.
+rustls-platform-verifier = "0.7"
+jni = "0.22"
 
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window
