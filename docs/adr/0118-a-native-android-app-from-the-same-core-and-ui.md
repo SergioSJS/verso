@@ -155,11 +155,23 @@ not shown):
 
 `[OPEN]`: the seam (A6).
 
-### 6. Sync runs only while the app is open in v1 — Proposed `[OPEN]` (maintainer to confirm)
+### 6. Sync while the app is open first; background sync right after `[DECIDED 2026-11-08]`
 
-No `WorkManager` job in v1. The foreground service of item 3.2 keeps the
-server only; a folder's sync stops when the app goes to the background and
-the OS stops it, and resumes when it opens.
+The maintainer, 2026-11-08: *"poxa, tem apps que resolveram isso, como
+syncthing, talvez dê pra fazer, eu diria que precisamos ter essa opção após
+o básico rodar"* (other apps such as Syncthing solved it; we need that
+option once the basics run).
+
+1. **v1 first:** no `WorkManager` job; a folder's sync runs while the app
+   is open and resumes when it opens. The foreground service of item 3.2
+   keeps the server.
+2. **Then, an option in Settings, right after v1 runs:** background sync,
+   as Syncthing-Fork does on Android — the same foreground service (item
+   3.2) kept for sync too, with its persistent notification, and/or a
+   periodic `WorkManager` job, with conditions the person picks (Wi-Fi
+   only, charging only). Off by default; the type and the battery rules of
+   3.2 apply (Android 15 caps `dataSync`). How it is built is `[OPEN]`
+   until v1 runs.
 
 ### 7. What the build must change (the code at `cce63611b` / `b52019c5c`, facts)
 
@@ -222,10 +234,10 @@ on the entry function. Also:
 | A3 | Package id: `com.versomd.app` on Android too (0004's bundle id; `.beta` for betas) | Applied in the build (`applicationId = "com.versomd.app"`); `.beta` needs an `applicationIdSuffix` |
 | A4 | `verso-server` behind a cargo feature, for a smaller client-only build | — |
 | A5 | The TalkBack pass (0035 item 2, 0076 item 9) | Part of Phase 1's acceptance (item 9) |
-| A6 | The seam of item 5; the foreground service type (3.2); `cloudflared`'s build (3.3); the updater on a sideloaded APK (item 5) | Seam: `Host::Mobile` reported by the host in its capabilities (the UI reads capabilities, never the user agent — 0026 rule 2) plus `cfg(target_os = "android")` gates in the host. A contract change: bindings regenerated, the N/N-1 compatibility window applies. Service type: 3.2 |
+| A6 | The seam of item 5 — **decided 2026-11-08: `Host::Mobile` + `cfg(target_os = "android")` as recommended**; still open: the foreground service type (3.2); `cloudflared`'s build (3.3); the updater on a sideloaded APK (item 5) | Seam: `Host::Mobile` reported by the host in its capabilities (the UI reads capabilities, never the user agent — 0026 rule 2) plus `cfg(target_os = "android")` gates in the host. A contract change: bindings regenerated, the N/N-1 compatibility window applies. Service type: 3.2 |
 | A7 | Whether v1 is in V1's scope or after it (roadmap V.53) | — |
-| A8 | An `unsafe` exception for one Android JNI-init file, with `SAFETY:` comments (as 0116 Q9), if Tauri gives no safe `JavaVM` | The maintainer's decision |
-| A9 | Android Auto Backup: the generated manifest sets no `allowBackup` / `dataExtractionRules`, so the notes, the sync base database and `servers.json` with the device token go to Google's backup | `allowBackup="false"` (or exclusion rules for the folder and configuration directories) |
+| A8 | An `unsafe` exception for one Android JNI-init file, with `SAFETY:` comments (as 0116 Q9), if Tauri gives no safe `JavaVM` | **Decided 2026-11-08: granted** for that one file (declared in CLAUDE.md and `scripts/check-unsafe.mjs`, as 0116 Q9) |
+| A9 | Android Auto Backup: the generated manifest sets no `allowBackup` / `dataExtractionRules`, so the notes, the sync base database and `servers.json` with the device token go to Google's backup | **Decided 2026-11-08: `allowBackup="false"`** |
 
 ### 9. Phases, each with its acceptance
 
@@ -242,8 +254,8 @@ on the entry function. Also:
 - A folder in private storage is invisible to other apps (Obsidian cannot
   open it) and is **deleted with the app** unless it syncs somewhere; the
   UI says so where such a folder is made.
-- Background sync is not there in v1 if item 6 is confirmed: a phone that
-  edits and closes the app sends at the next opening.
+- Background sync is not there in v1: a phone that edits and closes the
+  app sends at the next opening, until item 6.2's option lands.
 - The APK carries `cloudflared` (Apache-2.0): its licence notice ships
   with it, and its version is pinned in the build as 0117 D11 pins the
   download.
@@ -273,11 +285,11 @@ Weighed in the session of 2026-11-08:
 
 ## Status
 
-**Accepted (2026-11-08)** for items 1–5 in the maintainer's words of that
-day (Source). Item 6 is Proposed, `[OPEN]` until the maintainer confirms
-it. Item 7 is a reading of the code, not a decision. Items 3.2's service
+**Accepted (2026-11-08)** for items 1–6 in the maintainer's words of that
+day (Source; item 6 and A6, A8, A9 answered later the same day: "o resto é
+recomendado", the rest as recommended). Item 7 is a reading of the code, not a decision. Items 3.2's service
 type, 3.3's `cloudflared` build, 5's seam and updater, 9's pass numbers and
-on-device vectors, and 8 (A1–A9) are `[OPEN]`; their recommendations are
-Proposed. Phase 0 started on `feat/android` the same day. Written by an
-Opus session; Fable reading done 2026-11-08 (Revisions); awaits the
-maintainer's reading.
+on-device vectors, and 8 (A1–A5, A7; A6's remaining parts) are `[OPEN]`; their
+recommendations are Proposed. Phase 0 started on `feat/android` the same day. Written by an
+Opus session; Fable reading done 2026-11-08 (Revisions); the maintainer
+answered B1, A6, A8 and A9 the same day.
