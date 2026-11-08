@@ -50,7 +50,7 @@ import { installServerTable } from "./table/join";
 import { installTableSound } from "./table/sound/run";
 import { installStatusItem } from "./table/sound/status";
 import { hearAccess, mayHere, may } from "./access";
-import { can, loadCan } from "./can";
+import { can, host, loadCan } from "./can";
 import { mayEndTerminals, pushSwitch } from "./terminal/open";
 import { copyFilesInto, newUntitled, takeBackMove } from "./files";
 import { windowDrop } from "./windowDrop";
@@ -97,7 +97,7 @@ import { configureEmbeds } from "./sanitize";
 import { frameable } from "./screen/framed";
 import { searchNotes } from "./search";
 import { loadSettings, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
-import { importDemoVault } from "./demo";
+import { importDemoVault, offerDemoIfEmpty } from "./demo";
 import { pt, t } from "./strings";
 import { installTreeKeys } from "./tree/aria";
 import { collapseAll, collapsed, listAll } from "./tree/tree";
@@ -847,7 +847,12 @@ export const started: Promise<void> = (async () => {
   if (await rejoinLoose()) return;
   // `verso <folder>` (or a Markdown file, ADR 0114) on the command line
   // wins over the last folder.
-  if (await openOpened(() => commands.openInitial())) return;
+  if (await openOpened(() => commands.openInitial())) {
+    // The phone opens its own folder at every start; empty, it offers the
+    // tutorial (the Android app, Phase 0).
+    if (host() === "mobile") void offerDemoIfEmpty();
+    return;
+  }
   // A window opened later starts on the start page, to open a folder of
   // its own (ADR 0065): the last folder is the main window's.
   if (secondary) return;

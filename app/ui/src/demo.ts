@@ -173,3 +173,10 @@ export async function importDemoVault(lang: DemoLang = DEMO_LANG): Promise<void>
     fail(typeof err === "object" && err !== null && "message" in err ? (err as ContractError) : { kind: "failed", message: String(err) });
   }
 }
+
+/** A folder with no note offers the tutorial, as the import asks (the
+ *  phone's own folder at its first start: the Android app, Phase 0). */
+export async function offerDemoIfEmpty(): Promise<void> {
+  const notes = await commands.listNotes();
+  if (notes.status === "ok" && notes.data.length === 0) await importDemoVault();
+}
