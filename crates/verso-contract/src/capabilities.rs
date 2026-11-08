@@ -12,12 +12,14 @@ use specta::Type;
 use crate::FolderAccess;
 
 /// Which side the window talks to (ADR 0027, ADR 0073 item 2): the app on
-/// this computer, or a server.
+/// this computer, a server, or the app on a phone (ADR 0118: the window
+/// reads what the host is from here, never from the user agent).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum Host {
     Desktop,
     Server,
+    Mobile,
 }
 
 /// What the side the window talks to can do (ADR 0027; ADR 0076 item 11):

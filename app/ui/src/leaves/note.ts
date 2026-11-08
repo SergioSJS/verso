@@ -1028,7 +1028,7 @@ export class NoteLeaf extends Leaf {
    *  file's text to cross (ADR 0082 item 7) and is sequenced as before. */
   private async joinsEarly(): Promise<boolean> {
     const side = await sideCan();
-    return side !== null && side.can.includes("collab") && side.host !== "desktop";
+    return side !== null && side.can.includes("collab") && side.host === "server";
   }
   /** Set while the note shows before its room is joined: what is typed
    *  then is not written to the file (the room will take it). */

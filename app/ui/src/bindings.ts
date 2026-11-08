@@ -2972,9 +2972,10 @@ export type Hit = {
 
 /**
  *  Which side the window talks to (ADR 0027, ADR 0073 item 2): the app on
- *  this computer, or a server.
+ *  this computer, a server, or the app on a phone (ADR 0118: the window
+ *  reads what the host is from here, never from the user agent).
  */
-export type Host = "desktop" | "server";
+export type Host = "desktop" | "server" | "mobile";
 
 /**  Progress payload emitted during vault indexing. */
 export type IndexProgress = {
