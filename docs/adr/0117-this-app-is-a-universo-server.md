@@ -29,6 +29,9 @@
   decision it belongs to (D4.2, D4.3, D5, D6, D7, D8); D14 keeps only the
   build's smallest choices still open. 0077 item 6 and 0081 item 4 carry a
   dated revision for (c) and (e).
+  2026-11-08 — extended to Android by [0118](0118-a-native-android-app-from-the-same-core-and-ui.md)
+  item 3: the phone serves too; there `cloudflared` ships in the APK, not
+  downloaded (D11 item 5 stays for desktop).
 - Related: [0073](0073-self-hosted-server-first.md), [0074](0074-accounts-and-access-on-the-server.md),
   [0077](0077-the-server-administration-console-and-folder-quotas.md),
   [0079](0079-sync-a-local-folder-with-a-server.md), [0081](0081-sharing-between-people-on-one-universo.md),

@@ -519,7 +519,10 @@ the date; what stays `[OPEN]` is listed in the Status.
    of [0025](0025-own-server-and-mobile-pwa.md) (a companion server hands a
    finished index to the phone) is proposed as superseded: the server
    indexes, the phone asks it. *(Superseded on 2026-10-09, a Revisions line
-   there.)*
+   there.)* *(2026-11-08: the native Android app started, as this item
+   says, Tauri 2 from the same UI and core — [0118](0118-a-native-android-app-from-the-same-core-and-ui.md);
+   it moves item 12's last step forward for Android; the iPad stays in the
+   browser.)*
 9. **The window on every size of screen is an investigation of its own,
    before the server's UI is built.** Phone, tablet, half a screen, a
    narrow pane: what Notion does is the reference, observed from the
