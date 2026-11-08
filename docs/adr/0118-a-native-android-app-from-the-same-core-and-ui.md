@@ -138,7 +138,7 @@ How, from the platform's rules (`Constraint` unless marked):
    scope paragraph and 0044's re-open bullet (how a SAF capability crosses)
    stays open.
 
-### 5. What is off on Android `[DECIDED 2026-11-08]`; the seam `[OPEN]`
+### 5. What is off on Android `[DECIDED 2026-11-08]`; the seam decided the same day (A6)
 
 Off, by the host's capability list (0027: a feature the side cannot do is
 not shown):
@@ -153,7 +153,7 @@ not shown):
 | Tray, native menus, single instance | Replaced later by intents: open a `.md`, share to Verso (Phase 2) |
 | Capture of other apps' audio (0116) | Possible later through `AudioPlaybackCapture` (Android 10+); not in v1 |
 
-`[OPEN]`: the seam (A6).
+The seam: `Host::Mobile` plus `cfg(target_os = "android")` (A6, decided 2026-11-08).
 
 ### 6. Sync while the app is open first; background sync right after `[DECIDED 2026-11-08]`
 
