@@ -1,1 +1,4 @@
-gen/
+# Tauri's generated capability schemas.
+gen/schemas/
+# gen/android is the Android project (Phase 0 of the Android app): its
+# sources are kept; its own .gitignore files leave out the build outputs.
