@@ -291,6 +291,7 @@ Accepted (2026-10-10, Status).
 14. **Phones and browsers do not sync**: they work on the server's folder
     online, as today. Offline on the phone is the PWA's later step
     (0073 item 12).
+    *2026-11-08 — "phone" here is the window served to a phone's browser; the native Android app of [0118](0118-a-native-android-app-from-the-same-core-and-ui.md) has the desktop app's role: it syncs, and may host.*
 
 ## Consequences
 

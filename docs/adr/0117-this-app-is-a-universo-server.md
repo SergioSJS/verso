@@ -353,6 +353,7 @@ allowlist, reader or editor, never owner; 64 connections, 16 per address,
 `0600`; OpenSSL on Windows; both languages (`crates/verso-server/src/local/`,
 `app/src-tauri/src/local_server/`). **Changed:** 0096 item 2 (the folders
 ticked in Settings, whole or in part) by D2. **Gone:** 0096 item 11 by D4.
+*2026-11-08 — "phone" here is the window served to a phone's browser; the native Android app of [0118](0118-a-native-android-app-from-the-same-core-and-ui.md) has the desktop app's role: it syncs, and may host.*
 
 ### D13. Decided 2026-11-03 (was D4; *"gosto de todas sugestões"*) — built
 
