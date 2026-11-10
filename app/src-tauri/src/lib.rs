@@ -64,6 +64,8 @@ mod menu;
 mod menu_spec;
 mod mobile;
 mod notes;
+#[cfg(target_os = "android")]
+mod phone;
 mod protocol;
 mod pty;
 mod reach;

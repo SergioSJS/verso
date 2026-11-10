@@ -189,6 +189,12 @@ verso-fs = { path = "../../crates/verso-fs" }
 # activity's native method. They replace nothing of ours.
 rustls-platform-verifier = "0.7"
 jni = "0.22"
+# The WebSocket to a server over `wss://` gets that verifier through a
+# rustls `ClientConfig` of its own (src/android.rs `ws_connector`):
+# tokio-tungstenite's native-roots lookup finds no certificate files on
+# Android. rustls on ring (Apache-2.0 OR ISC OR MIT), the version and the
+# features already in the tree (verso-server, the tests); replaces nothing.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window

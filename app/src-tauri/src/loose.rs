@@ -17,6 +17,8 @@ use verso_contract::{LooseFileInfo, Opened, RecentFile, Written};
 /// The path an argument of the command line names: a `file://` URL as the
 /// system's "open with" may pass it (percent-decoded, as Tauri's own
 /// example reads it), or a path, relative to `cwd` when it is not absolute.
+/// A phone has no command line and no second launch.
+#[cfg(desktop)]
 pub(crate) fn path_from_arg(arg: &str, cwd: &Path) -> PathBuf {
     if let Some(rest) = arg.strip_prefix("file://") {
         // `file:///Users/x/n.md`, `file://localhost/Users/x/n.md` and, on
@@ -365,6 +367,9 @@ pub(crate) fn folder_handed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, folder
 /// computer, a path at the edge, or a folder of a server (address, folder).
 pub(crate) enum Handed {
     Path(PathBuf),
+    /// Only the last session's windows hand a server's folder (a phone
+    /// restores none: one window, on its own folder).
+    #[cfg(desktop)]
     Server(String, String),
 }
 
@@ -398,6 +403,7 @@ pub(crate) fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Ha
     // for it, is never what handing a folder to the running app means.
     let key = match &handed {
         Handed::Path(folder) => verso_core::folder_key(folder),
+        #[cfg(desktop)]
         Handed::Server(url, folder) => session::server_key(url, folder),
     };
     if let Some(label) = window_showing(app, &key)
@@ -411,11 +417,11 @@ pub(crate) fn hand_over<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Ha
     let waiting = {
         let state = app.state::<App>();
         let mut queue = lock(&state.initial_folder);
-        let mut servers = lock(&state.initial_server);
-        let waiting = !queue.is_empty() || !servers.is_empty();
+        let waiting = !queue.is_empty() || !lock(&state.initial_server).is_empty();
         match handed {
             Handed::Path(folder) => queue.push_back(folder),
-            Handed::Server(url, folder) => servers.push_back((url, folder)),
+            #[cfg(desktop)]
+            Handed::Server(url, folder) => lock(&state.initial_server).push_back((url, folder)),
         }
         waiting
     };

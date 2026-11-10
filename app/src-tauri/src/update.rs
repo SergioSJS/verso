@@ -1041,6 +1041,10 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
         }
     }
 
+    // A phone has no installer of its own here (ADR 0118 item 5: its
+    // APK's update is offered apart).
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
+    let _ = (extract_dir, temp_dir, &emit_done);
     // Unreachable on supported platforms, but required for compilation
     #[allow(unreachable_code)]
     Err(ContractError {
@@ -1105,7 +1109,7 @@ pub(crate) fn find_file_by_exts(
 /// an update they could not put in place. Windows has no such fallback:
 /// its installer does the replacing (ADR 0069, item 9: the updater's
 /// Windows path is still to be exercised).
-#[cfg(not(target_os = "windows"))]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub(crate) fn get_downloads_dir() -> std::path::PathBuf {
     let home = std::env::var("HOME")
         .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
@@ -1198,7 +1202,7 @@ pub(crate) fn link_target(path: &std::path::Path) -> Option<std::path::PathBuf> 
 
 /// Whether anything sits at `path` — a file, a directory, or a symlink,
 /// even a broken one (the `test -e` this replaces, without following).
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
 pub(crate) fn something_at(path: &std::path::Path) -> bool {
     std::fs::symlink_metadata(path).is_ok()
 }

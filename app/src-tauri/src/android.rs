@@ -13,6 +13,7 @@
 //! by the first window (the window then offers the tutorial, `demo.ts`).
 
 use std::path::PathBuf;
+use std::sync::{Arc, OnceLock};
 
 use tauri::Manager;
 
@@ -33,6 +34,7 @@ pub(crate) fn setup(app: &tauri::App) {
     };
     verso_core::set_host_config_dir(data.join("config"));
     log::open();
+    crate::phone::warm();
     log::write(
         "INFO",
         "host",
@@ -92,4 +94,36 @@ pub fn init_tls<'local>(
     // The log may not be open yet (the activity comes before Tauri's
     // setup): standard error reaches logcat in a debug build.
     eprintln!("verso-app: {said}");
+}
+
+/// The WebSocket's TLS on a phone: the system's own certificate check
+/// (the verifier [`init_tls`] readied), on `ring` as every TLS of this
+/// app. `tokio-tungstenite` left alone looks for the root certificates in
+/// files (`rustls-native-certs`, `openssl-probe`), which Android does not
+/// have: every `wss://` failed (ADR 0118 item 7, "TLS"). Made once; `None`
+/// (said in the log) when the verifier is not there, and the dial then
+/// fails as before, in words.
+pub(crate) fn ws_connector() -> Option<tokio_tungstenite::Connector> {
+    static MADE: OnceLock<Option<Arc<rustls::ClientConfig>>> = OnceLock::new();
+    MADE.get_or_init(|| {
+        use rustls_platform_verifier::BuilderVerifierExt;
+        let provider = Arc::new(rustls::crypto::ring::default_provider());
+        let made = rustls::ClientConfig::builder_with_provider(provider)
+            .with_safe_default_protocol_versions()
+            .and_then(|b| b.with_platform_verifier())
+            .map(|b| Arc::new(b.with_no_client_auth()));
+        match made {
+            Ok(config) => Some(config),
+            Err(e) => {
+                log::write(
+                    "ERROR",
+                    "host",
+                    &format!("Android: no TLS for a server's WebSocket: {e}"),
+                );
+                None
+            }
+        }
+    })
+    .clone()
+    .map(tokio_tungstenite::Connector::Rustls)
 }

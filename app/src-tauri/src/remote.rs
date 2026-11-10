@@ -520,20 +520,6 @@ pub(crate) fn error_of(status: u16, body: &Value) -> ContractError {
     }
 }
 
-fn open_in_browser(page: &str) -> Result<(), ContractError> {
-    #[cfg(target_os = "macos")]
-    let mut command = std::process::Command::new("open");
-    #[cfg(windows)]
-    let mut command = std::process::Command::new("explorer");
-    #[cfg(not(any(target_os = "macos", windows)))]
-    let mut command = std::process::Command::new("xdg-open");
-    command
-        .arg(page)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| failed(e.to_string()))
-}
-
 /// The server's page the last sign-in was handed, waiting for the window
 /// to open it (`server_sign_in_page`) once it has copied the code.
 static SIGN_IN_PAGE: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
@@ -554,7 +540,7 @@ fn sign_in_page() -> Result<String, ContractError> {
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn server_sign_in_page() -> Result<(), ContractError> {
-    open_in_browser(&sign_in_page()?)
+    crate::mobile::open_in_browser(&sign_in_page()?)
 }
 
 /// Sign in to a server through the browser (`gh auth login`'s way): the
@@ -912,6 +898,9 @@ pub(crate) async fn ws_open(
 > {
     use tokio_tungstenite::tungstenite::Error as Wire;
     let tls = request.uri().scheme_str() == Some("wss");
+    // A phone has no certificate files: the system's verifier instead.
+    #[cfg(target_os = "android")]
+    let connector = connector.or_else(|| tls.then(crate::android::ws_connector).flatten());
     dns::declare(host, tls);
     let shaken = dns::dial_with(host, port, |stream| {
         let (request, connector) = (request.clone(), connector.clone());

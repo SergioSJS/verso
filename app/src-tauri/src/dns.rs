@@ -903,6 +903,7 @@ pub(crate) fn from_lines(text: &str) -> Vec<IpAddr> {
 /// Each address once, in order, the unusable left out — and Windows' three
 /// placeholder site-local resolvers (`fec0:0:0:ffff::1` to `::3`), which
 /// stand where no DNS server is set.
+#[cfg(any(target_os = "macos", target_os = "linux", windows, test))]
 fn tidy(all: Vec<IpAddr>) -> Vec<IpAddr> {
     let mut out: Vec<IpAddr> = Vec::new();
     for ip in all {
@@ -952,7 +953,19 @@ fn system_servers() -> Vec<IpAddr> {
     .unwrap_or_default()
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
+/// A phone's DNS servers come from Android's own API (no
+/// `/etc/resolv.conf` there; ADR 0118 item 7).
+#[cfg(target_os = "android")]
+fn system_servers() -> Vec<IpAddr> {
+    crate::phone::dns_servers()
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "linux",
+    windows,
+    target_os = "android"
+)))]
 fn system_servers() -> Vec<IpAddr> {
     Vec::new()
 }

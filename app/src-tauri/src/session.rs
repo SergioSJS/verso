@@ -19,7 +19,9 @@ use std::sync::atomic::Ordering;
 use tauri::Manager;
 use verso_core::session as kept;
 
-use crate::{App, Handed, hand_over, log, protocol::is_app_view, remote};
+use crate::{App, log, protocol::is_app_view, remote};
+#[cfg(desktop)]
+use crate::{Handed, hand_over};
 
 /// The key a window with a server's folder is kept under.
 pub(crate) fn server_key(url: &str, folder: &str) -> String {
@@ -27,6 +29,7 @@ pub(crate) fn server_key(url: &str, folder: &str) -> String {
 }
 
 /// The address and folder a key names, if it is a server's.
+#[cfg(desktop)]
 fn parse_server_key(key: &str) -> Option<(String, String)> {
     let rest = key.strip_prefix("server:")?;
     let (url, folder) = rest.split_once('#')?;
@@ -168,6 +171,7 @@ fn write(config: Option<&Path>, keys: &[String]) {
 /// A folder that is gone or unreachable is skipped and logged. The folders
 /// wait for windows as a folder handed by a second launch does: the main
 /// window takes the first.
+#[cfg(desktop)]
 pub(crate) fn restore<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let config = app.state::<App>().service.config().map(Path::to_path_buf);
     let keys = kept::open_windows(config.as_deref());

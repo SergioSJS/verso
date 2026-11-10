@@ -143,7 +143,29 @@ pub(crate) fn builder() -> tauri::Builder<tauri::Wry> {
 
 #[cfg(mobile)]
 pub(crate) fn builder() -> tauri::Builder<tauri::Wry> {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(crate::phone::plugin());
+    builder
+}
+
+/// A page in the person's browser: the system's opener on a desktop, an
+/// Android intent on a phone (`xdg-open` is not there).
+pub(crate) fn open_in_browser(page: &str) -> Result<(), ContractError> {
+    #[cfg(target_os = "android")]
+    return crate::phone::open_page(page).map_err(crate::failed);
+    #[cfg(target_os = "macos")]
+    let mut command = std::process::Command::new("open");
+    #[cfg(windows)]
+    let mut command = std::process::Command::new("explorer");
+    #[cfg(not(any(target_os = "macos", windows, target_os = "android")))]
+    let mut command = std::process::Command::new("xdg-open");
+    #[cfg(not(target_os = "android"))]
+    command
+        .arg(page)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| crate::failed(e.to_string()))
 }
 
 /// Before a restart: the single instance let go, or the new process would
@@ -270,14 +292,14 @@ pub(crate) fn set_bars_dark<R: tauri::Runtime>(
         struct Args {
             dark: bool,
         }
-        if let Some(bars) = app.try_state::<Bars<R>>() {
-            if let Err(e) = bars.0.run_mobile_plugin::<()>("setDark", Args { dark }) {
-                crate::log::write(
-                    "WARN",
-                    "bars",
-                    &format!("the status bar's icons were not set: {e}"),
-                );
-            }
+        if let Some(bars) = app.try_state::<Bars<R>>()
+            && let Err(e) = bars.0.run_mobile_plugin::<()>("setDark", Args { dark })
+        {
+            crate::log::write(
+                "WARN",
+                "bars",
+                &format!("the status bar's icons were not set: {e}"),
+            );
         }
     }
     #[cfg(not(target_os = "android"))]
