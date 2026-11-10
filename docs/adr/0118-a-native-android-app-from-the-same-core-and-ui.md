@@ -27,6 +27,9 @@
   citations, A1's reasons, A3 as applied, the keyring store, the watch
   limit, the DNS servers, the WebView floor, TalkBack and the briefing row
   (M1–M10).
+  2026-11-10 — iOS and iPadOS: [0119](0119-an-ios-and-ipados-app-through-altstore.md),
+  by the maintainer's request of that day (item 1's "the iPad stays in the
+  browser" and item 9's "iOS" in Phase 2 are carried there).
 - Related: [0073](0073-self-hosted-server-first.md) items 2, 8 and 12 (one
   service, one code base; native mobile is Tauri 2 mobile from the same UI
   and core; "native mobile if needed", last),
