@@ -19,6 +19,13 @@ test("a phone's own layout, a tablet, a mouse desktop are left alone", () => {
   assert.equal(phoneZoom({ innerWidth: 980, screenShort: 393, coarse: false }), 1);
 });
 
+test("a phone held sideways is its own layout, not the desktop site", () => {
+  // The maintainer's phone in landscape, 2026-11-10: 936 px of layout on a 937 px wide screen.
+  assert.equal(phoneZoom({ innerWidth: 936, screenShort: 421, coarse: true, screenWidth: 937 }), 1);
+  // The desktop site on the same phone upright: 980 px shrunk to 412.
+  assert.equal(phoneZoom({ innerWidth: 980, screenShort: 412, coarse: true, screenWidth: 412 }), 2.18);
+});
+
 test("the zoom is kept between 1.5 and 3", () => {
   assert.equal(phoneZoom({ innerWidth: 1000, screenShort: 400, coarse: true }), 2.22);
   assert.equal(phoneZoom({ innerWidth: 3000, screenShort: 400, coarse: true }), 3);

@@ -106,7 +106,7 @@ body.no-right #right-divider { display: none; }
 body.no-right aside.right { border: 0; }
 /* Narrow window (a phone, a half screen): the side bars become drawers
  * over the page, opened by the same toggles, closed by a tap outside. */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   body, body.no-side, body.no-right, body.no-side.no-right { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 0; }
   body aside.side, body aside.right, body.no-side aside.side, body.no-right aside.right { position: fixed; top: 0; bottom: 0; width: min(85vw, 320px); z-index: 8; visibility: visible; overflow: visible; box-shadow: none; transition: transform .22s var(--ease-out), box-shadow .22s var(--ease-out); }
   body aside.side { left: 0; transform: translateX(-100%); }

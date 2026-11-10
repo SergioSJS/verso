@@ -11,8 +11,9 @@
 // the stylesheet (css/touch.css) reads as `--phone-zoom`.
 
 /** What the page is, as plain numbers: the browser's layout width, the
- *  physical screen's short side (CSS px), and whether a finger is the primary pointer. */
-export interface Env { innerWidth: number; screenShort: number; coarse: boolean }
+ *  physical screen's short side (CSS px), whether a finger is the primary
+ *  pointer, and the screen's width as held now (CSS px). */
+export interface Env { innerWidth: number; screenShort: number; coarse: boolean; screenWidth?: number }
 
 /** The layout width the zoom aims at, in the page's CSS px. */
 export const TARGET_WIDTH = 450;
@@ -21,6 +22,11 @@ const MIN_LAYOUT = 900;
 
 /** Whether this is a touch phone shown the desktop page. */
 export function deskOnPhone(e: Env): boolean {
+  // A phone held sideways lays the page out for its own width (936 px on
+  // the maintainer's phone): no desktop site, though as wide as one (seen
+  // 2026-11-10, a landscape window zoomed twice over). The desktop site's
+  // layout is far wider than the screen it is shrunk to.
+  if (e.screenWidth !== undefined && e.innerWidth <= e.screenWidth * 1.2) return false;
   return e.coarse && e.screenShort <= MAX_SCREEN && e.innerWidth >= MIN_LAYOUT;
 }
 
@@ -35,6 +41,7 @@ function read(): Env {
     innerWidth: window.innerWidth,
     screenShort: Math.min(screen.width, screen.height),
     coarse: window.matchMedia("(pointer: coarse)").matches,
+    screenWidth: screen.width,
   };
 }
 

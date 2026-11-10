@@ -17,6 +17,7 @@ import { h } from "../dom";
 import { icon } from "../icons";
 import type { ActionRef, Entry, Level } from "./core";
 import { notifyStrings } from "./strings";
+import { PHONE_MEDIA } from "../screen/phone";
 
 /** How long information and success stay, in milliseconds. */
 export const BRIEF_MS = 6000;
@@ -125,7 +126,7 @@ export function showToast(entry: Pick<Entry, "key" | "level" | "title" | "senten
   const s = notifyStrings();
   // Ambient news at the top on a desktop; on a phone (ADR 0084 T.6) every
   // toast is at the bottom, above the keyboard's bar.
-  const box = entry.kind === "presence" && !matchMedia("(max-width: 760px)").matches ? (build(), top!) : build();
+  const box = entry.kind === "presence" && !matchMedia(PHONE_MEDIA).matches ? (build(), top!) : build();
   dismissKey(entry.key);
   const el = h("article", "notify-toast");
   el.dataset["level"] = entry.level;

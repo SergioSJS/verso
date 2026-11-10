@@ -103,7 +103,7 @@
 
 /* The phone's search field is a target of 44px, as high as the rest (the
    box itself, not only the line of text inside it). */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .search { padding-top: 0; padding-bottom: 0; }
   .search input { min-height: 44px; }
 }

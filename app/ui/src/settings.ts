@@ -17,6 +17,7 @@ import { readPrefs, type TerminalPrefs } from "./terminal/prefs";
 import { readProfiles, type Profile } from "./theme/profiles";
 import { enter, readFolderThemes, reset, toStorage, type Slice } from "./theme/scope";
 import { fontAllowed, type InspiredBy, type Look } from "./theme/tokens";
+import { PHONE_MEDIA } from "./screen/phone";
 
 export type { Measure };
 export const page = document.querySelector<HTMLElement>(".work");
@@ -327,7 +328,7 @@ export function enterFolderTheme(): void {
  *  for nothing (ADR 0076 item 6). */
 export function sourceLineNumbers(): boolean {
   if (!settings.lineNumbersSource) return false;
-  return !window.matchMedia("(max-width: 760px)").matches || Boolean(settings.lineNumbersSourceChosen);
+  return !window.matchMedia(PHONE_MEDIA).matches || Boolean(settings.lineNumbersSourceChosen);
 }
 /** `lineNumbersSource` as last loaded or saved: a save that changes it is
  *  the person's choice. */

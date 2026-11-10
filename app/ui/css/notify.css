@@ -63,7 +63,7 @@
 .notify-system-hint { flex-basis: 100%; max-width: 24rem; margin-left: auto; font-size: max(12px, .76rem); color: var(--ink-3); text-align: right; }
 
 /* ---------- A phone (item 6) ---------- */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   /* The bell at the top of the pane, at the right end of its first row —
      the failed line's when it shows, the tab bar's otherwise — taking no
      row of its own: a phone's height is the text's. The toasts at the bottom,

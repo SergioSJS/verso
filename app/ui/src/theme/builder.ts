@@ -28,6 +28,7 @@ import { V2 } from "./moreStrings";
 import {
   type AnyColor, CODE_TOKENS, COLOR_TOKENS, emptyLook, FONT_CHOICES, type FontKey, type FontToken, HEADING_TOKENS, type Look, SEMANTIC_TOKENS, SIZE_MAX, SIZE_MIN, type Side, STYLE_CHOICES, STYLE_KEYS, type Style,
 } from "./tokens";
+import { PHONE_MEDIA } from "../screen/phone";
 
 /** What the builder edits: one of the person's themes, or a new one. */
 export type BuildSpec = { mode: "edit"; name: string } | { mode: "new" };
@@ -364,7 +365,7 @@ export function themeBuilder(spec: BuildSpec, hooks: BuilderHooks): Builder {
   const groups = [colors, headings, code, callouts, structure];
   for (const g of groups) {
     g.box.addEventListener("toggle", () => {
-      if (g.box.open && window.matchMedia("(max-width: 760px)").matches) for (const other of groups) if (other !== g) other.box.open = false;
+      if (g.box.open && window.matchMedia(PHONE_MEDIA).matches) for (const other of groups) if (other !== g) other.box.open = false;
     });
   }
 

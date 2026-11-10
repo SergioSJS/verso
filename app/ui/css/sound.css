@@ -106,7 +106,7 @@
 .share-pick-quality { padding: .25rem .4rem; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 6px; }
 .share-pick .confirm-actions { display: flex; justify-content: flex-end; gap: .5rem; }
 
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   /* The Music tab is a sheet from the bottom, as the Table's is (css/table.css). */
   body[data-right-tab="music"] aside.right { top: calc(env(safe-area-inset-top) + .4rem); padding-top: 0; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
   /* The sheet starts below the status bar, its close at its own top. */

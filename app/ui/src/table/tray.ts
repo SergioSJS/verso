@@ -27,6 +27,7 @@ import { ts } from "./trayStrings";
 import { dieIcon } from "./dieIcon";
 import { SavedRolls } from "./savedPanel";
 import { focusOnOpen } from "../screen/openFocus";
+import { PHONE_MEDIA } from "../screen/phone";
 
 /** What the row needs of the message field. */
 export interface TrayHost {
@@ -433,7 +434,7 @@ export class Tray {
     if (room === 0) return;
     // A phone's row scrolls sideways instead (its dice are 44 px, the
     // maintainer's answer of 2026-11-10): KH, KL and the modifier stay in it.
-    if (window.matchMedia("(max-width: 760px)").matches) {
+    if (window.matchMedia(PHONE_MEDIA).matches) {
       this.place(false, false);
       this.moved = { keep: false, mod: false };
       this.paint();

@@ -24,6 +24,7 @@ import { recordRoll, tableSource } from "./record";
 import { tt } from "./strings";
 import { Tray } from "./tray";
 import { ts } from "./trayStrings";
+import { PHONE_MEDIA } from "../screen/phone";
 
 /** A server's refusal in the person's words (its pace rule says how long to wait). */
 function refusalOf(message: string): string {
@@ -79,7 +80,7 @@ export class Compose {
   constructor() {
     this.el.setAttribute("aria-label", tt.inputLabel);
     // Larger than a line, as a chat box is: 3 lines (one on a phone, as a chat's), growing to 8 (css/table.css); Shift+Enter breaks the line.
-    this.field.rows = window.matchMedia("(max-width: 760px)").matches ? 1 : 3;
+    this.field.rows = window.matchMedia(PHONE_MEDIA).matches ? 1 : 3;
     this.field.placeholder = tt.placeholder;
     this.field.setAttribute("aria-label", tt.inputLabel);
     this.field.setAttribute("enterkeyhint", "send");
@@ -155,7 +156,7 @@ export class Compose {
     const mayAttach = !!t && (t.canSendImage() || t.canSendFile());
     this.attach.hidden = !mayAttach;
     // A phone's field is one line wide: the short hints (the paperclip says images; the dice row is under it).
-    const narrow = window.matchMedia("(max-width: 760px)").matches;
+    const narrow = window.matchMedia(PHONE_MEDIA).matches;
     this.field.placeholder = t ? (mayAttach && !narrow ? tt.placeholderImage : tt.placeholder) : narrow ? tt.placeholderLocalShort : tt.placeholderLocal;
     if (!mayAttach) this.dropStaged();
     this.ready();

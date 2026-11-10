@@ -296,7 +296,7 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .graph .node.center text { fill: var(--ink); font-weight: 600; }
 /* A phone's graph seen from afar: the names of the centred and the tapped
    note only (src/leaves/graph.ts `far`); a tap names a note, zooming in names all. */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .graph.far .node:not(.center):not(.current) text { opacity: 0; }
   .graph.far .node.current text { opacity: 1; fill: var(--ink); font-weight: 600; }
 }
@@ -528,7 +528,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
    a phone gets a strip with the bar's name on it (the notification bell
    takes the right edge, as it does over the bar). */
 .tabs-restore { display: none; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .pane.tabs-hidden .tabs-restore { display: flex; align-items: center; min-height: 40px; padding: 0 48px 0 .4rem; background: var(--paper-2); box-shadow: inset 0 -1px 0 var(--hair); }
   .tabs-restore-button { display: inline-flex; align-items: center; gap: .4rem; min-height: 40px; padding: 0 .6rem; font-size: max(12px, .8rem); color: var(--ink-2); }
   .tabs-restore-button .icon { width: 16px; height: 16px; }
@@ -720,7 +720,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .srv-note { font-size: .78rem; color: var(--brass-ink); }
 .srv-folder-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .35rem; flex: none; }
 .srv-empty { padding: .4rem 0; font-size: .86rem; color: var(--ink-3); list-style: none; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .srv-folder { flex-direction: column; align-items: stretch; }
   .srv-folder-actions { justify-content: flex-start; }
   .srv-field { flex-direction: column; }
@@ -797,7 +797,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .sync-path { color: var(--ink); overflow-wrap: anywhere; }
 /* Who made what came from the server: under the path, quieter. */
 .sync-who { grid-column: 3; color: var(--ink-3); font-size: .78rem; overflow-wrap: anywhere; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .sync-ledger li { grid-template-columns: 3.2rem minmax(0, 1fr); }
   .sync-ledger .sync-path, .sync-ledger .sync-who { grid-column: 2; }
   .sync-copy { margin-left: 0; }
@@ -809,13 +809,13 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .sync-fixed { text-align: left; }
 }
 
-@media (min-width: 761px) and (max-width: 920px) {
+@media (min-width: 761px) and (max-width: 920px) and (not ((pointer: coarse) and (max-height: 500px))) {
   .settings-side { width: 13rem; }
   .settings-body { padding: 1rem 3rem 2rem 1.25rem; }
 }
 
 /* A phone: the sections become a row above the page, scrolled sideways. */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .settings-box {
     flex-direction: column;
     width: 100vw !important;
@@ -973,7 +973,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
    both side areas' buttons (src/screen/frame.ts). */
 .right-close { display: none; }
 /* A phone: the drawer has its own close. */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   /* No title row: the close is the tab row's last button (the title is the tabs' own names). */
   aside.right { position: fixed; }
   .right-close { position: absolute; top: env(safe-area-inset-top); right: 0; z-index: 2; display: flex; padding: 0; min-height: 0; background: var(--paper-2); }
@@ -982,13 +982,13 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
   .right-tabs { padding-right: 44px; }
 }
 /* A finger: the tabs are 44 px (the bar grows to hold them; the fold into "⋯" does the rest). */
-@media (pointer: coarse) and (max-width: 760px) {
+@media (pointer: coarse) and (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .right-tabs { height: 44px; min-height: 44px; max-height: 44px; }
   .right-tab { height: 44px; }
 }
 /* A phone's tab is 34 wide by 44 high (the maintainer, 2026-11-01: the eight fit at 390 px; a narrower phone
    folds the rest into the "⋯", in the person's order). */
-@media (pointer: coarse) and (max-width: 760px) {
+@media (pointer: coarse) and (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   /* 8 × 34 = 272, and the drawer's close takes 44 of its 320 (min(85vw, 320px)): nothing left for a gap. */
   .right-tabs { gap: 0; padding-left: 2px; }
   .right-tab { width: 34px; }

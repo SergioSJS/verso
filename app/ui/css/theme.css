@@ -124,7 +124,7 @@ details.look-set { display: block; }
 .more-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: grid; gap: 1.4rem; align-content: start; padding: .2rem .3rem .6rem 0; }
 .more-body .theme-grid { grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); }
 .theme-mode { font-size: .76rem; color: var(--ink-2); }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   /* The whole screen, its content out of the status bar and the gesture bar (the phone pass, 2026-11-10). */
   .more-box { width: 100vw; height: 100dvh; max-height: none; border: 0; border-radius: 0; padding: calc(env(safe-area-inset-top) + .8rem) calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + .6rem) calc(env(safe-area-inset-left) + 1rem); box-sizing: border-box; box-shadow: none; }
   .more-back { display: inline-flex; }

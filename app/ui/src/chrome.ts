@@ -13,6 +13,7 @@ import { openFolderDialog } from "./open";
 import { page } from "./settings";
 import { t } from "./strings";
 import { mayOfferExample } from "./web/landing";
+import { PHONE_MEDIA } from "./screen/phone";
 
 /* ---------- Toggles ---------- */
 export const toggleSideButton = el<HTMLButtonElement>("toggle-side");
@@ -53,7 +54,8 @@ export function paintExpanded(): void {
   ui.ribbon.querySelector('[data-id="files"]')?.setAttribute("aria-expanded", String(sideShown()));
   ui.ribbon.querySelector('[data-id="right"]')?.setAttribute("aria-expanded", String(rightShown()));
 }
-export const narrow = window.matchMedia("(max-width: 760px)");
+/** A phone's window (screen/phone.ts). */
+export const narrow = window.matchMedia(PHONE_MEDIA);
 export function toggleSide(): void {
   if (narrow.matches) {
     document.body.classList.toggle("side-open");
