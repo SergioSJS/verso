@@ -772,10 +772,7 @@ export class NoteLeaf extends Leaf {
       if (commit) void renameNote(this.path, v);
     };
     input.addEventListener("keydown", (e) => {
-      // The key is the field's: the focus it gives back (a button, the
-      // folder's) must not take the same Enter as a press (WebKit did,
-      // opening the folder switcher over a new note; the phone pass,
-      // 2026-11-10).
+      // The key is the field's: the focus given back must not take it as a press (WebKit did).
       if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
       if (e.key === "Enter") finish(true, true);
       else if (e.key === "Escape") finish(false, true);
