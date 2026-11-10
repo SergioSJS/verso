@@ -30,6 +30,9 @@
   2026-11-10 — iOS and iPadOS: [0119](0119-an-ios-and-ipados-app-through-altstore.md),
   by the maintainer's request of that day (item 1's "the iPad stays in the
   browser" and item 9's "iOS" in Phase 2 are carried there).
+  2026-11-10 — Phase 1 as built so far recorded after item 9 (no decision;
+  minSdk 29, `specialUse` and the linux-arm64 `cloudflared` applied as
+  recommended, Proposed).
   2026-11-10 — the maintainer answered A4, A7 and item 5's updater: *"tudo
   ta indicando que android entra na v1 também. pq vc pensa em remover a
   parte servidor do app android? uai, seria perfeito o apk atualizar sozinho
@@ -266,6 +269,27 @@ opens in 1.4 s, pans at 120 Hz with 5% slow frames, zoom's worst 1% of
 frames 53 ms; memory 460 MB idle, 670 MB with the board (target 400); the
 debug APK 222 MB. The maintainer accepted Phase 0 with these numbers; typing
 and memory are Phase 1 work.
+
+Phase 1 as built so far (2026-11-10, `feat/app-server` e5d74d287 to
+22260336c; facts and applied recommendations, nothing here decided):
+`minSdk` 29 (A1's recommendation, Proposed); the foreground service's type
+`specialUse` (3.2's recommendation, Proposed); `cloudflared` is Cloudflare's
+`linux-arm64` release placed by a Gradle step as `libcloudflared.so` (3.3's
+"test linux-arm64 first", Proposed) — it runs from the app's library
+directory but cannot resolve names on Android (no `/etc/resolv.conf`; Go
+asks `[::1]:53`), so the link does not start until an Android build of
+`cloudflared` is pinned (`[OPEN]`, asked). Neither A8's `unsafe` exception
+nor a `std::fs` exception was needed: the certificate check is initialised
+through `jni_mangle`, the keyring's store through its crate's own JNI
+function and `ndk-context`, and the `ui-web` copy is done by the Kotlin
+plugin. On the POCO over `adb`: sign-in to a UniVerso by the device flow, a
+window on its folder (edits seen both ways by a second client), the own
+folder synced with it and resumed at the next opening, the phone serving
+with the service in the foreground, a device paired, and the Doze test
+passed (screen off, deep idle forced, the paired client answered every
+10 s for 2 minutes). `wss://` to a server with a real certificate, the
+link, a cloud the check accepts, the updater's install and TalkBack are in
+`manual-checks.md` ("The Android app, Phase 1").
 
 ## Consequences
 
