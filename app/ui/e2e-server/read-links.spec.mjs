@@ -200,6 +200,8 @@ test("a link with a password asks for it, in the reader's language, and refuses 
   await reader.goto(url);
   await expect(reader.getByRole("heading", { name: "Este link pede uma senha" })).toBeVisible({ timeout: 30_000 });
   const field = reader.getByLabel("Senha", { exact: true });
+  // On a touch screen the field waits for a tap (no keyboard by itself, screen/openFocus.ts).
+  if (await reader.evaluate(() => matchMedia("(hover: none) and (pointer: coarse)").matches)) await field.tap();
   await expect(field).toBeFocused();
   // A note shown before the password: none.
   await expect(reader.locator(".preview")).toHaveCount(0);
