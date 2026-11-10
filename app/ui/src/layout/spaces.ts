@@ -224,6 +224,8 @@ export function openNote(path: string, aside: boolean, fresh = false, preview = 
 }
 export function openFolder(path: string, preview = false): void {
   if (afterRestore(() => openFolder(path, preview))) return;
+  // The phone's drawer goes, as for a note (it covered the page it opened).
+  document.body.classList.remove("side-open");
   const pane = paneToOpenIn();
   pane.openFolder(path, preview);
 }

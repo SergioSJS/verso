@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **On a phone a folder's page closes the drawer** (2026-11-10): opened from the tree's folder button, the page opened behind the drawer, which stayed open over it.
 - **A dialog taller than the screen scrolls from its top** (2026-11-10): in landscape on a phone the oracle's head and close were cut above the screen; the oracle, the world wizard, the asking dialogs, More themes and a zoomed image now start at the top and scroll.
 - **Full-screen pages on a phone keep out of the status bar** (2026-11-10): More themes' back and close sat under the status bar; the sheet editor's box and the server console's drawer in the browser keep the insets too.
 - **Menus, the side panel's lists and sliders are a finger's size on a touch screen** (the phone pass, 2026-11-10): a menu's rows 44 px (they were 30), the outline's, links' and tags' rows 40, a slider's track 44.
