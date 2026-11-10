@@ -30,6 +30,14 @@
   2026-11-10 — iOS and iPadOS: [0119](0119-an-ios-and-ipados-app-through-altstore.md),
   by the maintainer's request of that day (item 1's "the iPad stays in the
   browser" and item 9's "iOS" in Phase 2 are carried there).
+  2026-11-10 — the maintainer answered A4, A7 and item 5's updater: *"tudo
+  ta indicando que android entra na v1 também. pq vc pensa em remover a
+  parte servidor do app android? uai, seria perfeito o apk atualizar sozinho
+  ou indicar versao nova para o usuario baixar e atualizar. dito isso, manda
+  vê na fase 1"* (everything says Android is in V1 too; why remove the server
+  part from the Android app? It would be perfect for the APK to update
+  itself or point to a new version for the user to download and update;
+  that said, go ahead with Phase 1).
 - Related: [0073](0073-self-hosted-server-first.md) items 2, 8 and 12 (one
   service, one code base; native mobile is Tauri 2 mobile from the same UI
   and core; "native mobile if needed", last),
@@ -152,7 +160,7 @@ not shown):
 | CLI on the `PATH`, MCP install | No `PATH`, no other process to call it |
 | Several windows, the loose-files window (0114), pop-outs (0065) | One activity; Android intents later (Phase 2) |
 | Native child web views (0056) | The UI's iframe path instead |
-| Self-updater (0055) | Play forbids it; whether a sideloaded APK keeps one is `[OPEN]` |
+| Self-updater (0055) — **kept on a sideloaded APK, decided 2026-11-10** | The sideloaded APK checks for a new version and offers it: it downloads the signed APK and hands it to Android's own install prompt (Android never installs silently), or at least says a new version exists and where to get it. A Play build, if one comes (A2), has none: Play forbids it |
 | Tray, native menus, single instance | Replaced later by intents: open a `.md`, share to Verso (Phase 2) |
 | Capture of other apps' audio (0116) | Possible later through `AudioPlaybackCapture` (Android 10+); not in v1 |
 
@@ -235,10 +243,10 @@ on the entry function. Also:
 | A1 | `minSdk` (generated: 24; `targetSdk` 36, which is what brings the W^X rule) | 29 (Android 10): the keyring's Android store, a recent WebView, `AudioPlaybackCapture` |
 | A2 | Distribution: sideloaded APK, F-Droid, Play | — |
 | A3 | Package id: `com.versomd.app` on Android too (0004's bundle id; `.beta` for betas) | Applied in the build (`applicationId = "com.versomd.app"`); `.beta` needs an `applicationIdSuffix` |
-| A4 | `verso-server` behind a cargo feature, for a smaller client-only build | — |
+| A4 | `verso-server` behind a cargo feature, for a smaller client-only build | **Decided 2026-11-10: no** — one build, with the server (item 3); the maintainer: *"pq vc pensa em remover a parte servidor do app android?"* |
 | A5 | The TalkBack pass (0035 item 2, 0076 item 9) | Part of Phase 1's acceptance (item 9) |
-| A6 | The seam of item 5 — **decided 2026-11-08: `Host::Mobile` + `cfg(target_os = "android")` as recommended**; still open: the foreground service type (3.2); `cloudflared`'s build (3.3); the updater on a sideloaded APK (item 5) | Seam: `Host::Mobile` reported by the host in its capabilities (the UI reads capabilities, never the user agent — 0026 rule 2) plus `cfg(target_os = "android")` gates in the host. A contract change: bindings regenerated, the N/N-1 compatibility window applies. Service type: 3.2 |
-| A7 | Whether v1 is in V1's scope or after it (roadmap V.53) | — |
+| A6 | The seam of item 5 — **decided 2026-11-08: `Host::Mobile` + `cfg(target_os = "android")` as recommended**; still open: the foreground service type (3.2); `cloudflared`'s build (3.3) (the updater: decided 2026-11-10, item 5) | Seam: `Host::Mobile` reported by the host in its capabilities (the UI reads capabilities, never the user agent — 0026 rule 2) plus `cfg(target_os = "android")` gates in the host. A contract change: bindings regenerated, the N/N-1 compatibility window applies. Service type: 3.2 |
+| A7 | Whether v1 is in V1's scope or after it (roadmap V.53) | **Decided 2026-11-10: in V1** (*"android entra na v1 também"*) |
 | A8 | An `unsafe` exception for one Android JNI-init file, with `SAFETY:` comments (as 0116 Q9), if Tauri gives no safe `JavaVM` | **Decided 2026-11-08: granted** for that one file (declared in CLAUDE.md and `scripts/check-unsafe.mjs`, as 0116 Q9) |
 | A9 | Android Auto Backup: the generated manifest sets no `allowBackup` / `dataExtractionRules`, so the notes, the sync base database and `servers.json` with the device token go to Google's backup | **Decided 2026-11-08: `allowBackup="false"`** |
 
@@ -295,4 +303,5 @@ type, 3.3's `cloudflared` build, 5's seam and updater, 9's pass numbers and
 on-device vectors, and 8 (A1–A5, A7; A6's remaining parts) are `[OPEN]`; their
 recommendations are Proposed. Phase 0 started on `feat/android` the same day. Written by an
 Opus session; Fable reading done 2026-11-08 (Revisions); the maintainer
-answered B1, A6, A8 and A9 the same day.
+answered B1, A6, A8 and A9 the same day; A4, A7 and item 5's updater on
+2026-11-10 (Revisions), and Phase 1 started that day.
