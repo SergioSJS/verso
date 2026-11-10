@@ -14,12 +14,20 @@
 /** A finger, not a mouse: the screen is touched and nothing hovers. */
 const touch = typeof matchMedia === "function" ? matchMedia("(hover: none) and (pointer: coarse)") : null;
 
-/** How the person last acted: a key (a keyboard is there — a tablet's, a
- *  phone's on a cable) or a finger. A dialog opened by a key shortcut takes
- *  the focus in its field even on a touch screen: the keys are at hand. */
+/** How the person last acted: a key of a real keyboard (a tablet's, a
+ *  phone's on a cable or Bluetooth) or a finger. A dialog opened by a key
+ *  shortcut takes the focus in its field even on a touch screen: the keys
+ *  are at hand. The on-screen keyboard does not count: its letters come as
+ *  "Unidentified" and its Enter and Backspace as their keys but with no
+ *  `code` — a real keyboard's key has a physical place (`code`, "KeyP",
+ *  "Enter"), and a shortcut holds Ctrl or ⌘, which no on-screen keyboard
+ *  sends (seen on the maintainer's phone, Gboard, 2026-11-10). */
 let byKey = false;
+export function fromKeyboard(e: Pick<KeyboardEvent, "code" | "ctrlKey" | "metaKey" | "isComposing">): boolean {
+  return !e.isComposing && (e.code !== "" || e.ctrlKey || e.metaKey);
+}
 if (typeof addEventListener === "function") {
-  addEventListener("keydown", (e) => { if (!e.isComposing && e.key !== "Unidentified" && e.key !== "Process") byKey = true; }, true);
+  addEventListener("keydown", (e) => { if (fromKeyboard(e)) byKey = true; }, true);
   addEventListener("pointerdown", () => { byKey = false; }, true);
 }
 

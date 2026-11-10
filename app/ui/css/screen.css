@@ -117,6 +117,9 @@ body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-a
    tap never reaches (the maintainer's phone, 2026-11-08). */
 /* (`body` first: the layers' own rules, later in the cascade, set `inset: 0`.) */
 body :is(.quick, .plan, .web-offline, .confirm) { top: env(safe-area-inset-top); right: env(safe-area-inset-right); bottom: env(safe-area-inset-bottom); left: env(safe-area-inset-left); }
+/* A dialog that holds the focus for its field (screen/openFocus.ts) draws no
+   ring around the whole screen: the ring is its controls'. */
+:is(.quick, .confirm, [role="dialog"], dialog)[tabindex="-1"]:focus-visible { outline: none; }
 
 /* ---------- The keyboard's bar (item 7) ---------- */
 /* Room under the text for what the keyboard and its bar cover: the last
