@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **The Table's and the Music's sheets start below the phone's status bar** (2026-11-09). Their rounded top reached under the status bar, the close beside the clock; the sheet now starts below it, its close at its own top.
 - **The theme cards' copy says Copiar on a touch screen** (2026-11-09). Under each card in **Settings › Appearance** the copy was a bare 24 px icon whose name only a mouse's hover showed; on a phone or a tablet it shows its word beside the icon and is a finger's size.
 - **Settings on a phone or a tablet: every control is a finger's size** (the maintainer's phone, 2026-11-09). The lists, buttons, fields and fold-outs of every section were 17 to 29 px high; on a touch screen they are 44 px now, and the switch beside a feature's **Settings…** stays on its line.
 - **The Android app has Verso's icon** (the maintainer's phone, 2026-11-08: it showed the toolkit's default). The launcher shows Verso's mark on its dark paper, in the launcher's own shape, and in one colour when the phone's themed icons are on.

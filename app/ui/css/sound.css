@@ -108,7 +108,9 @@
 
 @media (max-width: 760px) {
   /* The Music tab is a sheet from the bottom, as the Table's is (css/table.css). */
-  body[data-right-tab="music"] aside.right { top: .4rem; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
+  body[data-right-tab="music"] aside.right { top: calc(env(safe-area-inset-top) + .4rem); padding-top: 0; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
+  /* The sheet starts below the status bar, its close at its own top. */
+  body[data-right-tab="music"] .right-close { top: 0; }
   body.right-open[data-right-tab="music"] aside.right { transform: none; }
   /* The mini-player stays one row of 40 px. */
   .table-mini { height: 40px; }
