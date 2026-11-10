@@ -240,6 +240,17 @@ for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "
 // up: the game master's rows of the menu are the owner's (ADR 0081).
 const sharesOwn = core.handlers["share_list"]!;
 core.handlers["share_list"] = (a) => ((core.sync.on && core.sync.role === "owner" && rooms?.up) || core.localServer.isSeated() ? [{ id: null, path: "", people: [], attachments: null, missing: false }] : sharesOwn(a));
+// The app on an Android phone (`?host=mobile`, ADR 0118): the host says
+// "mobile" and leaves out what a phone does not offer (src-tauri
+// src/mobile.rs `NOT_ON_A_PHONE`).
+if (params.get("host") === "mobile") {
+  const asked = core.handlers["capabilities"]!;
+  const notOnAPhone = ["loose_files", "terminal", "audio_share", "windows", "web_views", "agents", "reveal"];
+  core.handlers["capabilities"] = (a) => {
+    const c = asked(a) as { host: string; can: string[] };
+    return { ...c, host: c.host === "desktop" ? "mobile" : c.host, can: c.can.filter((x) => !notOnAPhone.includes(x)) };
+  };
+}
 const tableParam = params.get("table");
 if (tableParam === "owner" || tableParam === "player") {
   campaign.up = true;

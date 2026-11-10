@@ -1,7 +1,7 @@
 ---
 title: Verso no Celular e no Tablet
 date: 2026-10-09
-updated: 2026-10-16
+updated: 2026-11-10
 tags:
   - celular
   - tablet
@@ -12,7 +12,7 @@ status: ativo
 
 # Verso no Celular e no Tablet
 
-O Verso abre no navegador do celular e do tablet, servido pelo `verso serve` — a mesma janela do computador, que se arranja para a tela que tem. Esta nota mostra o que muda com um dedo no lugar do mouse.
+O Verso abre no navegador do celular e do tablet, servido pelo `verso serve` — a mesma janela do computador, que se arranja para a tela que tem. No Android há também o [[#O App para Android|app]], a mesma janela instalada. Esta nota mostra o que muda com um dedo no lugar do mouse.
 
 ---
 
@@ -98,6 +98,18 @@ Num servidor com HTTPS (por HTTP simples esta opção fica desligada, e o Verso 
 5. **Sair** da conta apaga a cópia deste aparelho, depois de dizer quantas mudanças ainda não subiram; se o servidor encerrar a sessão, a cópia some na próxima conexão. A cópia **não é cifrada**: o armazenamento do navegador é tão seguro quanto o aparelho desbloqueado.
 
 Quem só lê a pasta guarda o que o servidor lhe entrega — sem o que está escondido dos leitores ([[30 - Verso num Servidor]]).
+
+---
+
+## O App para Android
+
+O app para Android é o mesmo Verso do computador, num APK que você instala no celular (fora da loja: o Android pede para permitir instalar apps de fora uma vez). A tela é a deste resto da nota; o que muda:
+
+- **A pasta do celular** fica **dentro do app**: na primeira vez ele cria a pasta *Verso* e oferece este tutorial. Nenhum outro app a vê, e ela é **apagada junto se o Verso for desinstalado** — **Ajustes › Sincronizar** diz isso. Para guardar uma cópia, sincronize-a com um UniVerso ou com uma nuvem (WebDAV, S3, veja [[34 - Sincronizar com uma Nuvem]]); a senha da nuvem fica no cofre cifrado do Android. A sincronização corre **enquanto o app está aberto** e continua de onde parou quando ele abre de novo.
+- **Um UniVerso**: em **Ajustes › Servidores**, **Conectar** abre a página do servidor no navegador do celular para você entrar; depois as pastas dele aparecem no seletor de pastas (o nome da pasta, no alto da gaveta) e abrem nesta janela. O nome do celular para o servidor é o que você deu a ele nos ajustes do Android.
+- **O celular como servidor**: **Ajustes › Transformar em servidor** funciona como no computador ([[#Parear o Celular com o Seu Computador|acima]]), só que no Wi-Fi do celular. Enquanto serve, uma **notificação** diz o que está servindo e para quantos aparelhos, e o celular fica acordado mesmo com a tela apagada: **gasta bateria e esquenta — deixe-o carregando**. Nos dados móveis só o link pela internet alcançaria o celular; o link ainda não liga no Android.
+- **Não tem** no Android: o terminal, a linha de comando e os agentes, várias janelas, uma página web dentro da nota (ela abre no navegador), abrir um arquivo avulso e capturar o som de outros apps.
+- **Atualizações**: em **Ajustes › Geral**, **Verificar atualizações** procura uma versão nova; baixada e conferida, ela vai para a tela de instalação do próprio Android, que pergunta antes de instalar.
 
 ---
 

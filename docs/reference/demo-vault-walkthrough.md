@@ -1073,6 +1073,20 @@ hand, on a phone and an iPad, the server's window in the browser.
     by the Rust engine (`test/offlineEngine.test.mjs`); an installed iPhone
     and an Android phone, the eviction and the home-screen install: by hand,
     `manual-checks.md`.
+12. The Android app ([ADR
+    0118](../adr/0118-a-native-android-app-from-the-same-core-and-ui.md)
+    Phase 1; note 28, "O App para Android"): on the phone, *Settings › Sync*
+    says the folder lives inside the app and goes with it; *Settings ›
+    Servers › Connect* opens the server's page in the phone's browser, and
+    after the approval the server's folders are in the folder switcher and
+    open in the window; the own folder syncs with a UniVerso, both ways,
+    and resumes at the next opening; *Turn into a server* speaks of the
+    Wi-Fi and the battery, serves with a notification that says what and to
+    how many devices, pairs a device by QR and code, and keeps answering
+    with the screen off; *Check for updates* is offered. Level: H (the app
+    on an Android phone over `adb`); E: `phone-android.spec.mjs` (the words
+    on a mobile host, in the harness); the rest by hand,
+    `manual-checks.md`, "The Android app, Phase 1".
 
 ## 13. On a server
 

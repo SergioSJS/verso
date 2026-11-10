@@ -1,7 +1,7 @@
 ---
 title: Verso on Phone and Tablet
 date: 2026-10-09
-updated: 2026-10-16
+updated: 2026-11-10
 tags:
   - phone
   - tablet
@@ -12,7 +12,7 @@ status: active
 
 # Verso on Phone and Tablet
 
-Verso opens in the browser of your phone and tablet, served by `verso serve` — the same window as on the computer, arranging itself for the screen it has. This note shows what changes with a finger instead of the mouse.
+Verso opens in the browser of your phone and tablet, served by `verso serve` — the same window as on the computer, arranging itself for the screen it has. On Android there is also the [[#The Android App|app]], the same window installed. This note shows what changes with a finger instead of the mouse.
 
 ---
 
@@ -98,6 +98,18 @@ On a server with HTTPS (over plain HTTP this option is off, and Verso says how t
 5. **Signing out** deletes this device's copy, after saying how many changes have not gone up yet; if the server ends the session, the copy goes away at the next connection. The copy is **not encrypted**: the browser's storage is as safe as the unlocked device.
 
 Someone who only reads the folder keeps what the server hands them — without what is hidden from readers ([[30 - Verso on a Server]]).
+
+---
+
+## The Android App
+
+The Android app is the same Verso as on the computer, in an APK you install on the phone (outside the store: Android asks once to allow installing apps from elsewhere). The screen is the one the rest of this note describes; what changes:
+
+- **The phone's folder** lives **inside the app**: the first time it makes the folder *Verso* and offers this tutorial. No other app sees it, and it is **deleted with the app if Verso is uninstalled** — **Settings › Sync** says so. To keep a copy, sync it with a UniVerso or with a cloud (WebDAV, S3, see [[34 - Syncing with a Cloud]]); the cloud's password stays in Android's encrypted store. Sync runs **while the app is open** and carries on where it stopped when it opens again.
+- **A UniVerso**: in **Settings › Servers**, **Connect** opens the server's page in the phone's browser for you to sign in; then its folders show in the folder switcher (the folder's name, at the top of the drawer) and open in this window. The phone's name for the server is the one you gave it in Android's settings.
+- **The phone as a server**: **Settings › Turn into a server** works as on the computer ([[#Pair the Phone with Your Computer|above]]), on the phone's Wi-Fi. While serving, a **notification** says what it serves and to how many devices, and the phone stays awake even with the screen off: **it drains the battery and warms up — keep it charging**. On mobile data only the internet link would reach the phone; the link does not turn on on Android yet.
+- **Not on Android**: the terminal, the command line and the agents, several windows, a web page inside a note (it opens in the browser), opening a loose file and capturing other apps' sound.
+- **Updates**: in **Settings › General**, **Check for updates** looks for a new version; downloaded and checked, it goes to Android's own install screen, which asks before installing.
 
 ---
 
