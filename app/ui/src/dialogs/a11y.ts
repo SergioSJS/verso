@@ -112,6 +112,12 @@ export function closed(el: HTMLElement, restore = true): void {
   if (below) below.inert = false;
   const back = focusBefore.get(el);
   focusBefore.delete(el);
+  // The focus leaves the closed dialog at once: a hidden field kept it in
+  // Chromium until the next frame, and the next key (⌘P) went to the
+  // field's own handler — with nothing to give it back to (the page's
+  // body), it stayed there.
+  const inside = document.activeElement;
+  if (inside instanceof HTMLElement && el.contains(inside)) inside.blur();
   if (restore && back instanceof HTMLElement && back.isConnected) focusOnOpen(back, { preventScroll: true });
   // The focus stays in the dialog now on top: a click on a button gives it
   // no focus in WebKit, so where it was may be the page behind.

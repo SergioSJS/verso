@@ -14,6 +14,15 @@
 /** A finger, not a mouse: the screen is touched and nothing hovers. */
 const touch = typeof matchMedia === "function" ? matchMedia("(hover: none) and (pointer: coarse)") : null;
 
+/** How the person last acted: a key (a keyboard is there — a tablet's, a
+ *  phone's on a cable) or a finger. A dialog opened by a key shortcut takes
+ *  the focus in its field even on a touch screen: the keys are at hand. */
+let byKey = false;
+if (typeof addEventListener === "function") {
+  addEventListener("keydown", (e) => { if (!e.isComposing && e.key !== "Unidentified" && e.key !== "Process") byKey = true; }, true);
+  addEventListener("pointerdown", () => { byKey = false; }, true);
+}
+
 /** Whether `el` brings up the on-screen keyboard when focused. */
 export function typesText(el: Element): boolean {
   if (el instanceof HTMLTextAreaElement) return !el.readOnly;
@@ -32,7 +41,7 @@ export function typesText(el: Element): boolean {
  *  Whether the focus was given. */
 export function focusOnOpen(el: HTMLElement | null | undefined, opts: { select?: boolean; preventScroll?: boolean } = {}): boolean {
   if (!el) return false;
-  if (touch?.matches && typesText(el)) {
+  if (touch?.matches && !byKey && typesText(el)) {
     // The dialog itself takes the focus, which brings up no keyboard: a
     // keyboard's Escape and Tab (a tablet's) still reach it, and the field
     // under it lets its keyboard go.

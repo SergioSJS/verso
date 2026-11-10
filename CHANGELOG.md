@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **A key shortcut on a touch screen still puts you in the field** (2026-11-09). With a keyboard on a tablet or a phone, ⌘P, ⌘⇧P or ⌘, open the switcher, the palette or Settings with the cursor in their field, ready for typing; opened by a tap, the field still waits for yours.
 - **The Table's and the Music's sheets start below the phone's status bar** (2026-11-09). Their rounded top reached under the status bar, the close beside the clock; the sheet now starts below it, its close at its own top.
 - **The theme cards' copy says Copiar on a touch screen** (2026-11-09). Under each card in **Settings › Appearance** the copy was a bare 24 px icon whose name only a mouse's hover showed; on a phone or a tablet it shows its word beside the icon and is a finger's size.
 - **Settings on a phone or a tablet: every control is a finger's size** (the maintainer's phone, 2026-11-09). The lists, buttons, fields and fold-outs of every section were 17 to 29 px high; on a touch screen they are 44 px now, and the switch beside a feature's **Settings…** stays on its line.
