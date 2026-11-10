@@ -31,7 +31,9 @@ const card = (dialog, name) => dialog.locator(`[data-theme-card="${name}"]`);
 test("the button sits under the short gallery; the window is a dialog with a heading, a labelled search and cards that are buttons @layout", async ({ app, page }) => {
   const { dialog } = await openMore(app);
   await expect(dialog.getByRole("heading", { name: "Mais temas", level: 2 })).toBeVisible();
-  await expect(dialog.getByLabel("Buscar temas")).toBeFocused();
+  // On a touch screen the search waits for a tap, the dialog holding the focus (screen/openFocus.ts).
+  if (await page.evaluate(() => matchMedia("(hover: none) and (pointer: coarse)").matches)) await expect(dialog).toBeFocused();
+  else await expect(dialog.getByLabel("Buscar temas")).toBeFocused();
   await expect(dialog.getByLabel("Modo")).toBeVisible();
   await expect(dialog.getByLabel("Superfície")).toBeVisible();
   await expect(dialog.getByRole("heading", { name: "Do Verso" })).toBeVisible();

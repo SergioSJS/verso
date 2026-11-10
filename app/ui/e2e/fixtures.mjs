@@ -42,6 +42,9 @@ export class App {
   async quickOpen(name, label = "Abrir…") {
     await this.key("Mod+p");
     const field = this.page.getByRole("combobox", { name: label });
+    // On a touch screen the field waits for the person's tap (no keyboard
+    // pops up by itself, screen/openFocus.ts): the test taps it too.
+    if (await this.page.evaluate(() => matchMedia("(hover: none) and (pointer: coarse)").matches)) await field.click();
     await expect(field).toBeFocused();
     await field.fill(name);
     await expect(this.page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name);
@@ -51,6 +54,8 @@ export class App {
   /** Run a command of the palette (⌘⇧P) by its label. */
   async command(label) {
     await this.key("Mod+Shift+p");
+    // On a touch screen the palette's field waits for a tap (screen/openFocus.ts).
+    if (await this.page.evaluate(() => matchMedia("(hover: none) and (pointer: coarse)").matches)) await this.page.locator(".quick.palette:not([hidden]) input").click();
     await this.page.keyboard.type(label);
     await this.page.keyboard.press("Enter");
   }

@@ -25,15 +25,25 @@ export function typesText(el: Element): boolean {
 }
 
 /** Focus `el` because what holds it has just opened (not because the person
- *  tapped it). A field that types text is left alone on a touch screen —
- *  and a field focused before (the note's text under a dialog) lets its
- *  keyboard go; `select` selects the field's words where it does focus.
+ *  tapped it). A field that types text is left alone on a touch screen,
+ *  the dialog that holds it focused instead (no dialog: a field focused
+ *  before lets its keyboard go); `select` selects the field's words where
+ *  it does focus.
  *  Whether the focus was given. */
 export function focusOnOpen(el: HTMLElement | null | undefined, opts: { select?: boolean; preventScroll?: boolean } = {}): boolean {
   if (!el) return false;
   if (touch?.matches && typesText(el)) {
-    const at = document.activeElement;
-    if (at instanceof HTMLElement && at !== el && typesText(at)) at.blur();
+    // The dialog itself takes the focus, which brings up no keyboard: a
+    // keyboard's Escape and Tab (a tablet's) still reach it, and the field
+    // under it lets its keyboard go.
+    const holder = el.closest<HTMLElement>('[role="dialog"], [role="alertdialog"], dialog, .quick');
+    if (holder) {
+      if (!holder.hasAttribute("tabindex")) holder.tabIndex = -1;
+      holder.focus({ preventScroll: true });
+    } else {
+      const at = document.activeElement;
+      if (at instanceof HTMLElement && at !== el && typesText(at)) at.blur();
+    }
     return false;
   }
   el.focus({ preventScroll: opts.preventScroll ?? false });

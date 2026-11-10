@@ -125,6 +125,8 @@ test("a split layout on a phone: one pane at a time, a switcher, the layout kept
   await expect(page.locator('.pane:visible .tab[aria-selected="true"]')).toContainText("01 - Guia");
   // On a phone the split commands are absent: from the palette and from a tab.
   await app.key("Mod+Shift+p");
+  // A touch screen's field waits for a tap (screen/openFocus.ts).
+  await page.locator(".quick.palette:not([hidden]) input").click();
   await page.keyboard.type("Dividir");
   await expect(page.locator(".quick.palette:not([hidden]) .quick-list li")).toHaveCount(0);
   await page.keyboard.press("Escape");
