@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **A pane's toolbars are a finger's size on a touch screen** (2026-11-10): the note's modes, star, cover and properties, the PDF's pages, zoom and search, a base's views and tools, the graph's controls and the board's buttons are 44 px; small marks in the text (a tag's ×, a heading's fold) get a larger invisible target.
 - **A phone's base table keeps whole words** (2026-11-10): columns are at least 9rem and the table scrolls sideways; "em_andamento" no longer breaks in two.
 - **A phone's graph is readable from afar** (2026-11-10): zoomed out, only the centred and the tapped note show their names (pinch in to see all); a graph opened in a background tab no longer stays in the corner.
 - **On a phone the Table's dice are a finger's size** (2026-11-10): 44 px each (they were 28 px wide); keep-highest/lowest go into the dots first, and what still does not fit scrolls sideways in its row.

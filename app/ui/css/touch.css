@@ -62,6 +62,32 @@
   :is([role="dialog"], [role="alertdialog"], dialog, .quick, .confirm, .is-sheet, .oracle-shade) summary { min-height: 44px; padding-block: .75rem; box-sizing: border-box; }
 }
 
+/* A pane's own toolbars by a finger (the maintainer, 2026-11-10): the
+   note's head (modes, the star, the cover, the save state, the stickers,
+   the properties' fold, remove and add), the PDF's pages, zoom, search and
+   actions, a base's views, tools and search, the graph's controls, the
+   board's tools (Excalidraw's button size) — 44px on a touch screen, as the
+   dialogs' are. Not the note's own text (a heading's fold, a tag's ×). */
+@media (pointer: coarse) {
+  .pane-tools button, .modes button, .crumbs .crumb,
+  .title-tools button, .title-row > .save, .note-sticker-btn,
+  .props-toggle, .prop-remove, .prop-new,
+  .pdf-pages button, .pdf-zoom button, .pdf-acts button, .pdf-page, .pdf-search,
+  .base-views, .base-tool, .base-search,
+  .graph-zoom button, .graph-controls-toggle { min-height: 44px; min-width: 44px; }
+  .modes button, .title-tools button, .pdf-pages button, .pdf-zoom button, .pdf-acts button, .base-tool, .graph-zoom button { display: inline-flex; align-items: center; justify-content: center; }
+  .props .prop-input, .props .prop-add { min-height: 44px; }
+  /* The board's own buttons (Excalidraw's stylesheet loads after ours, hence
+     !important). Not the tools' bottom row of a phone: nine of 44px do not fit
+     its width, and the last, the more tools, was squeezed out. */
+  .board-canvas .excalidraw :is(.ToolIcon_type_button, .ToolIcon__icon, .dropdown-menu-button):not(.mobile-toolbar *) { width: 44px !important; height: 44px !important; }
+  /* Small marks inside the text and the chips keep their size; their target
+     reaches past them by an invisible margin. */
+  .pill-x::after { width: 40px; height: 40px; }
+  .heading-fold-btn { position: relative; }
+  .heading-fold-btn::after { content: ""; position: absolute; inset: -12px; }
+}
+
 /* The phone's search field is a target of 44px, as high as the rest (the
    box itself, not only the line of text inside it). */
 @media (max-width: 760px) {

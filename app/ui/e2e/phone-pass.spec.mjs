@@ -115,3 +115,29 @@ test("the local table's hint fits the phone's one-line composer @layout", async 
   await expect(field).toBeVisible();
   await expect(field).toHaveAttribute("placeholder", "Role com /r 1d20+3…");
 });
+
+// The maintainer's answers of 2026-11-10, second set: the Table's dice are
+// 44px on a phone, a pane's own toolbars are 44px on touch, a phone's base
+// table keeps whole words in columns of 9rem and scrolls sideways.
+
+test("a pane's toolbar (the note's modes) is 44px on a touch screen @layout", async ({ app, page }) => {
+  await app.open();
+  if (!(await touch(page))) return;
+  await app.quickOpen("01 - Guia");
+  const small = await page.locator(".pane.focused .modes button, .pane.focused .pane-tools button").evaluateAll((bs) =>
+    bs.filter((b) => b.getClientRects().length && b.getBoundingClientRect().height < 43.5).map((b) => `${b.getAttribute("aria-label")}: ${Math.round(b.getBoundingClientRect().height)}px`));
+  expect(small).toEqual([]);
+});
+
+test("the Table's dice row on a phone: 44px dice, nothing wider than the row @layout", async ({ app, page }) => {
+  await app.open();
+  if (page.viewportSize().width > 760) return;
+  await page.locator(".bar-right").click();
+  await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
+  const row = page.locator(".tray-scroll").first();
+  await expect(row).toBeVisible();
+  const dice = await row.locator(".tray-die").evaluateAll((bs) => bs.filter((b) => b.getClientRects().length).map((b) => Math.round(b.getBoundingClientRect().width)));
+  expect(dice.length).toBeGreaterThan(3);
+  for (const w of dice) expect(w).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
