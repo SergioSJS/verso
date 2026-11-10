@@ -24,6 +24,8 @@
    rules, whose stylesheet loads after this one. */
 .board-canvas .excalidraw .board-ex-tools { display: flex; flex-direction: row; align-items: center; gap: .1rem; padding: .25rem; }
 .board-canvas .excalidraw .board-ex-tools .App-toolbar__divider { margin: 0 .25rem; }
+/* The map's tools may draw nothing: two lines then mark an empty slot — one goes. */
+.board-canvas .excalidraw .board-ex-tools .App-toolbar__divider + .App-toolbar__divider { display: none; }
 .board-canvas .excalidraw .ToolIcon__icon.is-on { background: var(--color-surface-primary-container); }
 .board-canvas .excalidraw .ToolIcon__icon.is-on svg { color: var(--color-on-primary-container); }
 .board-canvas .excalidraw .board-ex-tools .ToolIcon__icon:disabled { opacity: .35; cursor: default; }

@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **On a phone the board's toolbar has no empty slot, and the tabs keep their names** (2026-11-09). The board's top toolbar showed an empty place between two lines when no map tool applied; the tabs of a phone's pane were squeezed until the third showed two letters — each now keeps its name (an ellipsis after 22 letters) and the row scrolls.
 - **A key shortcut on a touch screen still puts you in the field** (2026-11-09). With a keyboard on a tablet or a phone, ⌘P, ⌘⇧P or ⌘, open the switcher, the palette or Settings with the cursor in their field, ready for typing; opened by a tap, the field still waits for yours.
 - **The Table's and the Music's sheets start below the phone's status bar** (2026-11-09). Their rounded top reached under the status bar, the close beside the clock; the sheet now starts below it, its close at its own top.
 - **The theme cards' copy says Copiar on a touch screen** (2026-11-09). Under each card in **Settings › Appearance** the copy was a bare 24 px icon whose name only a mouse's hover showed; on a phone or a tablet it shows its word beside the icon and is a finger's size.
