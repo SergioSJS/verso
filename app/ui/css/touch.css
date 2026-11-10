@@ -97,8 +97,8 @@
    menu scrolling inside the screen when longer (chrome.css). */
 @media (pointer: coarse) {
   .menu li > button, .menu-sub li > button { min-height: 44px; font-size: 1rem; }
-  /* The right panel's lists (the outline, the links, the tags, the bookmarks): rows of 24px were too thin for a finger. */
-  aside.right :is(li > button, li > a) { min-height: 40px; display: flex; align-items: center; }
+  /* The right panel's lists (the outline, the links, the tags, the bookmarks): rows of 24px were too thin for a finger (44px, as the music's tracks already were). */
+  aside.right :is(li > button, li > a) { min-height: 44px; display: flex; align-items: center; }
 }
 
 /* The phone's search field is a target of 44px, as high as the rest (the
