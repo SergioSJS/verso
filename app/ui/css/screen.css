@@ -71,6 +71,8 @@
   .bottom-bar-item .icon { width: 20px; height: 20px; }
   .bottom-bar-item:disabled { opacity: .35; }
   .bottom-bar-item:active:not(:disabled) { color: var(--seal); background: var(--paper-3); }
+  /* The focus ring inside the item: at the screen's edges an outer ring was cut off. */
+  .bottom-bar-item:focus-visible, .pane .tab:focus-visible, .notify-bell-phone:focus-visible, .right-close button:focus-visible { outline-offset: -3px; }
   .bottom-bar-label { font-size: 12px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cannot-write .bar-write { display: none; }
   /* A save that failed, at the top of the pane; the server's word on the
