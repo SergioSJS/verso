@@ -133,7 +133,8 @@ export function openMoreThemes(opener: HTMLElement | null): void {
     copy.dataset["act"] = "copy";
     copy.title = W.gallery.copyOf(card.name);
     copy.setAttribute("aria-label", W.gallery.copyOf(card.name));
-    copy.append(icon("copy"));
+    // Its word too where no pointer hovers for the title, as in the gallery (css/touch.css).
+    copy.append(icon("copy"), h("span", "theme-act-word", W.gallery.copy));
     copy.addEventListener("click", () => {
       const r = copyCard(card, face);
       announce(r.ok ? W.gallery.copied(r.name) : r.why);
