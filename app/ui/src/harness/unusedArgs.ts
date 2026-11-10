@@ -55,6 +55,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   set_walk_rules: ["builtinIgnores", "gitignore"],
   set_menu_language: ["language"],
   set_menu_commands: ["features", "keys"],
+  set_bars_dark: ["dark"],
   set_menu_enabled: ["enabled"],
   install_cli: ["replace"],
   new_window: ["sameFolder"],

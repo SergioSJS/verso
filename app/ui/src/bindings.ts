@@ -535,6 +535,11 @@ export const commands = {
 	 */
 	setMenuCommands: (features: string[], keys: { [key in string]: string }) => typedError<null, ContractError>(__TAURI_INVOKE("set_menu_commands", { features, keys })),
 	/**
+	 *  The bars' icons for a page that is `dark`: a no-op where the system
+	 *  draws no bar over the window (the desktop).
+	 */
+	setBarsDark: (dark: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_bars_dark", { dark })),
+	/**
 	 *  The commands that can run just now (the palette's own list, from the
 	 *  window in focus): the other items are greyed, in place.
 	 */

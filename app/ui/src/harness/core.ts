@@ -1277,6 +1277,7 @@ export class Core {
     log_read: () => this.log.map((l) => `${l.level} ${l.message}`).join("\n"),
     set_menu_language: () => null,
     set_menu_commands: () => null,
+    set_bars_dark: () => null,
     set_menu_enabled: () => null,
     menu_sections: (a) => menuSections(String(a["language"]), a["features"] as string[]),
     quit_app: () => null,

@@ -99,6 +99,7 @@ fn main() {
         "log_read",
         "set_menu_language",
         "set_menu_commands",
+        "set_bars_dark",
         "set_menu_enabled",
         "menu_sections",
         "quit_app",

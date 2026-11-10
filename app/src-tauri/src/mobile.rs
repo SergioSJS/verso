@@ -225,3 +225,58 @@ pub(crate) fn place_view<R: tauri::Runtime>(
 ) -> tauri::Result<()> {
     Ok(())
 }
+
+/* ---------- The phone's status bar follows the window's theme ---------- */
+
+/// The status bar's and the navigation bar's icons, dark on a light page
+/// and light on a dark one: the window says which (the maintainer,
+/// 2026-11-10: in Verso's dark theme on a phone in light mode the bar's
+/// dark icons sat on the dark page). The Android side is a plugin of the
+/// app's own (gen/android …/StatusBarPlugin.kt), reached through Tauri's
+/// plugin handle, not a JavaScript interface.
+pub(crate) fn bars_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
+    tauri::plugin::Builder::<R>::new("verso-bars")
+        .setup(|_app, _api| {
+            #[cfg(target_os = "android")]
+            {
+                use tauri::Manager;
+                let handle = _api.register_android_plugin("com.versomd.app", "StatusBarPlugin")?;
+                _app.manage(Bars(handle));
+            }
+            Ok(())
+        })
+        .build()
+}
+
+#[cfg(target_os = "android")]
+struct Bars<R: tauri::Runtime>(tauri::plugin::PluginHandle<R>);
+
+/// The bars' icons for a page that is `dark`: a no-op where the system
+/// draws no bar over the window (the desktop).
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn set_bars_dark<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    dark: bool,
+) -> Result<(), ContractError> {
+    #[cfg(target_os = "android")]
+    {
+        use tauri::Manager;
+        #[derive(serde::Serialize)]
+        struct Args {
+            dark: bool,
+        }
+        if let Some(bars) = app.try_state::<Bars<R>>() {
+            if let Err(e) = bars.0.run_mobile_plugin::<()>("setDark", Args { dark }) {
+                crate::log::write(
+                    "WARN",
+                    "bars",
+                    &format!("the status bar's icons were not set: {e}"),
+                );
+            }
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    let _ = (app, dark);
+    Ok(())
+}

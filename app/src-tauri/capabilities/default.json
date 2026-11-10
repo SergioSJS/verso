@@ -109,6 +109,7 @@
     "allow-log-read",
     "allow-set-menu-language",
     "allow-set-menu-commands",
+    "allow-set-bars-dark",
     "allow-set-menu-enabled",
     "allow-menu-sections",
     "allow-quit-app",

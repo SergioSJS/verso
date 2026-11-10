@@ -850,6 +850,7 @@ macro_rules! commands_for {
                 log_read,
                 set_menu_language::<$runtime>,
                 set_menu_commands::<$runtime>,
+                mobile::set_bars_dark::<$runtime>,
                 set_menu_enabled::<$runtime>,
                 menu_sections,
                 quit_app::<$runtime>,
@@ -1273,6 +1274,7 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
+        .plugin(mobile::bars_plugin())
         // The system's notifications (ADR 0084 item 9): the window asks
         // for them, and only while it is not in front.
         .plugin(tauri_plugin_notification::init())
