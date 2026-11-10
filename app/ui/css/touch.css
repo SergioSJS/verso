@@ -52,6 +52,16 @@
   :is([role="dialog"], .quick, .confirm, .is-sheet, .oracle-shade) button:is([class*="-close"], [aria-label="Fechar"], [aria-label="Close"], .iconic) { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 }
 
+/* Every dialog's and sheet's controls, as Settings' (the maintainer,
+   2026-11-10): the oracle's tabs were 30px, the world wizard's file list
+   18px, the asking dialogs' buttons 30px. Selects, buttons, fields and
+   fold-outs of a dialog are 44px high on a touch screen; checkboxes and
+   radios keep their size (their label is the target). */
+@media (pointer: coarse) {
+  :is([role="dialog"], [role="alertdialog"], dialog, .quick, .confirm, .is-sheet, .oracle-shade) :is(select, button, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"])) { min-height: 44px; }
+  :is([role="dialog"], [role="alertdialog"], dialog, .quick, .confirm, .is-sheet, .oracle-shade) summary { min-height: 44px; padding-block: .75rem; box-sizing: border-box; }
+}
+
 /* The phone's search field is a target of 44px, as high as the rest (the
    box itself, not only the line of text inside it). */
 @media (max-width: 760px) {
