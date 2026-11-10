@@ -89,6 +89,8 @@
   /* The theme builder's fields and the folder page's views, as a dialog's (the maintainer, 2026-11-10). */
   .builder :is(select, button, input:not([type="checkbox"], [type="radio"], [type="range"])), .folder-tools button { min-height: 44px; }
   .builder input[type="color"], .folder-tools button { min-width: 44px; }
+  /* A base's column headers sort on a tap: a finger's target. */
+  .base-th { min-height: 44px; }
   /* Small marks inside the text and the chips keep their size; their target
      reaches past them by an invisible margin. */
   .pill-x::after { width: 40px; height: 40px; }

@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **A base's column headers are a finger's size on touch** (2026-11-10): 44 px, as they sort on a tap.
 - **The theme builder's fields and a folder page's view buttons are a finger's size on touch** (2026-11-10): 44 px, as a dialog's.
 - **The board's tools on a phone are 44 px and scroll sideways** (2026-11-10): the bottom row's nine tools no longer squeeze the last one out.
 - **The Android app no longer offers Open file…** (2026-11-10): the system's picker opened, but a file picked there is not opened yet; it comes back in Phase 2. Folders open as before.

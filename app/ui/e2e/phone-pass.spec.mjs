@@ -145,3 +145,37 @@ test("the Table's dice row on a phone: 44px dice, nothing wider than the row @la
   expect(await row.locator(".tray-keep").count()).toBeGreaterThan(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
+
+// The maintainer's answers of 2026-11-10, third set: a phone held sideways
+// (a touch screen under 500px high) gets the phone's layout; the bottom bar's
+// words shrink, then leave the marks alone, each still named; a base's
+// column headers and the folder page's views are 44px on touch.
+
+test("a touch screen under 500px high gets the phone's layout @layout", async ({ app, page }) => {
+  await app.open();
+  if (!(await touch(page))) return;
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expect(page.locator(".bottom-bar")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.classList.contains("desk-on-phone"))).toBe(false);
+});
+
+test("the bottom bar's words shrink, then the marks stay alone, still named @layout", async ({ app, page }) => {
+  await app.open();
+  const bar = page.locator(".bottom-bar");
+  if (!(await bar.isVisible())) return;
+  await expect(bar).not.toHaveClass(/marks-only/);
+  await bar.evaluate((b) => { b.style.width = "200px"; });
+  await expect(bar).toHaveClass(/marks-only/);
+  await expect(bar.getByRole("button", { name: "Comandos" })).toBeVisible();
+  await bar.evaluate((b) => { b.style.width = ""; });
+  await expect(bar).not.toHaveClass(/marks-only/);
+});
+
+test("a base's column headers and the folder page's views are 44px on a touch screen @layout", async ({ app, page }) => {
+  await app.open();
+  if (!(await touch(page))) return;
+  await app.quickOpen("Projetos.base");
+  const th = page.locator(".pane.focused .base-th").first();
+  await expect(th).toBeVisible();
+  expect((await th.boundingBox()).height).toBeGreaterThanOrEqual(43.5);
+});
