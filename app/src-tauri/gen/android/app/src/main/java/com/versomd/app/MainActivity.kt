@@ -5,9 +5,12 @@ import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import io.crates.keyring.Keyring
 
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
+    // The secrets' store needs the app's context before the core starts.
+    Keyring.initializeNdkContext(applicationContext)
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     // The system's certificate check for every TLS connection of the app

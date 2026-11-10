@@ -72,17 +72,33 @@ fn of(e: &keyring::Error) -> SecretError {
 }
 
 impl Keychain {
+    #[cfg(not(target_os = "android"))]
     fn entry(account: &str) -> Result<keyring::Entry, SecretError> {
         keyring::Entry::new(SERVICE, account).map_err(|e| of(&e))
+    }
+
+    /// On a phone, Android's store, set at start (`android::setup`):
+    /// keyring's own `Entry` refuses Android.
+    #[cfg(target_os = "android")]
+    fn entry(account: &str) -> Result<keyring_core::Entry, SecretError> {
+        keyring_core::Entry::new(SERVICE, account).map_err(|e| of(&e))
     }
 }
 
 impl Secrets for Keychain {
+    #[cfg(not(target_os = "android"))]
     fn available(&self) -> Result<(), SecretError> {
         match keyring::Entry::store_status() {
             Ok(()) => Ok(()),
             Err(e) => Err(of(e)),
         }
+    }
+
+    #[cfg(target_os = "android")]
+    fn available(&self) -> Result<(), SecretError> {
+        keyring_core::get_default_store()
+            .map(|_| ())
+            .ok_or_else(|| of(&keyring::Error::NoDefaultStore))
     }
 
     fn set(&self, account: &str, secret: &str) -> Result<(), SecretError> {

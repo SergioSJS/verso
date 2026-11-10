@@ -35,6 +35,7 @@ pub(crate) fn setup(app: &tauri::App) {
     verso_core::set_host_config_dir(data.join("config"));
     log::open();
     crate::phone::warm();
+    keep_secrets();
     log::write(
         "INFO",
         "host",
@@ -47,6 +48,20 @@ pub(crate) fn setup(app: &tauri::App) {
     );
     if let Some(folder) = own_folder(&data) {
         crate::lock(&app.state::<crate::App>().initial_folder).push_back(folder);
+    }
+}
+
+/// A cloud's secrets in Android's store (SharedPreferences sealed by a
+/// key of the Android Keystore): its context was handed over by the
+/// activity (`Keyring.initializeNdkContext`, MainActivity.kt).
+fn keep_secrets() {
+    match android_native_keyring_store::Store::new() {
+        Ok(store) => keyring_core::set_default_store(store),
+        Err(e) => log::write(
+            "ERROR",
+            "host",
+            &format!("Android: no store for a cloud's secrets: {e}"),
+        ),
     }
 }
 

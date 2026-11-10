@@ -195,6 +195,15 @@ jni = "0.22"
 # Android. rustls on ring (Apache-2.0 OR ISC OR MIT), the version and the
 # features already in the tree (verso-server, the tests); replaces nothing.
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+# A cloud's secret in Android's own store (ADR 0104 item 14 on the phone,
+# ADR 0118 item 7): keyring 4's own Android store (MIT OR Apache-2.0),
+# SharedPreferences encrypted by a key of the Android Keystore. keyring's
+# v1 `Entry` refuses Android, so the store is set on keyring-core (MIT OR
+# Apache-2.0, in the tree already through keyring) and used through it.
+# It brings ndk-context (MIT OR Apache-2.0) and jni 0.21 (in the tree
+# already). It replaces nothing of ours: the phone had no secret store.
+android-native-keyring-store = "1"
+keyring-core = "1"
 
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window
