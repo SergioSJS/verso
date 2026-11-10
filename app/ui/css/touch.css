@@ -80,11 +80,12 @@
   /* A slider's thumb is a finger's: its track 44px high (the dice's size, the zoom). */
   input[type="range"] { min-height: 44px; }
   /* The board's own buttons (Excalidraw's stylesheet loads after ours, hence
-     !important). Not the tools' bottom row of a phone: nine of 44px do not fit
-     its width, and the last, the more tools, was squeezed out. */
-  /* The modes' box is the 44px: its buttons fill it (no inner padding). */
-  .modes { padding: 0; }
-  .board-canvas .excalidraw :is(.ToolIcon_type_button, .ToolIcon__icon, .dropdown-menu-button):not(.mobile-toolbar *) { width: 44px !important; height: 44px !important; }
+     !important), the phone's bottom row of tools too: nine of 44px do not
+     fit its width, so the row scrolls sideways and no tool is squeezed (the
+     maintainer's answer of 2026-11-10). */
+  .board-canvas .excalidraw :is(.ToolIcon_type_button, .ToolIcon__icon, .dropdown-menu-button) { width: 44px !important; height: 44px !important; flex: none; }
+  .board-canvas .excalidraw .mobile-toolbar { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; justify-content: flex-start !important; }
+  .board-canvas .excalidraw .mobile-toolbar > * { flex: none; }
   /* Small marks inside the text and the chips keep their size; their target
      reaches past them by an invisible margin. */
   .pill-x::after { width: 40px; height: 40px; }

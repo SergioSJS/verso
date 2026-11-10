@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **The board's tools on a phone are 44 px and scroll sideways** (2026-11-10): the bottom row's nine tools no longer squeeze the last one out.
 - **The Android app no longer offers Open file…** (2026-11-10): the system's picker opened, but a file picked there is not opened yet; it comes back in Phase 2. Folders open as before.
 - **The phone's bottom bar fits its words at any text size** (2026-11-10): at Android's largest text the words were cut ("Nova n…"); they get smaller first, and when even that does not fit the bar shows its marks alone, each still named for a screen reader.
 - **A phone held sideways gets the phone's layout** (2026-11-10): in landscape the phone got the desktop's ribbon, side bar and panel, zoomed twice over as if it were the desktop site; a touch screen under 500 px high now has the bottom bar, the drawers and the phone's dialogs.
