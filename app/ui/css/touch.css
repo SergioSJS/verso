@@ -45,6 +45,13 @@
 .theme-act-word { display: none; }
 @media (hover: none) { .theme-act-word { display: inline; font-size: .85rem; } }
 
+/* A dialog's or a sheet's close, and its icon buttons, are a finger's
+   target on a touch screen (the roller's close was 25px, the world
+   wizard's 24px, the oracle's settings 25px). */
+@media (pointer: coarse) {
+  :is([role="dialog"], .quick, .confirm, .is-sheet, .oracle-shade) button:is([class*="-close"], [aria-label="Fechar"], [aria-label="Close"], .iconic) { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+}
+
 /* The phone's search field is a target of 44px, as high as the rest (the
    box itself, not only the line of text inside it). */
 @media (max-width: 760px) {

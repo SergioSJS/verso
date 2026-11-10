@@ -523,7 +523,7 @@
   .oracle-box {
     width: 100%;
     max-width: 100vw;
-    max-height: 96dvh;
+    max-height: calc(96dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     padding: 1rem 0.85rem;
     border-radius: 10px;
   }
