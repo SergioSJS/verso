@@ -84,7 +84,15 @@ function buildBar(): void {
   paintExpanded();
   paintBar();
   // The words fit their buttons at any text size (fitBar).
-  new ResizeObserver(() => fitBar()).observe(bar);
+  // On a change of width only: the words leaving change the bar's height,
+  // which must not fit it again (a loop).
+  let width = -1;
+  new ResizeObserver(([e]) => {
+    const w = Math.round(e?.contentRect.width ?? 0);
+    if (w === width) return;
+    width = w;
+    fitBar();
+  }).observe(bar);
   void document.fonts?.ready.then(() => fitBar());
   // A folder opened or closed enables the search field: the bar follows.
   new MutationObserver(paintBar).observe(ui.search, { attributes: true, attributeFilter: ["disabled"] });
