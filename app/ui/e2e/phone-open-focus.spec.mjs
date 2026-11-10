@@ -2,13 +2,43 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// The maintainer's phone (2026-11-08): Settings' close sat under the status
-// bar where no tap reached it; Android's Back did nothing. A dialog's close
-// is a finger's size inside the screen; Back
+// The maintainer's phone (2026-11-08): Settings opened with the on-screen
+// keyboard up, its search field having taken the focus; its close sat under
+// the status bar where no tap reached it; Android's Back did nothing. On a
+// touch screen no field takes the focus when what holds it opens (a desktop
+// keeps it); a dialog's close is a finger's size inside the screen; Back
 // (`window.versoBack`, which the Android activity calls) closes what is on
 // top, then the drawer, and answers false when nothing is open.
 
 import { expect, test } from "./fixtures.mjs";
+
+const touch = (page) => page.evaluate(() => matchMedia("(hover: none) and (pointer: coarse)").matches);
+
+test("opening Settings, the switcher and the palette focuses no field on a touch screen @layout", async ({ app, page }, info) => {
+  await app.open();
+  const isTouch = await touch(page);
+  // Chromium's phone is a touch screen; a desktop is not.
+  if (info.project.name === "phone-chromium") expect(isTouch).toBe(true);
+  if (info.project.name === "chromium" || info.project.name === "webkit") expect(isTouch).toBe(false);
+  const field = () => page.evaluate(() => {
+    const at = document.activeElement;
+    return at instanceof HTMLInputElement || at instanceof HTMLTextAreaElement || (at instanceof HTMLElement && at.isContentEditable);
+  });
+  await app.key("Mod+,");
+  await expect(page.locator(".settings-search")).toBeVisible();
+  if (isTouch) expect(await field()).toBe(false);
+  else await expect(page.locator(".settings-search")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".settings-search")).toBeHidden();
+  for (const combo of ["Mod+p", "Mod+Shift+p"]) {
+    await app.key(combo);
+    await expect(page.locator(".quick:not([hidden]) input").first()).toBeVisible();
+    if (isTouch) expect(await field(), combo).toBe(false);
+    else await expect(page.locator(".quick:not([hidden]) input").first()).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".quick:not([hidden])")).toHaveCount(0);
+  }
+});
 
 test("Settings' close is a finger's size inside the screen @layout", async ({ app, page }) => {
   await app.open();

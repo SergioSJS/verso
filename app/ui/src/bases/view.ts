@@ -20,6 +20,7 @@ import { renderTable } from "./table";
 import * as Y from "./yaml";
 import { placeInView } from "../screen/viewport";
 import { fold } from "../text";
+import { focusOnOpen } from "../screen/openFocus";
 
 /** What a base needs from the window. */
 export type BaseHost = CellHost & {
@@ -167,7 +168,7 @@ class Popover {
     this.el.style.left = `${Math.round(left)}px`;
     this.anchor.setAttribute("aria-expanded", "true");
     document.addEventListener("mousedown", this.onDoc, true);
-    this.el.querySelector<HTMLElement>("input, select, button, textarea")?.focus();
+    focusOnOpen(this.el.querySelector<HTMLElement>("input, select, button, textarea"));
   }
   close(): void {
     if (Popover.current === this) Popover.current = null;

@@ -77,6 +77,7 @@ import { openMoreThemes } from "../theme/more";
 import { W as lookWords } from "../theme/strings";
 import type { ItemCtx, SettingItem } from "./settings/types";
 import { searched } from "./settings/search";
+import { focusOnOpen } from "../screen/openFocus";
 
 /** A settings page is a list of items: a title, a line about it, a control. */
 export let hotkeyRecorder: ((e: KeyboardEvent) => void) | null = null;
@@ -144,7 +145,7 @@ export class SettingsDialog {
     this.el.hidden = false;
     this.notice.hidden = this.notice.textContent === "";
     this.paint();
-    this.search.focus();
+    focusOnOpen(this.search);
   }
   hide(): void {
     this.el.hidden = true;

@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { hotkeyRecorder } from "./settings";
+import { focusOnOpen } from "../screen/openFocus";
 
 /* ---------- Dialogs: named, modal, Tab kept inside, focus given back ---------- */
 export const focusBefore = new WeakMap<HTMLElement, Element | null>();
@@ -111,11 +112,11 @@ export function closed(el: HTMLElement, restore = true): void {
   if (below) below.inert = false;
   const back = focusBefore.get(el);
   focusBefore.delete(el);
-  if (restore && back instanceof HTMLElement && back.isConnected) back.focus({ preventScroll: true });
+  if (restore && back instanceof HTMLElement && back.isConnected) focusOnOpen(back, { preventScroll: true });
   // The focus stays in the dialog now on top: a click on a button gives it
   // no focus in WebKit, so where it was may be the page behind.
   if (restore && below && shownNow(below) && !below.contains(document.activeElement)) {
-    below.querySelector<HTMLElement>("input, select, textarea, button, [tabindex]:not([tabindex='-1'])")?.focus();
+    focusOnOpen(below.querySelector<HTMLElement>("input, select, textarea, button, [tabindex]:not([tabindex='-1'])"));
   }
 }
 /** A list whose highlighted option is announced: the field keeps the

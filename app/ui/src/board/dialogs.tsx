@@ -10,6 +10,7 @@ import { dataUrlOf, PICTURE, pictureScene } from "./pictures";
 import { type BoardStrings } from "./strings";
 import { BoardHost } from "./types";
 import { Api } from "./view";
+import { focusOnOpen } from "../screen/openFocus";
 
 /** A picture card's crop (ADR 0057 point 10, revised 2026-10-06): the whole
  *  picture, and over it the part the card shows, moved by dragging inside
@@ -213,7 +214,7 @@ export function ExportDialog({ api, host, selected, secretIds, onClose }: { api:
   };
 
   useEffect(() => {
-    box.current?.querySelector<HTMLElement>("button, input")?.focus();
+    focusOnOpen(box.current?.querySelector<HTMLElement>("button, input"));
   }, []);
 
   const name = `${host.name()}.${format}`;

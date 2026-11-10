@@ -16,6 +16,7 @@ import { fallOf } from "./fall";
 import { BUILTIN_ORACLE_TABLES, getAllOracleTables, type OracleTable, type TableRollResult } from "./tables";
 import { trackOracle } from "./track";
 import { writeOracle, type Refusal } from "./write";
+import { focusOnOpen } from "../screen/openFocus";
 
 /** The folder's tables were found (or found again). */
 export const TABLES_FOUND = "verso:oracle-tables-changed";
@@ -549,7 +550,7 @@ function build(): Dialog {
       setTab(currentTab);
       el.hidden = false;
       opened(el);
-      qInput.focus();
+      focusOnOpen(qInput);
     },
   };
 }

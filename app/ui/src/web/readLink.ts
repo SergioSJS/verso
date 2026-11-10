@@ -10,6 +10,7 @@
 
 import { el, field, form, lead, page } from "./form";
 import { lang, setLang } from "./strings";
+import { focusOnOpen } from "../screen/openFocus";
 
 const pt = {
   goneTitle: "Este link não abre",
@@ -92,7 +93,7 @@ function passwordPage(token: string, opened: () => void): void {
     (e) => (e instanceof Error ? e.message : s.failed),
   );
   page(s.lockedTitle, lead(s.lockedLead), f.form);
-  password.input.focus();
+  focusOnOpen(password.input);
 }
 
 /** What the window learns of a link that opens: the note it points at,

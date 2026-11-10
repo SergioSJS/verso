@@ -16,6 +16,7 @@ import { el, field, form } from "./form";
 import { passkeysHere, provePasskey } from "./passkeys";
 import type { Prover } from "./proof";
 import { w } from "./strings";
+import { focusOnOpen } from "../screen/openFocus";
 
 function explain(e: unknown): string {
   const s = w();
@@ -109,6 +110,6 @@ export function proofDialog(ways: ProofWays): Promise<boolean> {
     );
     document.body.append(dialog);
     dialog.showModal();
-    password.input.focus();
+    focusOnOpen(password.input);
   });
 }

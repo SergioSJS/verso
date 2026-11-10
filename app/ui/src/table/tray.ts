@@ -26,6 +26,7 @@ import { isServerTable, type TableSource } from "./model";
 import { ts } from "./trayStrings";
 import { dieIcon } from "./dieIcon";
 import { SavedRolls } from "./savedPanel";
+import { focusOnOpen } from "../screen/openFocus";
 
 /** What the row needs of the message field. */
 export interface TrayHost {
@@ -377,7 +378,7 @@ export class Tray {
     box.hidden = false;
     (box === this.moreBox ? this.moreButton : this.savedButton).setAttribute("aria-expanded", "true");
     if (box === this.savedBox) this.saved.sync();
-    box.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
+    focusOnOpen(box.querySelector<HTMLElement>("button, input"), { preventScroll: true });
   }
 
   /** The menu of the two modes, hanging from the button (the app's own menu: arrows, Enter, Escape). */

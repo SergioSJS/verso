@@ -19,6 +19,7 @@ import { openNote } from "../layout/spaces";
 import { icon } from "../icons";
 import { LANG, t } from "../strings";
 import { openFolders } from "../tree/tree";
+import { focusOnOpen } from "../screen/openFocus";
 
 const bw = bundleWords(LANG);
 const isPt = LANG.toLowerCase().startsWith("pt");
@@ -76,7 +77,7 @@ export function showWorldWizard(defaultFolder = ""): void {
   shade.hidden = false;
   opened(shade);
   const nameInput = shade.querySelector<HTMLInputElement>(".world-name-input");
-  nameInput?.focus();
+  focusOnOpen(nameInput);
 }
 
 function hideWizard(): void {

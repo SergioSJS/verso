@@ -23,6 +23,7 @@ import { foundList } from "./serversFound";
 import { copyWhenKnown, startSignIn } from "../serverSignIn";
 import { cp as cp2 } from "../campaignStrings";
 import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
+import { focusOnOpen } from "../screen/openFocus";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -491,7 +492,7 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
       });
       empty.hidden = true;
       acts.append(form);
-      name.focus();
+      focusOnOpen(name);
     });
     acts.append(empty);
   };

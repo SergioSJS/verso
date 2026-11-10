@@ -87,6 +87,7 @@ import { audioWidget } from "../audio/embed";
 import { diceBox } from "../dice/card";
 import { diagramLang, openBlockDiagram } from "../datagraph/block";
 import { dgw } from "../datagraph/words";
+import { focusOnOpen } from "../screen/openFocus";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -651,7 +652,8 @@ export class NoteLeaf extends Leaf {
   declare syncWeb: typeof web.syncWeb;
   declare closeWeb: typeof web.closeWeb;
   override focusContent(): void {
-    if (this.mode !== "preview") this.editor.focus();
+    // A note opened on a touch screen brings up no keyboard by itself.
+    if (this.mode !== "preview") focusOnOpen(this.editor.contentDOM);
     else this.preview.focus({ preventScroll: true });
   }
   override headings(): NoteText["headings"] {

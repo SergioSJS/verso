@@ -8,6 +8,7 @@
 import lucideNodes from "lucide-static/icon-nodes.json";
 import emojiList from "./emoji-data.json";
 import { placeInView } from "./screen/viewport";
+import { focusOnOpen } from "./screen/openFocus";
 
 export type EmojiEntry = {
   c: string; // unicode character
@@ -421,7 +422,7 @@ export function showStickerPicker(opts: PickerOptions): () => void {
   setTimeout(() => {
     document.addEventListener("mousedown", onDocMouseDown);
     document.addEventListener("keydown", onDocKeyDown);
-    search.focus();
+    focusOnOpen(search);
   }, 10);
 
   const close = () => {

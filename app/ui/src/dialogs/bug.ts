@@ -13,6 +13,7 @@ import { swallowed } from "../report";
 import { settings } from "../settings";
 import { t } from "../strings";
 import { asDialog, closed, opened } from "./a11y";
+import { focusOnOpen } from "../screen/openFocus";
 
 /* The bug report: what the window knows about itself and what it
  * swallowed, gathered into one field the user reads and edits before it
@@ -91,8 +92,7 @@ export class BugDialog {
     this.el.hidden = false;
     // The dot is answered: what was swallowed is on the screen now.
     ui.reportBug.classList.remove("has-news");
-    field.focus();
-    field.setSelectionRange(head.length, head.length + t.reportHere.length);
+    if (focusOnOpen(field)) field.setSelectionRange(head.length, head.length + t.reportHere.length);
     // The context joins as soon as the host answers, under the cursor.
     void this.context().then((rest) => {
       if (this.el.hidden) return;

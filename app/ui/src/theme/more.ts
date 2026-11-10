@@ -23,6 +23,7 @@ import { creditLine } from "./creditLine";
 import { V2 } from "./moreStrings";
 import { W } from "./strings";
 import { STYLE_CHOICES } from "./tokens";
+import { focusOnOpen } from "../screen/openFocus";
 
 const HUES: { palette: Hue; name: () => string }[] = [
   { palette: "paper", name: () => t.huePaper.replace(/\s*\(.*\)$/, "") },
@@ -35,7 +36,7 @@ let current: HTMLElement | null = null;
 
 /** Open the window. `opener` gets the focus back when it closes. */
 export function openMoreThemes(opener: HTMLElement | null): void {
-  if (current) return void current.querySelector<HTMLElement>("input")?.focus();
+  if (current) return void focusOnOpen(current.querySelector<HTMLElement>("input"));
   const back = opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
   const shade = h("div", "more-themes");
   current = shade;
@@ -221,7 +222,7 @@ export function openMoreThemes(opener: HTMLElement | null): void {
   const builtin: Card[] = HUES.map((x) => ({ key: `b:${x.palette}`, kind: "builtin" as const, name: x.name(), palette: x.palette }));
   all = [{ heading: V2.more.verso, cards: builtin }];
   render();
-  search.focus();
+  focusOnOpen(search);
   void loadCatalogue().then((list) => {
     if (!shade.isConnected) return;
     if (list.length === 0) return void announce(V2.more.loadFail);

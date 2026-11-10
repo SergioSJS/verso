@@ -27,6 +27,7 @@ import { enterFolderTheme, page, pushWalkRules } from "./settings";
 import { t } from "./strings";
 import { listAll, showOutline } from "./tree/tree";
 import { attachFolderLayouts } from "./statblock/folderWire";
+import { focusOnOpen } from "./screen/openFocus";
 
 /** A popped-out window joins the session: the folder is open already. */
 export async function joinAsPopout(): Promise<void> {
@@ -153,7 +154,7 @@ export async function showFolder(info: FolderInfo): Promise<void> {
   } finally {
     endRestore();
   }
-  ui.search.focus();
+  focusOnOpen(ui.search);
 }
 /** The folder's lists, then its tabs as they were left. */
 async function showListsAndTabs(info: FolderInfo): Promise<void> {

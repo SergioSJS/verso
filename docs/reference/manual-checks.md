@@ -1561,4 +1561,4 @@ Seen on the maintainer's POCO X3 Pro (Android 16) with the debug APK; the browse
 
 1. **Safe areas** (A, the app on an Android phone, edge to edge): open Settings: its search and its × sit below the status bar and the camera cut-out; tap the × once: Settings closes. Open the palette, the switcher, a sheet (a note's access, the table's): nothing under the status bar or the gesture bar.
 2. **Back** (A): with Settings open, Back closes it; with a menu, a dialog or a sheet open, Back closes that one only; with the drawer open, Back closes it; with nothing open, Back leaves the app.
-
+3. **No keyboard by itself** (A, the app on an Android phone and Chrome on a phone): open Settings, the palette, the switcher, a note from the tree, the demo import's first note: the on-screen keyboard stays down until you tap a field; on a desktop the field of Settings and the switcher still has the focus.

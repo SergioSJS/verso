@@ -18,6 +18,7 @@ import { roleName, setLang, w } from "./strings";
 import { icon } from "../icons";
 import { plainHttpLine } from "./plainHttp";
 import { landing, signInJoin, signedInJoin } from "./inviteJoin";
+import { focusOnOpen } from "../screen/openFocus";
 
 function explain(e: unknown): string {
   return e instanceof ApiError ? e.said : w().failed;
@@ -104,7 +105,7 @@ export function signInPage(mail = false): void {
     el("div", { class: "web-others" }, withKey, mailLink),
     keyError,
   );
-  email.input.focus();
+  focusOnOpen(email.input);
 }
 
 export function setupPage(): void {
@@ -134,7 +135,7 @@ export function setupPage(): void {
     explain,
   );
   page(s.setupTitle, lead(s.setupLead), plainHttpLine(s.plainHttpSignIn) ?? el("span"), f.form);
-  email.input.focus();
+  focusOnOpen(email.input);
 }
 
 export async function invitePage(token: string, account: Account | null = null): Promise<void> {
@@ -206,7 +207,7 @@ export async function resetPage(token: string): Promise<void> {
     explain,
   );
   page(s.resetTitle, lead(s.resetLead(link.email)), plainHttpLine(s.plainHttpSignIn) ?? el("span"), f.form);
-  password.input.focus();
+  focusOnOpen(password.input);
 }
 
 type Asked = { code: string; device: string; address: string; asked: string };
@@ -276,7 +277,7 @@ function typeCodePage(account: Account): void {
   );
   f.form.append(waiting.node);
   page(s.deviceTitle, lead(s.deviceTypeLead), f.form);
-  code.input.focus();
+  focusOnOpen(code.input);
 }
 
 /** Who asked, and the question: approve — with a fresh proof, asked on the
@@ -489,7 +490,7 @@ export function pairPage(): void {
     explainPair,
   );
   page(s.pairTitle, lead(s.pairLead), el("p", { class: "web-lead" }, s.pairHow), f.form, el("p", { class: "web-note" }, s.pairTofu));
-  code.input.focus();
+  focusOnOpen(code.input);
 }
 
 function explainPair(e: unknown): string {

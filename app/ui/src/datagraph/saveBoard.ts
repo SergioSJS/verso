@@ -20,6 +20,7 @@ import { openNote } from "../layout/spaces";
 import { allFolders } from "../tree/tree";
 import { type BoardDoc, boardFits, MAX_BOARD_CARDS } from "./saveBoardDoc";
 import { dgw } from "./words";
+import { focusOnOpen } from "../screen/openFocus";
 
 /** The dialog: name, folder, what the board will hold; resolves when it is closed. */
 export function saveAsBoard(doc: BoardDoc, from: string): void {
@@ -66,8 +67,7 @@ export function saveAsBoard(doc: BoardDoc, from: string): void {
   asDialog(shade, dgw.boardTitle, () => close(), title.id);
   document.body.append(shade);
   opened(shade);
-  name.focus();
-  name.select();
+  focusOnOpen(name, { select: true });
 
   const close = (): void => {
     shade.remove();
