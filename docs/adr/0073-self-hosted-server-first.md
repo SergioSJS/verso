@@ -522,7 +522,10 @@ the date; what stays `[OPEN]` is listed in the Status.
    there.)* *(2026-11-08: the native Android app started, as this item
    says, Tauri 2 from the same UI and core — [0118](0118-a-native-android-app-from-the-same-core-and-ui.md);
    it moves item 12's last step forward for Android; the iPad stays in the
-   browser.)*
+   browser.)* *(2026-11-10: the iPad and the iPhone too, by the maintainer's
+   request — [0119](0119-an-ios-and-ipados-app-through-altstore.md): Tauri 2
+   iOS from the same UI and core, first through AltStore; the PWA stays
+   beside it.)*
 9. **The window on every size of screen is an investigation of its own,
    before the server's UI is built.** Phone, tablet, half a screen, a
    narrow pane: what Notion does is the reference, observed from the

@@ -258,6 +258,15 @@ on the entry function. Also:
 | 1 — v1 | Items 3–6: private folder synced with UniVerso / WebDAV / S3; a window on a UniVerso folder; the phone as a server on the LAN and by the bundled link, with the foreground service; the off list; a signed APK | The rows of [`docs/reference/manual-checks.md`](../reference/manual-checks.md) "This app is a server" that apply, run from the phone; sync's vectors green on Android (cross-built host tests or an on-device runner: `[OPEN]`); the Doze test again; TalkBack; both languages, the foreground notification's text included; 390×844 and the device's own size |
 | 2 — later | Android intents (open a `.md`, share to Verso), a SAF folder import, audio capture, Play Store, iOS | Each by its own decision |
 
+Phase 0 measured (2026-11-08, the POCO X3 Pro over `adb`, a debug build at
+`3e9681b68`): start to a note 3.2 s (first paint 2.4 s); the demo vault
+imported in 2.5 s (62 notes); a note opens in 0.3–0.65 s (Fichas 1.5 s);
+typing on a long note median 70 ms, worst 117 ms (target 50); the board
+opens in 1.4 s, pans at 120 Hz with 5% slow frames, zoom's worst 1% of
+frames 53 ms; memory 460 MB idle, 670 MB with the board (target 400); the
+debug APK 222 MB. The maintainer accepted Phase 0 with these numbers; typing
+and memory are Phase 1 work.
+
 ## Consequences
 
 - One code base still (0073 item 8): the Rust core, the sync engine and the
