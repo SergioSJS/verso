@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { host as appHost } from "../can";
+
 // The words of "this app is a server" (ADR 0096): Settings' section, the
 // pairing dialog, the status mark — in both languages (ADR 0035), the
 // English typed as the Portuguese's shape.
@@ -186,6 +188,15 @@ const pt = {
     "Use numa rede em que você confia (a sua casa), não num café ou hotel.",
   ],
   firstGo: "Entendi, ligar",
+  // A phone serving (ADR 0118 item 3): no firewall asks, and the battery
+  // goes (item 3.5).
+  leadPhone: "O Verso deste celular pode servir as pastas que você marcar: aos seus outros aparelhos e a quem está no mesmo Wi-Fi, e aos jogadores em qualquer lugar por um link na internet. Fica desligado até você ligar.",
+  firstBodyPhone: [
+    "Ligar faz este celular aceitar conexões do seu Wi-Fi. Só os endereços privados dele, só enquanto o Verso estiver servindo, só para os aparelhos que você parear aqui.",
+    "Enquanto serve, o celular fica acordado mesmo com a tela apagada, e uma notificação diz isso: gasta bateria e esquenta o celular. Deixe-o carregando.",
+    "Nos dados móveis, só o link pela internet alcança o celular; a rede local precisa de Wi-Fi.",
+    "Use numa rede em que você confia (a sua casa), não num café ou hotel.",
+  ],
   // The pairing dialog.
   pairTitle: "Parear um celular",
   pairSteps: "Abra a câmera do celular e leia o QR. Se ele não ler, abra o endereço abaixo no navegador do celular e digite o código.",
@@ -404,6 +415,13 @@ const en: typeof pt = {
     "Use it on a network you trust (your home), not in a café or a hotel.",
   ],
   firstGo: "Got it, turn it on",
+  leadPhone: "Verso on this phone can serve the folders you tick: to your other devices and the people on the same Wi-Fi, and to players anywhere through an internet link. It stays off until you turn it on.",
+  firstBodyPhone: [
+    "Turning it on makes this phone accept connections from your Wi-Fi. Only its private addresses, only while Verso is serving, only for the devices you pair here.",
+    "While serving, the phone stays awake even with the screen off, and a notification says so: it drains the battery and warms the phone. Keep it charging.",
+    "On mobile data, only the internet link reaches the phone; the local network needs Wi-Fi.",
+    "Use it on a network you trust (your home), not in a café or a hotel.",
+  ],
   pairTitle: "Pair a phone",
   pairSteps: "Open the phone's camera and scan the QR. If it cannot, open the address below in the phone's browser and type the code.",
   qrLabel: "Pairing QR",
@@ -447,7 +465,9 @@ const en: typeof pt = {
 };
 
 export function localStrings(): typeof pt {
-  return document.documentElement.lang.startsWith("pt") ? pt : en;
+  const s = document.documentElement.lang.startsWith("pt") ? pt : en;
+  // A phone is not "this computer" and has no firewall to ask.
+  return appHost() === "mobile" ? { ...s, lead: s.leadPhone, firstBody: s.firstBodyPhone } : s;
 }
 
 /** An event of "O que aconteceu" in the window's language: its words, or

@@ -113,3 +113,133 @@ pub(crate) fn warm() {
         );
     });
 }
+
+/// The window's files a phone serves to its devices, out of the APK's
+/// assets (where `resource_dir()` points, not a directory): copied into
+/// `<config>/ui-web` once per installed version by the plugin.
+pub(crate) fn ui_dir(config: &std::path::Path) -> Option<std::path::PathBuf> {
+    #[derive(serde::Serialize)]
+    struct To {
+        to: String,
+    }
+    #[derive(serde::Deserialize)]
+    struct Copied {
+        path: String,
+    }
+    let to = config.join("ui-web").to_string_lossy().into_owned();
+    match call::<Copied>("copyUi", To { to }) {
+        Ok(copied) => Some(copied.path.into()),
+        Err(e) => {
+            log::write(
+                "ERROR",
+                "host",
+                &format!("Android: the window's files for the devices were not copied: {e}"),
+            );
+            None
+        }
+    }
+}
+
+/// Multicast lock `name` held (`on`) or let go: mDNS reaches the app only
+/// while one is held (ADR 0118 item 3.1).
+pub(crate) fn multicast(name: &str, on: bool) {
+    #[derive(serde::Serialize)]
+    struct Lock<'a> {
+        name: &'a str,
+        on: bool,
+    }
+    if let Err(e) = call::<serde_json::Value>("multicast", Lock { name, on }) {
+        log::write("WARN", "host", &format!("Android: multicast {name}: {e}"));
+    }
+}
+
+/// The serving notification's words, in the window's language: what is
+/// served, to how many devices, that it drains the battery (ADR 0118 item
+/// 3.5); and the channel's name.
+pub(crate) fn serving_words(
+    lang: &str,
+    folders: usize,
+    devices: u32,
+    link: bool,
+) -> (String, String, &'static str) {
+    if lang == "en" {
+        let what = match folders {
+            1 => "1 folder".to_owned(),
+            n => format!("{n} folders"),
+        };
+        let who = match devices {
+            0 => "No device connected".to_owned(),
+            1 => "1 device connected".to_owned(),
+            n => format!("{n} devices connected"),
+        };
+        let how = if link {
+            ", on the network and by the internet link"
+        } else {
+            " on the network"
+        };
+        (
+            format!("Verso is serving {what}"),
+            format!(
+                "{who}{how}. Serving keeps the phone awake: it drains the battery and warms the phone; keep it charging."
+            ),
+            "Serving",
+        )
+    } else {
+        let what = match folders {
+            1 => "1 pasta".to_owned(),
+            n => format!("{n} pastas"),
+        };
+        let who = match devices {
+            0 => "Nenhum aparelho conectado".to_owned(),
+            1 => "1 aparelho conectado".to_owned(),
+            n => format!("{n} aparelhos conectados"),
+        };
+        let how = if link {
+            ", na rede e pelo link da internet"
+        } else {
+            " na rede"
+        };
+        (
+            format!("O Verso está servindo {what}"),
+            format!(
+                "{who}{how}. Servir mantém o celular acordado: gasta bateria e esquenta; deixe-o carregando."
+            ),
+            "Servindo",
+        )
+    }
+}
+
+/// The foreground service follows serving (ADR 0118 item 3.2): on, with
+/// its words, while the server serves on the network or the link is up;
+/// off when neither. Off the thread that said it (it may hold the server's
+/// locks).
+pub(crate) fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    use tauri::Manager;
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let (on, folders, devices) = crate::local_server::serving_now(&app).unwrap_or_default();
+        let link = crate::tunnel::link_up(&app);
+        let lang = verso_service::lock(&app.state::<crate::App>().menu_language).clone();
+        let (title, text, channel) = serving_words(&lang, folders, devices, link);
+        #[derive(serde::Serialize)]
+        struct Serve {
+            on: bool,
+            title: String,
+            text: String,
+            channel: &'static str,
+        }
+        let serve = Serve {
+            on: on || link,
+            title,
+            text,
+            channel,
+        };
+        if let Err(e) = call::<serde_json::Value>("serve", serve) {
+            log::write(
+                "ERROR",
+                "host",
+                &format!("Android: the serving service: {e}"),
+            );
+        }
+    });
+}

@@ -1,11 +1,17 @@
 package com.versomd.app
 
+import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.provider.Settings
+import androidx.core.content.ContextCompat
+import java.io.File
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -17,6 +23,25 @@ import app.tauri.plugin.Plugin
 @InvokeArg
 class PageArgs {
   var url: String = ""
+}
+
+@InvokeArg
+class ServeArgs {
+  var on: Boolean = false
+  var title: String = ""
+  var text: String = ""
+  var channel: String = ""
+}
+
+@InvokeArg
+class LockArgs {
+  var name: String = ""
+  var on: Boolean = false
+}
+
+@InvokeArg
+class CopyArgs {
+  var to: String = ""
 }
 
 // What the Rust host asks of Android itself (src/phone.rs, ADR 0118 item 7):
@@ -62,5 +87,96 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
     } catch (e: Exception) {
       invoke.reject(e.message ?: "no browser")
     }
+  }
+
+  // The foreground service of serving (ServeService.kt): started with its
+  // words, updated by starting it again, stopped when serving stops. The
+  // notification's permission is asked the first time (Android 13+); the
+  // service runs without it, its notice then only in the task manager.
+  @Command
+  fun serve(invoke: Invoke) {
+    val args = invoke.parseArgs(ServeArgs::class.java)
+    val context = activity.applicationContext
+    val service = Intent(context, ServeService::class.java)
+    try {
+      if (args.on) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+          ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+          activity.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7340)
+        }
+        service.putExtra(ServeService.TITLE, args.title)
+          .putExtra(ServeService.TEXT, args.text)
+          .putExtra(ServeService.CHANNEL_NAME, args.channel)
+        ContextCompat.startForegroundService(context, service)
+      } else {
+        context.stopService(service)
+      }
+      invoke.resolve()
+    } catch (e: Exception) {
+      invoke.reject(e.message ?: "the service did not start")
+    }
+  }
+
+  private val locks = HashMap<String, WifiManager.MulticastLock>()
+
+  // Multicast (mDNS) reaches the app only while a lock is held: while a
+  // device pairs, while the app looks for servers (ADR 0118 item 3.1).
+  @Command
+  fun multicast(invoke: Invoke) {
+    val args = invoke.parseArgs(LockArgs::class.java)
+    synchronized(locks) {
+      val held = locks[args.name]
+      if (args.on && held == null) {
+        val wifi = activity.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        wifi?.createMulticastLock("verso:" + args.name)?.apply {
+          setReferenceCounted(false)
+          acquire()
+          locks[args.name] = this
+        }
+      } else if (!args.on && held != null) {
+        if (held.isHeld) held.release()
+        locks.remove(args.name)
+      }
+      Unit
+    }
+    invoke.resolve()
+  }
+
+  // The window's files for the devices this phone serves (ADR 0118 item 7):
+  // copied out of the APK's assets into the app's storage, once per
+  // installed version, off the main thread. Answers the directory.
+  @Command
+  fun copyUi(invoke: Invoke) {
+    val args = invoke.parseArgs(CopyArgs::class.java)
+    Thread {
+      try {
+        val context = activity.applicationContext
+        val to = File(args.to)
+        val marker = File(to, ".installed")
+        val version = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime.toString()
+        if (!marker.exists() || marker.readText() != version) {
+          to.deleteRecursively()
+          copyAssets(context, "ui-web", to)
+          marker.writeText(version)
+        }
+        val answer = JSObject()
+        answer.put("path", to.absolutePath)
+        invoke.resolve(answer)
+      } catch (e: Exception) {
+        invoke.reject(e.message ?: "the window's files were not copied")
+      }
+    }.start()
+  }
+
+  private fun copyAssets(context: Context, from: String, to: File) {
+    val children = context.assets.list(from) ?: emptyArray()
+    if (children.isEmpty()) {
+      to.parentFile?.mkdirs()
+      context.assets.open(from).use { input -> to.outputStream().use { input.copyTo(it) } }
+      return
+    }
+    to.mkdirs()
+    for (child in children) copyAssets(context, "$from/$child", File(to, child))
   }
 }

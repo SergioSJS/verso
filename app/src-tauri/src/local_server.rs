@@ -441,7 +441,7 @@ pub(crate) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 
 /// Whether it serves, how many folders and how many phones are connected
 /// now; none before the server was first used.
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(any(target_os = "macos", windows, target_os = "android"))]
 pub(crate) fn serving_now<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Option<(bool, usize, u32)> {

@@ -821,6 +821,8 @@ fn manager<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> &Manager {
                 // The mark in the menu bar or the tray says the link too.
                 #[cfg(any(target_os = "macos", windows))]
                 crate::tray::follow(&events);
+                #[cfg(target_os = "android")]
+                crate::phone::follow(&events);
             },
             Timing::default(),
             CEILING,
@@ -855,20 +857,50 @@ fn binary_going<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     going: &fetch::Going<'_>,
 ) -> Result<PathBuf, String> {
-    // No `cloudflared` is fetched on a phone: the Android app will carry
-    // its own (Phase 1); until then the link stays off there, in words.
-    let pin = fetch::pin_here().ok_or_else(|| {
-        if cfg!(target_os = "android") {
-            "the internet link is not available on the phone yet".to_owned()
-        } else {
-            "no cloudflared is published for this system".to_owned()
-        }
-    })?;
-    let (path, fresh) = fetch::ensure_going(&dir(app)?, pin, &mut fetch::download_sized, going)?;
-    if fresh {
-        run::version_check(&path, fetch::VERSION)?;
+    // No `cloudflared` is fetched on a phone: the APK carries its own.
+    #[cfg(target_os = "android")]
+    {
+        let _ = (app, going);
+        bundled()
     }
-    Ok(path)
+    #[cfg(not(target_os = "android"))]
+    {
+        let pin = fetch::pin_here()
+            .ok_or_else(|| "no cloudflared is published for this system".to_owned())?;
+        let (path, fresh) =
+            fetch::ensure_going(&dir(app)?, pin, &mut fetch::download_sized, going)?;
+        if fresh {
+            run::version_check(&path, fetch::VERSION)?;
+        }
+        Ok(path)
+    }
+}
+
+/// The phone's `cloudflared` (ADR 0118 item 3.3): shipped in the APK as a
+/// native library, `libcloudflared.so`, which Android puts on disk in the
+/// app's native library directory — the only place an app targeting API
+/// 29+ may run a file from. Checked against the pinned Linux arm64 binary
+/// (the build step that places it checks it too).
+#[cfg(target_os = "android")]
+fn bundled() -> Result<PathBuf, String> {
+    let pin = fetch::pin_for("linux", "aarch64")
+        .ok_or_else(|| "no cloudflared is pinned for the phone".to_owned())?;
+    let dir = crate::phone::facts().native_library_dir;
+    if dir.is_empty() {
+        return Err("the app's native library directory is unknown".to_owned());
+    }
+    let path = Path::new(&dir).join("libcloudflared.so");
+    match files::sha256_of(&path)? {
+        Some(sum) if sum == pin.binary_sha256 => {
+            // That it runs on this phone, once per start of the app.
+            static RAN: OnceLock<Result<(), String>> = OnceLock::new();
+            RAN.get_or_init(|| run::version_check(&path, fetch::VERSION))
+                .clone()
+                .map(|()| path)
+        }
+        Some(_) => Err("the cloudflared inside the app is not the pinned one".to_owned()),
+        None => Err("this build of the app carries no cloudflared".to_owned()),
+    }
 }
 
 /// The link is starting from the person's click: a *Stop* during the
@@ -1001,7 +1033,7 @@ pub fn own_forget<R: tauri::Runtime>(app: &tauri::AppHandle<R>, uuid: &str) -> R
 
 /// The link is on or starting (the tray says so); `false` before the
 /// manager was ever made.
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(any(target_os = "macos", windows, target_os = "android"))]
 pub fn link_up<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
     let slot = &app.state::<crate::App>().inner().local_server.link;
     slot.manager

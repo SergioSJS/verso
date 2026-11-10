@@ -340,8 +340,14 @@ pub fn watcher(app: u32, child: u32, every: Duration) -> std::io::Result<Child> 
     let script = "while kill -0 \"$1\" 2>/dev/null && kill -0 \"$2\" 2>/dev/null; do sleep \"$3\"; done; \
                   kill -0 \"$1\" 2>/dev/null || kill -TERM \"$2\" 2>/dev/null";
     let seconds = format!("{:.1}", every.as_secs_f64().max(0.1));
+    // Android's shell is not at /bin/sh.
+    let shell = if cfg!(target_os = "android") {
+        "/system/bin/sh"
+    } else {
+        "/bin/sh"
+    };
     start(
-        Command::new("/bin/sh")
+        Command::new(shell)
             .arg("-c")
             .arg(script)
             .arg("verso-link-watch")

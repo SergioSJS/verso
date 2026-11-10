@@ -16,7 +16,9 @@
 //! — of that file only whether it is there is asked ([`is_there`]), for
 //! Settings to say whether the login was done.
 
-use std::io::{Read, Write};
+use std::io::Read;
+#[cfg(not(target_os = "android"))]
+use std::io::Write;
 use std::path::Path;
 
 use sha2::Digest;
@@ -62,6 +64,7 @@ pub(crate) fn sha256_of(path: &Path) -> Result<Option<String>, String> {
 /// Copy `from` into a new file at `to` (`0600`, replaced if there),
 /// hashing what passes; more than `cap` bytes is refused. Synced before it
 /// returns. Says the SHA-256 of what was written.
+#[cfg(not(target_os = "android"))]
 pub(crate) fn store(from: &mut dyn Read, to: &Path, cap: u64) -> Result<String, String> {
     store_watched(from, to, cap, &mut |_| true)
 }
@@ -69,6 +72,7 @@ pub(crate) fn store(from: &mut dyn Read, to: &Path, cap: u64) -> Result<String, 
 /// [`store`], `going` told the bytes written so far after each piece: when
 /// it answers false the copy ends there, refused with [`STOPPED`] (the
 /// caller removes the file).
+#[cfg(not(target_os = "android"))]
 pub(crate) fn store_watched(
     from: &mut dyn Read,
     to: &Path,
@@ -109,6 +113,7 @@ pub(crate) fn store_watched(
 /// (at its top, `./` allowed) into `to`, as [`store`] does. Nothing else of
 /// the archive is written, and nothing of its metadata is applied: the
 /// archive cannot name where its file lands.
+#[cfg(not(target_os = "android"))]
 pub(crate) fn extract_one(tgz: &Path, name: &str, to: &Path, cap: u64) -> Result<String, String> {
     let file = std::fs::File::open(tgz).map_err(|e| format!("reading the archive: {e}"))?;
     let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
@@ -134,6 +139,7 @@ pub(crate) fn extract_one(tgz: &Path, name: &str, to: &Path, cap: u64) -> Result
 
 /// Make `from` runnable (`0755` on Unix) and move it to `to` in one step
 /// (replacing what was there), then sync the directory on Unix.
+#[cfg(not(target_os = "android"))]
 pub(crate) fn place_runnable(from: &Path, to: &Path) -> Result<(), String> {
     #[cfg(unix)]
     {
@@ -166,6 +172,7 @@ pub(crate) fn remove(path: &Path) {
     let _ = std::fs::remove_file(path);
 }
 
+#[cfg(not(target_os = "android"))]
 fn create(path: &Path) -> Result<std::fs::File, String> {
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create(true).truncate(true);

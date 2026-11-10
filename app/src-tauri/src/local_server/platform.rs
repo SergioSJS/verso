@@ -21,6 +21,9 @@ pub(super) fn server<R: tauri::Runtime>(
         None => verso_core::config_dir().map_err(verso_service::convert)?,
     };
     let mut ui = Vec::new();
+    // A phone's resources are the APK's assets, not a directory.
+    #[cfg(target_os = "android")]
+    ui.extend(crate::phone::ui_dir(&config));
     if let Ok(resources) = app.path().resource_dir() {
         ui.push(resources.join("ui-web"));
     }
@@ -37,6 +40,15 @@ pub(super) fn server<R: tauri::Runtime>(
         // The mark in the menu bar or the tray follows (macOS, Windows).
         #[cfg(any(target_os = "macos", windows))]
         crate::tray::follow(&events);
+        // A phone: the foreground service and its notification; the
+        // pairing's multicast let go when the pairing ends.
+        #[cfg(target_os = "android")]
+        {
+            if matches!(event, Event::PairingEnded { .. }) {
+                crate::phone::multicast("pairing", false);
+            }
+            crate::phone::follow(&events);
+        }
     });
     #[cfg(not(test))]
     let made = LocalServer::new(config.join("local-server"), ui, env!("VERSO_COMMIT"), sink);
@@ -390,6 +402,8 @@ pub(super) async fn pair_open<R: tauri::Runtime>(
     blocking(move || {
         check_not_received(&app, &local)?;
         let v = local.pair_open_on(address.as_deref())?;
+        #[cfg(target_os = "android")]
+        crate::phone::multicast("pairing", true);
         Ok(LocalPairing {
             url: v.url,
             address: v.address,
@@ -421,6 +435,8 @@ pub(super) async fn pair_close<R: tauri::Runtime>(
     let local = server(&app)?;
     blocking(move || {
         local.pair_close();
+        #[cfg(target_os = "android")]
+        crate::phone::multicast("pairing", false);
         Ok(())
     })
     .await
@@ -572,7 +588,7 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 }
 
 /// What the tray follows; `None` while the server was never made.
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(any(target_os = "macos", windows, target_os = "android"))]
 pub(super) fn serving_now<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Option<(bool, usize, u32)> {

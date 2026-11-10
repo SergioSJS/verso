@@ -15,9 +15,12 @@
 //! extracted binary. A binary already in place is checked again before
 //! every run.
 
+#[cfg(not(target_os = "android"))]
 use std::io::Read;
 use std::path::{Path, PathBuf};
+#[cfg(not(target_os = "android"))]
 use std::sync::Mutex;
+#[cfg(not(target_os = "android"))]
 use std::time::Duration;
 
 use super::files;
@@ -26,6 +29,7 @@ use super::files;
 pub const VERSION: &str = "2026.10.3";
 
 /// The largest download taken: the biggest asset is 55 MB.
+#[cfg(not(target_os = "android"))]
 const CAP: u64 = 128 * 1024 * 1024;
 
 /// One system's `cloudflared`.
@@ -44,6 +48,7 @@ pub struct Pin<'a> {
     pub binary_sha256: &'a str,
 }
 
+#[cfg(not(target_os = "android"))]
 impl Pin<'_> {
     /// The asset is a gzip'd tar holding the binary (macOS).
     #[must_use]
@@ -108,12 +113,14 @@ pub fn pin_for(os: &str, arch: &str) -> Option<&'static Pin<'static>> {
 
 /// The row for this system.
 #[must_use]
+#[cfg(not(target_os = "android"))]
 pub fn pin_here() -> Option<&'static Pin<'static>> {
     pin_for(std::env::consts::OS, std::env::consts::ARCH)
 }
 
 /// Where the runnable binary is kept: `<dir>/cloudflared-<version>[.exe]`.
 #[must_use]
+#[cfg(not(target_os = "android"))]
 pub fn binary_path(dir: &Path) -> PathBuf {
     let ext = if cfg!(windows) { ".exe" } else { "" };
     dir.join(format!("cloudflared-{VERSION}{ext}"))
@@ -123,6 +130,7 @@ pub fn binary_path(dir: &Path) -> PathBuf {
 /// own address's login fetches the binary, say. The second waits for the
 /// first and finds the binary in place, instead of writing the same
 /// `.part` beside it.
+#[cfg(not(target_os = "android"))]
 static FETCHING: Mutex<()> = Mutex::new(());
 
 /// Where a download is read from: the tests hand bytes.
@@ -131,6 +139,7 @@ pub type Source<'s> = dyn FnMut(&str) -> Result<Box<dyn Read + Send>, String> + 
 
 /// A download and its size in bytes, when the server said it: the real one
 /// is [`download_sized`].
+#[cfg(not(target_os = "android"))]
 pub type Sized<'s> = dyn FnMut(&str) -> Result<(Box<dyn Read + Send>, Option<u64>), String> + 's;
 
 /// What a download tells as it goes: the bytes so far and in all; it
@@ -159,6 +168,7 @@ pub fn ensure(
 /// [`ensure`], telling `going` how far the download got; when it answers
 /// false the download ends there, nothing of it is kept (no `.part`), and
 /// it is refused with `files::STOPPED`.
+#[cfg(not(target_os = "android"))]
 pub fn ensure_going(
     dir: &Path,
     pin: &Pin<'_>,
@@ -221,6 +231,7 @@ pub fn forget_partial(dir: &Path) {
 
 /// Download into `part`, check it; for a `.tgz`, extract into `inner` and
 /// check that. Says the file that is ready to be placed.
+#[cfg(not(target_os = "android"))]
 fn fetch_into(
     pin: &Pin<'_>,
     source: &mut Sized<'_>,
@@ -239,6 +250,7 @@ fn fetch_into(
     Ok(inner.to_path_buf())
 }
 
+#[cfg(not(target_os = "android"))]
 fn refuse_unless(got: &str, want: &str, what: &str) -> Result<(), String> {
     if got == want {
         return Ok(());
@@ -252,6 +264,7 @@ fn refuse_unless(got: &str, want: &str, what: &str) -> Result<(), String> {
 /// The real download: `https://github.com/…` only (and the redirect GitHub
 /// answers with, to its own asset store), as ADR 0050's revision by 0117
 /// says; with its size, when GitHub says it.
+#[cfg(not(target_os = "android"))]
 pub fn download_sized(url: &str) -> Result<(Box<dyn Read + Send>, Option<u64>), String> {
     if !url.starts_with("https://github.com/cloudflare/cloudflared/releases/download/") {
         return Err("cloudflared is downloaded from its GitHub releases alone".to_owned());

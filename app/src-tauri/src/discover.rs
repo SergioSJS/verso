@@ -162,6 +162,9 @@ pub(crate) fn shown(found: &[Found]) -> Vec<FoundServer> {
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn discover_servers_start() -> Result<(), ContractError> {
+    // A phone hears mDNS only while a multicast lock is held.
+    #[cfg(target_os = "android")]
+    crate::phone::multicast("discover", true);
     ensure().map(|_| ())
 }
 
@@ -189,6 +192,8 @@ pub(crate) fn discover_servers_list() -> Result<Vec<FoundServer>, ContractError>
 #[specta::specta]
 pub(crate) fn discover_servers_stop() -> Result<(), ContractError> {
     BROWSE.release();
+    #[cfg(target_os = "android")]
+    crate::phone::multicast("discover", false);
     Ok(())
 }
 
