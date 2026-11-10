@@ -243,3 +243,20 @@ pub(crate) fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         }
     });
 }
+
+/// A downloaded, checked APK handed to Android's own install prompt
+/// (ADR 0118 item 5): the person confirms there; the first time, Android
+/// asks to allow installs from Verso.
+pub(crate) fn install_apk(path: &std::path::Path) -> Result<(), String> {
+    #[derive(serde::Serialize)]
+    struct Apk {
+        path: String,
+    }
+    call::<serde_json::Value>(
+        "installApk",
+        Apk {
+            path: path.to_string_lossy().into_owned(),
+        },
+    )
+    .map(|_| ())
+}

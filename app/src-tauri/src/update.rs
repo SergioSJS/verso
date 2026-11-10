@@ -6,6 +6,8 @@
 //! `verso-core`'s sidecar.
 
 use tauri::Emitter;
+#[cfg(target_os = "android")]
+use tauri::Manager;
 use verso_contract::{ContractError, ErrorKind, InstallResult, UpdateInfo, UpdateProgress};
 
 use crate::version::ParsedVersion;
@@ -205,6 +207,8 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
     // These are resolved at compile time — no runtime overhead.
     let os_keywords: &[&str] = if cfg!(target_os = "macos") {
         &["macos", "darwin", "osx"]
+    } else if cfg!(target_os = "android") {
+        &["android"]
     } else if cfg!(target_os = "windows") {
         &["windows", "win"]
     } else {
@@ -222,6 +226,8 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
         &[".msi", ".exe", ".zip"]
     } else if cfg!(target_os = "macos") {
         &[".dmg", ".zip"]
+    } else if cfg!(target_os = "android") {
+        &[".apk"]
     } else {
         #[cfg(target_os = "linux")]
         {
@@ -275,7 +281,7 @@ pub(crate) fn is_trusted_update_url(url: &str) -> bool {
 /// NSIS `-setup.exe`, or an `.msi`) rather than an archive to extract.
 pub(crate) fn is_installer_name(name: &str) -> bool {
     let n = name.to_ascii_lowercase();
-    [".exe", ".msi", ".appimage", ".deb", ".rpm"]
+    [".exe", ".msi", ".appimage", ".deb", ".rpm", ".apk"]
         .iter()
         .any(|ext| n.ends_with(ext))
 }
@@ -554,7 +560,15 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
     }
 
     let total_bytes = res.content_length();
-    let temp_dir = std::env::temp_dir().join(format!("verso-update-{}", std::process::id()));
+    // A phone's temp_dir() (/data/local/tmp) is not the app's to write.
+    #[cfg(target_os = "android")]
+    let temp_root = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| crate::failed(e.to_string()))?;
+    #[cfg(not(target_os = "android"))]
+    let temp_root = std::env::temp_dir();
+    let temp_dir = temp_root.join(format!("verso-update-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(&temp_dir).map_err(|e| ContractError {
         kind: ErrorKind::Failed,
@@ -666,7 +680,7 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
     if is_installer_name(&asset.name) {
         drop(file);
         let lower = asset.name.to_ascii_lowercase();
-        let ext = ["msi", "appimage", "deb", "rpm"]
+        let ext = ["msi", "appimage", "deb", "rpm", "apk"]
             .into_iter()
             .find(|e| lower.ends_with(&format!(".{e}")))
             .unwrap_or("exe");
@@ -1041,10 +1055,26 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
         }
     }
 
-    // A phone has no installer of its own here (ADR 0118 item 5: its
-    // APK's update is offered apart).
-    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
-    let _ = (extract_dir, temp_dir, &emit_done);
+    // A sideloaded APK (ADR 0118 item 5, decided 2026-11-10): the checked
+    // package moves out of the folder the download cleans, and Android's
+    // own install prompt takes it; Android never installs silently.
+    #[cfg(target_os = "android")]
+    {
+        let _ = temp_dir;
+        let kept = app
+            .path()
+            .app_cache_dir()
+            .map_err(|e| crate::failed(e.to_string()))?
+            .join("verso-update.apk");
+        std::fs::rename(extract_dir.join("verso-setup.apk"), &kept)
+            .map_err(|e| crate::failed(e.to_string()))?;
+        crate::phone::install_apk(&kept).map_err(crate::failed)?;
+        return Ok(emit_done(
+            "O Android vai perguntar se instala a versão nova.",
+            None,
+            false,
+        ));
+    }
     // Unreachable on supported platforms, but required for compilation
     #[allow(unreachable_code)]
     Err(ContractError {

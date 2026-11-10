@@ -23,19 +23,18 @@ pub(crate) const HOST: Host = Host::Mobile;
 
 /// What the phone does not offer (ADR 0027: the window hides what is
 /// absent): no shell, no audio capture, no second window, no page inside
-/// a note, no agents' command line, no app updates of its own (the store
-/// or the APK updates it), no file manager to show a file in, no file
+/// a note, no agents' command line, no file manager to show a file in, no file
 /// opened without its folder (Android's picker hands a content:// file the
-/// app does not open yet: Phase 2, decided 2026-11-10).
+/// app does not open yet: Phase 2, decided 2026-11-10). A sideloaded APK
+/// keeps its updater (item 5, decided 2026-11-10).
 #[cfg(mobile)]
-const NOT_ON_A_PHONE: [Can; 8] = [
+const NOT_ON_A_PHONE: [Can; 7] = [
     Can::LooseFiles,
     Can::Terminal,
     Can::AudioShare,
     Can::Windows,
     Can::WebViews,
     Can::Agents,
-    Can::Updates,
     Can::Reveal,
 ];
 

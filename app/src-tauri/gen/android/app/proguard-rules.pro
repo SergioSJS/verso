@@ -21,3 +21,12 @@
 #-renamesourcefileattribute SourceFile
 # The Kotlin half of the certificate check, reached only through JNI.
 -keep, includedescriptorclasses class org.rustls.platformverifier.** { *; }
+# The app's own Tauri plugins and the arguments their commands parse by
+# reflection (src/phone.rs, src/mobile.rs), the serving service, and the
+# keyring store's JNI entry: reached by name, never renamed.
+-keep class com.versomd.app.PhonePlugin { *; }
+-keep class com.versomd.app.StatusBarPlugin { *; }
+-keep class com.versomd.app.*Args { *; }
+-keep class com.versomd.app.ServeService { *; }
+-keep class io.crates.keyring.Keyring { *; }
+-keep class io.crates.keyring.Keyring$Companion { *; }

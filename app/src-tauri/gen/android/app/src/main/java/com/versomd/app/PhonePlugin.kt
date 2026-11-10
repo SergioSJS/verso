@@ -11,6 +11,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import java.io.File
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
@@ -42,6 +43,11 @@ class LockArgs {
 @InvokeArg
 class CopyArgs {
   var to: String = ""
+}
+
+@InvokeArg
+class ApkArgs {
+  var path: String = ""
 }
 
 // What the Rust host asks of Android itself (src/phone.rs, ADR 0118 item 7):
@@ -178,5 +184,34 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
     }
     to.mkdirs()
     for (child in children) copyAssets(context, "$from/$child", File(to, child))
+  }
+
+  // A checked update (src/update.rs) handed to Android's own install
+  // prompt (ADR 0118 item 5): the person confirms there. The first time,
+  // Android's page to allow installs from Verso opens instead, and the
+  // person tries again from it.
+  @Command
+  fun installApk(invoke: Invoke) {
+    val args = invoke.parseArgs(ApkArgs::class.java)
+    val context = activity.applicationContext
+    try {
+      if (!context.packageManager.canRequestPackageInstalls()) {
+        activity.startActivity(
+          Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        invoke.reject("allow installs from Verso, then install again")
+        return
+      }
+      val apk = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", File(args.path))
+      activity.startActivity(
+        Intent(Intent.ACTION_VIEW)
+          .setDataAndType(apk, "application/vnd.android.package-archive")
+          .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+      )
+      invoke.resolve()
+    } catch (e: Exception) {
+      invoke.reject(e.message ?: "the install prompt did not open")
+    }
   }
 }

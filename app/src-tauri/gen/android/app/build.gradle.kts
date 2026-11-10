@@ -40,6 +40,11 @@ android {
             }
         }
         getByName("release") {
+            // Signed with the debug key until the maintainer makes the
+            // release keystore (a long-lived secret: his to create and
+            // keep, ADR 0118 item 9's "signed APK"). An APK signed by one
+            // key cannot update an install signed by another.
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
