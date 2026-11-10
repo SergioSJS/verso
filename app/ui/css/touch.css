@@ -77,6 +77,8 @@
   .graph-zoom button, .graph-controls-toggle { min-height: 44px; min-width: 44px; }
   .modes button, .title-tools button, .pdf-pages button, .pdf-zoom button, .pdf-acts button, .base-tool, .graph-zoom button { display: inline-flex; align-items: center; justify-content: center; }
   .props .prop-input, .props .prop-add { min-height: 44px; }
+  /* A slider's thumb is a finger's: its track 44px high (the dice's size, the zoom). */
+  input[type="range"] { min-height: 44px; }
   /* The board's own buttons (Excalidraw's stylesheet loads after ours, hence
      !important). Not the tools' bottom row of a phone: nine of 44px do not fit
      its width, and the last, the more tools, was squeezed out. */
@@ -88,6 +90,15 @@
   .pill-x::after { width: 40px; height: 40px; }
   .heading-fold-btn { position: relative; }
   .heading-fold-btn::after { content: ""; position: absolute; inset: -12px; }
+}
+
+/* A menu's rows by a finger (the phone pass, 2026-11-10): the tree's, a
+   tab's, the panel's menus had rows of 30px; 44px on a touch screen, the
+   menu scrolling inside the screen when longer (chrome.css). */
+@media (pointer: coarse) {
+  .menu li > button, .menu-sub li > button { min-height: 44px; font-size: 1rem; }
+  /* The right panel's lists (the outline, the links, the tags, the bookmarks): rows of 24px were too thin for a finger. */
+  aside.right :is(li > button, li > a) { min-height: 40px; display: flex; align-items: center; }
 }
 
 /* The phone's search field is a target of 44px, as high as the rest (the
