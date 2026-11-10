@@ -79,6 +79,8 @@
   .props .prop-input, .props .prop-add { min-height: 44px; }
   /* A slider's thumb is a finger's: its track 44px high (the dice's size, the zoom). */
   input[type="range"] { min-height: 44px; }
+  /* The modes' box is the 44px: its buttons fill it (no inner padding). */
+  .modes { padding: 0; }
   /* The board's own buttons (Excalidraw's stylesheet loads after ours, hence
      !important), the phone's bottom row of tools too: nine of 44px do not
      fit its width, so the row scrolls sideways and no tool is squeezed (the
