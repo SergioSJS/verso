@@ -32,12 +32,18 @@
 
 /* Settings by a finger (the maintainer's phone, 2026-11-09): every select,
    button and field of a section is a target of 44px — they were 23 to 29px
-   high. Checkboxes and radios keep their size; their label is the target. */
+   high, the theme cards' copy a 24px icon. Checkboxes and radios keep their
+   size; their label is the target. The theme card's actions show their word
+   (Copiar) beside the icon, as no pointer hovers for the title. */
 @media (pointer: coarse) {
   .settings-body :is(select, button, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"])) { min-height: 44px; }
-  .settings-body button.iconic { min-width: 44px; justify-content: center; }
+  .settings-body button.iconic, .settings-body .theme-act { min-width: 44px; justify-content: center; }
   .settings-body summary { min-height: 44px; padding-block: .75rem; box-sizing: border-box; }
+  .theme-acts { min-height: 44px; gap: .3rem; }
+  .theme-act { display: inline-flex; align-items: center; gap: .35rem; padding: 0 .6rem; }
 }
+.theme-act-word { display: none; }
+@media (hover: none) { .theme-act-word { display: inline; font-size: .85rem; } }
 
 /* The phone's search field is a target of 44px, as high as the rest (the
    box itself, not only the line of text inside it). */

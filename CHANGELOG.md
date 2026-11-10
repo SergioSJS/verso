@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **The theme cards' copy says Copiar on a touch screen** (2026-11-09). Under each card in **Settings › Appearance** the copy was a bare 24 px icon whose name only a mouse's hover showed; on a phone or a tablet it shows its word beside the icon and is a finger's size.
 - **Settings on a phone or a tablet: every control is a finger's size** (the maintainer's phone, 2026-11-09). The lists, buttons, fields and fold-outs of every section were 17 to 29 px high; on a touch screen they are 44 px now, and the switch beside a feature's **Settings…** stays on its line.
 - **The Android app has Verso's icon** (the maintainer's phone, 2026-11-08: it showed the toolkit's default). The launcher shows Verso's mark on its dark paper, in the launcher's own shape, and in one colour when the phone's themed icons are on.
 - **On a touch screen the keyboard no longer opens by itself** (the maintainer's phone, 2026-11-08, in the app and in the browser). Opening Settings, the switcher, the palette, a folder (the tutorial just imported), a note, a dialog that asks for a name or the dice roller put the focus in a field, and the on-screen keyboard covered half the screen. On a phone or a tablet a field now waits for your tap; with a keyboard and a mouse the field takes the focus as before, so typing goes there at once.
