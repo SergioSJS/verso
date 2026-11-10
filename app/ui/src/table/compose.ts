@@ -154,9 +154,9 @@ export class Compose {
     this.tray.sync(src);
     const mayAttach = !!t && (t.canSendImage() || t.canSendFile());
     this.attach.hidden = !mayAttach;
-    // A phone's field is one line wide: the short hint (the paperclip says images).
+    // A phone's field is one line wide: the short hints (the paperclip says images; the dice row is under it).
     const narrow = window.matchMedia("(max-width: 760px)").matches;
-    this.field.placeholder = t ? (mayAttach && !narrow ? tt.placeholderImage : tt.placeholder) : tt.placeholderLocal;
+    this.field.placeholder = t ? (mayAttach && !narrow ? tt.placeholderImage : tt.placeholder) : narrow ? tt.placeholderLocalShort : tt.placeholderLocal;
     if (!mayAttach) this.dropStaged();
     this.ready();
   }

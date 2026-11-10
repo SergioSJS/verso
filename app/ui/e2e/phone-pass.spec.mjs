@@ -67,3 +67,51 @@ test("a phone's tabs keep their names; the row scrolls @layout", async ({ app, p
   // Not squeezed: a tab is as wide as its name (up to its 22ch), the row scrolls.
   expect(await page.locator(".pane .tab").first().evaluate((e) => getComputedStyle(e).flexShrink)).toBe("0");
 });
+
+// The maintainer's answers of 2026-11-10: every dialog's controls are 44px on
+// touch, not only Settings'; the right panel's tabs stay icons on a phone and
+// a long press names the tab; the local table's hint fits its one line.
+
+test("a dialog's buttons and fields are 44px on a touch screen: the palette, the roller @layout", async ({ app, page }) => {
+  await app.open();
+  if (!(await touch(page))) return;
+  const small = async (layer) => page.locator(layer).evaluate((root) =>
+    [...root.querySelectorAll("button, select, input:not([type=checkbox]):not([type=radio])")]
+      .filter((e) => e.getClientRects().length && e.getBoundingClientRect().height < 43.5)
+      .map((e) => `${(e.getAttribute("aria-label") || e.textContent || e.tagName).trim().slice(0, 30)}: ${Math.round(e.getBoundingClientRect().height)}px`));
+  await app.key("Mod+Shift+p");
+  await expect(page.locator(".quick.palette:not([hidden])")).toBeVisible();
+  expect(await small(".quick.palette:not([hidden])")).toEqual([]);
+  await page.keyboard.press("Escape");
+  await app.command("Rolar dados");
+  await expect(page.locator(".quick.dice-roller:not([hidden])")).toBeVisible();
+  expect(await small(".quick.dice-roller:not([hidden])")).toEqual([]);
+});
+
+test("a long press on a right panel's tab names it first on a touch screen @layout", async ({ app, page }) => {
+  await app.open();
+  if (page.viewportSize().width <= 760) await page.locator(".bar-right").click();
+  else await page.evaluate(() => document.body.classList.remove("no-right"));
+  const tab = page.locator("#right-tabs [data-tab]:not([hidden])").first();
+  await expect(tab).toBeVisible();
+  const name = await tab.evaluate((b) => b.title || b.getAttribute("aria-label"));
+  // A long press is the window's contextmenu (touch.ts).
+  await tab.dispatchEvent("contextmenu", { clientX: 20, clientY: 20 });
+  const first = page.locator(".menu:not([hidden]) > li").first();
+  await expect(first).toBeVisible();
+  if (await page.evaluate(() => matchMedia("(hover: none)").matches)) await expect(first).toContainText(name);
+  else await expect(first).not.toContainText(name);
+  // The tab's own name for a screen reader is unchanged.
+  expect(await tab.evaluate((b) => b.title || b.getAttribute("aria-label"))).toBe(name);
+  await page.keyboard.press("Escape");
+});
+
+test("the local table's hint fits the phone's one-line composer @layout", async ({ app, page }) => {
+  await app.open();
+  if (page.viewportSize().width > 760) return;
+  await page.locator(".bar-right").click();
+  await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
+  const field = page.getByRole("textbox", { name: "Mensagem para a mesa" });
+  await expect(field).toBeVisible();
+  await expect(field).toHaveAttribute("placeholder", "Role com /r 1d20+3…");
+});
