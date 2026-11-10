@@ -960,6 +960,8 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .features-bulk { display: flex; gap: .4rem; padding: .25rem 0 0; }
 .features-bulk-link, .features-own-link { font-size: .82rem; padding: .15rem .5rem; }
 .features-ctl { display: inline-flex; align-items: center; gap: .6rem; }
+/* Beside the Settings… link the switch sits on its line, also on a phone (whose rule puts a lone switch at the row's start). */
+.features-ctl > .switch { align-self: center; }
 
 /* The right panel's drawer close (a phone), and the phone's top row has
    both side areas' buttons (src/screen/frame.ts). */
