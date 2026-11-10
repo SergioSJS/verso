@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **The Android app no longer offers Open file…** (2026-11-10): the system's picker opened, but a file picked there is not opened yet; it comes back in Phase 2. Folders open as before.
 - **The phone's bottom bar fits its words at any text size** (2026-11-10): at Android's largest text the words were cut ("Nova n…"); they get smaller first, and when even that does not fit the bar shows its marks alone, each still named for a screen reader.
 - **A phone held sideways gets the phone's layout** (2026-11-10): in landscape the phone got the desktop's ribbon, side bar and panel, zoomed twice over as if it were the desktop site; a touch screen under 500 px high now has the bottom bar, the drawers and the phone's dialogs.
 - **On Android the status bar follows Verso's theme** (2026-11-10): in the dark theme on a phone in light mode the status bar's icons were dark on the dark page; they are light over a dark page and dark over a light one, the gesture bar's too.

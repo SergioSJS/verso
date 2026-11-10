@@ -134,7 +134,7 @@ if (params.get("loose") === "1") {
   };
   core.handlers["current_folder"] = () => null;
   core.handlers["loose_files"] = () => (handed ? [] : [info()]);
-  core.handlers["capabilities"] = (): Capabilities => ({ host: "desktop", can: ["write", "windows", "web_views", "agents", "updates", "devtools", "local_folders"], latency_ms: null });
+  core.handlers["capabilities"] = (): Capabilities => ({ host: "desktop", can: ["write", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files"], latency_ms: null });
   core.handlers["backlinks"] = () => [];
   core.handlers["open_sibling"] = (a) => {
     const target = String(a["target"]).replace(/\.md$/, "");
@@ -424,7 +424,7 @@ const harness = {
     role = as;
     core.handlers["capabilities"] = () => ({
       host: "server",
-      can: [...(as === "reader" ? [] : ["write"]), "account", "windows", "web_views", "updates", "devtools", "local_folders", "terminal", ...FOLDER_CAN],
+      can: [...(as === "reader" ? [] : ["write"]), "account", "windows", "web_views", "updates", "devtools", "local_folders", "loose_files", "terminal", ...FOLDER_CAN],
       latency_ms: null,
     } as Capabilities);
     // This computer's shell starts in the home directory there (ADR 0115 Q4).

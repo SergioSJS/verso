@@ -45,6 +45,9 @@ pub enum Can {
     Devtools,
     /// Open folders from this computer's disk.
     LocalFolders,
+    /// Open a file of this computer's disk without its folder (ADR 0114):
+    /// the desktop's *Open file…*; not a phone's yet (decided 2026-11-10).
+    LooseFiles,
     /// An account signed in on a server: the account's page.
     Account,
     /// The account is the server's admin: the admin page.

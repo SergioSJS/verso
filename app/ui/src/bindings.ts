@@ -1983,6 +1983,11 @@ export type Can =
 "devtools" | 
 /**  Open folders from this computer's disk. */
 "local_folders" | 
+/**
+ *  Open a file of this computer's disk without its folder (ADR 0114):
+ *  the desktop's *Open file…*; not a phone's yet (decided 2026-11-10).
+ */
+"loose_files" | 
 /**  An account signed in on a server: the account's page. */
 "account" | 
 /**  The account is the server's admin: the admin page. */
