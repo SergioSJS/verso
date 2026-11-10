@@ -4,7 +4,7 @@
   position: fixed;
   inset: 0;
   display: grid;
-  place-content: center;
+  place-content: safe center;
   background: color-mix(in oklch, var(--paper) 60%, transparent);
   backdrop-filter: blur(4px);
   padding: 1rem;
@@ -62,7 +62,7 @@
   padding: 0.25rem;
   border-radius: 6px;
   display: grid;
-  place-content: center;
+  place-content: safe center;
 }
 .world-wizard-close:hover {
   background: var(--paper-2);

@@ -76,7 +76,7 @@ body.resizing, body.resizing * { user-select: none !important; -webkit-user-sele
 .note-title { cursor: text; }
 
 /* Image and text leaves */
-.image-box { flex: 1; min-height: 0; overflow: auto; display: grid; place-content: center; padding: 1rem; cursor: zoom-in; }
+.image-box { flex: 1; min-height: 0; overflow: auto; display: grid; place-content: safe center; padding: 1rem; cursor: zoom-in; }
 .image-box.actual { place-content: start; cursor: zoom-out; }
 .image-box:focus-visible { outline-offset: -2px; }
 .image-view { max-width: 100%; max-height: calc(100vh - 8rem); border-radius: 4px; }
@@ -657,7 +657,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .bar-toggle .icon { width: 14px; height: 14px; }
 
 /* ---------- A question the page asks (dialog.ts): only its yes button means yes ---------- */
-.confirm { position: fixed; inset: 0; z-index: 40; display: grid; place-content: center; background: color-mix(in oklch, var(--paper) 60%, transparent); }
+.confirm { position: fixed; inset: 0; z-index: 40; display: grid; place-content: safe center; overflow-y: auto; background: color-mix(in oklch, var(--paper) 60%, transparent); }
 .confirm-box { width: min(48ch, 92vw); padding: 1.1rem 1.3rem 1rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
 .confirm-box p { margin: 0 0 1rem; font-size: .93rem; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: .5rem; }

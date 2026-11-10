@@ -5,7 +5,7 @@
   inset: 0;
   z-index: 50;
   display: grid;
-  place-content: center;
+  place-content: safe center;
   background: color-mix(in oklch, var(--paper) 60%, transparent);
   backdrop-filter: blur(8px);
   /* Out of the status bar, the camera cut-out and the gesture bar. */
