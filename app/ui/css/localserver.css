@@ -42,7 +42,7 @@
    pairing dialog down, past the window's bottom, scrolling inside (the
    maintainer's screenshot, 2026-11-05). */
 .quick:has(> .ls-dialog) { padding: 16px; justify-content: center; }
-.ls-dialog { width: min(32rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; box-sizing: border-box; }
+.ls-dialog { width: min(32rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; box-sizing: border-box; }
 /* Pairing: the QR beside what is read and chosen, where the window is wide
    enough, so it all fits without a scrollbar. */
 .ls-dialog:has(.ls-qr) { width: min(48rem, calc(100vw - 32px)); }

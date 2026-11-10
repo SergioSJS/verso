@@ -824,6 +824,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
     top: 0 !important;
     position: fixed !important;
     margin: 0 !important;
+    /* The page reaches the screen's edges; its content keeps out of the
+       status bar, the camera cut-out and the gesture bar (edge-to-edge). */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left) !important;
   }
   .settings-side {
     width: auto;
@@ -862,7 +865,7 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
     font-size: 1rem;
   }
   .settings-nav-item .icon { width: 18px; height: 18px; }
-  .settings-close { min-width: 44px; min-height: 44px; top: .45rem; right: .5rem; }
+  .settings-close { min-width: 44px; min-height: 44px; top: calc(env(safe-area-inset-top) + .45rem); right: calc(env(safe-area-inset-right) + .5rem); }
   .settings-body {
     padding: 1rem 1rem 2.5rem;
   }

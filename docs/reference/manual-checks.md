@@ -1554,3 +1554,11 @@ On the real engines, which the harness's stubbed `play()` does not reach (notes 
 
 1. **A real phone** (A, iPhone Safari or Android Chrome, a Mac serving one chosen folder): pair with *Pode editar as notas*, delete a note from the tree's menu: it goes, shows in the Mac's *Lixeira*, and a table's notes (if the folder has one) behave as before. A second phone paired as reader is not offered the menu item.
 2. **A synced editor's window** (A, the installed Mac app and a real UniVerso, an account that is an editor of the folder): the tree's menu, the selection bar, the palette and `Delete` offer no delete and say who may; the owner's account on the same folder is offered it.
+
+## The app on an Android phone: safe areas, Back, keyboard, icon (ADR 0118, 2026-11-08)
+
+Seen on the maintainer's POCO X3 Pro (Android 16) with the debug APK; the browser harness has no status bar, no system Back and no launcher.
+
+1. **Safe areas** (A, the app on an Android phone, edge to edge): open Settings: its search and its × sit below the status bar and the camera cut-out; tap the × once: Settings closes. Open the palette, the switcher, a sheet (a note's access, the table's): nothing under the status bar or the gesture bar.
+2. **Back** (A): with Settings open, Back closes it; with a menu, a dialog or a sheet open, Back closes that one only; with the drawer open, Back closes it; with nothing open, Back leaves the app.
+

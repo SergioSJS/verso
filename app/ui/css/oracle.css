@@ -8,7 +8,8 @@
   place-content: center;
   background: color-mix(in oklch, var(--paper) 60%, transparent);
   backdrop-filter: blur(8px);
-  padding: 1rem;
+  /* Out of the status bar, the camera cut-out and the gesture bar. */
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   overflow-y: auto;
   box-sizing: border-box;
 }
@@ -517,7 +518,7 @@
 
 @media (max-width: 600px) {
   .oracle-shade {
-    padding: 0.4rem;
+    padding: max(0.4rem, env(safe-area-inset-top)) max(0.4rem, env(safe-area-inset-right)) max(0.4rem, env(safe-area-inset-bottom)) max(0.4rem, env(safe-area-inset-left));
   }
   .oracle-box {
     width: 100%;

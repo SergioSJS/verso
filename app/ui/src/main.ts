@@ -39,6 +39,7 @@ import { trashStrings } from "./dialogs/trash";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { frameMenuButton, installFrame } from "./frame";
+import { installBack } from "./screen/back";
 import { initZoom } from "./zoom";
 import { installStatusLive } from "./statusLive";
 import { installLongPress } from "./touch";
@@ -425,6 +426,8 @@ paintToggles();
 // No title bar on macOS and Windows: the window's corner and its drag
 // regions (ADR 0072).
 installFrame();
+// Android's Back closes what is on top (screen/back.ts).
+installBack();
 initZoom();
 installStatusLive(ui.status);
 /** The right bar's width, kept for the next start (the left bar's is kept the same way). */

@@ -39,7 +39,7 @@
 /* The share dialog on its own layer (`.quick`, shares.ts): it scrolls
    inside when the window is short. */
 .quick.share-overlay { padding-top: 8vh; }
-.quick.share-overlay .share-dialog { max-height: calc(100dvh - 8vh - 16px); overflow: auto; }
+.quick.share-overlay .share-dialog { max-height: calc(100dvh - 8vh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; }
 /* Read links (ADR 0105): the tree's mark on what a live link keeps open, the
    dialog's warning and the address made once, and a read link's window,
    where a link to what was not shared is plain text that says so. */
@@ -207,7 +207,7 @@ details.cd-card[open] > summary::before { transform: rotate(90deg); }
 /* Phone: the window is a sheet from the bottom; every control stays reachable. */
 @media (max-width: 760px) {
   .quick.campaign-overlay { padding: 0; align-items: end; }
-  .quick.campaign-overlay .campaign-dialog { width: 100vw; max-width: 100vw; max-height: 92dvh; box-sizing: border-box; border-radius: 16px 16px 0 0; padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  .quick.campaign-overlay .campaign-dialog { width: 100vw; max-width: 100vw; max-height: 92dvh; box-sizing: border-box; border-radius: 16px 16px 0 0; padding-bottom: 1rem; }
   .cd-open { grid-template-columns: 1fr auto; }
   .cd-field input { width: 100%; }
   /* The players' table on a phone: ONE slim row per player (avatar and name, the two counts with their icons, the images switch)

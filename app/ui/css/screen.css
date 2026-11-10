@@ -107,6 +107,11 @@
    frame keeps out of the notch and the rounded corners. */
 body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
 .status-bar { padding-bottom: max(.3rem, env(safe-area-inset-bottom)); }
+/* Every overlay keeps out of the status bar, the camera cut-out and the
+   gesture bar (Android draws edge-to-edge, iOS has its notch): its layer
+   starts below them, so no close, search or button sits where a finger's
+   tap never reaches (the maintainer's phone, 2026-11-08). */
+.quick, .plan, .web-offline { top: env(safe-area-inset-top); right: env(safe-area-inset-right); bottom: env(safe-area-inset-bottom); left: env(safe-area-inset-left); }
 
 /* ---------- The keyboard's bar (item 7) ---------- */
 /* Room under the text for what the keyboard and its bar cover: the last
