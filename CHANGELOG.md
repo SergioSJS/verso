@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **A phone's graph is readable from afar** (2026-11-10): zoomed out, only the centred and the tapped note show their names (pinch in to see all); a graph opened in a background tab no longer stays in the corner.
 - **On a phone the Table's dice are a finger's size** (2026-11-10): 44 px each (they were 28 px wide); keep-highest/lowest go into the dots first, and what still does not fit scrolls sideways in its row.
 - **The Table's hint fits a phone's one-line field** (2026-11-10). In a folder with no shared table the composer said "Roll with /r 1d20+3, or put it together with the dice below…", cut in two lines; on a phone it is "Roll with /r 1d20+3…" (the dice row is right under it).
 - **On a phone a long press on a right panel's tab names it** (2026-11-10). The tabs stay icons; the menu a long press opens starts with the tab's name, which opens it.

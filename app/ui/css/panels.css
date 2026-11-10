@@ -294,6 +294,12 @@ input.pdf-search:focus { outline: none; border-color: var(--brass-ink); }
 .graph .node text.quiet { opacity: 0; }
 .graph .node:hover text.quiet { opacity: 1; }
 .graph .node.center text { fill: var(--ink); font-weight: 600; }
+/* A phone's graph seen from afar: the names of the centred and the tapped
+   note only (src/leaves/graph.ts `far`); a tap names a note, zooming in names all. */
+@media (max-width: 760px) {
+  .graph.far .node:not(.center):not(.current) text { opacity: 0; }
+  .graph.far .node.current text { opacity: 1; fill: var(--ink); font-weight: 600; }
+}
 .graph .node.missing circle { fill: transparent; stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 3 2; }
 .graph .node.missing text { font-style: italic; fill: var(--ink-2); }
 .graph .node:hover circle, .graph .node:focus-visible circle { stroke: var(--seal); }
