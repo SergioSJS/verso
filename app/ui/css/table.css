@@ -195,12 +195,15 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .saved-save { display: flex; gap: .4rem; align-items: stretch; }
 .saved-name { flex: 1; min-width: 0; box-sizing: border-box; padding: .35rem .5rem; font: inherit; font-size: .85rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; min-height: 2.1rem; }
 @media (max-width: 760px) {
-  /* A phone: the targets are 40 px tall (the icons stay small); the row scrolls sideways inside itself, never the page. */
-  .tray-row { height: 44px; }
+  /* A phone: the targets are 44 px (the icons stay small; the maintainer, 2026-11-10); what does not fit goes
+     into the dots first (tray.ts `fit`), and what still does not fit scrolls sideways inside the row, never the page. */
+  .tray-row { height: 48px; }
+  .tray-scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .tray-scroll::-webkit-scrollbar { display: none; }
   .table-box-bar .iconic, .table-box-bar .tray-tool { width: 40px; height: 40px; min-width: 40px; }
   .tray-mode { height: 40px; font-size: 14px; padding: 0 .6rem; }
-  .tray-die, .tray-tool, .tray-keep { height: 40px; min-width: 28px; }
-  .tray-mod { height: 40px; width: 44px; font-size: 16px; }
+  .tray-die, .tray-tool, .tray-keep { height: 44px; min-width: 44px; }
+  .tray-mod { height: 44px; width: 44px; font-size: 16px; }
   .saved-roll { min-height: 2.75rem; }
   .saved-which, .saved-save-go { min-height: 2.6rem; }
   .saved-name { font-size: 16px; min-height: 2.6rem; }

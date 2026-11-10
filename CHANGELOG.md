@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **On a phone the Table's dice are a finger's size** (2026-11-10): 44 px each (they were 28 px wide); keep-highest/lowest go into the dots first, and what still does not fit scrolls sideways in its row.
 - **The Table's hint fits a phone's one-line field** (2026-11-10). In a folder with no shared table the composer said "Roll with /r 1d20+3, or put it together with the dice below…", cut in two lines; on a phone it is "Roll with /r 1d20+3…" (the dice row is right under it).
 - **On a phone a long press on a right panel's tab names it** (2026-11-10). The tabs stay icons; the menu a long press opens starts with the tab's name, which opens it.
 - **Every dialog's controls are a finger's size on a touch screen** (the maintainer, 2026-11-10), not only Settings': the oracle's tabs, the world wizard's file list, the roller, the palette and switcher rows, the asking dialogs and the sheets — 44 px high on a phone or a tablet.
