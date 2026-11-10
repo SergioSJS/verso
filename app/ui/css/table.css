@@ -197,7 +197,7 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 @media (max-width: 760px) {
   /* A phone: the targets are 44 px (the icons stay small; the maintainer, 2026-11-10); what does not fit goes
      into the dots first (tray.ts `fit`), and what still does not fit scrolls sideways inside the row, never the page. */
-  .tray-row { height: 48px; }
+  .tray-row { height: 44px; }
   .tray-scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }
   .tray-scroll::-webkit-scrollbar { display: none; }
   .table-box-bar .iconic, .table-box-bar .tray-tool { width: 40px; height: 40px; min-width: 40px; }

@@ -124,7 +124,7 @@ test("a pane's toolbar (the note's modes) is 44px on a touch screen @layout", as
   await app.open();
   if (!(await touch(page))) return;
   await app.quickOpen("01 - Guia");
-  const small = await page.locator(".pane.focused .modes button, .pane.focused .pane-tools button").evaluateAll((bs) =>
+  const small = await page.locator(".pane.focused .modes button").evaluateAll((bs) =>
     bs.filter((b) => b.getClientRects().length && b.getBoundingClientRect().height < 43.5).map((b) => `${b.getAttribute("aria-label")}: ${Math.round(b.getBoundingClientRect().height)}px`));
   expect(small).toEqual([]);
 });
@@ -134,10 +134,14 @@ test("the Table's dice row on a phone: 44px dice, nothing wider than the row @la
   if (page.viewportSize().width > 760) return;
   await page.locator(".bar-right").click();
   await page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ }).click();
+  // A phone keeps the dice row behind its button: open it first.
   const row = page.locator(".tray-scroll").first();
+  if (!(await row.isVisible())) await page.locator(".table-view").getByRole("button", { name: "Dados", exact: true }).click();
   await expect(row).toBeVisible();
   const dice = await row.locator(".tray-die").evaluateAll((bs) => bs.filter((b) => b.getClientRects().length).map((b) => Math.round(b.getBoundingClientRect().width)));
   expect(dice.length).toBeGreaterThan(3);
   for (const w of dice) expect(w).toBeGreaterThanOrEqual(44);
+  // The row scrolls inside itself (KH, KL and the modifier stay in it); the page does not.
+  expect(await row.locator(".tray-keep").count()).toBeGreaterThan(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });

@@ -69,7 +69,7 @@
    board's tools (Excalidraw's button size) — 44px on a touch screen, as the
    dialogs' are. Not the note's own text (a heading's fold, a tag's ×). */
 @media (pointer: coarse) {
-  .pane-tools button, .modes button, .crumbs .crumb,
+  .modes button, .crumbs .crumb,
   .title-tools button, .title-row > .save, .note-sticker-btn,
   .props-toggle, .prop-remove, .prop-new,
   .pdf-pages button, .pdf-zoom button, .pdf-acts button, .pdf-page, .pdf-search,
@@ -80,6 +80,8 @@
   /* The board's own buttons (Excalidraw's stylesheet loads after ours, hence
      !important). Not the tools' bottom row of a phone: nine of 44px do not fit
      its width, and the last, the more tools, was squeezed out. */
+  /* The modes' box is the 44px: its buttons fill it (no inner padding). */
+  .modes { padding: 0; }
   .board-canvas .excalidraw :is(.ToolIcon_type_button, .ToolIcon__icon, .dropdown-menu-button):not(.mobile-toolbar *) { width: 44px !important; height: 44px !important; }
   /* Small marks inside the text and the chips keep their size; their target
      reaches past them by an invisible margin. */

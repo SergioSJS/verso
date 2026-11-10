@@ -282,7 +282,8 @@ test("the keyboard's bar: shown while the editor has the focus on a touch screen
   // Inside the screen, at its bottom.
   const box = await bar.boundingBox();
   expect(Math.round(box.y + box.height)).toBeLessThanOrEqual(page.viewportSize().height);
-  const text = () => page.locator(".pane.focused .cm-content").first().textContent();
+  // The note's whole text (its state), not the lines the editor happens to draw: those follow the scroll.
+  const text = () => page.evaluate(() => document.querySelector(".pane.focused .leaf:not([hidden]) .note-sheet .editor").__cmView.state.doc.toString());
   const was = await text();
   await bar.getByRole("button", { name: "Link interno [[ ]]" }).click();
   await expect(editor).toBeFocused();
