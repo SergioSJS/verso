@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **Full-screen pages on a phone keep out of the status bar** (2026-11-10): More themes' back and close sat under the status bar; the sheet editor's box and the server console's drawer in the browser keep the insets too.
 - **Menus, the side panel's lists and sliders are a finger's size on a touch screen** (the phone pass, 2026-11-10): a menu's rows 44 px (they were 30), the outline's, links' and tags' rows 40, a slider's track 44.
 - **A pane's toolbars are a finger's size on a touch screen** (2026-11-10): the note's modes, star, cover and properties, the PDF's pages, zoom and search, a base's views and tools, the graph's controls and the board's buttons are 44 px; small marks in the text (a tag's ×, a heading's fold) get a larger invisible target.
 - **A phone's base table keeps whole words** (2026-11-10): columns are at least 9rem and the table scrolls sideways; "em_andamento" no longer breaks in two.

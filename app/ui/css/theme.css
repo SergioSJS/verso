@@ -109,7 +109,7 @@ details.look-set { display: block; }
 @media (prefers-reduced-motion: reduce) { .theme-card { transition: none; } }
 
 /* ---------- "Mais temas…" (ADR 0109 item 1) ---------- */
-.more-themes { position: fixed; inset: 0; z-index: 35; display: grid; place-items: center; background: color-mix(in oklch, var(--paper) 60%, transparent); }
+.more-themes { position: fixed; inset: 0; z-index: 35; display: grid; place-items: safe center; background: color-mix(in oklch, var(--paper) 60%, transparent); }
 .more-box { display: flex; flex-direction: column; gap: .7rem; width: min(64rem, calc(100vw - 3rem)); height: min(48rem, calc(100vh - 3rem)); padding: 1.1rem 1.3rem 1rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 24px 60px -20px oklch(0% 0 0 / .45); min-height: 0; }
 .more-head { display: flex; align-items: center; gap: .8rem; }
 .more-title { margin: 0; flex: 1; font: 600 1.25rem var(--heading-font); color: var(--ink); }
@@ -125,7 +125,8 @@ details.look-set { display: block; }
 .more-body .theme-grid { grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); }
 .theme-mode { font-size: .76rem; color: var(--ink-2); }
 @media (max-width: 760px) {
-  .more-box { width: 100vw; height: 100dvh; max-height: none; border: 0; border-radius: 0; padding: .8rem 1rem .6rem; box-shadow: none; }
+  /* The whole screen, its content out of the status bar and the gesture bar (the phone pass, 2026-11-10). */
+  .more-box { width: 100vw; height: 100dvh; max-height: none; border: 0; border-radius: 0; padding: calc(env(safe-area-inset-top) + .8rem) calc(env(safe-area-inset-right) + 1rem) calc(env(safe-area-inset-bottom) + .6rem) calc(env(safe-area-inset-left) + 1rem); box-sizing: border-box; box-shadow: none; }
   .more-back { display: inline-flex; }
   .more-close { display: none; }
   .more-body .theme-grid { grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); }

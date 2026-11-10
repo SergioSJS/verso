@@ -214,7 +214,7 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
 
 @media (max-width: 760px) {
   .console { grid-template-columns: minmax(0, 1fr); }
-  .console-side { display: none; position: fixed; inset: 0 auto 0 0; width: min(18rem, 85vw); z-index: 20; height: 100dvh; box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
+  .console-side { display: none; position: fixed; inset: 0 auto 0 0; width: min(18rem, 85vw); z-index: 20; height: 100dvh; padding-top: max(1.1rem, env(safe-area-inset-top)); padding-bottom: max(1.1rem, env(safe-area-inset-bottom)); box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
   .console.console-open .console-side { display: flex; }
   .console-menu { display: inline-flex; min-height: 44px; }
   .console-main { padding: max(.8rem, env(safe-area-inset-top)) 16px 3rem; }
