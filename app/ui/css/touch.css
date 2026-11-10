@@ -86,6 +86,9 @@
   .board-canvas .excalidraw :is(.ToolIcon_type_button, .ToolIcon__icon, .dropdown-menu-button) { width: 44px !important; height: 44px !important; flex: none; }
   .board-canvas .excalidraw .mobile-toolbar { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; justify-content: flex-start !important; }
   .board-canvas .excalidraw .mobile-toolbar > * { flex: none; }
+  /* The theme builder's fields and the folder page's views, as a dialog's (the maintainer, 2026-11-10). */
+  .builder :is(select, button, input:not([type="checkbox"], [type="radio"], [type="range"])), .folder-tools button { min-height: 44px; }
+  .builder input[type="color"], .folder-tools button { min-width: 44px; }
   /* Small marks inside the text and the chips keep their size; their target
      reaches past them by an invisible margin. */
   .pill-x::after { width: 40px; height: 40px; }

@@ -52,6 +52,7 @@ test release.
 
 ### Fixed
 
+- **The theme builder's fields and a folder page's view buttons are a finger's size on touch** (2026-11-10): 44 px, as a dialog's.
 - **The board's tools on a phone are 44 px and scroll sideways** (2026-11-10): the bottom row's nine tools no longer squeeze the last one out.
 - **The Android app no longer offers Open file…** (2026-11-10): the system's picker opened, but a file picked there is not opened yet; it comes back in Phase 2. Folders open as before.
 - **The phone's bottom bar fits its words at any text size** (2026-11-10): at Android's largest text the words were cut ("Nova n…"); they get smaller first, and when even that does not fit the bar shows its marks alone, each still named for a screen reader.
