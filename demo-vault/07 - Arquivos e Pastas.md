@@ -104,7 +104,7 @@ A página da pasta abre numa aba: **Miniaturas** ou **Lista**, com as colunas **
 
 - O Verso guarda um índice das notas para buscar rápido. **Reindexar** (paleta ou faixa da esquerda) refaz o índice; a barra de status mostra o andamento.
 - **Ajustes › Arquivos e links › Ignorar pastas de build** e **Respeitar .gitignore** deixam de fora as pastas de build (`node_modules`, `target`, `dist`…) e o que o Git ignora.
-- Um arquivo que o macOS deixou só no iCloud (**Otimizar Armazenamento**) é baixado quando você o abre, com um aviso na barra de status.
+- Um arquivo que o macOS deixou só no iCloud (**Otimizar Armazenamento**) é baixado quando você mexe nele: ao abrir, ao mover (sozinho ou numa seleção), renomear ou apagar, ao passar o mouse sobre um link para ele e quando aparece num board — com um aviso na barra de status. Se não der para baixar (sem conexão), nada é movido e o aviso diz qual arquivo foi.
 - Se outro programa muda uma nota aberta, o Verso percebe — veja [[04 - Escrevendo no Editor]].
 
 ---

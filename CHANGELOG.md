@@ -56,6 +56,7 @@ test release.
 
 ### Fixed
 
+- **Files only in iCloud come down when you touch them** (2026-11-11). Moving, renaming or deleting a file that macOS left only in iCloud (Optimize Mac Storage) was refused with a terse status line, so a selection dragged onto a folder moved only the files already on the Mac. Verso now downloads them first, then acts; one that cannot come down (no connection) stops the action and is named. A link's hover preview and a file card on a board download too.
 - **A base's column headers are a finger's size on touch** (2026-11-10): 44 px, as they sort on a tap.
 - **The theme builder's fields and a folder page's view buttons are a finger's size on touch** (2026-11-10): 44 px, as a dialog's.
 - **The board's tools on a phone are 44 px and scroll sideways** (2026-11-10): the bottom row's nine tools no longer squeeze the last one out.

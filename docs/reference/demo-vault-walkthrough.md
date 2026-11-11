@@ -463,6 +463,12 @@ point 13).
    selection's menu: "Mover para…", "Copiar caminhos relativos", "Mover para
    a lixeira" asked once. Level: H; E: `tree-selection.spec.mjs`; S:
    `crates/verso-core/tests/workspace/rename.rs`.
+   Files only in iCloud (ADR 0043, decided 2026-11-11): a selection with
+   evicted files dragged onto a folder says *Baixando N arquivos do
+   iCloud…*, then moves all of them; one that cannot come down stops the
+   move and is named (*Não foi possível baixar do iCloud: …*). Level: H for
+   the window, A for real iCloud; E: `tree-cloud-files.spec.mjs`; by hand,
+   the check in `manual-checks.md`.
 8. Note 07, "Criar" (ADR 0070): a new note named `CON`, `Reunião: pauta`,
    `Ideia?` or `a\b` is not made (`nota.` is: its file is `nota..md`); the status bar says Windows cannot keep that name.
    A rename to such a name is refused the same way. Level: H; E:

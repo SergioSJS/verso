@@ -138,7 +138,7 @@ export class SavedRolls {
     let rolls: SavedRoll[] = [];
     let trouble: string | null = null;
     if (path) {
-      const r = await opening.readNote(path, true);
+      const r = await opening.readNote(path);
       if (load !== this.loads) return;
       if (r.status === "ok") rolls = savedRollsOf(r.data.lines);
       else trouble = ts.savedUnreadable(name(path));

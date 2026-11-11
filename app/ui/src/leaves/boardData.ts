@@ -20,11 +20,13 @@ import { opening } from "../opening";
 import { name } from "../paths";
 import { openNote } from "../layout/spaces";
 
-/** A file's text for a card: the open tab's, typing included, else the disk's. */
+/** A file's text for a card: the open tab's, typing included, else the
+ *  disk's — brought down from iCloud first, the board being open on it
+ *  (the maintainer, 2026-11-11). */
 export async function fileText(path: string): Promise<string | null> {
   const live = liveText(path);
   if (live !== null) return live;
-  const r = await opening.readText(path, true);
+  const r = await opening.readText(path);
   return r.status === "ok" ? r.data.text : null;
 }
 

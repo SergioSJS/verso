@@ -14,6 +14,8 @@
   maintainer as built and tested, answering the ADR audit in session:
   *"Ajuste tudo que precisar. Está aprovado os ADRs"* (adjust whatever
   needs it; the ADRs are approved); a dated note beside each.
+  2026-11-11 — **any action the user takes on a file fetches it**, decided
+  by the maintainer (below, after the 2026-10-27 block).
 
 ## Context
 
@@ -215,6 +217,33 @@ todas (Recomendado)", accepting the author's recommendation for each.
   text and links, and every note read from disk is read again on the next
   walk.
 
+**Any action on a file fetches it. Decided by the maintainer on
+2026-11-11**, in session, after a selection of evicted `.canvas` files
+dragged onto a folder moved only the one already on disk, the rest refused
+with "write: placeholder" (ADR 0048's placeholder rule): *"seria importante
+quando o usuário fizesse esse tipo de movimento, baixasse os arquivos do
+iCloud… da mesma forma que se eu embedar esse arquivo ele deveria baixar
+ele. No fim, qualquer interação que um arquivo receba, ele deveria baixar
+esse arquivo"* (when the user makes this kind of move, the files should come
+down from iCloud… the same if I embed the file. In the end, any interaction
+a file receives should download it).
+
+- **Moving, renaming and deleting** an entry from the window — alone or in a
+  selection — first brings down every file the listing says is a placeholder,
+  through the same step as opening (off the main thread, outside the
+  folder's lock), then acts. One that cannot come down stops the action and
+  is named; nothing moves. A folder is not fetched: it moves and goes to the
+  bin whole, as before.
+- **A link's hover preview and a file card on a board** fetch too: the
+  2026-10-01 block above left the hover quiet; this replaces that.
+- **Still nothing fetches without the user touching that file**: the walk,
+  the index, the watcher, a scan of every note (find and replace, mentions),
+  sync, and the command line and MCP server, as above. The notes a move's
+  link plan reads are not fetched: one in the cloud is still listed as
+  skipped (the author's reading: the user did not touch them).
+- **The older `.Name.ext.icloud` form** still cannot be fetched by reading;
+  an action on it stays refused.
+
 **Syncing a folder with placeholders. Decided by the maintainer on
 2026-10-27**, in session ("claro, pode fazer"), after syncing an Obsidian
 folder to the server listed 188 files as "not on this computer" with no way
@@ -260,7 +289,8 @@ each one when its platform arrives or a user needs it. Opening a file in the
 window fetches it: decided on 2026-09-30; what opening covers, and the index
 across a version: decided on 2026-10-01. Syncing a folder with
 placeholders (download from the card, evicted-and-synced not pending,
-eviction never deletes): decided on 2026-10-27.
+eviction never deletes): decided on 2026-10-27. Any action on a file
+fetches it: decided on 2026-11-11.
 
 *2026-10-21* — `[DECIDED 2026-10-21]` (the maintainer's mark, option A, in the decisions questionnaire of 2026-10-20): the remaining providers (Dropbox, Google Drive, macOS's own) are handled each when its platform arrives or someone needs it, as this Status already says; a real Windows placeholder has still to be observed.
 

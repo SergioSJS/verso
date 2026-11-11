@@ -15,6 +15,8 @@
   2026-10-12 — volumes that name a file by `link` on macOS: a notice once
   per folder, and exFAT's "not supported" taken for what it is
   (Consequences, *Volumes without hard links*).
+  2026-11-11 — placeholders are fetched before a rename, move or delete
+  (Consequences, "Placeholders"; ADR 0043).
 
 ## Context
 
@@ -171,6 +173,11 @@ points.
 - **Placeholders.** A single placeholder cannot be renamed or deleted, its
   content being in the cloud; a folder that holds placeholders moves and goes
   to the bin as a whole.
+  *Revision, 2026-11-11 (the maintainer):* the window brings a placeholder
+  down before it renames, moves or deletes it, alone or in a selection
+  ([0043](0043-placeholder-guard.md), "Any action on a file fetches it");
+  the core still refuses one, so only a file that could not come down — or
+  the older `.icloud` form — is refused, and the window names it.
 - **Concurrent external modification** follows [0012](0012-files-are-source-of-truth.md):
   every write checks the revision it was given, and the revision a write hands
   back is that of the bytes it wrote.

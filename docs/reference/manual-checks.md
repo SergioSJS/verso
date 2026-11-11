@@ -530,10 +530,17 @@ in a note long enough to scroll.
   Editar, the pointer resting on a link: nothing; ⌘ pressed (Ctrl in
   WebView2 on Windows): the card; ⌘-click still follows the link and no
   card is left behind.
-- [ ] **A note only in iCloud** (A, ADR 0043): a link to a note made
-  dataless by macOS (*Remove Download* in Finder): the card says *A nota
-  só está na nuvem: abra-a para baixá-la — a prévia não baixa nada.*, and
-  the file stays dataless (`ls -lO` shows `dataless`).
+- [ ] **A note only in iCloud** (A, ADR 0043, revised 2026-11-11): a link
+  to a note made dataless by macOS (*Remove Download* in Finder): hovering
+  brings it down and the card shows it (`ls -lO` no longer shows
+  `dataless`); with the Mac offline, the card says *A nota só está no
+  iCloud e não deu para baixá-la…*.
+- [ ] **Moving files only in iCloud** (A, ADR 0043, decided 2026-11-11): in
+  an iCloud folder, *Remove Download* on two `.canvas` files and a note;
+  select the three and drag them onto another folder: the status says
+  *Baixando 3 arquivos do iCloud…* and all three move; one alone renamed
+  and one sent to the bin come down first too. Offline: nothing moves and
+  the status names the file.
 - [ ] **Download from the sync card, on real evicted files** (A, ADR 0043,
   2026-10-27): on the Mac, a folder in iCloud Drive that syncs with a server,
   some files sent back to the cloud (*Remove Download* in Finder) that sync

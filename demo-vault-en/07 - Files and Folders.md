@@ -104,7 +104,7 @@ The folder's page opens in a tab: **Thumbnails** or **List**, with the columns *
 
 - Verso keeps an index of the notes so it can search quickly. **Reindex** (palette or left ribbon) rebuilds the index; the status bar shows the progress.
 - **Settings › Files and links › Ignore build folders** and **Respect .gitignore** leave out the build folders (`node_modules`, `target`, `dist`…) and whatever Git ignores.
-- A file that macOS left only in iCloud (**Optimize Mac Storage**) is downloaded when you open it, with a notice in the status bar.
+- A file that macOS left only in iCloud (**Optimize Mac Storage**) is downloaded when you touch it: when you open it, move it (alone or in a selection), rename or delete it, hover over a link to it, and when it shows on a board — with a notice in the status bar. If it cannot be downloaded (no connection), nothing moves and the notice names the file.
 - If another program changes an open note, Verso notices — see [[04 - Writing in the Editor]].
 
 ---

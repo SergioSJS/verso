@@ -29,7 +29,7 @@ import { propVal } from "./leaves/folderView";
 import { NoteLeaf } from "./leaves/note";
 import { redraw } from "./live";
 import { panel, plan } from "./main";
-import { opening } from "./opening";
+import { fetchAll, opening } from "./opening";
 import { folderNoteOf } from "./organize/folderNotes";
 import { setFrontmatterProp, withProperty } from "./organize/frontmatter";
 import { dirOf, ext, Kind, kindOf, name } from "./paths";
@@ -331,6 +331,7 @@ export async function deleteEntry(path: string, kind: Kind): Promise<void> {
   // What goes to the bin goes with its last words: saved first, or not moved.
   const unsaved = await flushed(leavesUnder(path));
   if (unsaved.length > 0) return stopped(unsaved);
+  if (!(await fetchAll([path]))) return;
   const r = await commands.deleteEntry(path);
   if (r.status !== "ok") return fail(r.error);
   pathsRemoved(path);
@@ -373,6 +374,7 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
   }
   // The links to rewrite are read from disk: every tab saves first.
   await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
+  if (!(await fetchAll([from]))) return false;
   const r = await commands.renameEntry(from, to);
   if (r.status !== "ok") {
     if (r.error.kind === "exists") nameTaken(t.exists);
@@ -484,6 +486,7 @@ export async function moveEntries(paths: string[], folder: string): Promise<bool
     return false;
   }
   await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
+  if (!(await fetchAll(paths))) return false;
   const r = await commands.moveEntries(paths, folder);
   if (r.status !== "ok") {
     fail(r.error);
@@ -507,6 +510,7 @@ export async function deleteEntries(paths: string[]): Promise<void> {
   if (!(await ask([t.selection.confirmDelete(paths.length), binWarning(paths)].filter(Boolean).join(" "), { yes: t.deleteEntry, no: t.cancel }))) return;
   // Inside a folder also given: it goes with the folder.
   const top = paths.filter((p) => !paths.some((q) => q !== p && p.startsWith(`${q}/`)));
+  if (!(await fetchAll(top))) return;
   let gone = 0;
   for (const path of top) {
     const unsaved = await flushed(leavesUnder(path));

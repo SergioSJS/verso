@@ -68,6 +68,7 @@ export type Strings = Record<
   pathAddedToFocus: (path: string, focus: string) => string;
   mermaidSyntaxError: string; mermaidEditTip: string; mermaidEditCode: string; pdfEditLink: string; pdfNotFound: (file: string) => string; svgFailed: string;
   fetching: (n: string) => string;
+  fetchingMany: (n: number) => string;
   fetchFailed: (n: string) => string;
   deleted: (where: string) => string;
   planTitle: (n: number) => string;
@@ -208,6 +209,7 @@ export const pt: Strings = {
   unresolved: (t) => `Nenhuma nota responde por [[${t}]].`,
   confirmDelete: (n) => `Apagar "${n}"? Vai para .trash/ na pasta, como no Obsidian.`,
   fetching: (n) => `Baixando do iCloud: ${n}…`,
+  fetchingMany: (n) => `Baixando ${n} arquivos do iCloud…`,
   fetchFailed: (n) => `Não foi possível baixar do iCloud: ${n}. Sem conexão, ou o iCloud não tem o conteúdo do arquivo.`,
   deleted: (where) => `Movida para ${where}.`,
   planTitle: (n) => `${n} nota${n === 1 ? "" : "s"} aponta${n === 1 ? "" : "m"} para o nome antigo. Atualizar os links?`,
@@ -395,6 +397,7 @@ export const en: Strings = {
   unresolved: (t) => `No note answers to [[${t}]].`,
   confirmDelete: (n) => `Delete "${n}"? It goes to .trash/ in the folder, as in Obsidian.`,
   fetching: (n) => `Downloading from iCloud: ${n}…`,
+  fetchingMany: (n) => `Downloading ${n} files from iCloud…`,
   fetchFailed: (n) => `Could not download from iCloud: ${n}. No connection, or iCloud does not have the file’s content.`,
   deleted: (where) => `Moved to ${where}.`,
   planTitle: (n) => `${n} note${n === 1 ? "" : "s"} link${n === 1 ? "s" : ""} to the old name. Update the links?`,

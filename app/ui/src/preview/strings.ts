@@ -16,7 +16,7 @@ const pt = {
   missingPanel: (target: string) => `Nenhuma nota responde por [[${target}]].`,
   noHeading: (heading: string) => `A nota não tem o título “${heading}”; ela aparece desde o começo.`,
   noBlock: (id: string) => `A nota não tem o bloco ^${id}; ela aparece desde o começo.`,
-  unavailable: "A nota só está na nuvem: abra-a para baixá-la — a prévia não baixa nada.",
+  unavailable: "A nota só está no iCloud e não deu para baixá-la: sem conexão, ou o iCloud não tem o conteúdo.",
   /** Under the card: what a click does. */
   clickOpens: "Clique para abrir",
   command: "Ver a prévia do link sob o cursor",
@@ -32,7 +32,7 @@ const en: typeof pt = {
   missingPanel: (target) => `No note answers to [[${target}]].`,
   noHeading: (heading) => `The note has no heading “${heading}”; it is shown from its start.`,
   noBlock: (id) => `The note has no block ^${id}; it is shown from its start.`,
-  unavailable: "The note is only in the cloud: open it to download it — a preview downloads nothing.",
+  unavailable: "The note is only in iCloud and could not be downloaded: no connection, or iCloud does not have its content.",
   clickOpens: "Click to open",
   command: "Preview the link under the cursor",
   noLink: "No link under the cursor to preview.",
