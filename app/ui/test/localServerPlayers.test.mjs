@@ -15,6 +15,9 @@ const win = new Window({ url: "https://verso.test/" });
 for (const name of ["window", "document", "HTMLElement", "Node", "Element"]) {
   globalThis[name] = name === "window" ? win : win[name];
 }
+// The window's own listeners, which modules the strings reach (can.ts →
+// collab.ts) add as they load.
+globalThis.addEventListener = win.addEventListener.bind(win);
 Object.defineProperty(globalThis, "navigator", { value: win.navigator, configurable: true });
 document.documentElement.lang = "pt-BR";
 

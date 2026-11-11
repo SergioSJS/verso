@@ -12,6 +12,9 @@ import * as esbuild from "esbuild";
 
 const root = { lang: "pt-BR" };
 globalThis.document = { documentElement: root };
+// The window's listeners, which modules the strings reach (can.ts →
+// collab.ts) add as they load: none fire here.
+globalThis.addEventListener = () => {};
 
 await esbuild.build({
   entryPoints: ["src/dialogs/localServerStrings.ts"],
