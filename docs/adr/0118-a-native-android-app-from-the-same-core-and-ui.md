@@ -41,6 +41,9 @@
   part from the Android app? It would be perfect for the APK to update
   itself or point to a new version for the user to download and update;
   that said, go ahead with Phase 1).
+  2026-11-11 — the maintainer answered A1 and A2: *"sem playstore, so apk
+  por enquanto. considere Android 10+"* (no Play Store, only the APK for
+  now; consider Android 10+).
 - Related: [0073](0073-self-hosted-server-first.md) items 2, 8 and 12 (one
   service, one code base; native mobile is Tauri 2 mobile from the same UI
   and core; "native mobile if needed", last),
@@ -243,8 +246,8 @@ on the entry function. Also:
 
 | # | Question | Recommendation (not decided) |
 |---|---|---|
-| A1 | `minSdk` (generated: 24; `targetSdk` 36, which is what brings the W^X rule) | 29 (Android 10): the keyring's Android store, a recent WebView, `AudioPlaybackCapture` |
-| A2 | Distribution: sideloaded APK, F-Droid, Play | — |
+| A1 | `minSdk` (generated: 24; `targetSdk` 36, which is what brings the W^X rule) | **Decided 2026-11-11: 29 (Android 10)** (*"considere Android 10+"*): the keyring's Android store, a recent WebView, `AudioPlaybackCapture` |
+| A2 | Distribution: sideloaded APK, F-Droid, Play | **Decided 2026-11-11: the sideloaded APK only, for now; no Play Store** (*"sem playstore, so apk por enquanto"*). F-Droid was not answered |
 | A3 | Package id: `com.versomd.app` on Android too (0004's bundle id; `.beta` for betas) | Applied in the build (`applicationId = "com.versomd.app"`); `.beta` needs an `applicationIdSuffix` |
 | A4 | `verso-server` behind a cargo feature, for a smaller client-only build | **Decided 2026-11-10: no** — one build, with the server (item 3); the maintainer: *"pq vc pensa em remover a parte servidor do app android?"* |
 | A5 | The TalkBack pass (0035 item 2, 0076 item 9) | Part of Phase 1's acceptance (item 9) |
@@ -272,7 +275,7 @@ and memory are Phase 1 work.
 
 Phase 1 as built so far (2026-11-10, `feat/app-server` e5d74d287 to
 22260336c; facts and applied recommendations, nothing here decided):
-`minSdk` 29 (A1's recommendation, Proposed); the foreground service's type
+`minSdk` 29 (A1, decided 2026-11-11); the foreground service's type
 `specialUse` (3.2's recommendation, Proposed); `cloudflared` is Cloudflare's
 `linux-arm64` release placed by a Gradle step as `libcloudflared.so` (3.3's
 "test linux-arm64 first", Proposed) — it runs from the app's library
@@ -333,8 +336,9 @@ Weighed in the session of 2026-11-08:
 day (Source; item 6 and A6, A8, A9 answered later the same day: "o resto é
 recomendado", the rest as recommended). Item 7 is a reading of the code, not a decision. Items 3.2's service
 type, 3.3's `cloudflared` build, 5's seam and updater, 9's pass numbers and
-on-device vectors, and 8 (A1–A5, A7; A6's remaining parts) are `[OPEN]`; their
+on-device vectors, and 8 (A3, A5; A6's remaining parts) are `[OPEN]`; their
 recommendations are Proposed. Phase 0 started on `feat/android` the same day. Written by an
 Opus session; Fable reading done 2026-11-08 (Revisions); the maintainer
 answered B1, A6, A8 and A9 the same day; A4, A7 and item 5's updater on
-2026-11-10 (Revisions), and Phase 1 started that day.
+2026-11-10 (Revisions), and Phase 1 started that day; A1 (`minSdk` 29) and
+A2 (the APK only, no Play Store for now) on 2026-11-11.
