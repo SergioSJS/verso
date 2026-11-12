@@ -595,7 +595,15 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
                     )
                 })
                 .await;
-            let Ok(Ok(body)) = r else { break };
+            let body = match r {
+                Ok(Ok(body)) => body,
+                // Out of reach for a moment — the iOS app suspended while
+                // the person signs in in Safari (ADR 0119 Phase 0), a
+                // network that dropped: asked again at the next turn,
+                // within the code's ten minutes.
+                Ok(Err(e)) if e.kind == ErrorKind::Unreachable => continue,
+                _ => break,
+            };
             if body["pending"] == true {
                 continue;
             }

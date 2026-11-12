@@ -57,9 +57,9 @@ export async function importDropped(folder: string): Promise<void> {
 /** The files the host gave — by token or by bytes — created in `folder`
  *  (`reveal`: the first one is focused in the tree), and the status line says
  *  how many came, which were renamed and which were left out. */
-async function placePicked(folder: string, picked: PickedFiles, limitMb: number, reveal: boolean): Promise<void> {
+export async function placePicked(folder: string, picked: PickedFiles, limitMb: number, reveal: boolean): Promise<string[]> {
   const { files, skipped } = picked;
-  if (files.length === 0 && skipped.length === 0) return;
+  if (files.length === 0 && skipped.length === 0) return [];
   const taken = new Set([...allNotes, ...allFiles, ...allFolders].map((p) => p.toLowerCase()));
   const made: string[] = [];
   const renamed: string[] = [];
@@ -81,4 +81,5 @@ async function placePicked(folder: string, picked: PickedFiles, limitMb: number,
   }
   const said = imp.summary({ made: made.length, renamed, skipped, failed, limitMb });
   if (said) ui.status.textContent = said;
+  return made;
 }

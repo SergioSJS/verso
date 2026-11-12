@@ -84,7 +84,7 @@ function renderFrame(box: HTMLElement, url: string): void {
   frame.src = url;
   frame.title = url;
   frame.referrerPolicy = "no-referrer";
-  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
+  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads");
   box.replaceChildren(frame);
 }
 

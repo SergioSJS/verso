@@ -40,6 +40,12 @@
   replaced by a picture of itself in the DOM instead of vanishing. Recorded
   as the section "Revised: a picture of the page behind an overlay", before
   the Status; the feature is unreleased, so it is written in place.
+- Revisions: 2026-11-12 — **revised by the maintainer** in session, on
+  Watabou's generators ([0120](0120-maps-from-watabous-generators.md) item
+  6): *"deveria ser SIM!"* — a download that starts inside an embedded page
+  is accepted and saved into the folder (desktop app); in a browser it goes
+  to the browser's Downloads. Recorded as the section "Revised: a page's
+  downloads go into the folder", before the Status.
 
 ## Context
 
@@ -356,7 +362,8 @@ How the author built A (`app/src-tauri/src/framing.rs`, `web.rs`,
 - **The embed.** Frameable: the box holds `<iframe sandbox="allow-scripts
   allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
   referrerpolicy="no-referrer" loading="lazy">`, no `allow`, 100 % of the
-  box. Not frameable, or the answer an error: the child web view of the
+  box. *(Since 2026-11-12 the sandbox also has `allow-downloads`: the
+  section "Revised: a page's downloads go into the folder".)* Not frameable, or the answer an error: the child web view of the
   revision above. The browser window keeps its own frame with the link to
   open the page in a tab ([0076](0076-the-window-on-every-screen.md), item 11 as the code cites it).
 - **The window's policy** already had `frame-src https: http: verso:
@@ -497,6 +504,38 @@ page of a site that refuses frames.
 
 Discarded in this revision: none recorded.
 
+### Revised: a page's downloads go into the folder — decided on 2026-11-12
+
+**Decided by the maintainer on 2026-11-12**, in session, asked whether Verso
+should accept a download that starts inside an embedded page (a generator's
+Export, [0120](0120-maps-from-watabous-generators.md)): *"deveria ser SIM!"*
+(it should be YES!). Until then the frame had no `allow-downloads`, and a
+page's Export did nothing.
+
+How the author built it (`app/ui/src/leaves/web.ts`, `screen/framed.ts`,
+`app/src-tauri/src/web.rs`, `windows.rs`, `app/ui/src/watabou/pageDownload.ts`):
+
+- The frame's sandbox gains `allow-downloads`; nothing else of it changes
+  (no `allow-top-navigation`: the page still cannot steer the window).
+- The navigation guard's allowance grows by one: an app view's frame may
+  reach a `blob:` address whose origin is one already judged frameable
+  (`blob_origin`), which is how a page's download starts; no other `blob:`.
+- The download hook tells the app's own downloads — a `blob:` of the app's
+  origin, which still go to Downloads — from a page's (anything else). A
+  page's file is written by the web engine to the system's temporary
+  folder, then handed to the window as a picked file is (a token, or the
+  bytes for a window on a server: `page-downloaded`), and the window places
+  it beside the note or board in front, the import's way: confined, never
+  over a file. The copy into the folder is the core's; the host writes
+  nothing of the folder.
+- In a browser (a UniVerso's window) the frame's download goes to the
+  browser's Downloads, as any download there.
+- A child web view (a site that refuses framing) has no download hook, as
+  before.
+
+Discarded in this revision: capturing a page's export by a script injected
+into it (0120's discarded alternatives).
+
 ## Status
 
 Accepted on 2026-09-29 by the maintainer, in session: points 1 and 2 of the
@@ -513,6 +552,7 @@ otherwise. Revised again on 2026-10-15, in session (*"A e B juntos"*): the
 child web view is drawn as a frame is, by a native clipping container
 (B); the mechanism is the author's.
 Revised on 2026-10-15, in session, accepted as recommended: the host's frameability check (one `HEAD`, or a `GET` read only as far as its headers, once per origin) is **accepted**, which revises the earlier line that "nothing is fetched on the host's side" for an approved origin; a page's own links to another origin and the frames nested inside a framed page stay `[OPEN]`, as recorded above.
+Revised on 2026-11-12 by the maintainer, in session (*"deveria ser SIM!"*, [0120](0120-maps-from-watabous-generators.md) item 6): a page's download is accepted and saved into the folder; the mechanism is the author's.
 Decided on 2026-10-21 by the maintainer (D.3 of the decisions list, option A): when the frameability check of a site fails (network down, timed out), the app asks again after **30 seconds**, instead of remembering the failure until the window closes.
 Revised on 2026-11-12 by the maintainer, in chat (*"pode claro"*): while an overlay is open, a page that is a child web view is replaced by a picture of itself instead of hiding; the mechanism is the author's.
 

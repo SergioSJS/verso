@@ -23,6 +23,10 @@
 - Revisions: 2026-11-12 — the maintainer answers part of item 10 (decisions
   doc of 2026-11-12, his recommendations left marked, with his laptop's
   policy pasted for B5); recorded in the table's rows and in Status.
+- Revisions: 2026-11-12 — the maintainer accepts the recommendations of
+  Phase 0 in the Simulator: *"sobre ios, aceito as recomendações"* (on
+  iOS, I accept the recommendations); A13–A18 decided in their rows, the
+  build after them in "Phase 0 as built so far".
 - Revisions: 2026-11-12 — Phase 0 begun in the iOS Simulator ("Phase 0 as
   built so far", after §11); A13's row gets a recommendation; the minimum
   iOS 16.0 is recorded as Proposed.
@@ -361,7 +365,12 @@ Questions for the maintainer (B) and for the build (A):
 | A10 | The iPhone's layout without an iPhone: the harness's 390×844 projects (0076), and/or the iOS Simulator that comes with Xcode (the real WKWebView) | — |
 | A11 | The Personal Team's id kept out of the committed `gen/apple` (from the environment) | **Decided 2026-11-12:** as recommended |
 | A12 | Whether the name "Verso" is free in App Store Connect | Check at the app record (Phase 2) |
-| A13 | How the iOS differences cross the contract: new `Can` values or something else (§9) | Three additive `Can` values the desktop and Android list and iOS does not: `Link` (the internet link, A3), `Discover` (mDNS announce and browse, A4), `ServeAway` (serving while the app is off screen, A2); the window hides the link and the "found on this network" list, and says the server runs only while Verso is open. A contract change: bindings regenerated, additive inside N/N-1. Not built in Phase 0 |
+| A13 | How the iOS differences cross the contract: new `Can` values or something else (§9) | **Decided 2026-11-12** (*"aceito as recomendações"*): three additive `Can` values, `Link` (the internet link, A3), `Discover` (mDNS announce and browse, A4), `ServeAway` (serving while the app is off the screen, A2), listed by the desktop and Android and absent on iOS; the window hides the link's box and *Found on this network*, and says the server runs only while Verso is open where `ServeAway` is absent. Additive inside N/N-1 (a server never lists them), bindings regenerated |
+| A14 | The minimum iOS | **Decided 2026-11-12:** 16.0 — Xcode 27.2 accepts 15.0–27.2, and iOS 16 brought Developer Mode, which a sideloaded app needs |
+| A15 | How a page opens in the browser on iOS (a UniVerso's sign-in opens the server's page) | **Decided 2026-11-12:** Tauri's opener plugin (`tauri-plugin-opener`), not UIKit by hand (`unsafe`) |
+| A16 | The bundle's version (Tauri wrote `1.0.0`: `0.8.4-beta.1` is not a number triple) | **Decided 2026-11-12:** the release step sets `CFBundleShortVersionString` to the numeric version and `CFBundleVersion` to a build number |
+| A17 | `staticlib` in `crate-type`: every build of `verso-app` (desktop, Android) also writes a static library | **Decided 2026-11-12:** kept; the cost (disk and time of each build) noted |
+| A18 | A second window of the app on the iPad (`UIApplicationSupportsMultipleScenes` is true for tao's scene life cycle) | **Decided 2026-11-12:** checked on his iPad first, then decided |
 
 ### 11. Phases, each with its acceptance
 
@@ -384,7 +393,7 @@ iPad's, and Phase 0's acceptance still needs the device.
   the repository without a development team (A11); `staticlib` added to
   `crate-type`; `cargo clippy -D warnings` green for
   `aarch64-apple-ios-sim`, `aarch64-linux-android` and the Mac.
-- The minimum iOS is 16.0 (`tauri.ios.conf.json`), Proposed: Xcode 27.2
+- The minimum iOS is 16.0 (`tauri.ios.conf.json`), decided 2026-11-12 (A14): Xcode 27.2
   refuses Tauri's default 14.0 (its range is 15.0–27.2), and iOS 16 is
   where Developer Mode, which a sideloaded app needs, begins.
 - `src/ios.rs`, as `android.rs`: the configuration in
@@ -455,6 +464,45 @@ iPad's, and Phase 0's acceptance still needs the device.
   screen lock and the device's network are the iPad's to test.
 - Disk: the Simulator's debug build left 11 GB in
   `target/aarch64-apple-ios-sim` and 2.8 GB in `gen/apple` (ignored).
+- After the answers of 2026-11-12, built (`920afa6e2`, `db8a61255`,
+  `b388d704d`) and checked in the Simulator, iPad Pro 11-inch:
+  - A13: `Can::Link`, `Can::Discover` and `Can::ServeAway`, with
+    `Can::APP_SERVER` naming them. iOS lists none, and Turn into a server
+    shows the network's box alone. Its words are *"Verso on this device
+    can serve … only while Verso is open on the screen"*, with nothing of
+    Android's foreground service. Servers has no *Found on this network*,
+    and iOS browses no mDNS. A server never lists the three, so the
+    contract stays version 1 (N/N-1); the test server, at contract 1,
+    took this app.
+  - A15: Connect opens the server's page in Safari through
+    `tauri-plugin-opener`. The page names the device (*"Verso · iPad Pro
+    11-inch (M5)"*), and after approving there the app signed in and
+    opened the server's folder online over `wss://`. That is the TLS of
+    Phase 0's acceptance, in the Simulator.
+  - The device's name is `UIDevice.name` (breaks 5).
+  - Breaks 6–7: the console's line names a computer's developer tools on
+    any phone or tablet; Notifications draws Updates only with
+    `Can::Updates`.
+  - Break 4's prefix: a page the host did not open is a failure in its
+    own words.
+  - New break, fixed: the sign-in's poll ended at its first request out
+    of reach. iOS suspends the app while the person approves in Safari,
+    and the poll timed out. It now asks again within the code's ten
+    minutes.
+  - Still open:
+    - break 9 (opus' deployment target: the `cmake` crate does not hand
+      it over, so no cheap fix);
+    - A16 (the version), for the release step.
+  - New, not fixed:
+    - The app's container moves when the app is installed again (the
+      Simulator's reinstall gave a new path). A folder kept by its
+      absolute path, as recents are, then names a place that is gone; the
+      own folder is found again at start.
+    - A window on a server's folder gets the app's abilities from a fixed
+      list (`remote_abilities.rs` `APP_ABILITIES`) whatever the platform.
+      On Android and iOS that list names the terminal, windows and child
+      web views; the three new values are filtered by the platform, the
+      older ones are not.
 
 ## Consequences
 
@@ -480,6 +528,9 @@ None recorded. The App Store first was not discarded: it comes later (item
 2.3). SideStore is mentioned, not weighed.
 
 ## Status
+
+**Phase 0's answers (2026-11-12):** A13–A17 decided as recommended
+(*"sobre ios, aceito as recomendações"*); A18 waits for the iPad.
 
 **Item 10 answered in part (2026-11-12):** B1, B2, B3, B5, B6, B10, B12–B14,
 A3, A4, A6 and A11 decided (their rows); A5, A7 and B11 still `[OPEN]`; B4,

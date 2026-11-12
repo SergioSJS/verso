@@ -33,7 +33,7 @@ test("a site that allows framing is an iframe, the size of its box, scrolling wi
   await expect(frame).toHaveCount(1);
   await expect(frame).toHaveAttribute("src", "https://frames-ok.example/p");
   await expect(frame).toHaveAttribute("referrerpolicy", "no-referrer");
-  await expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
+  await expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads");
   // No child web view: the page is in the document, not over it.
   expect(await app.calls("web_open")).toEqual([]);
   expect(await app.calls("embed_frameable")).toEqual([{ url: "https://frames-ok.example/p" }]);

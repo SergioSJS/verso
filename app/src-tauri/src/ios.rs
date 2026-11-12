@@ -13,9 +13,18 @@
 //! notes in `<data>/Verso` (B13, decided 2026-11-12), made at the first
 //! start and opened by the first window.
 
+use std::sync::OnceLock;
+
 use tauri::Manager;
 
 use crate::log;
+
+/// The app, for what is asked of it outside a command: a page opened in
+/// the browser (`open_page`).
+static APP: OnceLock<tauri::AppHandle> = OnceLock::new();
+
+/// The device's name as UIKit says it, read once at the start.
+static DEVICE_NAME: OnceLock<String> = OnceLock::new();
 
 /// Before any window: the configuration directory named, the log begun,
 /// the secrets' store set, the app's own folder made if absent and handed
@@ -31,6 +40,8 @@ pub(crate) fn setup(app: &tauri::App) {
     verso_core::set_host_config_dir(data.join("config"));
     log::open();
     keep_secrets();
+    let _ = APP.set(app.handle().clone());
+    remember_device_name();
     log::write(
         "INFO",
         "host",
@@ -58,4 +69,41 @@ fn keep_secrets() {
             &format!("iOS: no store for a cloud's secrets: {e}"),
         ),
     }
+}
+
+/// The device's name (`UIDevice.name`), asked of UIKit on the main thread,
+/// where Tauri's setup runs. Since iOS 16 an app without Apple's
+/// entitlement for it is told the model ("iPad", "iPhone"), not the name
+/// the person gave the device; either is better than `hostname`'s.
+fn remember_device_name() {
+    let Some(main) = objc2::MainThreadMarker::new() else {
+        log::write(
+            "WARN",
+            "host",
+            "iOS: the device's name was not asked off the main thread",
+        );
+        return;
+    };
+    let name = objc2_ui_kit::UIDevice::currentDevice(main)
+        .name()
+        .to_string();
+    let name = name.trim();
+    if !name.is_empty() {
+        let _ = DEVICE_NAME.set(name.to_owned());
+    }
+}
+
+/// The device's name, once the app has started.
+pub(crate) fn device_name() -> Option<String> {
+    DEVICE_NAME.get().cloned()
+}
+
+/// A page in the person's browser, through Tauri's opener plugin (UIKit's
+/// `openURL`; ADR 0119 item 10 (c), decided 2026-11-12).
+pub(crate) fn open_page(page: &str) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let app = APP.get().ok_or("the app has not started yet")?;
+    app.opener()
+        .open_url(page, None::<&str>)
+        .map_err(|e| e.to_string())
 }

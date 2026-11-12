@@ -85,6 +85,22 @@ pub(crate) fn may_navigate_framed(
         || (is_app_view(label)
             && web_only(url)
             && embed_origin_of(url).is_some_and(|o| framed.contains(&o)))
+        || (is_app_view(label) && blob_origin(url).is_some_and(|o| framed.contains(&o)))
+}
+
+/// The origin of a `blob:` address made by a page of the web
+/// (`blob:https://site/…`): a framed page's download is one (ADR 0120 item
+/// 6, revising ADR 0056) — the engine hands it to the download hook only
+/// once the guard has let it through. None for any other address.
+pub(crate) fn blob_origin(url: &tauri::Url) -> Option<String> {
+    if url.scheme() != "blob" {
+        return None;
+    }
+    let inner = tauri::Url::parse(url.path()).ok()?;
+    if !matches!(inner.scheme(), "http" | "https") {
+        return None;
+    }
+    embed_origin_of(&inner)
 }
 
 /// The navigation guard as a plugin: a plugin's `on_navigation` is asked

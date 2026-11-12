@@ -50,7 +50,7 @@ rustls-pki-types = { version = "1", features = ["std"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json"] }
 # The accounts, sessions, invitations, tokens, grants and the audit log
 # (ADR 0074 item 10): SQLite, as the index (MIT, public domain).
-rusqlite = { version = "0.40", default-features = false, features = ["bundled"] }
+rusqlite = { version = "0.41", default-features = false, features = ["bundled"] }
 # Passwords hashed with Argon2id (ADR 0074 item 3; MIT OR Apache-2.0).
 argon2 = { version = "0.5", default-features = false, features = ["alloc", "password-hash", "std"] }
 # Simultaneous editing of notes (ADR 0073 item 7; the maintainer's answer

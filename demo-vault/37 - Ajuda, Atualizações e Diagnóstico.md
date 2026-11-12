@@ -44,7 +44,7 @@ O registro do app fica no seu computador — `~/Library/Application Support/vers
 
 ## O Console
 
-`⌥⌘I` (ou **Visualização › Abrir console**) abre o inspetor da janela: console, elementos e rede — útil para quem desenvolve, ou para mandar um erro detalhado. **Ajustes › Geral › Console do desenvolvedor** o liga e desliga.
+`⌥⌘I` (ou **Visualização › Abrir console**) abre o inspetor da janela: console, elementos e rede — útil para quem desenvolve, ou para mandar um erro detalhado. **Ajustes › Geral › Console do desenvolvedor** o liga e desliga. Num celular ou tablet não há menu Visualização: o inspetor abre num computador ligado ao aparelho, nas ferramentas de desenvolvedor do navegador dele — `chrome://inspect` no Chrome, para um celular Android.
 
 ---
 

@@ -257,23 +257,49 @@ pub(crate) fn open_frameless<'a, R: tauri::Runtime, M: tauri::Manager<R>>(
 /// every download unseen. The window is told the file's name, never its
 /// path (ADR 0026 rule 4), to say where it went. A web page's own window
 /// has no such hook: what a site downloads is the network's (ADR 0050).
+///
+/// What a page embedded in a note downloads (ADR 0056, revised on
+/// 2026-11-12 by ADR 0120 item 6: an export button of a generator) goes into
+/// the folder instead: written by the web engine to the system's temporary
+/// folder, then handed to the window as a picked file is — a token for this
+/// computer's folder, the bytes for a server's — and the window puts it
+/// beside the note (`page-downloaded`). Nothing of the folder is written
+/// here: the copy is the core's (`create_picked`, `create_file`).
 pub(crate) fn on_download<R: tauri::Runtime>(
     webview: tauri::Webview<R>,
     event: tauri::webview::DownloadEvent<'_>,
 ) -> bool {
     match event {
-        tauri::webview::DownloadEvent::Requested { destination, .. } => {
+        tauri::webview::DownloadEvent::Requested { url, destination } => {
             let name = destination
                 .file_name()
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_default();
+            if from_a_page(url.as_str()) {
+                let name = if name.is_empty() {
+                    "download".to_owned()
+                } else {
+                    name
+                };
+                *destination = std::env::temp_dir().join(&name);
+                log::write(
+                    "INFO",
+                    "host",
+                    &format!("a page's download, for the folder: {name}"),
+                );
+                return true;
+            }
             log::write("INFO", "host", &format!("download to Downloads: {name}"));
             let _ = webview
                 .app_handle()
                 .emit("downloaded", (webview.label().to_owned(), name, true));
             true
         }
-        tauri::webview::DownloadEvent::Finished { success, .. } => {
+        tauri::webview::DownloadEvent::Finished { url, path, success } => {
+            if from_a_page(url.as_str()) {
+                page_downloaded(&webview, path.filter(|_| success));
+                return true;
+            }
             if !success {
                 log::write("WARN", "host", "a download did not finish");
                 let _ = webview.app_handle().emit(
@@ -285,6 +311,59 @@ pub(crate) fn on_download<R: tauri::Runtime>(
         }
         _ => true,
     }
+}
+
+/// A page's download that finished (`None`: it did not): the window is
+/// given the file as a picked one, to put in the folder.
+fn page_downloaded<R: tauri::Runtime>(webview: &tauri::Webview<R>, path: Option<PathBuf>) {
+    let label = webview.label().to_owned();
+    let Some(path) = path else {
+        log::write("WARN", "host", "a page's download did not finish");
+        let _ = webview
+            .app_handle()
+            .emit("downloaded", (label, String::new(), false));
+        return;
+    };
+    let on_server = webview
+        .app_handle()
+        .state::<App>()
+        .remotes
+        .lock()
+        .map(|r| r.contains_key(&label))
+        .unwrap_or(false);
+    let picked = if on_server {
+        crate::files::read_picks(std::slice::from_ref(&path))
+    } else {
+        crate::files::hold_picks(&label, std::slice::from_ref(&path), PAGE_DOWNLOAD_MB)
+    };
+    let _ = webview
+        .app_handle()
+        .emit("page-downloaded", (label, picked));
+}
+
+/// The most of one file a page may hand the folder: the ceiling of
+/// "Maximum size of an imported file" (Settings › Files and links).
+const PAGE_DOWNLOAD_MB: u32 = 1024;
+
+/// Whether a download comes from a page embedded in the window rather than
+/// from the window itself: the app's own downloads are `blob:` addresses of
+/// its own origin (`tauri://localhost`, `http(s)://tauri.localhost`,
+/// `verso:`); anything else — a page's `blob:`, a `data:`, an address of
+/// the web — is a page's.
+pub(crate) fn from_a_page(url: &str) -> bool {
+    let Some(inner) = url.strip_prefix("blob:") else {
+        return true;
+    };
+    // The origin, exactly: up to the path's first slash after `//`.
+    let origin = match inner.split_once("://") {
+        Some((scheme, rest)) => format!("{scheme}://{}", rest.split('/').next().unwrap_or("")),
+        None => inner.split('/').next().unwrap_or("").to_owned(),
+    };
+    let own = matches!(
+        origin.as_str(),
+        "tauri://localhost" | "http://tauri.localhost" | "https://tauri.localhost"
+    ) || origin.starts_with("verso:");
+    !own
 }
 
 /// Which note this window shows, when it is one popped out; `None` for
@@ -336,4 +415,51 @@ pub(crate) fn return_to_main<R: tauri::Runtime>(
         "return_to_main (a note back to its folder's window)",
     );
     window.close().map_err(|e| failed(e.to_string()))
+}
+
+#[cfg(test)]
+mod page_download_tests {
+    use super::from_a_page;
+
+    #[test]
+    fn the_windows_own_downloads_are_not_a_pages() {
+        assert!(!from_a_page("blob:tauri://localhost/2f1c"));
+        assert!(!from_a_page("blob:http://tauri.localhost/2f1c"));
+        assert!(!from_a_page("blob:https://tauri.localhost/2f1c"));
+        assert!(!from_a_page("blob:verso://localhost/2f1c"));
+    }
+
+    #[test]
+    fn an_embedded_pages_downloads_are() {
+        assert!(from_a_page("blob:https://watabou.github.io/5a7e"));
+        assert!(from_a_page("https://example.com/map.png"));
+        assert!(from_a_page("data:application/json;base64,e30="));
+        // A page whose name only starts like the app's is not the app.
+        assert!(from_a_page("blob:https://tauri.localhost.evil.example/1"));
+    }
+
+    /// The guard lets a framed page's `blob:` through, so that its download
+    /// reaches the hook — only a page of an origin judged frameable, only
+    /// in an app view.
+    #[test]
+    fn a_framed_pages_blob_passes_the_guard_and_no_other() {
+        let url = |s: &str| tauri::Url::parse(s).unwrap();
+        let mut framed = std::collections::HashSet::new();
+        framed.insert("https://watabou.github.io".to_owned());
+        let may =
+            |label: &str, s: &str| crate::web::may_navigate_framed(label, &url(s), None, &framed);
+        assert!(may("main", "blob:https://watabou.github.io/5a7e-1"));
+        assert!(may("note-2", "blob:https://watabou.github.io/5a7e-1"));
+        assert!(!may("main", "blob:https://other.example/5a7e-1"));
+        assert!(!may("main", "blob:null/5a7e-1"));
+        assert!(!may("other", "blob:https://watabou.github.io/5a7e-1"));
+        assert_eq!(
+            crate::web::blob_origin(&url("blob:https://Watabou.github.io/x")),
+            Some("https://watabou.github.io".to_owned())
+        );
+        assert_eq!(
+            crate::web::blob_origin(&url("https://watabou.github.io/x")),
+            None
+        );
+    }
 }

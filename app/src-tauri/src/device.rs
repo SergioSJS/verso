@@ -59,6 +59,10 @@ fn host_name() -> String {
     if let Some(name) = crate::phone::device_name() {
         return name;
     }
+    #[cfg(target_os = "ios")]
+    if let Some(name) = crate::ios::device_name() {
+        return name;
+    }
     for var in ["COMPUTERNAME", "HOSTNAME"] {
         if let Ok(v) = std::env::var(var)
             && !v.trim().is_empty()
