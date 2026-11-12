@@ -239,8 +239,10 @@ a file receives should download it).
 - **Still nothing fetches without the user touching that file**: the walk,
   the index, the watcher, a scan of every note (find and replace, mentions),
   sync, and the command line and MCP server, as above. The notes a move's
-  link plan reads are not fetched: one in the cloud is still listed as
-  skipped (the author's reading: the user did not touch them).
+  link plan reads **are fetched** first too (decided by the maintainer on
+  2026-11-12, in place of the author's reading that they were not); one
+  that cannot come down is still listed as skipped and never stops the
+  move.
 - **The older `.Name.ext.icloud` form** still cannot be fetched by reading;
   an action on it stays refused.
 

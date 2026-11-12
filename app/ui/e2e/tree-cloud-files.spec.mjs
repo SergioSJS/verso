@@ -88,6 +88,27 @@ test("a file that cannot come down from iCloud stops the move and is named", asy
   expect(await app.files()).toEqual(expect.arrayContaining(["Zona/Ma.canvas", "Zona/Mb.canvas"]));
 });
 
+test("a note in iCloud that links to the moved one comes down before the move", async ({ app }) => {
+  // The maintainer, 2026-11-12: the notes the link plan reads come down
+  // too, so their links are rewritten instead of skipped.
+  const linked = { ...files, "Outra/Liga.md": "veja [[Ma.canvas]]\n" };
+  await cloudFolder(app, linked, ["Outra/Liga.md"]);
+  await app.page.evaluate(() => {
+    const core = window.__harness.core;
+    const back = core.handlers.backlinks;
+    core.handlers.backlinks = (a) => {
+      window.__order.push(`backlinks ${a.path}`);
+      return back(a);
+    };
+  });
+  await selectBoth(app);
+  await dragOnto(app, row(app, "Zona/Mb.canvas"), folderRow(app, "Zona/Destino"));
+  await expect.poll(() => app.files()).toEqual(expect.arrayContaining(["Zona/Destino/Ma.canvas", "Zona/Destino/Mb.canvas"]));
+  const order = await app.page.evaluate(() => window.__order);
+  expect(order).toContain("fetch Outra/Liga.md");
+  expect(order.indexOf("fetch Outra/Liga.md")).toBeLessThan(order.indexOf("move"));
+});
+
 test("a single file only in iCloud is downloaded before it is moved", async ({ app }) => {
   await cloudFolder(app, files, ["Zona/Ma.canvas"]);
   await row(app, "Zona/Ma.canvas").scrollIntoViewIfNeeded();

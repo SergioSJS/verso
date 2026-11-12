@@ -59,6 +59,19 @@ export async function fetchAll(paths: string[]): Promise<boolean> {
   if (ui.status.textContent === said) ui.status.textContent = "";
   return true;
 }
+/** The notes that link to what moves are read by the move's link plan,
+ *  which leaves out one still in the cloud: they come down first too (the
+ *  maintainer, 2026-11-12). Asked only when the folder has a file in the
+ *  cloud at all; one that cannot come down is skipped and named by the
+ *  plan, as before, and never stops the move. */
+export async function fetchLinkers(paths: string[]): Promise<void> {
+  if (![...allEntries.values()].some((e) => e.kind === "placeholder")) return;
+  const moved = [...allEntries.keys()].filter((k) => paths.some((p) => k === p || k.startsWith(`${p}/`)));
+  const answers = await Promise.all(moved.map((p) => commands.backlinks(p)));
+  const linkers = new Set<string>();
+  for (const r of answers) if (r.status === "ok") for (const b of r.data) linkers.add(b.from);
+  if (linkers.size > 0) await fetchAll([...linkers]);
+}
 /** The paths of the tabs a workspace is bringing back, for as long as it
  *  does: a tab of one of them, not in front of its pane, reads without
  *  downloading from iCloud (decided on 2026-10-01, review `board.md` §6

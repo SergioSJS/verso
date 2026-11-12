@@ -29,7 +29,7 @@ import { propVal } from "./leaves/folderView";
 import { NoteLeaf } from "./leaves/note";
 import { redraw } from "./live";
 import { panel, plan } from "./main";
-import { fetchAll, opening } from "./opening";
+import { fetchAll, fetchLinkers, opening } from "./opening";
 import { folderNoteOf } from "./organize/folderNotes";
 import { setFrontmatterProp, withProperty } from "./organize/frontmatter";
 import { dirOf, ext, Kind, kindOf, name } from "./paths";
@@ -375,6 +375,7 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
   // The links to rewrite are read from disk: every tab saves first.
   await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
   if (!(await fetchAll([from]))) return false;
+  await fetchLinkers([from]);
   const r = await commands.renameEntry(from, to);
   if (r.status !== "ok") {
     if (r.error.kind === "exists") nameTaken(t.exists);
@@ -487,6 +488,7 @@ export async function moveEntries(paths: string[], folder: string): Promise<bool
   }
   await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
   if (!(await fetchAll(paths))) return false;
+  await fetchLinkers(paths);
   const r = await commands.moveEntries(paths, folder);
   if (r.status !== "ok") {
     fail(r.error);

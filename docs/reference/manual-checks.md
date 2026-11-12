@@ -540,7 +540,8 @@ in a note long enough to scroll.
   select the three and drag them onto another folder: the status says
   *Baixando 3 arquivos do iCloud…* and all three move; one alone renamed
   and one sent to the bin come down first too. Offline: nothing moves and
-  the status names the file.
+  the status names the file A note in iCloud that links to a moved note comes
+  down too and appears in the link plan, not in its skipped list.
 - [ ] **A note opened with Verso closed** (A, ADR 0114 + 0065, fixed
   2026-11-12): with a folder open, quit Verso (⌘Q); in Finder, double-click a
   `.md` outside that folder (or `open -a "Verso Beta" nota.md`): the folder
