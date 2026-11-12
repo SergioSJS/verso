@@ -1098,7 +1098,9 @@ hand, on a phone and an iPad, the server's window in the browser.
     at the next start; the switcher reads *Neste celular*, *dentro do app*,
     *Celular/Documents*. *Settings › Sync* has *Sync in the background*
     (off), its *Wi-Fi only* and *Only while charging* usable with it on;
-    on, a folder syncs with Verso closed under a notification. Level: H (the app
+    on, a folder syncs with Verso closed under a notification. At a table,
+    the game master's *Share audio* lists *Som dos apps do celular*; a
+    declined screen-capture prompt is said in words. Level: H (the app
     on an Android phone over `adb`); E: `phone-android.spec.mjs` (the words
     on a mobile host, in the harness); the rest by hand,
     `manual-checks.md`, "The Android app, Phase 1".
