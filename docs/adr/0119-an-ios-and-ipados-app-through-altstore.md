@@ -23,6 +23,9 @@
 - Revisions: 2026-11-12 — the maintainer answers part of item 10 (decisions
   doc of 2026-11-12, his recommendations left marked, with his laptop's
   policy pasted for B5); recorded in the table's rows and in Status.
+- Revisions: 2026-11-12 — Phase 0 begun in the iOS Simulator ("Phase 0 as
+  built so far", after §11); A13's row gets a recommendation; the minimum
+  iOS 16.0 is recorded as Proposed.
 - Revisions: 2026-11-10 — Fable reading
   ([review](../review/2026-11-10-adr-0119-ios.md)): 0 BLOCKING, 10 IMPORTANT,
   10 MINOR, every code claim held; applied the same day: §8's product rows
@@ -358,7 +361,7 @@ Questions for the maintainer (B) and for the build (A):
 | A10 | The iPhone's layout without an iPhone: the harness's 390×844 projects (0076), and/or the iOS Simulator that comes with Xcode (the real WKWebView) | — |
 | A11 | The Personal Team's id kept out of the committed `gen/apple` (from the environment) | **Decided 2026-11-12:** as recommended |
 | A12 | Whether the name "Verso" is free in App Store Connect | Check at the app record (Phase 2) |
-| A13 | How the iOS differences cross the contract: new `Can` values or something else (§9) | — |
+| A13 | How the iOS differences cross the contract: new `Can` values or something else (§9) | Three additive `Can` values the desktop and Android list and iOS does not: `Link` (the internet link, A3), `Discover` (mDNS announce and browse, A4), `ServeAway` (serving while the app is off screen, A2); the window hides the link and the "found on this network" list, and says the server runs only while Verso is open. A contract change: bindings regenerated, additive inside N/N-1. Not built in Phase 0 |
 
 ### 11. Phases, each with its acceptance
 
@@ -368,6 +371,90 @@ Questions for the maintainer (B) and for the build (A):
 | 1 — Classic | A release `.ipa`, the source JSON hosted (B3) with its permissions read from the `.ipa`, installed through AltStore Classic on the iPad; the user-visible duties (CLAUDE.md §5, 0058): a tutorial lesson in both demo vaults on installing through AltStore and the 7-day refresh, the changelog, the walkthrough, rows in `docs/reference/manual-checks.md`; the `Info.plist` usage descriptions in both languages (`InfoPlist.strings`), and the source's texts for a Brazilian audience | Installed from the source URL, the source's permissions matching the `.ipa`; refreshed by AltServer after a day, on the machine named by B5; sync with a UniVerso, WebDAV or S3; both languages, the permission prompts included; VoiceOver; the iPad's sizes and the iPhone's layout (A10) |
 | 2 — PAL | Paid account (B1), an app record in App Store Connect (A12) with the privacy manifest (expected, confirmed at the first upload), notarization, the ADP hosted, AltStore PAL registration | Listed in AltStore PAL in Brazil; installed on an iPhone (B4); the maintainer's own check of a distribution-signed build on his iPad is B15 |
 | Later | The App Store (B9): account deletion, review | Its own decision |
+
+Phase 0 as built so far (2026-11-12, `feat/app-server` `c6f785fc8` and
+`8c1e19ce6`; on the **iOS Simulator only**, not on his iPad; facts and
+applied recommendations, nothing here decided). Every number below is
+the Simulator's, a debug build on this Mac's Apple silicon: it is not the
+iPad's, and Phase 0's acceptance still needs the device.
+
+- The build: the Rust targets `aarch64-apple-ios` and
+  `aarch64-apple-ios-sim`; `tauri ios init` installed `xcodegen`,
+  `libimobiledevice` and `cocoapods` through Homebrew; `gen/apple` kept in
+  the repository without a development team (A11); `staticlib` added to
+  `crate-type`; `cargo clippy -D warnings` green for
+  `aarch64-apple-ios-sim`, `aarch64-linux-android` and the Mac.
+- The minimum iOS is 16.0 (`tauri.ios.conf.json`), Proposed: Xcode 27.2
+  refuses Tauri's default 14.0 (its range is 15.0–27.2), and iOS 16 is
+  where Developer Mode, which a sideloaded app needs, begins.
+- `src/ios.rs`, as `android.rs`: the configuration in
+  `<app data>/config` (`Library/Application Support/com.versomd.app`),
+  the log there, the notes in `<app data>/Verso` (B13). A cloud's
+  secret in iOS's Protected Data keychain (keyring 4's Apple store with
+  its `protected` feature, set on keyring-core as Android's is). The
+  WebSocket's TLS through the system's verifier (no setup on iOS). The
+  arms that were Android's but are a phone's became `cfg(mobile)`.
+  `Can::Updates` is off on iOS (B14).
+- Breaks beyond §9, found by building and running:
+  1. `apple-native-keyring-store` does not build for iOS without its
+     `protected` feature; keyring's own `Entry` refuses iOS.
+  2. `local_server/owner.rs` had no `full_name` for iOS; `update.rs`
+     left three unused names on iOS (clippy). `cli.rs` 154 was §9's.
+  3. An app built with the iOS 27 SDK that does not adopt the scene
+     life cycle stops at launch (SIGTRAP in UIKit's
+     `_UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption`).
+     tao 0.35 takes the scene path only with `UIApplicationSceneManifest`
+     › `UIApplicationSupportsMultipleScenes` true, now in `project.yml`;
+     what a second window of the app on the iPad shows is not checked.
+  4. No page opens in the browser on iOS (`open_in_browser` is refused
+     in words): signing in to a UniVerso, whose device flow opens the
+     server's page, stops there. The refusal shows behind an unrelated
+     prefix (*"That path cannot name a file of the folder."*). Phase 1
+     needs an opener (a plugin or UIKit's `openURL`; a new dependency or
+     `unsafe`, either asked).
+  5. The device's name is `ios` (the `hostname` fallback).
+  6. The window calls the iPad a phone (*"Verso on this phone"*,
+     *"Serving to the phone"*), the dialog before serving describes
+     Android's (*"stays awake even with the screen off, and a
+     notification says so"*), and Settings offers the internet link and
+     *Found on this network* — A13's values would hide or reword them.
+  7. Settings › Notifications still lists *Updates*; Settings › General
+     names *View › Open Console (⌘⌥I)*.
+  8. The bundle's version is `1.0.0` (Tauri does not carry
+     `0.8.4-beta.1`, not a number triple); the release must set it.
+  9. The C objects of the Rust library (opus) are built for the SDK's
+     27.2 and linked for 16.0 (linker warnings): the deployment target
+     is to be handed to the C builds.
+  10. The CLI's last step (renaming the `.app` into `gen/apple/build`)
+      fails when an earlier build is there; the Simulator's `.app` in
+      Xcode's DerivedData is whole.
+  11. The `.app` carries the Mac's document types (`.md`, `.toml`) from
+      `app/src-tauri/Info.plist`; what they do on iOS is not checked.
+- The `MAC` readers (§9): the iPad's web view says `MacIntel` and a Mac
+  user agent, the iPhone's `iPhone`; `MAC` is true on both, as meant for
+  ⌘. The frame is not drawn (`Host::Mobile`), *Reveal* is absent with
+  `Can::Reveal`, the terminal with `Can::Terminal`; the keys and the
+  board's ⌘⌥[ read `MAC` for the modifier only. The notification hint's
+  `mac` wording was not seen on screen.
+- Checked in the Simulator (iOS 27.2; iPad Pro 11-inch (M5), 834×1210
+  points; iPhone 18 Pro, 402×874): the app opens its own folder, the
+  demo vault is imported (78 files in about 2 s) and a note, the Verso
+  Tour board (70 cards), Settings and the server's settings show; the
+  iPhone draws the phone layout (0076). First contentful paint 3.0–3.8 s
+  after launch (6.9 s once); the board opens in 4.5 s on the iPad the
+  first time (its code loaded), 1.3 s on the iPhone; panning by wheel
+  events 49 fps, median frame 17 ms, 9 of 118 frames over 33 ms; memory
+  as the Mac sees the Simulator's processes, 112 MB for the app and
+  391 MB for its web content. Typing latency was not measured.
+- TLS: the first step of signing in to `universo-test.casa.meioorc.com`
+  (an HTTPS request through reqwest and the system's verifier) was
+  answered; the `wss://` connection was not reached (item 4).
+- Serving: turned on, the server listened on the Mac's own interfaces
+  (the Simulator shares the Mac's network) and answered `https://` over
+  TLS 1.3 from the Mac; turned off after. The lock and unlock (A2b), the
+  screen lock and the device's network are the iPad's to test.
+- Disk: the Simulator's debug build left 11 GB in
+  `target/aarch64-apple-ios-sim` and 2.8 GB in `gen/apple` (ignored).
 
 ## Consequences
 
