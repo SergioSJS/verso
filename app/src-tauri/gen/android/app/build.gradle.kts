@@ -15,9 +15,38 @@ val tauriProperties = Properties().apply {
     }
 }
 
+// The release key (ADR 0118 item 10.1, decided 2026-11-12): the maintainer
+// makes it (scripts/android/release-key.sh) and keeps it — his password
+// manager and the repository's secrets —, never this repository nor the
+// laptop the work is done on. The release build reads it from the
+// environment: the keystore's path, its password, the key's alias and
+// password. Without them a release is signed with the debug key and says so;
+// with VERSO_ANDROID_REQUIRE_RELEASE_KEY=1 (the release workflow) it stops.
+val releaseKey = listOf(
+    "VERSO_ANDROID_KEYSTORE",
+    "VERSO_ANDROID_KEYSTORE_PASSWORD",
+    "VERSO_ANDROID_KEY_ALIAS",
+    "VERSO_ANDROID_KEY_PASSWORD",
+).associateWith { System.getenv(it).orEmpty() }
+val hasReleaseKey = releaseKey.values.all { it.isNotEmpty() }
+
 android {
     compileSdk = 36
     namespace = "com.versomd.app"
+    // The NDK the Rust library and cloudflared are built with; named, so
+    // that a release strips the libraries' symbols (the APK was 152 MB with
+    // them).
+    ndkVersion = "29.0.14206865"
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = file(releaseKey.getValue("VERSO_ANDROID_KEYSTORE"))
+                storePassword = releaseKey.getValue("VERSO_ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = releaseKey.getValue("VERSO_ANDROID_KEY_ALIAS")
+                keyPassword = releaseKey.getValue("VERSO_ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.versomd.app"
@@ -32,18 +61,18 @@ android {
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false
-            packaging {                jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
-                jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86/*.so")
-                jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
-            }
         }
         getByName("release") {
-            // Signed with the debug key until the maintainer makes the
-            // release keystore (a long-lived secret: his to create and
-            // keep, ADR 0118 item 9's "signed APK"). An APK signed by one
-            // key cannot update an install signed by another.
-            signingConfig = signingConfigs.getByName("debug")
+            // An APK signed by one key cannot update an install signed by
+            // another: the debug key only until the release key is given.
+            signingConfig = if (hasReleaseKey) {
+                signingConfigs.getByName("release")
+            } else if (System.getenv("VERSO_ANDROID_REQUIRE_RELEASE_KEY") == "1") {
+                throw GradleException("no release key: set " + releaseKey.keys.joinToString(", "))
+            } else {
+                logger.warn("Verso: no release key in the environment; this release is signed with the debug key")
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
@@ -60,8 +89,18 @@ android {
     }
     // The native libraries on disk (not run from inside the APK), so that
     // libcloudflared.so can be started as a program (ADR 0118 item 3.3).
+    // A debug build keeps the libraries' symbols; a release strips them.
+    // `packaging` is the whole project's (a build type has none of its
+    // own): written inside the debug type, as the template did, it kept the
+    // symbols in the release too (105 MB of library in a 152 MB APK).
     packaging {
         jniLibs.useLegacyPackaging = true
+        if (gradle.startParameter.taskNames.any { it.contains("Debug", ignoreCase = true) }) {
+            jniLibs.keepDebugSymbols.add("*/arm64-v8a/*.so")
+            jniLibs.keepDebugSymbols.add("*/armeabi-v7a/*.so")
+            jniLibs.keepDebugSymbols.add("*/x86/*.so")
+            jniLibs.keepDebugSymbols.add("*/x86_64/*.so")
+        }
     }
 }
 
@@ -136,6 +175,40 @@ val placeCloudflared = tasks.register<PlaceCloudflared>("placeCloudflared") {
     script.set(layout.projectDirectory.file("../../../../../scripts/android/cloudflared.sh"))
     pins.set(layout.projectDirectory.file("../../../src/tunnel/fetch.rs"))
     target.set(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libcloudflared.so"))
+}
+
+// The window's files a phone serves (ADR 0118 item 7): Tauri copies
+// app/ui/dist-web into assets/ui-web at each build and never removes what a
+// former build left, so the APK carried every old chunk (580 files, 56 MB
+// packed, on 2026-11-12). What dist-web no longer has goes before the
+// assets are merged.
+abstract class PruneUiWeb : DefaultTask() {
+    @get:Internal
+    abstract val from: DirectoryProperty
+
+    @get:Internal
+    abstract val into: DirectoryProperty
+
+    @TaskAction
+    fun prune() {
+        val source = from.get().asFile
+        val target = into.get().asFile
+        if (!source.isDirectory || !target.isDirectory) return
+        target.walkBottomUp().filter { it != target }.forEach { kept ->
+            val twin = source.resolve(kept.relativeTo(target))
+            if (!twin.exists()) kept.deleteRecursively()
+        }
+    }
+}
+
+val pruneUiWeb = tasks.register<PruneUiWeb>("pruneUiWeb") {
+    from.set(layout.projectDirectory.dir("../../../../ui/dist-web"))
+    into.set(layout.projectDirectory.dir("src/main/assets/ui-web"))
+    outputs.upToDateWhen { false }
+}
+
+tasks.configureEach {
+    if (name.startsWith("merge") && name.endsWith("Assets")) dependsOn(pruneUiWeb)
 }
 
 tasks.named("preBuild") { dependsOn(placeCloudflared) }
