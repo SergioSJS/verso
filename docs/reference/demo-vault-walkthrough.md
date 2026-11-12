@@ -1089,7 +1089,10 @@ hand, on a phone and an iPad, the server's window in the browser.
     and resumes at the next opening; *Turn into a server* speaks of the
     Wi-Fi and the battery, serves with a notification that says what and to
     how many devices, pairs a device by QR and code, and keeps answering
-    with the screen off; *Check for updates* is offered. Level: H (the app
+    with the screen off; *Check for updates* is offered. Another app's
+    *Share* (a text, a link, a `.md`) or *Open with › Verso* (a `.md`)
+    makes a new note at the top of the open folder, named by the file or
+    the first line, beside a note of that name and never over it. Level: H (the app
     on an Android phone over `adb`); E: `phone-android.spec.mjs` (the words
     on a mobile host, in the harness); the rest by hand,
     `manual-checks.md`, "The Android app, Phase 1".
