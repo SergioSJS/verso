@@ -1,0 +1,327 @@
+{
+ "name": "Preter Fjord",
+ "bp": {
+  "width": 1800,
+  "height": 1800,
+  "tags": [
+   "fjord",
+   "difficult",
+   "barren",
+   "neutral"
+  ],
+  "seed": 944459915
+ },
+ "layout": "even-r",
+ "hexes": {
+  "q2_r0": {
+   "q": 2,
+   "r": 0,
+   "terrain": "mountain"
+  },
+  "q3_r0": {
+   "q": 3,
+   "r": 0,
+   "terrain": "mountain"
+  },
+  "q4_r0": {
+   "q": 4,
+   "r": 0,
+   "terrain": "mountain"
+  },
+  "q5_r0": {
+   "q": 5,
+   "r": 0,
+   "terrain": "mountain"
+  },
+  "q13_r3": {
+   "q": 13,
+   "r": 3,
+   "town": {
+    "name": "Westcot",
+    "type": "village",
+    "walled": false,
+    "info": "A remote mountain village of abundant religion but scarce nature.",
+    "link": {
+     "_link_path": "/village-generator/",
+     "_link_params": {
+      "seed": "465429558",
+      "name": "Westcot",
+      "tags": "nowater",
+      "from": "perilous"
+     }
+    },
+    "seed": 465429558
+   },
+   "terrain": "mountain"
+  },
+  "q16_r4": {
+   "q": 16,
+   "r": 4,
+   "danger": {
+    "name": "Den Of Sorrows",
+    "link": {
+     "_link_path": "/one-page-dungeon/",
+     "_link_params": {
+      "seed": "255504093",
+      "name": "Den Of Sorrows",
+      "from": "perilous"
+     }
+    },
+    "seed": 255504093
+   },
+   "terrain": "forest-light"
+  },
+  "q14_r8": {
+   "q": 14,
+   "r": 8,
+   "town": {
+    "name": "Sunscale",
+    "type": "city",
+    "walled": true,
+    "info": "A walled mountain city of abundant safety but scarce wealth. Touchstone: a unique martial art.",
+    "link": {
+     "_link_path": "/city-generator/",
+     "_link_params": {
+      "size": "40",
+      "seed": "2021041629",
+      "name": "Sunscale",
+      "citadel": "1",
+      "urban_castle": "1",
+      "walls": "1",
+      "shantytown": "1",
+      "gates": "2",
+      "plaza": "1",
+      "temple": "1",
+      "river": "0",
+      "coast": "0",
+      "sea": "1.6888208164315768",
+      "from": "perilous"
+     }
+    },
+    "seed": 2021041629
+   },
+   "terrain": "mountain"
+  },
+  "q9_r13": {
+   "q": 9,
+   "r": 13,
+   "town": {
+    "name": "Freecross",
+    "type": "town",
+    "walled": true,
+    "info": "A walled port town of abundant labour and scarce defences.",
+    "link": {
+     "_link_path": "/city-generator/",
+     "_link_params": {
+      "size": "18",
+      "seed": "1090636906",
+      "name": "Freecross",
+      "citadel": "0",
+      "urban_castle": "0",
+      "walls": "1",
+      "shantytown": "1",
+      "gates": "2",
+      "plaza": "0",
+      "temple": "0",
+      "river": "0",
+      "coast": "1",
+      "sea": "0.8688036794163303",
+      "from": "perilous"
+     }
+    },
+    "seed": 1090636906
+   }
+  },
+  "q13_r18": {
+   "q": 13,
+   "r": 18,
+   "danger": {
+    "name": "Veiled Palace",
+    "link": {
+     "_link_path": "/one-page-dungeon/",
+     "_link_params": {
+      "seed": "1682410652",
+      "name": "Veiled Palace",
+      "from": "perilous"
+     }
+    },
+    "seed": 1682410652
+   },
+   "terrain": "forest-dark"
+  },
+  "q7_r20": {
+   "q": 7,
+   "r": 20,
+   "town": {
+    "name": "Bar",
+    "type": "city",
+    "walled": true,
+    "info": "A walled seaside city of abundant privacy and scarce nature. Touchstone: a grove.",
+    "link": {
+     "_link_path": "/city-generator/",
+     "_link_params": {
+      "size": "41",
+      "seed": "1886409148",
+      "name": "Bar",
+      "citadel": "1",
+      "urban_castle": "0",
+      "walls": "1",
+      "shantytown": "1",
+      "gates": "2",
+      "plaza": "1",
+      "temple": "1",
+      "river": "0",
+      "coast": "1",
+      "sea": "0.7021370127496638",
+      "from": "perilous"
+     }
+    },
+    "seed": 1886409148
+   }
+  },
+  "q10_r22": {
+   "q": 10,
+   "r": 22,
+   "town": {
+    "name": "Ironwood",
+    "type": "town",
+    "walled": true,
+    "info": "A walled riverside town of abundant food.",
+    "link": {
+     "_link_path": "/city-generator/",
+     "_link_params": {
+      "size": "27",
+      "seed": "1148506433",
+      "name": "Ironwood",
+      "citadel": "0",
+      "urban_castle": "0",
+      "walls": "1",
+      "shantytown": "0",
+      "gates": "2",
+      "plaza": "1",
+      "temple": "0",
+      "river": "1",
+      "coast": "0",
+      "sea": "0.10821632207753897",
+      "from": "perilous"
+     }
+    },
+    "seed": 1148506433
+   },
+   "terrain": "forest-dark"
+  },
+  "q14_r23": {
+   "q": 14,
+   "r": 23,
+   "town": {
+    "name": "Ricalwaybloomham",
+    "type": "town",
+    "walled": true,
+    "info": "A walled mountain town of abundant leadership and scarce happyness. Touchstone: a competition.",
+    "link": {
+     "_link_path": "/city-generator/",
+     "_link_params": {
+      "size": "23",
+      "seed": "1521200893",
+      "name": "Ricalwaybloomham",
+      "citadel": "0",
+      "urban_castle": "0",
+      "walls": "1",
+      "shantytown": "1",
+      "gates": "2",
+      "plaza": "0",
+      "temple": "1",
+      "river": "0",
+      "coast": "0",
+      "sea": "0.9126627188700543",
+      "from": "perilous"
+     }
+    },
+    "seed": 1521200893
+   },
+   "terrain": "mountain"
+  }
+ },
+ "rivers": {
+  "q8_r19:q9_r19-q12_r23:q12_r24": {
+   "parent": null,
+   "channel": [
+    "q8_r19:q9_r19",
+    "q8_r20:q9_r19",
+    "q9_r20:q9_r19",
+    "q9_r20:q10_r19",
+    "q9_r20:q10_r20",
+    "q10_r21:q10_r20",
+    "q10_r21:q11_r21",
+    "q10_r22:q11_r21",
+    "q11_r22:q11_r21",
+    "q11_r22:q12_r21",
+    "q12_r22:q12_r21",
+    "q12_r22:q13_r21",
+    "q12_r22:q13_r22",
+    "q12_r22:q13_r23",
+    "q12_r23:q13_r23",
+    "q12_r23:q12_r24"
+   ]
+  }
+ },
+ "roads": {
+  "q7_r20-q9_r13": [
+   "q7_r20",
+   "q8_r20",
+   "q9_r19",
+   "q9_r18",
+   "q10_r17",
+   "q9_r16",
+   "q9_r15",
+   "q9_r14",
+   "q9_r13"
+  ]
+ },
+ "features": [
+  {
+   "name": "Freecross",
+   "hexes_count": 1
+  },
+  {
+   "name": "Bar",
+   "hexes_count": 1
+  },
+  {
+   "name": "Sunscale",
+   "hexes_count": 1
+  },
+  {
+   "name": "Ironwood",
+   "hexes_count": 1
+  },
+  {
+   "name": "Ricalwaybloomham",
+   "hexes_count": 1
+  },
+  {
+   "name": "Westcot",
+   "hexes_count": 1
+  },
+  {
+   "name": "Veiled Palace",
+   "hexes_count": 1
+  },
+  {
+   "name": "Den Of Sorrows",
+   "hexes_count": 1
+  },
+  {
+   "name": "Dark Ridge",
+   "hexes_count": 90
+  },
+  {
+   "name": "Winterpoint Woodland",
+   "hexes_count": 111
+  },
+  {
+   "name": "Summerwoods",
+   "hexes_count": 87
+  }
+ ]
+}

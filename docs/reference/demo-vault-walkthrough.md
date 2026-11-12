@@ -1501,6 +1501,29 @@ the folder `Campanha Fractal/` beside it ([ADR
    software, each with *Abrir* that opens its site in the browser. Level: H
    (the page); A (the link opening in the system's browser); U:
    `test/credits.test.mjs`.
+9. Maps from Watabou's generators ([ADR 0120](../adr/0120-maps-from-watabous-generators.md);
+   note 24, *Mapas dos geradores do Watabou*). Export a dungeon at
+   watabou.github.io/one-page-dungeon as JSON and as Markdown. ⌘⇧P ›
+   *Importar mapa do Watabou…*: drop both on the dialog (or *Escolher
+   arquivos…*). It reads *One Page Dungeon “…”: N salas numeradas, com o
+   desenho.* and *Cria a pasta “…” com a nota, o board com o desenho e
+   ….json.*; nothing is written yet. *Importar*: the folder appears with its
+   note (the folder's own) and the JSON, the note opens (properties
+   `generator`, `seed`, `generator_link`, `map`; then the generator's text,
+   in English, as exported) and the board opens beside it: the rooms, walls,
+   doors, water and columns drawn by Verso, the room numbers where the
+   generator puts them, matching the note's list, and the note as a card.
+   Double-click the drawing and move a wall: it is an ordinary drawing. Import
+   the same files again: the folder is *“… 2”*, the first untouched. Save a
+   region at watabou.github.io/perilous-shores and import it: one note,
+   *Cidades*, *Perigos*, *Lugares*; click a town: its note is made with its
+   description, `seed` and *Abrir no gerador*. A city's JSON is named, not
+   imported. ⌘⇧P › *Novo mapa gerado…*: pick a generator, the seed drawn (or
+   typed), *Criar nota*: the note embeds the generator (asked about once)
+   with `seed` in its properties. Level: H (the import, the drawing, the
+   region, the generated note); A (the generator's *Export* inside the note
+   saving into the folder, `docs/reference/manual-checks.md`); E:
+   `watabou-import.spec.mjs`; U: `test/watabou.test.mjs`.
 
 ## 15. Structured data as a diagram (note 16, the sample files)
 

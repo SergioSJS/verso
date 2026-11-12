@@ -14,6 +14,9 @@ import { may } from "./access";
 import { can } from "./can";
 import { trashStrings } from "./dialogs/trash";
 import { showWorldWizard } from "./dialogs/worldWizard";
+import { showWatabouImport } from "./watabou/dialog";
+import { showNewMap } from "./watabou/newMap";
+import { ww } from "./watabou/words";
 import { historyFor, openHistory } from "./dialogs/history";
 import { historyStrings } from "./dialogs/historyStrings";
 import { bookmarks, toggleBookmark } from "./bookmarks";
@@ -269,6 +272,9 @@ export function allCommands(all = false): Command[] {
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "import-files", label: imp.command, need: hasFolder, run: () => void importFiles(leaf?.path ? dirOf(leaf.path) : "") },
+    // ADR 0120: a map exported from Watabou's generators, as a note and a board.
+    { id: "import-watabou", label: ww.command, need: hasFolder, run: () => showWatabouImport(leaf?.path ? dirOf(leaf.path) : "") },
+    { id: "new-generated-map", label: ww.newMap, need: hasFolder, run: () => showNewMap(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "world-wizard", label: t.newWorld, need: hasFolder && hasCapability("campaignBundles"), run: () => showWorldWizard(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "open-console", label: t.openConsole, run: () => openConsole() },
     // A terminal at the folder's root (ADR 0115 item 9), where the side has one and it is on.

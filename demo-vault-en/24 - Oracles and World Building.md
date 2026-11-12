@@ -85,6 +85,21 @@ In the **AI Generator** tab, **Copy System Prompt for AI** copies the instructio
 
 ---
 
+## 🗺️ Maps from Watabou's generators
+
+[Watabou's generators](https://watabou.github.io) make dungeons, regions, cities and villages for free; the maps they make are yours to use (credit is appreciated). Verso brings them into your folder:
+
+1. In **One Page Dungeon**, use **Export as › JSON** (the rooms, for the drawing) and **Export as › Markdown** (the text and the seed). In **Perilous Shores**, **Save** gives the region's JSON.
+2. In Verso, **Import Watabou map…** (`⌘⇧P`, or **New** in a folder's menu). Choose the files, or drop them on the dialog. It says what they are and what it will create **before writing anything**; **Import** writes.
+3. A dungeon becomes a folder with its **note** — the title, the story and the numbered rooms, exactly as the generator wrote them (in English), with the seed in the properties — and a **board** with **Verso's own drawing**: rooms, walls, doors, water, columns and the room numbers, the same numbers as the note's list. It is an ordinary drawing: double-click to edit inside it. The note sits beside it as a card, and it is also the drawing's text version.
+4. A region becomes **one note** listing its towns, dangers and places. A town's or a danger's note is created only when you click its link, already holding its description and **Open in the generator**, at its own seed.
+
+**New generated map…** creates a note with a generator **inside it** and the seed Verso drew kept in its properties, so the same map can be made again; the site is asked about once, like any page in a note (the generator needs the internet). In the desktop app, the generator's **Export** saves the file into your folder beside the note, and a Watabou export opens the import with it.
+
+The walls are also kept in the board, for when the table has vision and fog. Nothing of Watabou's code comes with Verso: the generators run on his site.
+
+---
+
 ## 🙏 Credits
 
 **Settings › Application › Credits and acknowledgements** lists the people and works Verso builds on (such as Fractal, by Igor Téuri and Walter Licínio), the licence notices of the statblock layouts and the free software. **Open** takes you to each one's website in the browser.
