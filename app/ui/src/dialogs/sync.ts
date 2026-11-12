@@ -41,9 +41,10 @@ const pt = {
   onlyHere: (name: string) => `${name} está só neste computador.`,
   // The phone's own folder lives in the app's storage (ADR 0118
   // Consequences): no other app sees it and it goes with the app.
-  descPhone: "Esta pasta fica dentro do app neste celular; um UniVerso ou uma nuvem que você já tem (WebDAV, S3) guarda os mesmos arquivos para os seus outros aparelhos e o navegador.",
+  descPhone: "Esta pasta fica neste celular — dentro do app, ou no armazenamento que outros apps veem —; um UniVerso ou uma nuvem que você já tem (WebDAV, S3) guarda os mesmos arquivos para os seus outros aparelhos e o navegador.",
   onlyHerePhone: (name: string) => `${name} está só neste celular, guardada dentro do app: se o Verso for desinstalado, ela é apagada junto.`,
-  ledePhone: "Com um UniVerso ou uma nuvem, uma cópia fica a salvo e os mesmos arquivos aparecem nos seus outros aparelhos e no navegador. Enquanto o app está aberto, as mudanças cruzam; ao abrir de novo, ele continua de onde parou.",
+  onlyHerePhoneShared: (name: string) => `${name} está só neste celular, no armazenamento que outros apps veem: fica mesmo se o Verso for desinstalado.`,
+  ledePhone: "Com um UniVerso ou uma nuvem, uma cópia fica a salvo e os mesmos arquivos aparecem nos seus outros aparelhos e no navegador. Enquanto o app está aberto (ou fechado, com a sincronização em segundo plano abaixo), as mudanças cruzam; ao abrir de novo, ele continua de onde parou.",
   lede: "Com um UniVerso, os mesmos arquivos ficam nos seus outros aparelhos, no navegador e com quem divide a pasta com você. Ela continua aqui também: abre sem rede, o Obsidian lê, o backup copia.",
   account: (host: string, name: string) => `${host} · ${name}`,
   space: (files: number, size: string) => `Esta pasta tem ${files} arquivos, ${size}.`,
@@ -143,9 +144,10 @@ const en: typeof pt = {
   newName: "The new folder's name",
   role: (r: string) => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
   onlyHere: (name: string) => `${name} is only on this computer.`,
-  descPhone: "This folder is kept inside the app on this phone; a UniVerso or a cloud you already have (WebDAV, S3) keeps the same files for your other devices and the browser.",
+  descPhone: "This folder is on this phone — inside the app, or in the storage other apps see —; a UniVerso or a cloud you already have (WebDAV, S3) keeps the same files for your other devices and the browser.",
   onlyHerePhone: (name: string) => `${name} is only on this phone, kept inside the app: if Verso is uninstalled, it is deleted with it.`,
-  ledePhone: "With a UniVerso or a cloud, a copy stays safe and the same files show on your other devices and in the browser. While the app is open, changes cross; when it opens again, it carries on where it stopped.",
+  onlyHerePhoneShared: (name: string) => `${name} is only on this phone, in the storage other apps see: it stays even if Verso is uninstalled.`,
+  ledePhone: "With a UniVerso or a cloud, a copy stays safe and the same files show on your other devices and in the browser. While the app is open (or closed, with background sync below), changes cross; when it opens again, it carries on where it stopped.",
   lede: "With a UniVerso, the same files are on your other devices, in the browser and with whoever shares the folder with you. It stays here too: it opens offline, Obsidian reads it, the backup copies it.",
   account: (host: string, name: string) => `${host} · ${name}`,
   space: (files: number, size: string) => `This folder has ${files} files, ${size}.`,
@@ -438,7 +440,9 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
   // ("Tudo em dia."), and what syncing would give it.
   const top = h("header", "sync-top sync-off");
   const phone = appHost() === "mobile";
-  const sentence = h("p", "sync-sentence", phone ? s.onlyHerePhone(folderName) : s.onlyHere(folderName));
+  // A phone's folder in the app goes with it; one of its shared storage stays.
+  const inApp = phone && (await commands.folderInApp().then((r) => r.status !== "ok" || r.data));
+  const sentence = h("p", "sync-sentence", !phone ? s.onlyHere(folderName) : inApp ? s.onlyHerePhone(folderName) : s.onlyHerePhoneShared(folderName));
   sentence.dataset["tone"] = "quiet";
   top.append(sentence, h("p", "sync-lede", phone ? s.ledePhone : s.lede));
   box.replaceChildren(top);

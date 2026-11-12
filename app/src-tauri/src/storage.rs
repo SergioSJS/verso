@@ -63,6 +63,33 @@ pub(crate) async fn open_shared_folder<R: tauri::Runtime>(
     .await
 }
 
+/// Whether this window's folder is one of the app's own storage (a
+/// phone's, deleted with the app), not of the shared storage (item 4.4):
+/// what Settings › Sync says of it. Never on a desktop.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn folder_in_app<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    state: tauri::State<'_, crate::App>,
+) -> Result<bool, ContractError> {
+    #[cfg(target_os = "android")]
+    {
+        use tauri::Manager;
+        let folder = crate::with(&state, &window, |ws| Ok(ws.folder().to_path_buf()))?;
+        let data = app
+            .path()
+            .app_data_dir()
+            .map_err(|e| crate::failed(e.to_string()))?;
+        Ok(folder.starts_with(data))
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, window, state);
+        Ok(false)
+    }
+}
+
 /// The place `path` names under `top`: each name one a folder may have
 /// (`server::is_folder_name`: not hidden, no separator, nothing a system
 /// refuses), so no `..` and nothing absolute; `None` otherwise.

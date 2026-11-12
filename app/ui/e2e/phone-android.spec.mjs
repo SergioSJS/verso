@@ -152,3 +152,16 @@ test("a desktop's Sync has no background option", async ({ app, page }) => {
   await expect(page.locator(".settings-body")).toContainText("está só neste computador");
   await expect(page.locator(".sync-background")).toHaveCount(0);
 });
+
+test("a folder of the shared storage is said to stay if Verso goes", async ({ app, page }) => {
+  await app.open("?host=mobile");
+  await page.evaluate(() => (window.__harness.core.storage.access = true));
+  const box = await switcher(page);
+  await box.getByRole("button", { name: "Abrir outra pasta…" }).click();
+  const storage = page.getByRole("dialog", { name: "Abrir uma pasta do celular" });
+  await storage.getByRole("button", { name: "Documents" }).click();
+  await storage.getByRole("button", { name: "Abrir “Documents”" }).click();
+  await expect(page.locator("#folder")).toHaveText("Documents");
+  await section(app, page, "Sincronizar");
+  await expect(page.locator(".settings-body")).toContainText("no armazenamento que outros apps veem: fica mesmo se o Verso for desinstalado");
+});

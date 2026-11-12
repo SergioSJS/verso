@@ -115,6 +115,7 @@
     "allow-shared-storage",
     "allow-shared-storage-access",
     "allow-open-shared-folder",
+    "allow-folder-in-app",
     "allow-set-menu-enabled",
     "allow-menu-sections",
     "allow-quit-app",

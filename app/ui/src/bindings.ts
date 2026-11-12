@@ -567,6 +567,12 @@ export const commands = {
 	 */
 	openSharedFolder: (path: string, make: string | null) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("open_shared_folder", { path, make })),
 	/**
+	 *  Whether this window's folder is one of the app's own storage (a
+	 *  phone's, deleted with the app), not of the shared storage (item 4.4):
+	 *  what Settings › Sync says of it. Never on a desktop.
+	 */
+	folderInApp: () => typedError<boolean, ContractError>(__TAURI_INVOKE("folder_in_app")),
+	/**
 	 *  The commands that can run just now (the palette's own list, from the
 	 *  window in focus): the other items are greyed, in place.
 	 */

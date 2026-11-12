@@ -1285,6 +1285,7 @@ export class Core {
     set_menu_commands: () => null,
     set_bars_dark: () => null,
     take_shared: () => this.shared.splice(0),
+    folder_in_app: () => !this.storage.opened.length,
     set_background_sync: (a) => {
       this.background = { on: Boolean(a["on"]), wifiOnly: Boolean(a["wifiOnly"]), chargingOnly: Boolean(a["chargingOnly"]) };
       return null;

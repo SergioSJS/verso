@@ -864,6 +864,7 @@ macro_rules! commands_for {
                 storage::shared_storage,
                 storage::shared_storage_access,
                 storage::open_shared_folder::<$runtime>,
+                storage::folder_in_app::<$runtime>,
                 set_menu_enabled::<$runtime>,
                 menu_sections,
                 quit_app::<$runtime>,

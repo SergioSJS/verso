@@ -105,6 +105,7 @@ fn main() {
         "shared_storage",
         "shared_storage_access",
         "open_shared_folder",
+        "folder_in_app",
         "set_menu_enabled",
         "menu_sections",
         "quit_app",

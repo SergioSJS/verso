@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-folder-in-app"
+description = "Enables the folder_in_app command without any pre-configured scope."
+commands.allow = ["folder_in_app"]
+
+[[permission]]
+identifier = "deny-folder-in-app"
+description = "Denies the folder_in_app command without any pre-configured scope."
+commands.deny = ["folder_in_app"]
