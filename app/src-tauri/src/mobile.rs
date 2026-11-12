@@ -29,7 +29,7 @@ pub(crate) const HOST: Host = Host::Mobile;
 /// its updater (item 5, decided 2026-11-10), and shares its other apps'
 /// sound at the table (item 5, decided 2026-11-12).
 #[cfg(any(test, target_os = "android"))]
-const OFF_ON_ANDROID: &[Can] = &[
+pub(crate) const OFF_ON_ANDROID: &[Can] = &[
     Can::LooseFiles,
     Can::Terminal,
     Can::Windows,
@@ -44,7 +44,7 @@ const OFF_ON_ANDROID: &[Can] = &[
 /// three abilities (A13, decided 2026-11-12): no internet link (A3), no
 /// mDNS (A4), no serving off the screen (A2).
 #[cfg(any(test, target_os = "ios"))]
-const OFF_ON_IOS: &[Can] = &[
+pub(crate) const OFF_ON_IOS: &[Can] = &[
     Can::LooseFiles,
     Can::Terminal,
     Can::AudioShare,
@@ -76,7 +76,7 @@ pub(crate) fn local_can(loose: bool) -> Vec<Can> {
 }
 
 /// [`local_can`] for a platform that leaves `off` out.
-fn can_without(loose: bool, off: &[Can]) -> Vec<Can> {
+pub(crate) fn can_without(loose: bool, off: &[Can]) -> Vec<Can> {
     let mut can = vec![
         Can::Write,
         Can::Reveal,

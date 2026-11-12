@@ -522,6 +522,94 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
     assert_eq!(caps["can"].as_array().unwrap().len(), 9 + 3 + 11);
 }
 
+/// The words of a server folder's window, as the app of a platform with
+/// `here` completes them.
+fn completed_for(here: &[verso_contract::Can]) -> Vec<String> {
+    let mut caps = json!({ "host": "server", "can": ["account", "collab"], "latency_ms": null });
+    crate::remote_abilities::with_abilities_of(&mut caps, here);
+    caps["can"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap().to_owned())
+        .collect()
+}
+
+/// The desktop's window on a server's folder is as before: every ability
+/// of the app, the app server's three included (ADR 0119 A13).
+#[test]
+fn the_desktops_server_folder_window_keeps_every_ability_of_the_app() {
+    let desk = completed_for(&crate::mobile::can_without(false, &[]));
+    for kept in [
+        "windows",
+        "web_views",
+        "updates",
+        "devtools",
+        "local_folders",
+        "terminal",
+        "audio_share",
+        "link",
+        "discover",
+        "serve_away",
+    ] {
+        assert!(desk.iter().any(|c| c == kept), "{kept} in {desk:?}");
+    }
+    assert_eq!(desk, completed_for(&crate::mobile::local_can(false)));
+}
+
+/// A phone's window on a server's folder offers only what the phone has:
+/// no terminal, second window or page inside a note on Android (ADR 0118
+/// item 5), and on iOS no updater, capture, link, mDNS or serving off the
+/// screen either (ADR 0119 B14, A13). The folder's abilities stay.
+#[test]
+fn a_phones_server_folder_window_offers_only_what_the_phone_has() {
+    let android = completed_for(&crate::mobile::can_without(
+        false,
+        crate::mobile::OFF_ON_ANDROID,
+    ));
+    for gone in ["terminal", "windows", "web_views"] {
+        assert!(!android.iter().any(|c| c == gone), "{gone} in {android:?}");
+    }
+    for kept in [
+        "updates",
+        "audio_share",
+        "devtools",
+        "local_folders",
+        "link",
+        "discover",
+        "serve_away",
+        "index",
+    ] {
+        assert!(android.iter().any(|c| c == kept), "{kept} in {android:?}");
+    }
+    let ios = completed_for(&crate::mobile::can_without(
+        false,
+        crate::mobile::OFF_ON_IOS,
+    ));
+    for gone in [
+        "terminal",
+        "windows",
+        "web_views",
+        "updates",
+        "audio_share",
+        "link",
+        "discover",
+        "serve_away",
+    ] {
+        assert!(!ios.iter().any(|c| c == gone), "{gone} in {ios:?}");
+    }
+    for kept in [
+        "devtools",
+        "local_folders",
+        "account",
+        "collab",
+        "index",
+        "board",
+    ] {
+        assert!(ios.iter().any(|c| c == kept), "{kept} in {ios:?}");
+    }
+}
+
 /// Plain HTTP is a server's address from any machine, not only this
 /// one (ADR 0073 item 6, amended 2026-10-16); other schemes are not.
 #[test]
