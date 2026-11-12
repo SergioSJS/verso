@@ -582,6 +582,8 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let Ok(local) = server(&app) else { return };
+        #[cfg(target_os = "ios")]
+        follow_the_container(&app, &local);
         // The system ended the app while it served (iOS, a locked device:
         // seen on the maintainer's iPad, 2026-11-12): within ten minutes
         // serving resumes once the app is on the screen, later the window
@@ -632,6 +634,72 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
             ),
         }
     });
+}
+
+/// The folders ticked to serve at an earlier install's container path,
+/// followed into this one's (iOS moves the container at each install, the
+/// data with it); one that is not there any more is unticked.
+#[cfg(target_os = "ios")]
+fn follow_the_container<R: tauri::Runtime>(app: &tauri::AppHandle<R>, local: &LocalServer) {
+    let Some((container, under)) = app
+        .path()
+        .app_data_dir()
+        .ok()
+        .and_then(|d| crate::ios::containers(&d))
+    else {
+        return;
+    };
+    let Ok(mut set) = local.settings() else {
+        return;
+    };
+    let moved = |p: &str| -> Option<Option<String>> {
+        let path = Path::new(p);
+        if path.starts_with(&container) || !path.starts_with(&under) {
+            return None;
+        }
+        Some(
+            crate::ios::in_this_container(path, &container, &under)
+                .map(|h| h.to_string_lossy().into_owned()),
+        )
+    };
+    let mut changed = false;
+    let mut folders = Vec::new();
+    for f in &set.folders {
+        match moved(f) {
+            None => folders.push(f.clone()),
+            Some(here) => {
+                changed = true;
+                folders.extend(here);
+            }
+        }
+    }
+    let mut parts = std::collections::BTreeMap::new();
+    for (k, v) in &set.parts {
+        match moved(k) {
+            None => {
+                parts.insert(k.clone(), v.clone());
+            }
+            Some(here) => {
+                changed = true;
+                if let Some(h) = here {
+                    parts.insert(h, v.clone());
+                }
+            }
+        }
+    }
+    if changed {
+        folders.dedup();
+        set.folders = folders;
+        set.parts = parts;
+        match local.set_settings(&set) {
+            Ok(()) => log::write(
+                "INFO",
+                "host",
+                "iOS: the folders served followed the app's container",
+            ),
+            Err(e) => log::write("WARN", "host", &format!("iOS: the folders served: {e}")),
+        }
+    }
 }
 
 /// How long after the system ended the app while it served a start

@@ -13,6 +13,7 @@
 //! notes in `<data>/Verso` (B13, decided 2026-11-12), made at the first
 //! start and opened by the first window.
 
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use tauri::Manager;
@@ -39,6 +40,7 @@ pub(crate) fn setup(app: &tauri::App) {
     };
     verso_core::set_host_config_dir(data.join("config"));
     log::open();
+    forget_old_containers(&data);
     keep_secrets();
     let _ = APP.set(app.handle().clone());
     remember_device_name();
@@ -124,6 +126,48 @@ pub(crate) fn one_window(scene: &objc2_ui_kit::UIScene) {
     );
     objc2_ui_kit::UIApplication::sharedApplication(main)
         .requestSceneSessionDestruction_options_errorHandler(&scene.session(), None, None);
+}
+
+/// The app's container and the directory every install's container is
+/// made in, from its data directory
+/// (`…/Application/<install>/Library/Application Support/<id>`): each
+/// install moves the container, the data with it (seen on the maintainer's
+/// iPad: four paths in one day).
+pub(crate) fn containers(data: &std::path::Path) -> Option<(PathBuf, PathBuf)> {
+    let container = data.ancestors().nth(3)?;
+    let under = container.parent()?;
+    (under.file_name()? == "Application").then(|| (container.to_path_buf(), under.to_path_buf()))
+}
+
+/// The folders opened before at an earlier install's container path are
+/// not offered (iOS moves the container at each install, the data with
+/// it; seen on the maintainer's iPad, five such paths in one day): the
+/// core is told where the installs live (ADR 0119 Phase 0). Their indexes
+/// stay on the disk, unused; removing them asks for a disk exception.
+fn forget_old_containers(data: &std::path::Path) {
+    if let Some((container, under)) = containers(data) {
+        verso_core::set_installs(under, container);
+    }
+}
+
+/// `path` at an earlier install's container, followed into this one's:
+/// the same place inside the container, when it is there.
+pub(crate) fn in_this_container(
+    path: &std::path::Path,
+    container: &std::path::Path,
+    under: &std::path::Path,
+) -> Option<PathBuf> {
+    if path.starts_with(container) || !path.starts_with(under) {
+        return None;
+    }
+    let inside: PathBuf = path
+        .strip_prefix(under)
+        .ok()?
+        .components()
+        .skip(1)
+        .collect();
+    let here = container.join(inside);
+    here.exists().then_some(here)
 }
 
 /// The iOS app's part of the run's events (split from `lib.rs`'s

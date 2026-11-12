@@ -295,6 +295,30 @@ pub fn set_host_config_dir(dir: PathBuf) -> bool {
     HOST_CONFIG_DIR.set(dir).is_ok()
 }
 
+/// Where every install of an iOS app keeps its container, and this
+/// install's: the folders opened before under the first and not under the
+/// second were at an earlier install's path (iOS moves the container, the
+/// data with it, at each install; ADR 0119 Phase 0), and are not offered.
+static INSTALLS: std::sync::OnceLock<(PathBuf, PathBuf)> = std::sync::OnceLock::new();
+
+/// Name the directory every install's container is made in and this
+/// install's container (the iOS app, at its start). Once.
+pub fn set_installs(all: PathBuf, this: PathBuf) -> bool {
+    INSTALLS.set((all, this)).is_ok()
+}
+
+/// Whether `folder` lay in an earlier install's container ([`set_installs`]).
+fn of_an_earlier_install(folder: &Path) -> bool {
+    INSTALLS
+        .get()
+        .is_some_and(|(all, this)| of_an_earlier_install_in(folder, all, this))
+}
+
+/// [`of_an_earlier_install`] as a pure function, for tests.
+fn of_an_earlier_install_in(folder: &Path, all: &Path, this: &Path) -> bool {
+    folder.starts_with(all) && !folder.starts_with(this)
+}
+
 /// [`config_dir`] as a pure function of its inputs, for tests. `None`
 /// when nothing names a directory.
 #[must_use]
@@ -849,6 +873,9 @@ pub fn recent_folders(config: Option<&Path>) -> Vec<PathBuf> {
         },
     };
     sidecar::known_folders(&dir.join("index"))
+        .into_iter()
+        .filter(|f| !of_an_earlier_install(f))
+        .collect()
 }
 
 /// The folders inside `folder`, relative and `/`-joined, without opening
@@ -1223,4 +1250,34 @@ pub fn root_note_candidates(configured: &str, root_name: &str) -> Vec<String> {
         out.push(format!("{root_name}.md"));
     }
     out
+}
+
+#[cfg(test)]
+mod install_tests {
+    use super::of_an_earlier_install_in;
+    use std::path::Path;
+
+    /// An iOS install moves the app's container: a folder at an earlier
+    /// install's path is not offered among the recent folders; one in this
+    /// install's container, or outside every container, is (ADR 0119).
+    #[test]
+    fn a_folder_of_an_earlier_install_is_told_apart() {
+        let all = Path::new("/var/mobile/Containers/Data/Application");
+        let this = all.join("NEW");
+        assert!(of_an_earlier_install_in(
+            &all.join("OLD/Library/Verso"),
+            all,
+            &this
+        ));
+        assert!(!of_an_earlier_install_in(
+            &this.join("Library/Verso"),
+            all,
+            &this
+        ));
+        assert!(!of_an_earlier_install_in(
+            Path::new("/Users/ana/Notas"),
+            all,
+            &this
+        ));
+    }
 }
