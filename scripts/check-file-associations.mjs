@@ -37,7 +37,7 @@ const json = (name) => JSON.parse(read(name));
 const DATA = [
   { name: "JSON", ext: ["json"], uti: "public.json", mime: ["application/json"], progid: "VERSO_PROGID_JSON" },
   { name: "YAML", ext: ["yaml", "yml"], uti: "public.yaml", mime: ["application/yaml", "application/x-yaml"], progid: "VERSO_PROGID_YAML" },
-  { name: "TOML", ext: ["toml"], uti: "io.toml", mime: ["application/toml"], progid: "VERSO_PROGID_TOML", imported: true },
+  { name: "TOML", ext: ["toml"], uti: "io.toml", system: "public.toml", mime: ["application/toml"], progid: "VERSO_PROGID_TOML", imported: true },
   { name: "XML", ext: ["xml"], uti: "public.xml", mime: ["application/xml", "text/xml"], progid: "VERSO_PROGID_XML" },
   { name: "CSV", ext: ["csv"], uti: "public.comma-separated-values-text", mime: ["text/csv"], progid: "VERSO_PROGID_CSV" },
 ];
@@ -63,6 +63,10 @@ try {
     if (a.rank !== "Alternate") problems.push(`macOS: ${d.name}'s LSHandlerRank must be Alternate (item 31), is ${a.rank}`);
     if (a.role !== "Editor") problems.push(`macOS: ${d.name}'s role must be Editor, is ${a.role}`);
     if (!(a.contentTypes ?? []).includes(d.uti)) problems.push(`macOS: ${d.name}'s contentTypes lacks ${d.uti}`);
+    // macOS 27 declares TOML itself (public.toml, seen 2026-11-12): the
+    // document type names it too, or the system's type wins and Verso is
+    // not offered under Open with; the import stays for older systems.
+    if (d.system && !(a.contentTypes ?? []).includes(d.system)) problems.push(`macOS: ${d.name}'s contentTypes lacks the system's ${d.system}`);
   }
   const names = assoc.map((a) => a.name);
   if (new Set(names).size !== names.length) problems.push("macOS: two document types share a name (install-beta.sh checks them by name)");

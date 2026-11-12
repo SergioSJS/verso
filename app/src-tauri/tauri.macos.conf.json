@@ -73,6 +73,7 @@
         "role": "Editor",
         "rank": "Alternate",
         "contentTypes": [
+          "public.toml",
           "io.toml"
         ]
       },
