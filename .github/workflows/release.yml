@@ -503,6 +503,129 @@ jobs:
           # (Actions storage is billed by the day, the default is 90).
           retention-days: 1
 
+  # The Android app (ADR 0118 item 10.2, decided 2026-11-12): one APK for
+  # arm64 phones, Android 10 or newer, signed with the release key the
+  # maintainer made and keeps (scripts/android/release-key.sh; the four
+  # VERSO_ANDROID_* secrets). Without the key the job stops instead of
+  # publishing an APK signed with the debug key. `cloudflared` is built
+  # for Android from its pinned source in the Gradle step
+  # (scripts/android/cloudflared.sh), hence Go and the NDK here. Named as
+  # the app's updater looks for it (update.rs: `-android-arm64.apk`).
+  android:
+    name: Verso for Android (${{ needs.decide.outputs.tag }})
+    needs: decide
+    if: needs.decide.outputs.tag != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: 17
+      # Any Go: scripts/android/cloudflared.sh pins the toolchain itself
+      # (GOTOOLCHAIN), which Go fetches and checks.
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: stable
+          cache: false
+      - name: what is released
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ needs.decide.outputs.tag }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            node scripts/release.mjs verify "$TAG"
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::$TAG is not on main"
+              exit 1
+            fi
+            version="${TAG#v}"
+          else
+            version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sigs=$(node scripts/release.mjs per-file-signatures)" >> "$GITHUB_OUTPUT"
+          case "$EVENT:$version" in
+            push:*-beta.*|workflow_dispatch:*) echo "name=Verso Beta" >> "$GITHUB_OUTPUT" ;;
+            *) echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
+          esac
+      # The NDK the Gradle build names (app/build.gradle.kts `ndkVersion`)
+      # and the platform it compiles against.
+      - name: the Android SDK's parts
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;29.0.14206865" "platforms;android-36"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+      - name: toolchain from rust-toolchain.toml, and the Android target
+        run: |
+          rustup show
+          rustup target add aarch64-linux-android
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: the UI bundle
+        working-directory: app/ui
+        run: npm ci && npm run build
+      - name: the APK
+        env:
+          KEYSTORE_B64: ${{ secrets.VERSO_ANDROID_KEYSTORE_B64 }}
+          VERSO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.VERSO_ANDROID_KEYSTORE_PASSWORD }}
+          VERSO_ANDROID_KEY_ALIAS: ${{ secrets.VERSO_ANDROID_KEY_ALIAS }}
+          VERSO_ANDROID_KEY_PASSWORD: ${{ secrets.VERSO_ANDROID_KEY_PASSWORD }}
+          VERSO_ANDROID_REQUIRE_RELEASE_KEY: "1"
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::no release key: the VERSO_ANDROID_* secrets are not set (scripts/android/release-key.sh)"
+            exit 1
+          fi
+          export VERSO_ANDROID_KEYSTORE="$RUNNER_TEMP/verso-release.p12"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$VERSO_ANDROID_KEYSTORE"
+          trap 'rm -f "$VERSO_ANDROID_KEYSTORE"' EXIT
+          cd app/src-tauri
+          npm --prefix ../ui exec -- tauri android build --apk --target aarch64
+      - name: the release's files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          NAME: ${{ steps.version.outputs.name }}
+        run: |
+          slug="$(printf '%s' "$NAME" | tr ' ' '-')"
+          apk=app/src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+          test -s "$apk"
+          # Signed with the release key, not the debug one.
+          certs="$("$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner" verify --print-certs "$apk")"
+          if printf '%s' "$certs" | grep -q "CN=Android Debug"; then
+            echo "::error::the APK is signed with the debug key"
+            exit 1
+          fi
+          cp "$apk" "$slug-$VERSION-android-arm64.apk"
+      - name: sign the release's files
+        if: steps.version.outputs.sigs == 'true'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for f in ./*-android-*.apk; do
+            npm --prefix app/ui exec -- tauri signer sign "$f"
+            test -s "$f.sig"
+          done
+      - name: keep the files for the publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-android-arm64
+          if-no-files-found: error
+          path: |
+            ./*-android-*.apk
+            ./*-android-*.apk.sig
+          retention-days: 1
+
   # The server (ADR 0075 item 2): `verso serve` is a subcommand of the
   # `verso` binary, built here without the window, static (musl), for x64
   # and ARM64 — ARM64 cross-compiled on this x86-64 runner with
@@ -718,7 +841,7 @@ jobs:
   # published, as the server job checks its files. A rehearsal makes it too.
   checksums:
     name: the signed checksums list (${{ needs.decide.outputs.tag }})
-    needs: [decide, macos, windows, linux, server]
+    needs: [decide, macos, windows, linux, android, server]
     # 24.04 for minisign, as the server job.
     runs-on: ubuntu-24.04
     permissions:
@@ -795,7 +918,7 @@ jobs:
   # run's artifacts.
   publish:
     name: publish ${{ needs.decide.outputs.tag }}
-    needs: [decide, macos, windows, linux, server, checksums]
+    needs: [decide, macos, windows, linux, android, server, checksums]
     if: github.event_name == 'push' && needs.decide.outputs.tag != ''
     runs-on: ubuntu-latest
     steps:

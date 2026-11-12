@@ -74,14 +74,14 @@ for (const v of ["0.8.1-beta.1", "1.0.0"]) {
 
 // ADR 0055, revised 2026-10-14: one signed checksums list in place of a
 // `.sig` per file, with 0.8.3 the bridge that publishes both.
-test("a release publishes its fourteen files and the signed list; the bridge, each file's .sig too", () => {
+test("a release publishes its fifteen files and the signed list; the bridge, each file's .sig too", () => {
   const v = "0.8.3-beta.1";
   const after = releaseAssets(v, false);
-  assert.equal(after.length, 16);
+  assert.equal(after.length, 17);
   assert.ok(after.includes("verso-0.8.3-beta.1-SHA256SUMS") && after.includes("verso-0.8.3-beta.1-SHA256SUMS.sig"));
   assert.equal(after.filter((a) => a.endsWith(".sig")).length, 1, "after the bridge, the list's .sig alone");
   const bridge = releaseAssets(v, true);
-  assert.equal(bridge.length, 30);
+  assert.equal(bridge.length, 32);
   for (const f of Object.values(releaseFiles(v))) assert.ok(bridge.includes(`${f}.sig`), `${f}.sig in the bridge`);
   assert.deepEqual(releaseAssets(v), releaseAssets(v, PER_FILE_SIGNATURES));
 });

@@ -58,6 +58,7 @@ export function releaseFiles(v) {
     deb: `${app}-${v}-linux-amd64.deb`,
     rpm: `${app}-${v}-linux-x86_64.rpm`,
     appImage: `${app}-${v}-linux-x86_64.AppImage`,
+    android: `${app}-${v}-android-arm64.apk`,
     cliMac: `verso-cli-${v}-macos-arm64.tar.gz`,
     cliWindows: `verso-cli-${v}-windows-x64.zip`,
     cliLinux: `verso-cli-${v}-linux-x86_64.tar.gz`,
@@ -136,7 +137,7 @@ export function highlights(body, limit = 12) {
 
 const WORDS = {
   en: {
-    about: "is a notes app for plain Markdown files, for Mac, Windows and Linux: you point it at a folder of notes, and an Obsidian vault opens as it is.",
+    about: "is a notes app for plain Markdown files, for Mac, Windows, Linux and Android: you point it at a folder of notes, and an Obsidian vault opens as it is.",
     beta: (name) => `**This is a test version (beta).** It installs as "${name}", beside any other Verso, and may still have bugs.`,
     production: (v) => `This is version ${v}.`,
     which: "Which file do I download?",
@@ -148,6 +149,7 @@ const WORDS = {
     debRow: "**Linux**: Ubuntu (22.04 or later), Linux Mint, Debian (12 or later), Pop!_OS",
     rpmRow: "**Linux**: Fedora (36 or later)",
     appImageRow: "**Linux**: any other (Arch, openSUSE, …)",
+    androidRow: "**Android** phone or tablet, Android 10 or newer",
     whichMac: '**Which Mac do I have?** Open the Apple menu (the apple at the top left of the screen) › **About This Mac**. "Chip: Apple M1" (or M2, M3…) is an Apple chip: the file above is yours. "Processor: … Intel" is a Mac with an Intel processor, which Verso does not run on.',
     notAvailable: "**Not available:** Macs with an Intel processor, and Windows on ARM. Linux on ARM computers (a Raspberry Pi, for example) comes later.",
     cliTitle: "The command line: almost nobody needs it",
@@ -185,6 +187,12 @@ const WORDS = {
       `\`.rpm\`: in a terminal, in the folder you downloaded it to, \`sudo dnf install ./${f.rpm}\``,
       `\`.AppImage\`: right-click it › **Properties** › **Permissions**, allow it to run as a program (or \`chmod +x ${f.appImage}\` in a terminal), then double-click it.`,
     ],
+    android: "Android",
+    androidSteps: (f) => [
+      `On the phone, open this page and tap \`${f.android}\`; the browser downloads it.`,
+      "Open the downloaded file. The first time, Android asks to allow installs from the browser (**Settings › Install unknown apps**): allow it, go back, and tap **Install**.",
+      "Afterwards Verso finds its own updates: **Settings › General › Check for updates**.",
+    ],
     serverInstall: "**UniVerso**: the installer above does everything; by hand, follow the guide linked there.",
     sig: (list, perFile) =>
       `**You can ignore \`${list}\` and the \`.sig\` ${perFile ? "files" : "file"}.** The list holds every file's checksum, signed with Verso's key: with it the app's updater and UniVerso's installer check that each file is genuine.`,
@@ -194,7 +202,7 @@ const WORDS = {
     fullLinked: (url) => `Every change in this version: [CHANGELOG.md](${url}).`,
   },
   pt: {
-    about: "é um app de notas em arquivos Markdown comuns, para Mac, Windows e Linux: você aponta uma pasta de notas, e um cofre do Obsidian abre como está.",
+    about: "é um app de notas em arquivos Markdown comuns, para Mac, Windows, Linux e Android: você aponta uma pasta de notas, e um cofre do Obsidian abre como está.",
     beta: (name) => `**Esta é uma versão de teste (beta).** Ela instala como "${name}", ao lado de qualquer outro Verso, e ainda pode ter erros.`,
     production: (v) => `Esta é a versão ${v}.`,
     which: "Qual arquivo baixar?",
@@ -206,6 +214,7 @@ const WORDS = {
     debRow: "**Linux**: Ubuntu (22.04 ou mais novo), Linux Mint, Debian (12 ou mais novo), Pop!_OS",
     rpmRow: "**Linux**: Fedora (36 ou mais novo)",
     appImageRow: "**Linux**: qualquer outro (Arch, openSUSE, …)",
+    androidRow: "**Android**, celular ou tablet, Android 10 ou mais novo",
     whichMac: '**Qual é o meu Mac?** Abra o menu Apple (a maçã no canto de cima, à esquerda) › **Sobre Este Mac**. "Chip: Apple M1" (ou M2, M3…) é chip Apple: o arquivo acima é o seu. "Processador: … Intel" é um Mac com processador Intel, em que o Verso não roda.',
     notAvailable: "**Não disponível:** Macs com processador Intel e Windows em ARM. O Linux em computadores ARM (um Raspberry Pi, por exemplo) vem depois.",
     cliTitle: "A linha de comando: quase ninguém precisa",
@@ -242,6 +251,12 @@ const WORDS = {
       `\`.deb\`: num terminal, na pasta em que você o baixou, \`sudo apt install ./${f.deb}\``,
       `\`.rpm\`: num terminal, na pasta em que você o baixou, \`sudo dnf install ./${f.rpm}\``,
       `\`.AppImage\`: clique nele com o botão direito › **Propriedades** › **Permissões**, permita executá-lo como programa (ou \`chmod +x ${f.appImage}\` num terminal) e dê dois cliques nele.`,
+    ],
+    android: "Android",
+    androidSteps: (f) => [
+      `No celular, abra esta página e toque em \`${f.android}\`; o navegador o baixa.`,
+      "Abra o arquivo baixado. Na primeira vez, o Android pede para permitir instalar apps pelo navegador (**Configurações › Instalar apps desconhecidos**): permita, volte e toque em **Instalar**.",
+      "Depois o Verso acha as próprias atualizações: **Ajustes › Geral › Verificar atualizações**.",
     ],
     serverInstall: "**UniVerso**: o instalador acima faz tudo; à mão, siga o guia indicado lá.",
     sig: (list, perFile) =>
@@ -282,6 +297,7 @@ function guide(lang, { version, changelog, linkOnly, perFile }) {
     row(w.debRow, link(f.deb)),
     row(w.rpmRow, link(f.rpm)),
     row(w.appImageRow, link(f.appImage)),
+    row(w.androidRow, link(f.android)),
     "",
     w.whichMac,
     "",
@@ -333,6 +349,10 @@ function guide(lang, { version, changelog, linkOnly, perFile }) {
     `**${w.linux}**`,
     "",
     ...w.linuxSteps(f).map((s) => `- ${s}`),
+    "",
+    `**${w.android}**`,
+    "",
+    ...w.androidSteps(f).map((s, i) => `${i + 1}. ${s}`),
     "",
     w.serverInstall,
     "",
