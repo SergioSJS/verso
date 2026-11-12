@@ -51,6 +51,7 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: u8) -> Arc<S
         data_dir: PathBuf::from("/nonexistent/data"),
         folders_dir: PathBuf::from("/nonexistent/folders"),
         ui_dir: PathBuf::from("/nonexistent/ui"),
+        ui_files: None,
         web: true,
         announce: false,
         admin: None,
