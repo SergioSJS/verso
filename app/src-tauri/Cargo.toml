@@ -157,8 +157,14 @@ xattr = "1.6"
 # because `NSView.clipsToBounds` is public only from macOS 14 and the app
 # supports macOS 11 and up. It replaces nothing of ours.
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSString", "NSGeometry", "NSArray", "NSDictionary", "NSValue", "NSUUID", "NSProcessInfo"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification", "objc2-quartz-core", "NSRunningApplication", "NSWorkspace", "libc"] }
+# A picture of a page while an overlay is over it (src/web_clip/macos.rs;
+# ADR 0056, revision of 2026-11-12): WebKit's snapshot as an `NSImage`,
+# encoded by `NSBitmapImageRep` — more features of the same crates
+# (`NSImage`, `NSImageRep`, `NSBitmapImageRep`, `NSData`, `NSError`;
+# objc2-web-kit's `WKSnapshotConfiguration` and `objc2-app-kit`), nothing new
+# in the tree. They replace nothing of ours.
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSString", "NSGeometry", "NSArray", "NSDictionary", "NSValue", "NSUUID", "NSProcessInfo", "NSData", "NSError"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "objc2-core-foundation", "NSResponder", "NSView", "NSGraphics", "NSUserInterfaceItemIdentification", "objc2-quartz-core", "NSRunningApplication", "NSWorkspace", "libc", "NSImage", "NSImageRep", "NSBitmapImageRep"] }
 objc2-quartz-core = { version = "0.3", default-features = false, features = ["std", "CALayer"] }
 # Share audio on the Mac (src/audio_share/macos.rs; ADR 0116 item 17,
 # Q9 decided (a) 2026-10-31): Core Audio's process taps, which no safe Rust
@@ -176,7 +182,7 @@ block2 = "0.6"
 # S10): WKWebView's public `requestMediaPlaybackState` (macOS 12 and up).
 # objc2-web-kit 0.3.2 (Zlib OR Apache-2.0 OR MIT) is already in the lockfile
 # through tauri/wry; this only names it directly. It replaces nothing of ours.
-objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "WKWebView"] }
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "WKWebView", "WKSnapshotConfiguration", "objc2-app-kit"] }
 libc = "0.2"
 
 [target.'cfg(target_os = "android")'.dependencies]
@@ -244,7 +250,11 @@ objc2-ui-kit = { version = "0.3", default-features = false, features = ["std", "
 # and Tauri already build, at the lockfile's versions (windows 0.61.3,
 # webview2-com 0.38.2; MIT OR Apache-2.0, MIT); they replace nothing of
 # ours.
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging", "Wdk_System_SystemServices", "Win32_System_SystemInformation"] }
+# The picture of a page while an overlay is over it (ADR 0056, revision of
+# 2026-11-12): WebView2's `CapturePreview` writes into a COM stream made on
+# memory (`Win32_System_Com`, `Win32_System_Com_StructuredStorage`, more
+# features of the same crate).
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging", "Wdk_System_SystemServices", "Win32_System_SystemInformation", "Win32_System_Com", "Win32_System_Com_StructuredStorage"] }
 webview2-com = "0.38"
 # A terminal's shell and everything it starts are in a Job Object that kills
 # its tree when its handle closes — the terminal's end, or the app's, a

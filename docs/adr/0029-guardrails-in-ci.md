@@ -13,6 +13,7 @@
   - 2026-10-08: Windows port CI and SSH test script added ([0069](0069-windows-port.md)).
   - 2026-10-13: Security feature guardrails added ([0083](0083-security-hardening-of-universo.md): npm audit, server fuzz targets, sanitization suite); benchmark noise tolerance set to 1.5×.
   - 2026-10-15: Single exception to `unsafe_code = "forbid"` added for native webview clipping in `web_clip/` ([0056](0056-embedded-web-pages.md), `scripts/check-unsafe.mjs`).
+  - 2026-11-12: The picture of a web page behind an overlay ([0056](0056-embedded-web-pages.md), revision of 2026-11-12) adds `unsafe` calls (WebKit's snapshot and AppKit's encoding; WebView2's `CapturePreview` and its COM stream) inside the same two files, `web_clip/{macos,windows}.rs`, each with its `SAFETY` comment; the exception is not widened.
   - 2026-10-24: Docs mirror check scoped to public documents (`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `SECURITY.md`) ([0008](0008-documentation-language.md)).
 
 ## Context
@@ -489,8 +490,10 @@ allows framing; B, the native clipping, with this exception.
   `app/src-tauri/src/web_clip/windows.rs`. The module's `mod.rs`, its
   geometry and Linux's `linux.rs` (GTK's safe API) have no `unsafe`.
 - What is `unsafe` there: on macOS, taking the `WKWebView` from the raw
-  pointer wry hands out, and asking a view for its superview; on Windows,
-  the Win32 and WebView2 calls. All run on the main thread inside Tauri's
+  pointer wry hands out, and asking a view for its superview (since
+  2026-11-12 also WebKit's snapshot of the page and AppKit's encoding of
+  it); on Windows, the Win32 and WebView2 calls (since 2026-11-12 also
+  `CapturePreview` and the COM stream it writes into). All run on the main thread inside Tauri's
   `with_webview`, and no raw pointer or handle outlives the call: each
   call finds the container again from the page's view.
 - **The guard, `scripts/check-unsafe.mjs`**, a new workspace guardrail.

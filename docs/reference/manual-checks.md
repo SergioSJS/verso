@@ -20,6 +20,40 @@ in the real app.
 
 ## Not yet checked
 
+### A web page behind an overlay is a picture of itself (feat/web-snapshot, ADR 0056 revision of 2026-11-12)
+
+The harness draws its own picture (two blue pixels) and the host tests run
+without a web engine: no test has seen WebKit, WebView2 or WebKitGTK draw a
+page's picture. Do each item on **macOS**, on **Windows** and on **Linux**
+(X11 and Wayland), with a web note on *Show page* (`Web/jsoncanvas.org.md`)
+and a note embedding a site that refuses frames (olddragon.com.br,
+rolai.app), half scrolled out of its pane. Keep the log open: a line *no
+picture of the page* means that system fell back to hiding the page.
+
+- [ ] **The page stays behind the overlay**: open the quick switcher (⌘P /
+  Ctrl+P), the palette, a menu of the tree, a confirmation and the folder
+  switcher, one after the other: the page stays in sight behind each,
+  exactly where it was and as sharp (a Retina screen; Windows at 150 %),
+  and the overlay is drawn over it. A click on the picture does nothing.
+- [ ] **No flash**: open and close the quick switcher ten times quickly:
+  the page never goes blank, never jumps, and never shows a stale picture
+  after the overlay closed; the live page is back (scroll it, click a
+  link).
+- [ ] **The embedded page, cut by its pane**: with the embed half above
+  the pane, open the quick switcher: the picture is cut where the page
+  was cut, the tab bar and the status bar not covered; close it: the
+  live page is back at the same place.
+- [ ] **A video playing**: a page playing a video (YouTube), then an
+  overlay: the picture holds the frame of that moment; the sound goes on;
+  closed, the video plays where it is.
+- [ ] **Slow or no picture**: on a slow machine (the Windows VM), open an
+  overlay: if the picture takes longer than about 150 ms the page hides as
+  before and the picture appears when it comes. Say on which system the
+  page only hides (a *no picture of the page* line in the log).
+- [ ] **Memory**: open and close an overlay fifty times over a page:
+  the app's memory (Activity Monitor, Task Manager) does not keep
+  growing.
+
 ### This app is a server: the internet link, invitations and the table (ADR 0117, note 29, 2026-11-04)
 
 The harness answers the link, the own address, the invitations and the seat in memory, and the Rust tests run the real server on a loopback listener; nothing downloaded, ran or talked to `cloudflared` or Cloudflare. Per system, then one line per row of ADR 0117 D9. Follow note 29 as a layperson would.

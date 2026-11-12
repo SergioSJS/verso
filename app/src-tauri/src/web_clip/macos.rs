@@ -6,23 +6,36 @@
 //! clips to its bounds, added to the window's content view just above
 //! where wry put the page (above the window's own page).
 //!
+//! It also draws a picture of the page (`snapshot`, ADR 0056, revision of
+//! 2026-11-12): WebKit's `takeSnapshotWithConfiguration:completionHandler:`,
+//! encoded as JPEG by AppKit.
+//!
 //! One of the two files of the workspace allowed `unsafe` (ADR 0029,
-//! revision of 2026-10-15; `scripts/check-unsafe.mjs`). Two operations
-//! need it, each in a block of its own with its reason: taking the
-//! `WKWebView` from the raw pointer wry hands out, and asking a view for
-//! its superview. Everything else is objc2's safe API.
+//! revision of 2026-10-15; `scripts/check-unsafe.mjs`). Each operation
+//! that needs it is in a block of its own with its reason: taking the
+//! `WKWebView` from the raw pointer wry hands out, asking a view for its
+//! superview, and for the picture, asking WebKit for it, taking the image
+//! WebKit hands back, reading AppKit's compression key and encoding the
+//! image. Everything else is objc2's safe API.
 
 #![allow(unsafe_code)]
 
+use std::cell::Cell;
+
+use block2::RcBlock;
 use objc2::rc::Retained;
+use objc2::runtime::AnyObject;
 use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
-    NSAutoresizingMaskOptions, NSUserInterfaceItemIdentification, NSView, NSWindowOrderingMode,
+    NSAutoresizingMaskOptions, NSBitmapImageFileType, NSBitmapImageRep, NSImage,
+    NSImageCompressionFactor, NSUserInterfaceItemIdentification, NSView, NSWindowOrderingMode,
 };
-use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
+use objc2_foundation::{NSDictionary, NSError, NSNumber, NSPoint, NSRect, NSSize, NSString};
+use objc2_web_kit::WKWebView;
 use tauri::webview::PlatformWebview;
 
 use super::geometry::{Frames, appkit_y};
+use super::{Done, Picture};
 
 /// Containers are placed from the window's frame, as Tauri places a
 /// child view (the content view starts at the window's top: no title bar
@@ -144,6 +157,64 @@ pub(super) fn release(pw: &PlatformWebview) {
         host.addSubview_positioned_relativeTo(&page, NSWindowOrderingMode::Above, Some(&clip));
     }
     clip.removeFromSuperview();
+}
+
+/// The picture's JPEG quality: a page behind an overlay, never kept.
+const QUALITY: f64 = 0.85;
+
+/// A picture of the page's whole view, handed to `done` when WebKit has
+/// drawn it (on the main thread, after this returns).
+pub(super) fn snapshot(pw: &PlatformWebview, done: Done) {
+    let page = pw.inner().cast::<WKWebView>();
+    // SAFETY: as in `page_view`: wry's `WKWebView` for this web view, alive
+    // while it exists, touched only on the main thread (`with_webview`);
+    // `retain` holds our own reference for this call. WebKit keeps the
+    // view itself while the picture is pending.
+    let Some(view) = (unsafe { Retained::retain(page) }) else {
+        let _ = done.send(Err("no WKWebView".to_owned()));
+        return;
+    };
+    // WebKit calls the block once; the cell hands the sender out once.
+    let done = Cell::new(Some(done));
+    let reply = RcBlock::new(move |image: *mut NSImage, _error: *mut NSError| {
+        let Some(done) = done.take() else { return };
+        // SAFETY: WebKit hands the block its picture, an `NSImage`, or null
+        // on an error; `retain` holds our own reference for this call.
+        let image = unsafe { Retained::retain(image) };
+        let _ = done.send(match image {
+            Some(image) => jpeg(&image),
+            None => Err("WebKit drew no picture of the page".to_owned()),
+        });
+    });
+    // SAFETY: a public method of macOS 10.13 and up (the app needs 11),
+    // on the main thread; no configuration asks for the view's whole
+    // bounds at the screen's scale, and the call copies the block, which
+    // owns only the sender.
+    unsafe { view.takeSnapshotWithConfiguration_completionHandler(None, &reply) };
+}
+
+/// `image` as a JPEG, at the pixels WebKit drew it with.
+fn jpeg(image: &NSImage) -> Result<Picture, String> {
+    let tiff = image
+        .TIFFRepresentation()
+        .ok_or("the picture has no bitmap")?;
+    let rep =
+        NSBitmapImageRep::imageRepWithData(&tiff).ok_or("the picture's bitmap is unreadable")?;
+    // SAFETY: AppKit's constant key, an `NSString` that lives as long as
+    // the process; reading it is all.
+    let key: &NSString = unsafe { NSImageCompressionFactor };
+    let quality = NSNumber::new_f64(QUALITY);
+    let value: &AnyObject = &quality;
+    let properties = NSDictionary::<NSString, AnyObject>::from_slices(&[key], &[value]);
+    // SAFETY: `properties` maps AppKit's own property key to an
+    // `NSNumber`, the type the compression factor takes.
+    let data =
+        unsafe { rep.representationUsingType_properties(NSBitmapImageFileType::JPEG, &properties) }
+            .ok_or("the picture could not be encoded")?;
+    Ok(Picture {
+        mime: "image/jpeg",
+        bytes: data.to_vec(),
+    })
 }
 
 #[cfg(test)]

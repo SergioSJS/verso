@@ -1051,6 +1051,8 @@ export class Core {
     },
     web_bounds: () => null,
     web_visible: () => null,
+    // A picture of the page, two blue pixels; none for an address saying "no-picture".
+    web_snapshot: (a) => (/no-picture/.test(this.webViews.get(String(a["label"])) ?? "") ? refuse("failed", "no picture") : "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGPQyp8ORAwQCgAfmgTBPNjIwQAAAABJRU5ErkJggg=="),
     // A site that refuses framing is one whose address says so.
     embed_frameable: (a) => !/frames-no/.test(String(a["url"])),
     web_close: (a) => void this.webViews.delete(String(a["label"])),

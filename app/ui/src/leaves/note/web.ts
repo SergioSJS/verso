@@ -22,6 +22,7 @@ import { boardText, LANG, t } from "../../strings";
 import { cardEditor, convertToBoard, isExcalidrawDrawing, loadBoardModule } from "../board";
 import { NoteLeaf } from "../note";
 import { webLeaves } from "../web";
+import { COVERED, dropPage, pageStep } from "../webSnapshot";
 import { embeddedHtml } from "../../blockEmbed";
 
 export function buildWebBar(this: NoteLeaf): void {
@@ -241,22 +242,22 @@ export async function openWeb(this: NoteLeaf): Promise<void> {
 }
 
 /** The page's view follows its host — moved, sized, hidden when the tab
- *  is not in front or an overlay is open — frame by frame while it
- *  moves, then sleeps until something wakes it (syncWebViews). Only
- *  changes cross the bridge. */
+ *  is not in front, covered by its picture while an overlay is open
+ *  (webSnapshot.ts) — frame by frame while it moves, then sleeps until
+ *  something wakes it (syncWebViews). Only changes cross the bridge. */
 export function tickWeb(this: NoteLeaf): void {
   this.webRaf = 0;
   const label = this.webLabel;
   if (!label) return;
   const r = this.webHost.getBoundingClientRect();
-  const visible = this.webShown && this.el.isConnected && this.webHost.offsetParent !== null && r.width > 1 && r.height > 1 && !overlayOpen();
+  const shown = this.webShown && this.el.isConnected && this.webHost.offsetParent !== null && r.width > 1 && r.height > 1;
   // The screen's scale too: the host places the view in device pixels.
-  const key = visible ? `1|${Math.round(r.left)}|${Math.round(r.top)}|${Math.round(r.width)}|${Math.round(r.height)}|${window.devicePixelRatio}` : "0";
+  const key = !shown ? "0" : overlayOpen() ? COVERED : `1|${Math.round(r.left)}|${Math.round(r.top)}|${Math.round(r.width)}|${Math.round(r.height)}|${window.devicePixelRatio}`;
   if (key !== this.webLast) {
+    const was = this.webLast;
     this.webLast = key;
     this.webStill = 0;
-    if (visible) void commands.webBounds(label, wholePlace(r)).then(() => commands.webVisible(label, true));
-    else void commands.webVisible(label, false);
+    pageStep(this.webHost, label, was, key, () => commands.webBounds(label, wholePlace(r)));
   } else this.webStill++;
   // Still for a few frames: a transition or a drag has ended.
   if (this.webStill < 10) this.webRaf = window.requestAnimationFrame(() => this.tickWeb());
@@ -276,5 +277,6 @@ export function closeWeb(this: NoteLeaf): void {
   this.webResize = null;
   if (this.webRaf) window.cancelAnimationFrame(this.webRaf);
   this.webRaf = 0;
+  dropPage(this.webHost);
   if (label) void commands.webClose(label);
 }

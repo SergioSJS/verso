@@ -443,6 +443,46 @@ pub(crate) fn web_visible<R: tauri::Runtime>(
     crate::mobile::show_view(&wv, visible).map_err(|e| failed(e.to_string()))
 }
 
+/// The pages whose picture failed, said once each in the log.
+static NO_PICTURE: Mutex<std::collections::BTreeSet<String>> =
+    Mutex::new(std::collections::BTreeSet::new());
+
+/// A picture of a web page's view as it shows now, as a `data:` address
+/// (`image/jpeg`, or `image/png` where the system writes no JPEG): the
+/// window shows it in the page's place while an overlay is open, so the
+/// page seems to stay behind it instead of vanishing (ADR 0056, revision of
+/// 2026-11-12). A platform that cannot draw one answers an error, and the
+/// window hides the page as before; that is said once a page in the log.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn web_snapshot<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    label: String,
+) -> Result<String, ContractError> {
+    use base64::Engine as _;
+    let wv = own_web_view(&window, &state, &label)?;
+    match web_clip::snapshot(&wv).await {
+        Ok(picture) => Ok(format!(
+            "data:{};base64,{}",
+            picture.mime,
+            base64::engine::general_purpose::STANDARD.encode(&picture.bytes)
+        )),
+        Err(why) => {
+            if lock(&NO_PICTURE).insert(label.clone()) {
+                crate::log::write(
+                    "WARN",
+                    "web",
+                    &format!(
+                        "{label}: no picture of the page ({why}); it hides while an overlay is open"
+                    ),
+                );
+            }
+            Err(failed(why))
+        }
+    }
+}
+
 /// Close a web page's view (its tab closed).
 #[tauri::command]
 #[specta::specta]
@@ -461,6 +501,7 @@ pub(crate) fn web_close<R: tauri::Runtime>(
         );
     })?;
     lock(&state.web_views).remove(&label);
+    lock(&NO_PICTURE).remove(&label);
     destroy_web_view(wv);
     Ok(())
 }

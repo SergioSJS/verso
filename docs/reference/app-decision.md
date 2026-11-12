@@ -91,7 +91,7 @@ under and what it hands back to reopen the folder.
 | Move | `rename_note`, `rename_entry` | move the file or folder; answer with the rewrites that links elsewhere need, the notes that could not be planned, and what could not be confirmed |
 | Bin | `delete_note`, `delete_entry` | move to `.trash/` at the root; answer where it went and what could not be confirmed |
 | OS | `reveal` | show a file in Finder |
-| Web | `open_url`, `web_open`, `web_bounds`, `web_visible`, `web_close`, `web_nav`, `web_url` | web pages, in a window or inside a tab |
+| Web | `open_url`, `web_open`, `web_bounds`, `web_visible`, `web_snapshot`, `web_close`, `web_nav`, `web_url` | web pages, in a window or inside a tab |
 | Windows | `open_window`, `popout_target`, `return_to_main` | a note in a window of its own, and back |
 
 The **revision** is the piece that keeps the folder safe. Every read hands the
