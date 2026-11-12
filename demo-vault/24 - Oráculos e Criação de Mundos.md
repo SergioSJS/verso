@@ -89,10 +89,11 @@ Na aba **Gerador com IA**, **Copiar System Prompt para IA** copia as instruçõe
 
 [Os geradores do Watabou](https://watabou.github.io) fazem masmorras, regiões, cidades e vilas de graça; os mapas que eles fazem são seus para usar (o crédito é apreciado). O Verso os traz para a sua pasta:
 
-1. No **One Page Dungeon**, use **Export as › JSON** (as salas, para o desenho) e **Export as › Markdown** (o texto e a semente). No **Perilous Shores**, **Save** dá o JSON da região.
+1. No **One Page Dungeon**, use **Export as › JSON** (as salas, para o desenho) e **Export as › Markdown** (o texto e a semente). No **Perilous Shores**, **Save** dá o JSON da região. No **Dwellings** (casas), **Export › as JSON** dá a casa inteira, todos os andares.
 2. No Verso, **Importar mapa do Watabou…** (`⌘⇧P`, ou **Novo** no menu de uma pasta). Escolha os arquivos, ou solte-os no diálogo. Ele diz o que são e o que vai criar **antes de escrever qualquer coisa**; **Importar** grava.
 3. Uma masmorra vira uma pasta com a **nota** — o título, a história e as salas numeradas, exatamente como o gerador escreveu (em inglês), com a semente nas propriedades — e um **board** com o **desenho do próprio Verso**: salas, paredes, portas, água, colunas e os números das salas, os mesmos da lista da nota. É um desenho comum: dois cliques para editar dentro dele. A nota fica ao lado como cartão, e é também a versão em texto do desenho.
-4. Uma região vira **uma nota** com a lista das cidades, dos perigos e dos lugares. A nota de uma cidade ou de um perigo só é criada quando você clica no link dela, já com a descrição e **Abrir no gerador**, na semente dela.
+4. Uma casa vira uma pasta com a **nota** — a casa numa frase e os cômodos andar por andar, com o tamanho, as portas e para onde levam, as escadas e as janelas — e um **board** com o desenho do Verso: **um quadro por andar**, do porão para cima, todos na mesma grade, então a escada de um andar fica no mesmo lugar no de cima. Os nomes dos cômodos são os do gerador; dois de mesmo nome num andar viram *Room 1* e *Room 2*, iguais no desenho e na nota, que é a versão em texto do desenho.
+5. Uma região vira **uma nota** com a lista das cidades, dos perigos e dos lugares. A nota de uma cidade ou de um perigo só é criada quando você clica no link dela, já com a descrição, o **gerador dentro dela** na semente dela, e **Abrir no gerador**.
 
 **Novo mapa gerado…** cria uma nota com um gerador **dentro dela** e a semente que o Verso sorteou guardada nas propriedades, para refazer o mesmo mapa; o site é perguntado uma vez, como qualquer página numa nota (o gerador precisa de internet). No app do computador, o **Export** do gerador grava o arquivo na sua pasta, ao lado da nota, e um export do Watabou abre a importação com ele.
 
