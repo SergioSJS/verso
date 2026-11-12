@@ -84,6 +84,7 @@ pub mod tls;
 pub mod transfers;
 pub mod trash;
 pub mod twins;
+pub mod ui_files;
 pub mod update;
 pub mod visit;
 pub mod writers;

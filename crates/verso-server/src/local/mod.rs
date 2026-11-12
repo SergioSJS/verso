@@ -68,6 +68,8 @@ mod tests_shares;
 mod tests_subfolders;
 #[cfg(test)]
 mod tests_tokens;
+#[cfg(test)]
+mod tests_ui_files;
 
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
@@ -323,6 +325,9 @@ struct Shared {
     /// Where the window's files for a browser may be, in order: the app's
     /// resources, and in a development build the build beside the source.
     ui_dirs: Vec<PathBuf>,
+    /// The window's files from memory, before any directory (a phone's
+    /// app, which carries them inside itself: `ui_files.rs`).
+    ui_files: Mutex<Option<crate::ui_files::UiFiles>>,
     commit: String,
     events: Sink,
     ifaces: Arc<dyn Interfaces>,
@@ -366,6 +371,7 @@ impl LocalServer {
             shared: Arc::new(Shared {
                 dir,
                 ui_dirs,
+                ui_files: Mutex::new(None),
                 commit: commit.to_owned(),
                 events,
                 ifaces,
@@ -376,6 +382,15 @@ impl LocalServer {
                 #[cfg(any(test, feature = "test-support"))]
                 loopback: false,
             }),
+        }
+    }
+
+    /// Serve the window's files from memory (`files`), not from a
+    /// directory: a phone's app, whose files are inside it (ADR 0118
+    /// item 7). Before the server starts.
+    pub fn serve_ui_from(&self, files: crate::ui_files::UiFiles) {
+        if let Ok(mut kept) = self.shared.ui_files.lock() {
+            *kept = Some(files);
         }
     }
 
@@ -404,6 +419,7 @@ impl LocalServer {
             shared: Arc::new(Shared {
                 dir,
                 ui_dirs,
+                ui_files: Mutex::new(None),
                 commit: "test".to_owned(),
                 events,
                 ifaces,
@@ -530,12 +546,20 @@ impl LocalServer {
         }
         // The window the phone's browser is served: without its files a
         // phone would get a blank page, so it is said here instead.
+        let ui_files = self
+            .shared
+            .ui_files
+            .lock()
+            .ok()
+            .and_then(|f| f.clone())
+            .filter(|f| f.get("web.html").is_some());
         let ui_dir = self
             .shared
             .ui_dirs
             .iter()
             .find(|d| crate::data::readable(&d.join("web.html")))
             .cloned()
+            .or_else(|| ui_files.as_ref().map(|_| PathBuf::new()))
             .ok_or_else(|| {
                 "this build of the app has no web files for the phone (web.html): reinstall the app, or build the window first (npm run build in app/ui)".to_owned()
             })?;
@@ -648,7 +672,8 @@ impl LocalServer {
             || SocketAddr::from(([127, 0, 0, 1], 0)),
             |n| SocketAddr::new(n.ip, port),
         );
-        let config = Config::for_local(self.shared.dir.clone(), ui_dir, listen);
+        let mut config = Config::for_local(self.shared.dir.clone(), ui_dir, listen);
+        config.ui_files = ui_files;
         let server = Server::new_local(
             config,
             db,

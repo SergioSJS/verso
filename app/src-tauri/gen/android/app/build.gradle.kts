@@ -177,38 +177,28 @@ val placeCloudflared = tasks.register<PlaceCloudflared>("placeCloudflared") {
     target.set(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libcloudflared.so"))
 }
 
-// The window's files a phone serves (ADR 0118 item 7): Tauri copies
-// app/ui/dist-web into assets/ui-web at each build and never removes what a
-// former build left, so the APK carried every old chunk (580 files, 56 MB
-// packed, on 2026-11-12). What dist-web no longer has goes before the
-// assets are merged.
-abstract class PruneUiWeb : DefaultTask() {
+// The window's files are in the APK once (ADR 0118 item 7, decided
+// 2026-11-12): the phone serves its devices the copy its own window loads,
+// from inside the app. Tauri no longer copies app/ui/dist-web into
+// assets/ui-web (tauri.android.conf.json); what an earlier build left there
+// goes before the assets are merged (it was 580 files, 56 MB packed).
+abstract class DropUiWeb : DefaultTask() {
     @get:Internal
-    abstract val from: DirectoryProperty
-
-    @get:Internal
-    abstract val into: DirectoryProperty
+    abstract val stale: DirectoryProperty
 
     @TaskAction
-    fun prune() {
-        val source = from.get().asFile
-        val target = into.get().asFile
-        if (!source.isDirectory || !target.isDirectory) return
-        target.walkBottomUp().filter { it != target }.forEach { kept ->
-            val twin = source.resolve(kept.relativeTo(target))
-            if (!twin.exists()) kept.deleteRecursively()
-        }
+    fun drop() {
+        stale.get().asFile.deleteRecursively()
     }
 }
 
-val pruneUiWeb = tasks.register<PruneUiWeb>("pruneUiWeb") {
-    from.set(layout.projectDirectory.dir("../../../../ui/dist-web"))
-    into.set(layout.projectDirectory.dir("src/main/assets/ui-web"))
+val dropUiWeb = tasks.register<DropUiWeb>("dropUiWeb") {
+    stale.set(layout.projectDirectory.dir("src/main/assets/ui-web"))
     outputs.upToDateWhen { false }
 }
 
 tasks.configureEach {
-    if (name.startsWith("merge") && name.endsWith("Assets")) dependsOn(pruneUiWeb)
+    if (name.startsWith("merge") && name.endsWith("Assets")) dependsOn(dropUiWeb)
 }
 
 tasks.named("preBuild") { dependsOn(placeCloudflared) }

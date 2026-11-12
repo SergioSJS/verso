@@ -124,32 +124,6 @@ pub(crate) fn warm() {
     });
 }
 
-/// The window's files a phone serves to its devices, out of the APK's
-/// assets (where `resource_dir()` points, not a directory): copied into
-/// `<config>/ui-web` once per installed version by the plugin.
-pub(crate) fn ui_dir(config: &std::path::Path) -> Option<std::path::PathBuf> {
-    #[derive(serde::Serialize)]
-    struct To {
-        to: String,
-    }
-    #[derive(serde::Deserialize)]
-    struct Copied {
-        path: String,
-    }
-    let to = config.join("ui-web").to_string_lossy().into_owned();
-    match call::<Copied>("copyUi", To { to }) {
-        Ok(copied) => Some(copied.path.into()),
-        Err(e) => {
-            log::write(
-                "ERROR",
-                "host",
-                &format!("Android: the window's files for the devices were not copied: {e}"),
-            );
-            None
-        }
-    }
-}
-
 /// Multicast lock `name` held (`on`) or let go: mDNS reaches the app only
 /// while one is held (ADR 0118 item 3.1).
 pub(crate) fn multicast(name: &str, on: bool) {

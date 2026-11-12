@@ -47,11 +47,6 @@ class LockArgs {
 }
 
 @InvokeArg
-class CopyArgs {
-  var to: String = ""
-}
-
-@InvokeArg
 class CaptureArgs {
   var title: String = ""
   var text: String = ""
@@ -274,43 +269,6 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
       Unit
     }
     invoke.resolve()
-  }
-
-  // The window's files for the devices this phone serves (ADR 0118 item 7):
-  // copied out of the APK's assets into the app's storage, once per
-  // installed version, off the main thread. Answers the directory.
-  @Command
-  fun copyUi(invoke: Invoke) {
-    val args = invoke.parseArgs(CopyArgs::class.java)
-    Thread {
-      try {
-        val context = activity.applicationContext
-        val to = File(args.to)
-        val marker = File(to, ".installed")
-        val version = context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime.toString()
-        if (!marker.exists() || marker.readText() != version) {
-          to.deleteRecursively()
-          copyAssets(context, "ui-web", to)
-          marker.writeText(version)
-        }
-        val answer = JSObject()
-        answer.put("path", to.absolutePath)
-        invoke.resolve(answer)
-      } catch (e: Exception) {
-        invoke.reject(e.message ?: "the window's files were not copied")
-      }
-    }.start()
-  }
-
-  private fun copyAssets(context: Context, from: String, to: File) {
-    val children = context.assets.list(from) ?: emptyArray()
-    if (children.isEmpty()) {
-      to.parentFile?.mkdirs()
-      context.assets.open(from).use { input -> to.outputStream().use { input.copyTo(it) } }
-      return
-    }
-    to.mkdirs()
-    for (child in children) copyAssets(context, "$from/$child", File(to, child))
   }
 
   // A checked update (src/update.rs) handed to Android's own install

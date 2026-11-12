@@ -29,6 +29,10 @@ pub struct Config {
     pub folders_dir: PathBuf,
     /// The window's files (`VERSO_UI_DIR`): the build of `app/ui`.
     pub ui_dir: PathBuf,
+    /// The window's files from memory in place of `ui_dir`: a phone's app,
+    /// which carries them inside itself (ADR 0118 item 7). `None` for a
+    /// server.
+    pub ui_files: Option<crate::ui_files::UiFiles>,
     /// The window served to a browser (`verso serve --web`, ADR 0073 item
     /// 2); without it, the contract and the API only, for the desktop app.
     pub web: bool,
@@ -278,6 +282,7 @@ impl Config {
             web: false,
             ui_dir: value(env, "VERSO_UI_DIR")?
                 .map_or_else(|| defaults.ui_dir.clone(), PathBuf::from),
+            ui_files: None,
             admin,
             trusted_proxy,
             tls,
@@ -315,6 +320,7 @@ impl Config {
             folders_dir: data_dir.join("no-folders-here"),
             data_dir,
             ui_dir,
+            ui_files: None,
             web: true,
             admin: None,
             trusted_proxy: crate::proxy::Proxies::default(),

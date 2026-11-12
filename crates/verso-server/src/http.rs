@@ -263,14 +263,20 @@ const PAGE: &str = "web.html";
 /// that was; with none, a small page that asks again in two seconds, never an
 /// empty `404` that leaves a visitor on a blank screen (seen in the server
 /// e2e of 2026-10-26: `/` answered `404` with no body).
-fn page_route(path: std::path::PathBuf) -> axum::routing::MethodRouter<Arc<Server>> {
+fn page_route(
+    path: std::path::PathBuf,
+    files: Option<crate::ui_files::UiFiles>,
+) -> axum::routing::MethodRouter<Arc<Server>> {
     let last: Arc<std::sync::Mutex<Option<Arc<str>>>> = Arc::default();
     get(move || {
-        let (path, last) = (path.clone(), Arc::clone(&last));
+        let (path, last, files) = (path.clone(), Arc::clone(&last), files.clone());
         async move {
             let read = tokio::task::spawn_blocking({
                 let path = path.clone();
-                move || crate::data::read_page(&path)
+                move || match files {
+                    Some(files) => files.page(PAGE),
+                    None => crate::data::read_page(&path),
+                }
             })
             .await;
             let html = match read {
@@ -315,14 +321,23 @@ const RETRY_PAGE: &str = "<!doctype html><meta charset=\"utf-8\"><meta http-equi
 /// Every route of the server.
 pub fn router(server: Arc<Server>) -> Router {
     let ui = server.config.ui_dir.clone();
-    let static_files = tower_http::services::ServeDir::new(&ui)
-        .append_index_html_on_directories(false)
-        .fallback(tower_http::services::ServeFile::new(ui.join(PAGE)));
+    let files = server.config.ui_files.clone();
+    // From the directory, or from memory where the host carries the files
+    // (a phone's app, ui_files.rs); the same page for a path that is none.
+    let static_files = match files.clone() {
+        Some(files) => Router::new().fallback(move |uri: axum::http::Uri| {
+            let files = files.clone();
+            async move { files.serve(&uri, PAGE) }
+        }),
+        None => Router::new().fallback_service(
+            tower_http::services::ServeDir::new(&ui)
+                .append_index_html_on_directories(false)
+                .fallback(tower_http::services::ServeFile::new(ui.join(PAGE))),
+        ),
+    };
     // Revalidated each time, or kept for good when the name has a hash
     // (static_cache.rs): an upgraded server is met by its own window.
-    let static_files = Router::new()
-        .fallback_service(static_files)
-        .layer(middleware::from_fn(crate::static_cache::keep));
+    let static_files = static_files.layer(middleware::from_fn(crate::static_cache::keep));
     let router: Router<Arc<Server>> = Router::new()
         .route("/f/{folder}/{*path}", get(crate::files::file))
         .route("/api/ws", get(crate::rpc::upgrade))
@@ -489,7 +504,7 @@ pub fn router(server: Arc<Server>) -> Router {
     // The pages — signing in, approving the desktop app, the account — are
     // served always; the notes' window in a browser only with `--web`
     // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
-    let page = || page_route(ui.join(PAGE));
+    let page = || page_route(ui.join(PAGE), files.clone());
     let router = router
         .route("/", page())
         .route("/signin", page())

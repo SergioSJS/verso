@@ -46,10 +46,16 @@ const PAGE: &str = "web.html";
 
 pub fn router(server: Arc<Server>) -> Router {
     let ui = server.config.ui_dir.clone();
-    let static_files = tower_http::services::ServeDir::new(&ui)
-        .append_index_html_on_directories(false)
-        .fallback(tower_http::services::ServeFile::new(ui.join(PAGE)));
-    let page = || get_service(tower_http::services::ServeFile::new(ui.join(PAGE)));
+    // A phone's app hands the window's files from inside itself, not from a
+    // directory (`crate::ui_files`, ADR 0118 item 7).
+    let files = server.config.ui_files.clone();
+    let page = || match files.clone() {
+        Some(files) => get(move || {
+            let files = files.clone();
+            async move { files.serve(&axum::http::Uri::from_static("/web.html"), PAGE) }
+        }),
+        None => get_service(tower_http::services::ServeFile::new(ui.join(PAGE))),
+    };
     // The routes of an account's own (ADR 0117 D3 item 2): a phone is the
     // owner's device and has none of them.
     let accounts: Router<Arc<Server>> = Router::new()
@@ -159,8 +165,18 @@ pub fn router(server: Arc<Server>) -> Router {
         .merge(accounts)
         // Everything else under /api/ is what an unknown route answers.
         .route("/api/{*rest}", any(crate::http::no_route))
-        .route("/", page())
-        .fallback_service(static_files);
+        .route("/", page());
+    let table = match files {
+        Some(files) => table.fallback(move |uri: axum::http::Uri| {
+            let files = files.clone();
+            async move { files.serve(&uri, PAGE) }
+        }),
+        None => table.fallback_service(
+            tower_http::services::ServeDir::new(&ui)
+                .append_index_html_on_directories(false)
+                .fallback(tower_http::services::ServeFile::new(ui.join(PAGE))),
+        ),
+    };
     crate::http::guarded(table, server)
 }
 

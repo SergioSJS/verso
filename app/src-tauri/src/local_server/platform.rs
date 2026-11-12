@@ -21,9 +21,6 @@ pub(super) fn server<R: tauri::Runtime>(
         None => verso_core::config_dir().map_err(verso_service::convert)?,
     };
     let mut ui = Vec::new();
-    // A phone's resources are the APK's assets, not a directory.
-    #[cfg(target_os = "android")]
-    ui.extend(crate::phone::ui_dir(&config));
     if let Ok(resources) = app.path().resource_dir() {
         ui.push(resources.join("ui-web"));
     }
@@ -57,6 +54,30 @@ pub(super) fn server<R: tauri::Runtime>(
     // asked about by the macOS firewall (2026-11-04).
     #[cfg(test)]
     let made = LocalServer::on_loopback_for_tests(config.join("local-server"), ui, sink);
+    // A phone serves the window's files it carries inside itself, the ones
+    // its own window loads: the APK holds them once (ADR 0118 item 7,
+    // decided 2026-11-12).
+    // Only a file the app carries by that very name: the resolver answers an
+    // unknown path with the app's index page, where the server answers its
+    // own page (`web.html`).
+    #[cfg(target_os = "android")]
+    {
+        let assets = app.clone();
+        let names: std::collections::HashSet<String> = app
+            .asset_resolver()
+            .iter()
+            .map(|(name, _)| name.trim_start_matches('/').to_owned())
+            .collect();
+        made.serve_ui_from(verso_server::ui_files::UiFiles(Arc::new(
+            move |path: &str| {
+                names
+                    .contains(path)
+                    .then(|| assets.asset_resolver().get(path.to_owned()))
+                    .flatten()
+                    .map(|a| a.bytes)
+            },
+        )));
+    }
     // The players see a person, not "This computer" (the test of
     // 2026-11-04): the system's user until the person names themselves.
     if let Some(name) = super::owner::system_person()
