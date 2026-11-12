@@ -12,15 +12,9 @@
 //! notes in the folder `<data>/Verso`, made at the first start and opened
 //! by the first window (the window then offers the tutorial, `demo.ts`).
 
-use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
-
 use tauri::Manager;
 
 use crate::log;
-
-/// The folder the phone keeps its notes in, in the app's own storage.
-const OWN_FOLDER: &str = "Verso";
 
 /// Before any window: the configuration directory named, the log begun, the
 /// app's own folder made if absent and handed to the first window.
@@ -46,7 +40,7 @@ pub(crate) fn setup(app: &tauri::App) {
             data.display()
         ),
     );
-    if let Some(folder) = own_folder(&data) {
+    if let Some(folder) = crate::mobile::own_folder(&data) {
         crate::lock(&app.state::<crate::App>().initial_folder).push_back(folder);
     }
 }
@@ -62,26 +56,6 @@ fn keep_secrets() {
             "host",
             &format!("Android: no store for a cloud's secrets: {e}"),
         ),
-    }
-}
-
-/// `<data>/Verso`, made the first time (verso-fs makes it, as a server
-/// makes a folder: ADR 0026 rule 5).
-fn own_folder(data: &std::path::Path) -> Option<PathBuf> {
-    match verso_fs::server::make_folder(data, OWN_FOLDER) {
-        Ok(made) => {
-            log::write("INFO", "host", "Android: the app's own folder made");
-            Some(made)
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Some(data.join(OWN_FOLDER)),
-        Err(e) => {
-            log::write(
-                "ERROR",
-                "host",
-                &format!("Android: the app's own folder could not be made: {e}"),
-            );
-            None
-        }
     }
 }
 
@@ -109,36 +83,4 @@ pub fn init_tls<'local>(
     // The log may not be open yet (the activity comes before Tauri's
     // setup): standard error reaches logcat in a debug build.
     eprintln!("verso-app: {said}");
-}
-
-/// The WebSocket's TLS on a phone: the system's own certificate check
-/// (the verifier [`init_tls`] readied), on `ring` as every TLS of this
-/// app. `tokio-tungstenite` left alone looks for the root certificates in
-/// files (`rustls-native-certs`, `openssl-probe`), which Android does not
-/// have: every `wss://` failed (ADR 0118 item 7, "TLS"). Made once; `None`
-/// (said in the log) when the verifier is not there, and the dial then
-/// fails as before, in words.
-pub(crate) fn ws_connector() -> Option<tokio_tungstenite::Connector> {
-    static MADE: OnceLock<Option<Arc<rustls::ClientConfig>>> = OnceLock::new();
-    MADE.get_or_init(|| {
-        use rustls_platform_verifier::BuilderVerifierExt;
-        let provider = Arc::new(rustls::crypto::ring::default_provider());
-        let made = rustls::ClientConfig::builder_with_provider(provider)
-            .with_safe_default_protocol_versions()
-            .and_then(|b| b.with_platform_verifier())
-            .map(|b| Arc::new(b.with_no_client_auth()));
-        match made {
-            Ok(config) => Some(config),
-            Err(e) => {
-                log::write(
-                    "ERROR",
-                    "host",
-                    &format!("Android: no TLS for a server's WebSocket: {e}"),
-                );
-                None
-            }
-        }
-    })
-    .clone()
-    .map(tokio_tungstenite::Connector::Rustls)
 }

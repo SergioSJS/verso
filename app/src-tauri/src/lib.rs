@@ -57,6 +57,8 @@ mod focuses;
 mod folder_layer;
 mod framing;
 mod history;
+#[cfg(target_os = "ios")]
+mod ios;
 mod local_server;
 mod log;
 mod loose;
@@ -1217,8 +1219,9 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             }
         }
     });
-    // An Android app learns where its storage is in `setup` (android.rs).
-    #[cfg(not(target_os = "android"))]
+    // A phone's app learns where its storage is in `setup` (android.rs,
+    // ios.rs).
+    #[cfg(not(mobile))]
     log::open();
     // "This app is a server" says its life in the app's own log (ADR 0096
     // item 14): the server crate's lines, which go to standard error
@@ -1239,6 +1242,8 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
         .setup(|app| {
             #[cfg(target_os = "android")]
             android::setup(app);
+            #[cfg(target_os = "ios")]
+            ios::setup(app);
             // Serving to a phone is off at every start unless the person
             // asked it to keep on (ADR 0096 item 1).
             local_server::auto_start(app.handle());

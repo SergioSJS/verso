@@ -1075,6 +1075,10 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
             false,
         ));
     }
+    // No updater on iOS (ADR 0119 B14, `Can::Updates` absent): AltStore's
+    // source, or a store, updates the app.
+    #[cfg(target_os = "ios")]
+    let _ = (extract_dir, temp_dir, &emit_done);
     // Unreachable on supported platforms, but required for compilation
     #[allow(unreachable_code)]
     Err(ContractError {

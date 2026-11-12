@@ -899,8 +899,8 @@ pub(crate) async fn ws_open(
     use tokio_tungstenite::tungstenite::Error as Wire;
     let tls = request.uri().scheme_str() == Some("wss");
     // A phone has no certificate files: the system's verifier instead.
-    #[cfg(target_os = "android")]
-    let connector = connector.or_else(|| tls.then(crate::android::ws_connector).flatten());
+    #[cfg(mobile)]
+    let connector = connector.or_else(|| tls.then(crate::mobile::ws_connector).flatten());
     dns::declare(host, tls);
     let shaken = dns::dial_with(host, port, |stream| {
         let (request, connector) = (request.clone(), connector.clone());

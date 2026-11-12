@@ -27,7 +27,7 @@ pub(crate) const HOST: Host = Host::Mobile;
 /// opened without its folder (Android's picker hands a content:// file the
 /// app does not open yet: Phase 2, decided 2026-11-10). A sideloaded APK
 /// keeps its updater (item 5, decided 2026-11-10).
-#[cfg(mobile)]
+#[cfg(target_os = "android")]
 const NOT_ON_A_PHONE: [Can; 7] = [
     Can::LooseFiles,
     Can::Terminal,
@@ -36,6 +36,20 @@ const NOT_ON_A_PHONE: [Can; 7] = [
     Can::WebViews,
     Can::Agents,
     Can::Reveal,
+];
+
+/// The same on an iPhone or iPad (ADR 0119 B14, decided 2026-11-12), and
+/// no updater: AltStore's source, or a store, updates the app.
+#[cfg(target_os = "ios")]
+const NOT_ON_A_PHONE: [Can; 8] = [
+    Can::LooseFiles,
+    Can::Terminal,
+    Can::AudioShare,
+    Can::Windows,
+    Can::WebViews,
+    Can::Agents,
+    Can::Reveal,
+    Can::Updates,
 ];
 
 /// What this app can do in a window of its own (not a server's): every
@@ -149,17 +163,26 @@ pub(crate) fn builder() -> tauri::Builder<tauri::Wry> {
 }
 
 /// A page in the person's browser: the system's opener on a desktop, an
-/// Android intent on a phone (`xdg-open` is not there).
+/// Android intent on a phone (`xdg-open` is not there). An iOS app starts
+/// no program: a refusal in words until the app asks UIKit to open it
+/// (ADR 0119, Phase 0 lists it).
 pub(crate) fn open_in_browser(page: &str) -> Result<(), ContractError> {
     #[cfg(target_os = "android")]
     return crate::phone::open_page(page).map_err(crate::failed);
+    #[cfg(target_os = "ios")]
+    {
+        let _ = page;
+        Err(verso_service::refused(
+            "on the iPhone or iPad, Verso does not open a page in the browser yet",
+        ))
+    }
     #[cfg(target_os = "macos")]
     let mut command = std::process::Command::new("open");
     #[cfg(windows)]
     let mut command = std::process::Command::new("explorer");
-    #[cfg(not(any(target_os = "macos", windows, target_os = "android")))]
+    #[cfg(not(any(target_os = "macos", windows, mobile)))]
     let mut command = std::process::Command::new("xdg-open");
-    #[cfg(not(target_os = "android"))]
+    #[cfg(not(mobile))]
     command
         .arg(page)
         .spawn()
@@ -304,4 +327,67 @@ pub(crate) fn set_bars_dark<R: tauri::Runtime>(
     #[cfg(not(target_os = "android"))]
     let _ = (app, dark);
     Ok(())
+}
+
+/* ---------- The app's own folder and the WebSocket's TLS on a phone ---------- */
+
+/// The folder a phone or tablet keeps its notes in, in the app's own
+/// storage (Android ADR 0118 item 4.1; iOS ADR 0119 B13).
+#[cfg(mobile)]
+const OWN_FOLDER: &str = "Verso";
+
+/// `<data>/Verso`, made the first time (verso-fs makes it, as a server
+/// makes a folder: ADR 0026 rule 5).
+#[cfg(mobile)]
+pub(crate) fn own_folder(data: &std::path::Path) -> Option<PathBuf> {
+    match verso_fs::server::make_folder(data, OWN_FOLDER) {
+        Ok(made) => {
+            crate::log::write("INFO", "host", "the app's own folder made");
+            Some(made)
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Some(data.join(OWN_FOLDER)),
+        Err(e) => {
+            crate::log::write(
+                "ERROR",
+                "host",
+                &format!("the app's own folder could not be made: {e}"),
+            );
+            None
+        }
+    }
+}
+
+/// The WebSocket's TLS on a phone: the system's own certificate check
+/// (on Android the verifier `android::init_tls` readied; iOS's needs no
+/// setup), on `ring` as every TLS of this app. `tokio-tungstenite` left
+/// alone looks for the root certificates in files (`rustls-native-certs`,
+/// `openssl-probe`), which neither Android nor iOS has: every `wss://`
+/// failed (ADR 0118 item 7, "TLS"; ADR 0119 §9). Made once; `None` (said
+/// in the log) when the verifier is not there, and the dial then fails as
+/// before, in words.
+#[cfg(mobile)]
+pub(crate) fn ws_connector() -> Option<tokio_tungstenite::Connector> {
+    use std::sync::{Arc, OnceLock};
+    static MADE: OnceLock<Option<Arc<rustls::ClientConfig>>> = OnceLock::new();
+    MADE.get_or_init(|| {
+        use rustls_platform_verifier::BuilderVerifierExt;
+        let provider = Arc::new(rustls::crypto::ring::default_provider());
+        let made = rustls::ClientConfig::builder_with_provider(provider)
+            .with_safe_default_protocol_versions()
+            .and_then(|b| b.with_platform_verifier())
+            .map(|b| Arc::new(b.with_no_client_auth()));
+        match made {
+            Ok(config) => Some(config),
+            Err(e) => {
+                crate::log::write(
+                    "ERROR",
+                    "host",
+                    &format!("no TLS for a server's WebSocket: {e}"),
+                );
+                None
+            }
+        }
+    })
+    .clone()
+    .map(tokio_tungstenite::Connector::Rustls)
 }

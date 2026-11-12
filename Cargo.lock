@@ -6418,6 +6418,7 @@ name = "verso-app"
 version = "0.8.4-beta.1"
 dependencies = [
  "android-native-keyring-store",
+ "apple-native-keyring-store",
  "base64 0.22.1",
  "blake2",
  "block2",

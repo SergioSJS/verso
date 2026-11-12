@@ -205,6 +205,22 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 android-native-keyring-store = "1"
 keyring-core = "1"
 
+[target.'cfg(target_os = "ios")'.dependencies]
+# The iOS and iPadOS app (ADR 0119 Phase 0), the same seams as Android's:
+# its own folder made by verso-fs; the WebSocket's TLS through the system's
+# certificate check (rustls-native-certs looks for files on iOS, as on
+# Android; the verifier needs no setup there); a cloud's secret in iOS's
+# Protected Data keychain, keyring 4's own Apple store with its `protected`
+# feature (keyring's v1 `Entry` refuses iOS, and the crate does not build
+# there without it), set on keyring-core. All in the tree already, at the
+# same versions (MIT OR Apache-2.0; rustls Apache-2.0 OR ISC OR MIT); they
+# replace nothing of ours.
+verso-fs = { path = "../../crates/verso-fs" }
+rustls-platform-verifier = "0.7"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+apple-native-keyring-store = { version = "1", features = ["protected"] }
+keyring-core = "1"
+
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window
 # moved into a clipping child window. The Win32 and WebView2 bindings wry
