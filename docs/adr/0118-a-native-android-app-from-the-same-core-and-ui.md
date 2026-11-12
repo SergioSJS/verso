@@ -44,6 +44,18 @@
   2026-11-11 — the maintainer answered A1 and A2: *"sem playstore, so apk
   por enquanto. considere Android 10+"* (no Play Store, only the APK for
   now; consider Android 10+).
+  2026-11-12 — the maintainer accepted the recommendations of the decisions
+  list of that day with one exception: *"aceito as recomendações, com
+  exceção de que vamos implementar tudo que temos pendente, vai vir tudo com
+  a v1, temos tokens sobrando"* (I accept the recommendations, except that
+  we implement everything still pending: it all comes with v1, we have
+  tokens to spare). Into v1, in this order: share and open a `.md` into
+  Verso (first), a shared folder through Android's *All files access*,
+  background sync, the capture of other apps' audio (last). Decided as
+  recommended: `specialUse` (item 3.2); `cloudflared` built for Android
+  from its source (item 3.3); a release key made now and kept by him; the
+  APK in the release workflow; the installers in a public place while the
+  code stays private (item 10). F-Droid: not now.
 - Related: [0073](0073-self-hosted-server-first.md) items 2, 8 and 12 (one
   service, one code base; native mobile is Tauri 2 mobile from the same UI
   and core; "native mobile if needed", last),
@@ -116,9 +128,9 @@ How, from the platform's rules (`Constraint` unless marked):
    manifest declares `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_<TYPE>` and
    `POST_NOTIFICATIONS` (Android 13+). Its `foregroundServiceType` (required
    since Android 14; `dataSync` is capped at 6 hours a day on Android 15,
-   `specialUse` needs a Play justification) is `[OPEN]`; recommended
-   (not decided): `specialUse` for a sideloaded or F-Droid APK, Play's
-   justification depending on A2.
+   `specialUse` needs a Play justification) is **`specialUse`, decided
+   2026-11-12** (*"aceito as recomendações"*): the APK is sideloaded (A2),
+   so Play's justification does not arise.
 3. **The internet link**: `cloudflared` **shipped inside the APK** as a
    native library and run from the app's native library directory. An app
    targeting API 29+ cannot execute a file it wrote to its own data
@@ -129,10 +141,13 @@ How, from the platform's rules (`Constraint` unless marked):
    gitignored, so a build step places the pinned binary and runs the
    SHA-256 check (moved from `tunnel/fetch.rs`); the Kotlin plugin hands
    `nativeLibraryDir` to Rust. Play's 16 KB page-size check would reject a
-   Go executable (only if A2 = Play). Whether Cloudflare's `linux-arm64`
-   build runs as is or a `GOOS=android` build is needed is for the spike
-   (`[OPEN]`): test `linux-arm64` first; non-Android Go reads
-   `/etc/resolv.conf` (absent) and falls back to `127.0.0.1:53`.
+   Go executable (only if A2 = Play). Cloudflare's `linux-arm64` build was
+   tried first (Phase 1, 2026-11-10): it runs, but non-Android Go reads
+   `/etc/resolv.conf` (absent) and asks `[::1]:53`, so it resolves no name.
+   **Decided 2026-11-12** (*"aceito as recomendações"*): `cloudflared` is
+   built for Android in our build — `GOOS=android` with cgo and the NDK
+   (the system's resolver), from the source of the version pinned in
+   `tunnel/fetch.rs`, as Termux packages it.
 4. On **mobile data** only the Cloudflare link reaches the phone (carrier
    NAT); the LAN mode needs Wi-Fi.
 5. While serving, the app says it drains the battery and heats the phone,
@@ -154,6 +169,16 @@ How, from the platform's rules (`Constraint` unless marked):
    rename, no inotify, slow bulk listing). The open item of 0026 rule 4's
    scope paragraph and 0044's re-open bullet (how a SAF capability crosses)
    stays open.
+4. **A shared folder through *All files access*, in v1 — decided
+   2026-11-12** (*"vai vir tudo com a v1"*; the decisions list's
+   recommendation: Android's *All files access* in place of the system's
+   folder picker, which works without the Play Store). With
+   `MANAGE_EXTERNAL_STORAGE` (Android 11+; on Android 10,
+   `requestLegacyExternalStorage` and the storage permission) the app
+   reaches shared storage by POSIX paths, so `verso-fs` works unchanged
+   on such a folder, as on a desktop's; the path stays on the host side of
+   the contract (rule 4), as a desktop's picked folder does. It does not
+   close item 3 (a SAF tree is still not a path).
 
 ### 5. What is off on Android `[DECIDED 2026-11-08]`; the seam decided the same day (A6)
 
@@ -167,12 +192,12 @@ not shown):
 | Several windows, the loose-files window (0114), pop-outs (0065) | One activity; Android intents later (Phase 2) |
 | Native child web views (0056) | The UI's iframe path instead |
 | Self-updater (0055) — **kept on a sideloaded APK, decided 2026-11-10** | The sideloaded APK checks for a new version and offers it: it downloads the signed APK and hands it to Android's own install prompt (Android never installs silently), or at least says a new version exists and where to get it. A Play build, if one comes (A2), has none: Play forbids it |
-| Tray, native menus, single instance | Replaced later by intents: open a `.md`, share to Verso (Phase 2) |
-| Capture of other apps' audio (0116) | Possible later through `AudioPlaybackCapture` (Android 10+); not in v1 |
+| Tray, native menus, single instance | Replaced by intents: open a `.md`, share to Verso — **in v1, decided 2026-11-12**, first of the four |
+| Capture of other apps' audio (0116) | **In v1, decided 2026-11-12**, last of the four: through `AudioPlaybackCapture` (Android 10+), with Android's screen-capture consent each time |
 
 The seam: `Host::Mobile` plus `cfg(target_os = "android")` (A6, decided 2026-11-08).
 
-### 6. Sync while the app is open first; background sync right after `[DECIDED 2026-11-08]`
+### 6. Sync while the app is open first; background sync right after `[DECIDED 2026-11-08]`; in v1 `[DECIDED 2026-11-12]`
 
 The maintainer, 2026-11-08: *"poxa, tem apps que resolveram isso, como
 syncthing, talvez dê pra fazer, eu diria que precisamos ter essa opção após
@@ -189,6 +214,10 @@ option once the basics run).
    only, charging only). Off by default; the type and the battery rules of
    3.2 apply (Android 15 caps `dataSync`). How it is built is `[OPEN]`
    until v1 runs.
+3. **2026-11-12: in v1** (*"vai vir tudo com a v1"*), third of the four,
+   by the route the decisions list recommended: the foreground service
+   of item 3.2 with its persistent notification kept for sync, under
+   Doze's and Android 15's limits (`specialUse`, not `dataSync`).
 
 ### 7. What the build must change (the code at `cce63611b` / `b52019c5c`, facts)
 
@@ -262,7 +291,10 @@ on the entry function. Also:
 |---|---|---|
 | 0 — spike | Android SDK/NDK set up; a debug APK built from `app/src-tauri` with item 7's gates | On the maintainer's POCO X3 Pro (M2102J20SG, Android 16 / API 36, arm64) over `adb`: opens a folder in private storage; the demo vault measured in Android's WebView — recommended pass numbers, not decided: opens in ≤ 3 s, typing latency ≤ 50 ms on a long note, the board at ≥ 30 fps with ~60 elements, memory ≤ 400 MB; a TLS handshake to a real UniVerso; the Doze test (`adb shell dumpsys deviceidle force-idle` with a client connected: the server still answers); the build breaks found beyond item 7 listed |
 | 1 — v1 | Items 3–6: private folder synced with UniVerso / WebDAV / S3; a window on a UniVerso folder; the phone as a server on the LAN and by the bundled link, with the foreground service; the off list; a signed APK | The rows of [`docs/reference/manual-checks.md`](../reference/manual-checks.md) "This app is a server" that apply, run from the phone; sync's vectors green on Android (cross-built host tests or an on-device runner: `[OPEN]`); the Doze test again; TalkBack; both languages, the foreground notification's text included; 390×844 and the device's own size |
-| 2 — later | Android intents (open a `.md`, share to Verso), a SAF folder import, audio capture, Play Store, iOS | Each by its own decision |
+| 2 — later | A SAF folder import, Play Store, F-Droid (*not now*, 2026-11-12), iOS (0119) | Each by its own decision |
+
+The intents, the shared folder through *All files access*, background sync
+and audio capture moved from Phase 2 into Phase 1 on 2026-11-12 (Source).
 
 Phase 0 measured (2026-11-08, the POCO X3 Pro over `adb`, a debug build at
 `3e9681b68`): start to a note 3.2 s (first paint 2.4 s); the demo vault
@@ -293,6 +325,19 @@ passed (screen off, deep idle forced, the paired client answered every
 10 s for 2 minutes). `wss://` to a server with a real certificate, the
 link, a cloud the check accepts, the updater's install and TalkBack are in
 `manual-checks.md` ("The Android app, Phase 1").
+
+### 10. Releases of the APK `[DECIDED 2026-11-12]`, one fork `[OPEN]`
+
+*"aceito as recomendações"*, on the decisions list of 2026-11-12:
+
+1. **A release key now**, made and kept by the maintainer (his password
+   manager and a GitHub secret). It is not made on, nor kept on, the
+   laptop the work is done on. The release build reads it from the
+   environment.
+2. **The release workflow builds the APK** beside macOS, Windows and Linux.
+3. **The installers in a public place while the code stays private**: the
+   updater reads a base address that can be set. Which place — a public
+   repository that holds only releases, or Cloudflare R2 — is `[OPEN]`.
 
 ## Consequences
 
@@ -341,4 +386,6 @@ recommendations are Proposed. Phase 0 started on `feat/android` the same day. Wr
 Opus session; Fable reading done 2026-11-08 (Revisions); the maintainer
 answered B1, A6, A8 and A9 the same day; A4, A7 and item 5's updater on
 2026-11-10 (Revisions), and Phase 1 started that day; A1 (`minSdk` 29) and
-A2 (the APK only, no Play Store for now) on 2026-11-11.
+A2 (the APK only, no Play Store for now) on 2026-11-11; on 2026-11-12, 3.2's
+type, 3.3's build, items 4.4, 5's intents and audio capture, 6.3 and 10
+(but 10.3's place), all into v1.
