@@ -157,6 +157,16 @@ pub const EDIT: &[&str] = &[
 /// not make the laptop fetch an address on the network for a phone), the
 /// folder's own settings and rules, emptying the bin, deleting history.
 pub const REFUSED: &[&str] = &[
+    // ADR 0118 (2026-11-12): the phone host's own commands, about the
+    // device the app runs on (its shared storage, what was shared to it,
+    // its background sync, its status bar): never a remote phone's.
+    "folder_in_app",
+    "open_shared_folder",
+    "set_background_sync",
+    "set_bars_dark",
+    "shared_storage",
+    "shared_storage_access",
+    "take_shared",
     "loose_close",         // ADR 0114: host-side loose-files window of the laptop
     "loose_files",         // ADR 0114: host-side loose-files window of the laptop
     "loose_save_again",    // ADR 0114: writes beside a file of the laptop's disk

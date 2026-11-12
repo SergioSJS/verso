@@ -1226,7 +1226,9 @@ pub(crate) fn link_target(path: &std::path::Path) -> Option<std::path::PathBuf> 
 
 /// Whether anything sits at `path` — a file, a directory, or a symlink,
 /// even a broken one (the `test -e` this replaces, without following).
-#[cfg(target_os = "macos")]
+/// macOS links the command line and Linux checks its copied script
+/// (`cli_state_now`); neither phone asks.
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub(crate) fn something_at(path: &std::path::Path) -> bool {
     std::fs::symlink_metadata(path).is_ok()
 }
