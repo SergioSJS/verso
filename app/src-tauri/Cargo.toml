@@ -242,7 +242,7 @@ tauri-plugin-opener = "2"
 # fallback, which answered "ios", and close a second window's scene, which
 # showed black (ADR 0119 A18).
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSSet", "NSEnumerator"] }
 objc2-ui-kit = { version = "0.3", default-features = false, features = ["std", "block2", "UIDevice", "UIApplication", "UIResponder", "UIScene", "UISceneSession", "UISceneOptions"] }
 
 [target.'cfg(windows)'.dependencies]

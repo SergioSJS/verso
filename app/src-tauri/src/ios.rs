@@ -110,22 +110,93 @@ pub(crate) fn open_page(page: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-/// A scene iPadOS made for a second window ("New window" on the app's
-/// icon, or a window dragged out): the app has one window, so the scene's
-/// session is destroyed at once, which closes it, and the first window
-/// stays. Without it the new scene showed black: the app opened no window
-/// in it (ADR 0119 A18, seen on the maintainer's iPad on 2026-11-12).
-pub(crate) fn one_window(scene: &objc2_ui_kit::UIScene) {
-    let Some(main) = objc2::MainThreadMarker::new() else {
-        return;
-    };
-    log::write(
-        "INFO",
-        "host",
-        "iOS: a second window was asked for and closed",
-    );
-    objc2_ui_kit::UIApplication::sharedApplication(main)
-        .requestSceneSessionDestruction_options_errorHandler(&scene.session(), None, None);
+/// The scenes this app opened a window in, by their session's identifier:
+/// the window's label (`windows::open_folder_window`).
+static SCENES: std::sync::Mutex<Vec<(String, String)>> = std::sync::Mutex::new(Vec::new());
+
+/// A scene iPadOS made for a second window ("Nova janela" on the app's
+/// icon, or a window dragged out): a window of its own, as *New window*
+/// makes one on the Mac (ADR 0065: on no folder, the start page, to open
+/// one), which tao places in the new scene, the one with no window yet.
+/// The maintainer's words of 2026-11-12, revising A18: *"o nova janela no
+/// ipad ainda nao está funcionando"* — it must open, not close.
+pub(crate) fn new_window<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    scene: &objc2_ui_kit::UIScene,
+) {
+    let session = scene.session().persistentIdentifier().to_string();
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        match crate::windows::open_folder_window(&app, None) {
+            Ok(label) => {
+                log::write(
+                    "INFO",
+                    "host",
+                    &format!("iOS: a new window, {label}, for a scene the system made"),
+                );
+                let first = {
+                    let mut scenes = crate::lock(&SCENES);
+                    scenes.push((session, label));
+                    scenes.len() == 1
+                };
+                if first {
+                    watch_scenes(app);
+                }
+            }
+            Err(e) => log::write(
+                "ERROR",
+                "host",
+                &format!("iOS: no window for a new scene: {e}"),
+            ),
+        }
+    });
+}
+
+/// tao 0.35 says nothing when a scene goes (the person closes a window in
+/// the app switcher; its `sceneDidDisconnect` is empty, fixed only in tao
+/// 0.36): every two seconds the connected scenes are compared with those
+/// this app opened a window in, and the window of one gone is closed, as a
+/// closed window on the Mac — its folder let go, its state with it.
+fn watch_scenes<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            let on_main = app.clone();
+            let asked = app.run_on_main_thread(move || {
+                let Some(main) = objc2::MainThreadMarker::new() else {
+                    return;
+                };
+                let connected: Vec<String> = objc2_ui_kit::UIApplication::sharedApplication(main)
+                    .connectedScenes()
+                    .iter()
+                    .map(|s| s.session().persistentIdentifier().to_string())
+                    .collect();
+                let gone: Vec<String> = {
+                    let mut scenes = crate::lock(&SCENES);
+                    let gone = scenes
+                        .iter()
+                        .filter(|(id, _)| !connected.contains(id))
+                        .map(|(_, label)| label.clone())
+                        .collect();
+                    scenes.retain(|(id, _)| connected.contains(id));
+                    gone
+                };
+                for label in gone {
+                    log::write(
+                        "INFO",
+                        "host",
+                        &format!("iOS: the scene of {label} is gone; its window closes"),
+                    );
+                    if let Some(window) = on_main.get_webview_window(&label) {
+                        let _ = window.destroy();
+                    }
+                }
+            });
+            if asked.is_err() {
+                return;
+            }
+        }
+    });
 }
 
 /// The app's container and the directory every install's container is
@@ -172,9 +243,9 @@ pub(crate) fn in_this_container(
 
 /// The iOS app's part of the run's events (split from `lib.rs`'s
 /// `on_event`, ADR 0067):
-/// - a second window the person asked iPadOS for (its icon's "New
-///   window"): the app shows one window (no `Can::Windows`), so the new
-///   scene is closed again (ADR 0119 A18);
+/// - a second window the person asked iPadOS for (its icon's "Nova
+///   janela"): a window of its own in the new scene (ADR 0119 A18,
+///   revised by the maintainer on 2026-11-12);
 /// - the window's scene active again (tao's `sceneDidBecomeActive`): a
 ///   server whose port iOS closed while the device was locked, or one due
 ///   to resume, listens again (ADR 0119 B12/A2); leaving it
@@ -182,7 +253,7 @@ pub(crate) fn in_this_container(
 ///   comes back; ADR 0096 item 1 amended for iOS).
 pub(crate) fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: &tauri::RunEvent) {
     match event {
-        tauri::RunEvent::SceneRequested { scene, .. } => one_window(scene),
+        tauri::RunEvent::SceneRequested { scene, .. } => new_window(app, scene),
         tauri::RunEvent::WindowEvent {
             event: tauri::WindowEvent::Focused(true),
             ..

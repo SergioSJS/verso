@@ -376,7 +376,7 @@ Questions for the maintainer (B) and for the build (A):
 | A15 | How a page opens in the browser on iOS (a UniVerso's sign-in opens the server's page) | **Decided 2026-11-12:** Tauri's opener plugin (`tauri-plugin-opener`), not UIKit by hand (`unsafe`) |
 | A16 | The bundle's version (Tauri wrote `1.0.0`: `0.8.4-beta.1` is not a number triple) | **Decided 2026-11-12:** the release step sets `CFBundleShortVersionString` to the numeric version and `CFBundleVersion` to a build number |
 | A17 | `staticlib` in `crate-type`: every build of `verso-app` (desktop, Android) also writes a static library | **Decided 2026-11-12:** kept; the cost (disk and time of each build) noted |
-| A18 | A second window of the app on the iPad (`UIApplicationSupportsMultipleScenes` is true for tao's scene life cycle) | **Decided 2026-11-12:** checked on his iPad first, then decided |
+| A18 | A second window of the app on the iPad (`UIApplicationSupportsMultipleScenes` is true for tao's scene life cycle) | **Decided 2026-11-12:** checked on his iPad first, then decided. **Revised 2026-11-12** by the maintainer, after the build closed it: *"o nova janela no ipad ainda nao está funcionando"* — "Nova janela" opens a real second window, as *New window* on the Mac (ADR 0065: on no folder, the start page) |
 
 ### 11. Phases, each with its acceptance
 
@@ -651,10 +651,26 @@ iOS suspende"*):
   so the Linux and Windows checks run on it.
 - The server once stopped by itself saying *the network changed*
   (22:01:48 UTC, after the last lock): still not isolated; kept here.
-- A18, recommended: one window. A second scene iPadOS makes is closed at
-  once (`requestSceneSessionDestruction`), the first window staying;
-  "Nova janela" may still be offered by iPadOS. A real second window
-  needs `Can::Windows` on iOS, which B14 left off.
+- A18, first built as one window (a second scene closed at once), which
+  the maintainer refused the same day (*"o nova janela no ipad ainda nao
+  está funcionando"*): now a scene iPadOS makes for "Nova janela" gets a
+  window of its own (`windows::open_folder_window`, as the Mac's *New
+  window*: on no folder, the start page), which tao places in the scene
+  that has none yet. tao 0.35 says nothing when a scene goes (its
+  `sceneDidDisconnect` is empty; tauri-apps/tao#1261 emits `Destroyed`,
+  but only from tao 0.36, which needs a newer Tauri): a two-second check
+  of the connected scenes closes the window of one gone, its folder let
+  go. The check goes when Tauri moves to tao 0.36. `Can::Windows` stays
+  off on iOS (B14): the window's own *New window* is not offered, only
+  the system's. The first window's scene is not watched: closing it while
+  a second stays leaves its window's state until the app ends.
+  **Verified on his iPad (2026-11-12, release build, *"deu certo"*):** the
+  window opened (`window-1` in the log), a folder opened in it, the first
+  window kept working, and closing it worked for him. After his close the
+  app still had two web views and logged no scene gone: iPadOS kept the
+  closed window's scene connected, so the two-second check, which acts
+  only on a disconnected scene, had nothing to close yet — a stopgap
+  until tao 0.36's `Destroyed`.
 
 ## Consequences
 
