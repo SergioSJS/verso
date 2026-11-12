@@ -222,6 +222,21 @@ rustls-platform-verifier = "0.7"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 apple-native-keyring-store = { version = "1", features = ["protected"] }
 keyring-core = "1"
+# A page opened in the browser on iOS — a UniVerso's sign-in page, whose
+# device flow needs it (ADR 0119 item 10 (c), decided 2026-11-12): Tauri's
+# own opener plugin (MIT OR Apache-2.0), UIKit's `openURL` behind a safe
+# API. It replaces the refusal the app gave there: an iOS app starts no
+# program (`open`, `xdg-open`), and calling UIKit by hand would need
+# `unsafe`, which the workspace forbids.
+tauri-plugin-opener = "2"
+# The device's name for the conflict copies and a server's sessions
+# (`UIDevice.name`, src/ios.rs): objc2's UIKit and Foundation bindings
+# (0.3.2 and 0.6, Zlib OR Apache-2.0 OR MIT), in the tree already through
+# tao, named here for one call. They replace the `hostname` fallback,
+# which answered "ios".
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
+objc2-ui-kit = { version = "0.3", default-features = false, features = ["std", "UIDevice"] }
 
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window

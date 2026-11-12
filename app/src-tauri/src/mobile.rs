@@ -179,23 +179,20 @@ pub(crate) fn builder() -> tauri::Builder<tauri::Wry> {
     let builder = tauri::Builder::default();
     #[cfg(target_os = "android")]
     let builder = builder.plugin(crate::phone::plugin());
+    // A page opens in the browser through it (ADR 0119 item 10 (c)).
+    #[cfg(target_os = "ios")]
+    let builder = builder.plugin(tauri_plugin_opener::init());
     builder
 }
 
 /// A page in the person's browser: the system's opener on a desktop, an
-/// Android intent on a phone (`xdg-open` is not there). An iOS app starts
-/// no program: a refusal in words until the app asks UIKit to open it
-/// (ADR 0119, Phase 0 lists it).
+/// Android intent on a phone (`xdg-open` is not there), Tauri's opener
+/// plugin on iOS, where an app starts no program.
 pub(crate) fn open_in_browser(page: &str) -> Result<(), ContractError> {
     #[cfg(target_os = "android")]
     return crate::phone::open_page(page).map_err(crate::failed);
     #[cfg(target_os = "ios")]
-    {
-        let _ = page;
-        Err(verso_service::refused(
-            "on the iPhone or iPad, Verso does not open a page in the browser yet",
-        ))
-    }
+    return crate::ios::open_page(page).map_err(crate::failed);
     #[cfg(target_os = "macos")]
     let mut command = std::process::Command::new("open");
     #[cfg(windows)]
