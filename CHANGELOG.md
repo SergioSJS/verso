@@ -61,6 +61,7 @@ test release.
 
 ### Fixed
 
+- **Libraries with security advisories updated** (2026-11-12): SQLite (`rusqlite` 0.41, `libsqlite3-sys` 0.39, RUSTSEC-2026-0459), the MCP server's `rmcp` 3.9 (RUSTSEC-2026-0457, -0461, -0462) and `rustix` 1.1.6 (RUSTSEC-2026-0486).
 - **On a phone, Settings › General says where the window's console opens** (ADR 0119, 2026-11-12). The line under **Developer console** named *View › Open Console*, a menu a phone does not have; on a phone or tablet it now says the inspector opens on a computer connected to the device, in its browser's developer tools (chrome://inspect for Android).
 - **Settings › Notifications lists Updates only where Verso updates itself** (ADR 0119, 2026-11-12). In a browser's window on a UniVerso, which never shows a new version's notice, the row chose for notices that never came; the desktop and Android keep it.
 - **On Android, a window on a server's folder no longer offers what the phone has not** (ADR 0118 item 5, 2026-11-12). The terminal, a new window and a page inside a note were offered there and failed when used; they are gone, as in the phone's own folders.

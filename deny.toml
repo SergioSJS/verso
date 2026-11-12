@@ -41,11 +41,6 @@ ignore = [
   # 2026-10-09): yrs 0.28, the latest, still uses smallstr. Revisit when yrs
   # drops it. Ratified by the maintainer on 2026-10-10.
   { id = "RUSTSEC-2026-0215", reason = "smallstr: unmaintained, via yrs; https://rustsec.org/advisories/RUSTSEC-2026-0215; expires 2026-12-31" },
-  # zip advisories for ZipArchive::extract and ZipStreamReader::extract:
-  # app/src-tauri does manual extraction with enclosed_name() and does not use extract().
-  { id = "RUSTSEC-2026-0367", reason = "zip: SUID/SGID preservation during extract(); app does not use extract(); https://rustsec.org/advisories/RUSTSEC-2026-0367; expires 2026-12-31" },
-  { id = "RUSTSEC-2026-0368", reason = "zip: ZipArchive::extract symlink traversal; app does not use extract(); https://rustsec.org/advisories/RUSTSEC-2026-0368; expires 2026-12-31" },
-  { id = "RUSTSEC-2026-0369", reason = "zip: ZipStreamReader::extract unconfined symlinks; app does not use extract(); https://rustsec.org/advisories/RUSTSEC-2026-0369; expires 2026-12-31" },
   # Three "unmaintained" notices (not vulnerabilities) published 2026-10 for
   # the zbus D-Bus family, pulled on Linux by tauri-plugin-notification
   # (notify-rust, ADR 0084) and tauri-plugin-single-instance. No safe upgrade
