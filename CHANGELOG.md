@@ -14,6 +14,8 @@ test release.
 
 ### Added
 
+- **A beta of the Android app installs beside the release** (ADR 0118 A3, 2026-11-12): a test release's APK is *Verso Beta* (`com.versomd.app.beta`), with its own folder and settings, so trying a beta leaves the installed Verso as it is.
+
 - **The Android app shares the phone's sound at the table** (ADR 0118 item 5, ADR 0116, 2026-11-12). The game master on a phone has **Share audio** with one source, *Sound of the phone's apps*: Android asks for the microphone's permission once and shows its screen-capture prompt at each share; what the other apps play (music, a game) then goes to the table as from a computer. Apps that forbid capture, and calls, are not heard.
 - **The Android app syncs in the background, if you ask** (ADR 0118 item 6, 2026-11-12). **Settings › Sync** on the phone has **Sync in the background**, off by default: on, the folders that sync keep syncing with Verso closed, under a notification that says how many and what they wait for; **Wi-Fi only** and **Only while charging** hold it until they are met. With Verso on screen it always syncs.
 - **The Android app opens a folder of the phone's shared storage** (ADR 0118 item 4.4, 2026-11-12): the storage other apps see too (Obsidian, the file manager, Syncthing), which stays on the phone if Verso is uninstalled. **Open another folder…** in the folder switcher walks the phone's folders (or makes a new one); the first time it asks for Android's **All files access** and opens Android's page for it. The phone reopens the folder it showed last, and the folder switcher says where each folder sits — *inside the app*, *Phone/Documents* — under *On this phone*.
@@ -60,6 +62,10 @@ test release.
 - **A new password's link signs the person out everywhere at once, on a UniVerso too** (the maintainer, 2026-11-04). Making a new password's link in the console (*Accounts › an account › New password link*) now ends every session of that account — browsers, desktop apps — closes its open windows at once and revokes its access tokens, each revocation in the audit log, as `verso serve admin reset` on the server's machine and *People invited › New password* in the app already did; before, they all stayed signed in until the new password was set. An admin who makes the link for their own account keeps the session asking. The old password still signs in until the new one is set from the link. Removing a person in the app's *People invited* is refused, as in the console, while a folder would be left with no owner.
 
 ### Fixed
+
+- **On a phone, Verso speaks of the phone, not of "this computer"** (ADR 0118, 2026-11-12): Settings › Sync said *Nome deste computador* and *editadas neste computador*, and the notifications' line about a list it cannot keep said *Este computador*; on a phone these now say *celular* (*phone* in English).
+
+- **On a phone, a warning that stays no longer covers a dialog's buttons** (2026-11-12): a toast already up — a sync without its server — folds away while a dialog opened after it shows (the folder switcher, Settings, the storage's folders) and comes back when it closes; a toast raised from inside the dialog still shows, and the bell keeps them all.
 
 - **Libraries with security advisories updated** (2026-11-12): SQLite (`rusqlite` 0.41, `libsqlite3-sys` 0.39, RUSTSEC-2026-0459), the MCP server's `rmcp` 3.9 (RUSTSEC-2026-0457, -0461, -0462) and `rustix` 1.1.6 (RUSTSEC-2026-0486).
 - **On a phone, Settings › General says where the window's console opens** (ADR 0119, 2026-11-12). The line under **Developer console** named *View › Open Console*, a menu a phone does not have; on a phone or tablet it now says the inspector opens on a computer connected to the device, in its browser's developer tools (chrome://inspect for Android).
