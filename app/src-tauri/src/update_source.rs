@@ -34,12 +34,13 @@ pub(crate) enum Source {
 /// The repository releases come from unless the build names another.
 const DEFAULT_REPO: &str = "SergioSJS/verso";
 
-/// This build's place.
+/// This build's place. A variable set but empty (the release workflow's,
+/// with no repository named) counts as unset.
 pub(crate) const SOURCE: Source = match option_env!("VERSO_UPDATE_BASE") {
-    Some(base) => Source::Base(base),
-    None => match option_env!("VERSO_UPDATE_REPO") {
-        Some(repo) => Source::GitHub(repo),
-        None => Source::GitHub(DEFAULT_REPO),
+    Some(base) if !base.is_empty() => Source::Base(base),
+    _ => match option_env!("VERSO_UPDATE_REPO") {
+        Some(repo) if !repo.is_empty() => Source::GitHub(repo),
+        _ => Source::GitHub(DEFAULT_REPO),
     },
 };
 
