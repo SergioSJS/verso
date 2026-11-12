@@ -56,11 +56,11 @@ test("a dungeon's JSON and Markdown: a folder with the note, the export and a bo
   expect(scene.filter((e) => e.type === "line").length).toBeGreaterThan(1);
   await expect(page.locator("#status")).toContainText(`Mapa importado em “${DIR}”.`);
 
-  // The same map again, into the root (the dialog starts at the folder of
-  // the tab in front): a folder of its own, never over the first.
+  // The same map again: the dialog starts at the folder of the last import
+  // (the root), not at the new map's folder in front; a folder of its own,
+  // never over the first.
   const again = await importDialog(app, page);
-  await expect(again.getByLabel("Pasta")).toHaveValue(DIR);
-  await again.getByLabel("Pasta").selectOption("");
+  await expect(again.getByLabel("Pasta")).toHaveValue("");
   await again.locator('input[type="file"]').setInputFiles([{ name: "swamp_citadel_of_uadjed.md", mimeType: "text/markdown", buffer: sample("swamp_citadel_of_uadjed.md") }]);
   await expect(again.locator(".wb-import-makes")).toContainText(`Cria a pasta “${DIR} 2” com a nota.`);
   await expect(again.locator(".wb-import-seen")).toContainText("Sem o JSON não há desenho");
@@ -95,6 +95,37 @@ test("a region: one note listing the towns; a town's note is made with its seed 
   expect(town).toContain('region: "[[Preter Fjord]]"');
   expect(town).toContain("A remote mountain village of abundant religion but scarce nature.");
   expect(town).toContain("[Abrir no gerador](https://watabou.github.io/village-generator/?seed=465429558");
+  // The generator embedded at that seed, as a generated map's note (ADR 0120, Q1).
+  expect(town).toContain('<iframe src="https://watabou.github.io/village-generator/?seed=465429558');
+});
+
+test("a house of Dwellings: a folder with the note listing its rooms and a board with a frame per floor", async ({ app, page }) => {
+  await app.open("?vault=empty");
+  const HOUSE = "House By The Sea";
+  const dialog = await importDialog(app, page);
+  await dialog.locator('input[type="file"]').setInputFiles([{ name: "house_by_the_sea.json", mimeType: "application/json", buffer: sample("house_by_the_sea.json") }]);
+  await expect(dialog.locator(".wb-import-seen")).toContainText(`Dwellings “${HOUSE}”: 5 andares, 14 cômodos, com o desenho.`);
+  await expect(dialog.locator(".wb-import-makes")).toContainText(`Cria a pasta “${HOUSE}” com a nota, o board com o desenho e house_by_the_sea.json.`);
+  await dialog.getByRole("button", { name: "Importar", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => app.files()).toEqual(expect.arrayContaining([`${HOUSE}/${HOUSE}.md`, `${HOUSE}/${HOUSE}.canvas`, `${HOUSE}/house_by_the_sea.json`]));
+  // The note: the house described, its rooms floor by floor, the generator's names kept.
+  const note = await app.file(`${HOUSE}/${HOUSE}.md`);
+  expect(note).toContain('generator: "dwellings"');
+  expect(note).toContain("## Térreo (GF)");
+  expect(note).toContain("- **Bathroom 1**: 4 quadrados; porta para Room; 2 janelas.");
+  // The board: a frame per floor, the walls kept, the note as a card.
+  const board = JSON.parse(await app.file(`${HOUSE}/${HOUSE}.canvas`));
+  expect(board.verso.walls.generator).toBe("dwellings");
+  expect(board.nodes.filter((n) => n.type === "group").map((n) => n.label)).toEqual(["Porão (B)", "Térreo (GF)", "1º andar (1F)", "2º andar (2F)", "3º andar (3F)"]);
+  expect(board.nodes).toEqual(expect.arrayContaining([expect.objectContaining({ type: "file", file: `${HOUSE}/${HOUSE}.md` })]));
+  await app.boardReady();
+  const scene = await app.scene();
+  expect(scene.filter((e) => e.type === "frame")).toHaveLength(5);
+  expect(scene.filter((e) => e.type === "text").map((e) => e.text.replace(/\n/g, " "))).toEqual(expect.arrayContaining(["Library", "Living room", "Vault", HOUSE]));
+  // Every drawn wall stays in its floor's frame.
+  const frames = new Set(scene.filter((e) => e.type === "frame").map((e) => e.id));
+  for (const l of scene.filter((e) => e.type === "line")) expect(frames.has(l.frameId)).toBe(true);
 });
 
 test("a city's export is named, not imported; nothing is written", async ({ app, page }) => {

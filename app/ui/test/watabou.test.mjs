@@ -50,10 +50,10 @@ describe("What the files are", () => {
     assert.equal(detect.see(given("notes.md", "# A note\n\nNothing of a generator.")).kind, "unknown");
   });
 
-  test("a city's GeoJSON and a house are named as other generators", () => {
+  test("a city's GeoJSON is named as another generator's; a house with no floor is none", () => {
     const city = JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", id: "values", generator: "mfcg", version: "0.11.5" }] });
     assert.deepEqual(detect.see(given("c.json", city)), { kind: "other", generator: "mfcg" });
-    assert.deepEqual(detect.see(given("h.json", '{"floors":[]}')), { kind: "other", generator: "dwellings" });
+    assert.deepEqual(detect.see(given("h.json", '{"floors":[]}')), { kind: "unknown" });
     const p = detect.plan([given("c.json", city)]);
     assert.equal(p.kind, "none");
     assert.equal(p.why, "other");

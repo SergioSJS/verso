@@ -48,6 +48,21 @@ export function webLink(label: string, url: string): string {
   return `[${label.replace(/[[\]]/g, "\\$&")}](${url.replace(/\(/g, "%28").replace(/\)/g, "%29").replace(/ /g, "%20")})`;
 }
 
+/** The generator embedded in a note (ADR 0056: the site is asked about
+ *  once), at an address of Watabou's site only — an export's link to any
+ *  other place stays a link. */
+export function generatorFrame(link: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(link);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || url.host !== "watabou.github.io") return null;
+  const src = url.href.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+  return `<iframe src="${src}" style="width: 100%; height: 640px; border: 0;"></iframe>`;
+}
+
 /** The file name of `path`, for a wikilink by name. */
 const base = (path: string): string => path.split("/").pop() ?? path;
 
@@ -105,8 +120,9 @@ export function regionNote(r: Region, w: NoteWords, jsonFile: string | null, pic
 const oneLine = (s: string): string => s.replace(/\s*\n\s*/g, " ");
 
 /** The note of a town or a danger of a region, made when its link is
- *  followed: what the region says of it, and its generator's address with
- *  its seed. `region` is the region note's name. */
+ *  followed: what the region says of it, and its generator embedded at its
+ *  address with its seed, as a generated map's note has it (ADR 0120, Q1,
+ *  2026-11-12). `region` is the region note's name. */
 export function placeNote(p: { town: Town } | { danger: Danger }, region: string, w: NoteWords): string {
   const town = "town" in p ? p.town : null;
   const item = "town" in p ? p.town : p.danger;
@@ -121,6 +137,8 @@ export function placeNote(p: { town: Town } | { danger: Danger }, region: string
   ]);
   const out = [`# ${item.name}`, ""];
   if (town?.info) out.push(town.info, "");
+  const frame = item.link ? generatorFrame(item.link) : null;
+  if (frame) out.push(frame, "");
   if (item.link) out.push(webLink(w.openGenerator, item.link), "");
   return `${props}${out.join("\n").trimEnd()}\n`;
 }

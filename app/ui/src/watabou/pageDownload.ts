@@ -34,7 +34,7 @@ async function arrived(picked: PickedFiles): Promise<void> {
     if (text.status !== "ok") continue;
     const name = path.split("/").pop() ?? path;
     const kind = see({ name, text: text.data, size: text.data.length }).kind;
-    if (kind === "dungeonJson" || kind === "dungeonMd" || kind === "region") {
+    if (kind === "dungeonJson" || kind === "dungeonMd" || kind === "region" || kind === "dwelling") {
       showWatabouImport(folder, [new File([text.data], name, { type: name.endsWith(".md") ? "text/markdown" : "application/json" })]);
       return;
     }

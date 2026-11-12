@@ -3,11 +3,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 // What the files the person chose are (ADR 0120 item 1): a One Page
-// Dungeon (its JSON, its Markdown, or both, and its pictures), or a region
-// of Perilous Shores; and what an import of them makes. Recognised by what
+// Dungeon (its JSON, its Markdown, or both, and its pictures), a region of
+// Perilous Shores, or a house of Dwellings; and what an import of them
+// makes. Recognised by what
 // the files hold, never by their names. Pure.
 
 import { type Dungeon, type DungeonText, isDungeonJson, isDungeonMarkdown, readDungeon, readDungeonMarkdown } from "./dungeon";
+import { type House, houseTitle, isDwellingJson, readDwelling } from "./dwelling";
 import { type Region, isRegionJson, readRegion } from "./region";
 
 /** A file as the dialog read it: text for JSON and Markdown, the size for
@@ -19,8 +21,9 @@ export type Seen =
   | { kind: "dungeonJson"; dungeon: Dungeon }
   | { kind: "dungeonMd"; text: DungeonText }
   | { kind: "region"; region: Region }
+  | { kind: "dwelling"; house: House }
   | { kind: "picture" }
-  /** A map of another of the generators: a city, a village, a house. */
+  /** A map of another of the generators: a city, a village. */
   | { kind: "other"; generator: string }
   | { kind: "unknown" };
 
@@ -51,6 +54,10 @@ export function see(f: Given): Seen {
       const region = readRegion(v);
       return region ? { kind: "region", region } : { kind: "unknown" };
     }
+    if (isDwellingJson(v)) {
+      const house = readDwelling(v);
+      return house ? { kind: "dwelling", house } : { kind: "unknown" };
+    }
     const other = otherGenerator(v);
     return other ? { kind: "other", generator: other } : { kind: "unknown" };
   }
@@ -62,7 +69,7 @@ export function see(f: Given): Seen {
 }
 
 /** The generator of an export this import does not take yet: the cities',
- *  villages' and neighbourhoods' GeoJSON names it; a house has floors. */
+ *  villages' and neighbourhoods' GeoJSON names it. */
 function otherGenerator(v: unknown): string | null {
   if (v === null || typeof v !== "object" || Array.isArray(v)) return null;
   const o = v as Record<string, unknown>;
@@ -71,7 +78,7 @@ function otherGenerator(v: unknown): string | null {
     const g = values ? (values as Record<string, unknown>)["generator"] : undefined;
     return typeof g === "string" && /^[a-z]{1,10}$/.test(g) ? g : null;
   }
-  return Array.isArray(o["floors"]) ? "dwellings" : null;
+  return null;
 }
 
 /** What an import of the chosen files makes, or why it cannot. */
@@ -86,6 +93,7 @@ export type Plan =
       keys: number;
     }
   | { kind: "region"; title: string; json: { name: string; region: Region }; pictures: string[] }
+  | { kind: "dwelling"; title: string; json: { name: string; house: House }; pictures: string[]; floors: number; rooms: number }
   | { kind: "none"; why: "empty" | "unknown" | "two" | "other"; names: string[]; generator?: string };
 
 /** The plan for the files as a whole: one map at a time; a dungeon's JSON
@@ -97,11 +105,13 @@ export function plan(files: Given[]): Plan {
   const djson = seen.filter((x) => x.s.kind === "dungeonJson");
   const dmd = seen.filter((x) => x.s.kind === "dungeonMd");
   const regions = seen.filter((x) => x.s.kind === "region");
+  const houses = seen.filter((x) => x.s.kind === "dwelling");
   const pictures = seen.filter((x) => x.s.kind === "picture").map((x) => x.f.name);
   const unknown = seen.filter((x) => x.s.kind === "unknown" || x.s.kind === "other").map((x) => x.f.name);
   const other = seen.find((x) => x.s.kind === "other");
-  if (djson.length > 1 || dmd.length > 1 || regions.length > 1 || (regions.length > 0 && djson.length + dmd.length > 0)) {
-    return { kind: "none", why: "two", names: [...djson, ...dmd, ...regions].map((x) => x.f.name) };
+  const maps = (djson.length + dmd.length > 0 ? 1 : 0) + regions.length + houses.length;
+  if (djson.length > 1 || dmd.length > 1 || maps > 1) {
+    return { kind: "none", why: "two", names: [...djson, ...dmd, ...regions, ...houses].map((x) => x.f.name) };
   }
   const j = djson[0];
   const m = dmd[0];
@@ -120,6 +130,12 @@ export function plan(files: Given[]): Plan {
   }
   const r = regions[0];
   if (r && r.s.kind === "region") return { kind: "region", title: r.s.region.name, json: { name: r.f.name, region: r.s.region }, pictures };
+  const d = houses[0];
+  if (d && d.s.kind === "dwelling") {
+    const house = d.s.house;
+    const rooms = house.floors.reduce((n, f) => n + f.rooms.length, 0);
+    return { kind: "dwelling", title: houseTitle(d.f.name), json: { name: d.f.name, house }, pictures, floors: house.floors.length, rooms };
+  }
   if (other && other.s.kind === "other") return { kind: "none", why: "other", names: unknown, generator: other.s.generator };
   return { kind: "none", why: pictures.length > 0 && unknown.length === 0 ? "empty" : "unknown", names: unknown };
 }

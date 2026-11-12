@@ -106,15 +106,17 @@ export function showWatabouImport(folder: string, files: File[] = []): void {
       if (!current.json) lines.push(ww.noDrawing);
     } else if (current.kind === "region") {
       lines.unshift(ww.region(current.title || ww.untitledRegion, current.json.region.towns.length, current.json.region.dangers.length));
+    } else if (current.kind === "dwelling") {
+      lines.unshift(ww.dwelling(current.title || ww.untitledHouse, current.floors, current.rooms));
     } else if (current.why === "two") lines.unshift(ww.two(current.names.join(", ")));
     else if (current.why === "other") lines.unshift(ww.other(current.generator ?? ""));
     else if (current.why === "unknown") lines.unshift(ww.unknown(current.names.join(", ")));
     else if (lines.length === 0) lines.push(ww.empty);
     if (current.kind !== "none" && current.pictures.length > 0) lines.push(ww.pictures(current.pictures.length));
     seen.replaceChildren(...lines.map((l) => h("li", "", l)));
-    const ok = current.kind === "dungeon" || current.kind === "region";
+    const ok = current.kind !== "none";
     create.disabled = !ok;
-    makes.textContent = ok ? ww.makes(folderName(current, where.value, takenNow()), current.kind === "dungeon" && current.json !== null, keptNames(current)) : "";
+    makes.textContent = ok ? ww.makes(folderName(current, where.value, takenNow()), drawn(current), keptNames(current)) : "";
     problem.textContent = "";
   };
   const take = async (list: FileList | File[] | null): Promise<void> => {
@@ -146,7 +148,7 @@ export function showWatabouImport(folder: string, files: File[] = []): void {
   const go = async (): Promise<void> => {
     if (current.kind === "none") return;
     const parent = where.value;
-    if (!may(parent, "createNote") || (current.kind === "dungeon" && current.json && !may(parent, "createBoard"))) return void (problem.textContent = t.errNoCreate);
+    if (!may(parent, "createNote") || (drawn(current) && !may(parent, "createBoard"))) return void (problem.textContent = t.errNoCreate);
     create.disabled = true;
     const taken = takenNow();
     const name = folderName(current, parent, taken);
@@ -162,6 +164,7 @@ export function showWatabouImport(folder: string, files: File[] = []): void {
       if (r.failed) fail(r.failed);
       return;
     }
+    lastParent = parent;
     close();
     openFolders.add(parent);
     openFolders.add(r.folder);
@@ -173,6 +176,22 @@ export function showWatabouImport(folder: string, files: File[] = []): void {
   };
   if (files.length > 0) void take(files);
   else say();
+}
+
+/** Whether an import of `p` makes a board with Verso's drawing. */
+const drawn = (p: Plan): boolean => (p.kind === "dungeon" && p.json !== null) || p.kind === "dwelling";
+
+/** The folder the person last imported a map into, in this window. */
+let lastParent: string | null = null;
+
+/** Where the import offers to put a map when nothing chose the folder: the
+ *  folder of the last import, while it is there — never the folder an
+ *  import made, which is where the tab in front is right after one (the
+ *  first round put a second map inside the first's folder) — else the
+ *  folder of the tab in front. */
+export function defaultImportFolder(front: string): string {
+  if (lastParent !== null && (lastParent === "" || allFolders.includes(lastParent))) return lastParent;
+  return front;
 }
 
 /** Every path of the folder, lowercased. */
