@@ -326,6 +326,36 @@ passed (screen off, deep idle forced, the paired client answered every
 link, a cloud the check accepts, the updater's install and TalkBack are in
 `manual-checks.md` ("The Android app, Phase 1").
 
+Phase 1, the round of 2026-11-12 (`feat/app-server`, 16360dab1 onwards;
+facts and applied recommendations, nothing here decided): the intents
+(a share or an *Open with* becomes a new note at the top of the open
+folder, a copy, never over a note there); the shared folder walked in the
+window by paths relative to the storage's top, opened by `verso-fs` as
+any folder; background sync through the service of item 3.2 without its
+locks unless the phone serves, Wi-Fi only and charging only holding each
+pass while Verso is off screen; the capture of other apps' sound, asking
+for the whole screen on Android 14+; `cloudflared` built from the pinned
+source by `scripts/android/cloudflared.sh` (the Go toolchain pinned by
+`GOTOOLCHAIN`; the phone checks the version it says, not a sum); the
+release key read from the environment, made by
+`scripts/android/release-key.sh` on the maintainer's computer; the APK
+job of the release workflow (not run); the updater's place set at build
+time (`VERSO_UPDATE_REPO`, `VERSO_UPDATE_BASE`). On the POCO over `adb`:
+a text share with the app closed and open, a `.md` by `file://` and by a
+`content://` stream; *All files access* asked, a folder of `Documents`
+made, written atomically and watched (a file written by the shell
+appeared); `wss://` to the Zima UniVerso with its public certificate
+(device sign-in, a folder synced both ways); background sync both ways
+with Verso on the home screen, held while the charger was unplugged
+(simulated) and resumed with it, and a change received in a forced deep
+Doze; the capture's prompts, its service and a level at the meter;
+`cloudflared --version` and a name resolved; the release APK 99.7 MB (152
+before: the symbols kept, and stale UI chunks); typing on note 31 from
+68–70 ms to 58–59 ms median (the target, 50, not met); Chromium's
+accessibility tree of the main screen, the storage dialog and Settings ›
+Sync, with no unnamed control (TalkBack itself is not installed on that
+phone).
+
 ### 10. Releases of the APK `[DECIDED 2026-11-12]`, one fork `[OPEN]`
 
 *"aceito as recomendações"*, on the decisions list of 2026-11-12:
