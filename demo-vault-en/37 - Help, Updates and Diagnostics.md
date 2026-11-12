@@ -44,7 +44,7 @@ The app's log lives on your computer — `~/Library/Application Support/verso/lo
 
 ## The Console
 
-`⌥⌘I` (or **View › Open Console**) opens the window's inspector: console, elements and network — useful for developers, or for sending a detailed error. **Settings › General › Developer console** turns it on and off.
+`⌥⌘I` (or **View › Open Console**) opens the window's inspector: console, elements and network — useful for developers, or for sending a detailed error. **Settings › General › Developer console** turns it on and off. On a phone or tablet there is no View menu: the inspector opens on a computer connected to the device, in its browser's developer tools — `chrome://inspect` in Chrome for an Android phone.
 
 ---
 
