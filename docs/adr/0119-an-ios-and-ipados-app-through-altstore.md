@@ -23,6 +23,8 @@
 - Revisions: 2026-11-12 — the maintainer answers part of item 10 (decisions
   doc of 2026-11-12, his recommendations left marked, with his laptop's
   policy pasted for B5); recorded in the table's rows and in Status.
+- Revisions: 2026-11-12 — tao patched to the upstream revision with the
+  iOS scene fix (*"vamos de recomendado"*), the release `.ipa`.
 - Revisions: 2026-11-12 — Phase 0 on his iPad ("Phase 0 on the
   maintainer's iPad"); B12/A2's serving after a lock built; *"bora"*: a
   start soon after iOS ended the app while serving serves again (0117 D12
@@ -619,9 +621,36 @@ iOS suspende"*):
     too) and the app's theme there is *auto*, which follows the system —
     not a lost setting. A theme the person chose on the iPad is not
     affected.
-  - Not fixed: each install moves the app's container, so the recent
-    folders kept by path (four by then) name places that are gone, and
-    *Folders served* lists them.
+  - Each install moves the app's container, so the recent folders kept
+    by path (four by then) named places that were gone, and *Folders
+    served* listed them: fixed (`74fffc8c6`) — the core leaves out the
+    folders at an earlier install's path (in memory; their indexes stay
+    on the disk, unused, since removing them needs a disk exception in
+    verso-core), and the folders ticked to serve follow into this
+    install's container.
+- The release `.ipa` (`9131de267`): the `cdylib` now links on iOS
+  (`-undefined dynamic_lookup`, iOS only), and the Swift halves of Tauri's
+  plugins, which Swift's release configuration made local, are built
+  exported (`debug = "line-tables-only"` for tauri and its three plugins
+  in the release profile, which turns swift-rs's `DEBUG` on). A release
+  `.ipa` archived (421 MB, export method debugging). It **crashes at
+  launch** (SIGSEGV in `objc_retain` under UIKit's scene connection): tao
+  0.35.3 returns a `UISceneConfiguration` it has just released; debug
+  builds survive it by chance. Fixed upstream in tao `f21635081` (#1245),
+  which no 0.35 release carries, and Tauri 2.11 pins tao 0.35: a
+  dependency decision (a git patch of tao, a vendored copy, or a newer
+  Tauri), asked. The debug `.ipa` archives and runs.
+  **Decided 2026-11-12** (*"vamos de recomendado"*): a git patch of tao at
+  `f2163508104413ef0609178dcebdd5803b496211` (workspace Cargo.toml,
+  `[patch.crates-io]`; deny.toml `allow-git` with
+  [tauri-apps/tao#1245](https://github.com/tauri-apps/tao/pull/1245), and
+  a ban on tao ≥ 0.36 as the tripwire to drop it; expires 2026-12-31), as
+  pulldown-cmark's (ADR 0037). It also carries the ten upstream commits
+  between 0.35.3 and the fix (Windows input and window subclassing, Linux
+  synchronisation and Wayland decorations, iPadOS 26's window controls),
+  so the Linux and Windows checks run on it.
+- The server once stopped by itself saying *the network changed*
+  (22:01:48 UTC, after the last lock): still not isolated; kept here.
 - A18, recommended: one window. A second scene iPadOS makes is closed at
   once (`requestSceneSessionDestruction`), the first window staying;
   "Nova janela" may still be offered by iPadOS. A real second window

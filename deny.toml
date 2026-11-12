@@ -115,6 +115,11 @@ deny = [
   # The newer `crate = "name@..."` form is a package-id spec that drops the
   # comparison operator and matches one exact version (cargo-deny 0.20.2).
   { name = "pulldown-cmark", version = ">=0.13.5", reason = "release 0.13.5 or later: confirm the two regression tests pass and the std feature exists, then drop the patch, the allow-git entry and this ban (ADR 0037)" },
+  # tao is built from an upstream revision (workspace Cargo.toml,
+  # [patch.crates-io]; ADR 0119, the release .ipa). When Tauri asks for a
+  # tao from 0.36 on, this ban fails the build: drop the patch, the
+  # allow-git entry and this ban together.
+  { name = "tao", version = ">=0.36.0", reason = "Tauri on tao 0.36 or later, which carries tauri-apps/tao#1245: drop the tao patch, its allow-git entry and this ban (ADR 0119)" },
 ]
 
 [sources]
@@ -125,4 +130,14 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # 0.13.4 (workspace Cargo.toml, [patch.crates-io]; ADR 0037, Consequences).
 # Maintainer's decision of 2026-09-21; expires 2026-12-31. Remove together
 # with the patch and the ban above.
-allow-git = ["https://github.com/pulldown-cmark/pulldown-cmark"]
+# tao is built from an upstream revision with tauri-apps/tao#1245 (the iOS
+# scene configuration released before UIKit retains it: a release build
+# crashes at launch) until Tauri moves to a tao that carries it (workspace
+# Cargo.toml, [patch.crates-io]; ADR 0119). Maintainer's decision of
+# 2026-11-12 ("vamos de recomendado"); expires 2026-12-31. Remove together
+# with the patch and the ban above.
+# https://github.com/tauri-apps/tao/pull/1245
+allow-git = [
+  "https://github.com/pulldown-cmark/pulldown-cmark",
+  "https://github.com/tauri-apps/tao",
+]
