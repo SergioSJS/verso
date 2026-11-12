@@ -1092,7 +1092,11 @@ hand, on a phone and an iPad, the server's window in the browser.
     with the screen off; *Check for updates* is offered. Another app's
     *Share* (a text, a link, a `.md`) or *Open with › Verso* (a `.md`)
     makes a new note at the top of the open folder, named by the file or
-    the first line, beside a note of that name and never over it. Level: H (the app
+    the first line, beside a note of that name and never over it. *Open
+    another folder…* asks for All files access, then walks the phone's
+    storage, opens a folder there or makes one, and the phone reopens it
+    at the next start; the switcher reads *Neste celular*, *dentro do app*,
+    *Celular/Documents*. Level: H (the app
     on an Android phone over `adb`); E: `phone-android.spec.mjs` (the words
     on a mobile host, in the harness); the rest by hand,
     `manual-checks.md`, "The Android app, Phase 1".
