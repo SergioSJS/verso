@@ -191,5 +191,5 @@ test("a phone's game master shares the phone's sound, and a refusal is said", as
   await picker.getByRole("button", { name: "Começar a compartilhar" }).click();
   const notice = page.getByRole("dialog", { name: "Compartilhar áudio" });
   if (await notice.getByRole("button", { name: "Entendi, compartilhar" }).count()) await notice.getByRole("button", { name: "Entendi, compartilhar" }).click();
-  await expect(page.locator("body")).toContainText("toque em Começar no aviso de captura de tela do Android");
+  await expect(page.locator("body")).toContainText("permita no aviso de captura de tela do Android");
 });

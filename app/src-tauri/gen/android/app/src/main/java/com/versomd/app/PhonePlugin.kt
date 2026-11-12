@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import java.io.File
 import androidx.activity.result.ActivityResult
+import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
@@ -165,7 +166,14 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
       invoke.reject("no screen capture on this phone")
       return
     }
-    startActivityForResult(invoke, manager.createScreenCaptureIntent(), "captureAllowed")
+    // The whole screen, not one app (Android 14+ offers both): the sound of
+    // every app is what the table hears.
+    val ask = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      manager.createScreenCaptureIntent(MediaProjectionConfig.createConfigForDefaultDisplay())
+    } else {
+      manager.createScreenCaptureIntent()
+    }
+    startActivityForResult(invoke, ask, "captureAllowed")
   }
 
   @ActivityCallback
