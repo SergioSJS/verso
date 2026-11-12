@@ -20,6 +20,9 @@
   external facts are from the pages linked where they are used, read on
   2026-11-10; the build facts from a reading of the code at `c2940cfb6`
   (now on `feat/app-server`).
+- Revisions: 2026-11-12 — the maintainer answers part of item 10 (decisions
+  doc of 2026-11-12, his recommendations left marked, with his laptop's
+  policy pasted for B5); recorded in the table's rows and in Status.
 - Revisions: 2026-11-10 — Fable reading
   ([review](../review/2026-11-10-adr-0119-ios.md)): 0 BLOCKING, 10 IMPORTANT,
   10 MINOR, every code claim held; applied the same day: §8's product rows
@@ -325,35 +328,35 @@ Questions for the maintainer (B) and for the build (A):
 
 | # | Question | Recommendation (not decided) |
 |---|---|---|
-| B1 | Buy the Apple Developer Program (US$99 a year, [programs](https://developer.apple.com/programs/)) — needed for PAL, not for Classic or Phase 0 | When Phase 1 runs on the iPad |
-| B2 | Individual or organisation enrolment, and the name AltStore and Apple show | Individual, his name |
-| B3 | Where the `.ipa`, the ADP and the source live | §6: JSON on `versomd.com`, files on a public releases repo or R2 |
+| B1 | Buy the Apple Developer Program (US$99 a year, [programs](https://developer.apple.com/programs/)) — needed for PAL, not for Classic or Phase 0 | **Decided 2026-11-12:** not now; bought when Phase 1 runs on the iPad (with B2) |
+| B2 | Individual or organisation enrolment, and the name AltStore and Apple show | **Decided 2026-11-12:** individual, his name |
+| B3 | Where the `.ipa`, the ADP and the source live | **Decided 2026-11-12:** the source JSON at `versomd.com/altstore/`; the `.ipa` in the same public place as the Android APKs (0118 item 9; a public releases-only repo or R2, not yet chosen) |
 | B4 | Who checks PAL on an iPhone in Brazil on iOS 26.5+ | — |
-| B5 | Whether Globo's policy allows Xcode with a personal Apple ID, the iPad over USB and AltServer on this Mac | Ask before Phase 0; a personal Mac otherwise |
-| B6 | Which iPad: model, RAM, iPadOS version | Needed for A1 and `minOSVersion` |
+| B5 | Whether his employer's policy allows Xcode with a personal Apple ID, the iPad over USB and AltServer on this Mac | **Decided 2026-11-12:** this Mac is his employer's (Thoughtworks); its policy, as he pasted it: the personal Apple ID **only in Xcode › Settings › Accounts**, never signed in to macOS, iCloud Drive off; building and testing allowed; no server open to the Internet on it; the Developer Program never expensed; infosec asked before publishing from it. Phase 0 and the AltServer refresh run here |
+| B6 | Which iPad: model, RAM, iPadOS version | **Decided 2026-11-12:** iPad Pro 11-inch (4th generation, M2, 8 GB); the iPadOS version still to read on the device |
 | B7 | Whether PAL accepts an app that serves on the LAN (notarization) — answered by Apple's review, not by the maintainer | Submit after Phase 1 |
 | B8 | Whether iPadOS is reachable through PAL in Brazil — answered by AltStore or a test | Ask AltStore; observe |
 | B9 | The App Store: funding, timing | After PAL |
-| B10 | Which Apple ID signs the app on the iPad: his personal one, already on it, or one made for this | — |
+| B10 | Which Apple ID signs the app on the iPad: his personal one, already on it, or one made for this | **Decided 2026-11-12:** his personal Apple ID, already on the iPad |
 | B11 | PAL: Verso listed in Brazil only, or the EU and Japan too (the EU asks for trader details) | — |
-| B12 | Whether the iPad is a server at all (0118 item 3 was the phone as a mini server) | Yes, only while on screen (A2) |
-| B13 | Where the iPad's notes live in v1: the app's private folder (as Android, deleted with the app unless synced) or a picked folder / iCloud Drive | Private folder, picked folder deferred, as Android |
-| B14 | The same off list as Android (terminal, CLI, windows, audio capture…); the updater off, the AltStore source updating | Yes |
+| B12 | Whether the iPad is a server at all (0118 item 3 was the phone as a mini server) | **Decided 2026-11-12:** as recommended |
+| B13 | Where the iPad's notes live in v1: the app's private folder (as Android, deleted with the app unless synced) or a picked folder / iCloud Drive | **Decided 2026-11-12:** as recommended |
+| B14 | The same off list as Android (terminal, CLI, windows, audio capture…); the updater off, the AltStore source updating | **Decided 2026-11-12:** as recommended |
 | B15 | A check of the distribution-signed build on his iPad with the paid account: TestFlight (nobody has weighed it yet) | — |
 | A1 | Memory on the iPad with a board open; the increased-memory entitlement (a task: Phase 0 measures and records) | Recorded only in Phase 0; a pass number after |
 | A2 | Whether serving only on screen is enough, and what the window says when iOS suspends it | Say it in the server's panel |
 | A2a | Keep the screen awake while serving (the iPad locks after a few minutes and suspends the app; battery) | — |
 | A2b | After a suspension the listening socket may be gone: the server listens again when the app returns, and what the window says | Listen again; say it |
 | A2c | A sync in flight when the app leaves the screen (0118 item 6 is Android's): stop and resume, or `beginBackgroundTask` / scheduled background tasks | Stop and resume on return |
-| A3 | `cloudflared` as a linked library (gomobile) or the link off on iOS | Off in v1 |
-| A4 | mDNS: request the multicast entitlement (paid account) or announce through Apple's Bonjour API (`NSBonjourServices`) | QR/address in v1 |
+| A3 | `cloudflared` as a linked library (gomobile) or the link off on iOS | **Decided 2026-11-12:** as recommended (`cloudflared` off on iOS in v1) |
+| A4 | mDNS: request the multicast entitlement (paid account) or announce through Apple's Bonjour API (`NSBonjourServices`) | **Decided 2026-11-12:** as recommended (QR/address in v1) |
 | A5 | Show the private folder in Files | — |
-| A6 | Exclude the folder and `servers.json` from iCloud backup, as Android's A9 | Exclude (as A9) |
+| A6 | Exclude the folder and `servers.json` from iCloud backup, as Android's A9 | **Decided 2026-11-12:** as recommended (excluded from iCloud backup) |
 | A7 | Whether v1 is in V1's scope (Android is, 0118 A7 decided 2026-11-10) | — |
 | A8 | VoiceOver pass (a task, not a question) | Phase 1's acceptance, as 0118 A5 |
 | A9 | Classic: unsigned `.ipa` vs development-signed; the bundle id after re-signing | Phase 1 observes |
 | A10 | The iPhone's layout without an iPhone: the harness's 390×844 projects (0076), and/or the iOS Simulator that comes with Xcode (the real WKWebView) | — |
-| A11 | The Personal Team's id kept out of the committed `gen/apple` (from the environment) | Yes |
+| A11 | The Personal Team's id kept out of the committed `gen/apple` (from the environment) | **Decided 2026-11-12:** as recommended |
 | A12 | Whether the name "Verso" is free in App Store Connect | Check at the app record (Phase 2) |
 | A13 | How the iOS differences cross the contract: new `Can` values or something else (§9) | — |
 
@@ -390,6 +393,10 @@ None recorded. The App Store first was not discarded: it comes later (item
 2.3). SideStore is mentioned, not weighed.
 
 ## Status
+
+**Item 10 answered in part (2026-11-12):** B1, B2, B3, B5, B6, B10, B12–B14,
+A3, A4, A6 and A11 decided (their rows); A5, A7 and B11 still `[OPEN]`; B4,
+B7–B9, B15 and the build's rows as they were.
 
 **Accepted (2026-11-10)** for items 1–3 in the maintainer's words (Source):
 the iOS app, the two flows (PAL for the iPhone, Classic for the iPad), the
