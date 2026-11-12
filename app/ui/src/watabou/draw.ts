@@ -15,11 +15,11 @@ import type { Cell, Door, Dungeon } from "./dungeon";
  *  grid step, so the rooms sit on the board's grid when it is on. */
 export const CELL = 40;
 
-const INK = "#1e1e1e";
-const FLOOR = "#ffffff";
-const WATER = "#d0ebff";
-const SANS = 6; // Nunito, the board's sans font
-const LINE_HEIGHT = 1.35;
+export const INK = "#1e1e1e";
+export const FLOOR = "#ffffff";
+export const WATER = "#d0ebff";
+export const SANS = 6; // Nunito, the board's sans font
+export const LINE_HEIGHT = 1.35;
 
 /** A drawn element, partial: the board restores the rest. */
 export type Drawn = Record<string, unknown> & { id: string; type: string; x: number; y: number; width: number; height: number };
@@ -145,7 +145,7 @@ function simplify(pts: [number, number][]): [number, number][] {
 
 /** Runs of cells along each row, the same run on the rows below joined
  *  to it, as boxes: water drawn in few shapes. */
-function runs(cells: Cell[], keep: (c: Cell) => boolean): { x: number; y: number; w: number; h: number }[] {
+export function runs(cells: Cell[], keep: (c: Cell) => boolean): { x: number; y: number; w: number; h: number }[] {
   const rows = new Map<number, number[]>();
   const seen = new Set<string>();
   for (const c of cells) {

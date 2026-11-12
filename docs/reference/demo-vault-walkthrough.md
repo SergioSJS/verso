@@ -1524,16 +1524,27 @@ the folder `Campanha Fractal/` beside it ([ADR
    doors, water and columns drawn by Verso, the room numbers where the
    generator puts them, matching the note's list, and the note as a card.
    Double-click the drawing and move a wall: it is an ordinary drawing. Import
-   the same files again: the folder is *“… 2”*, the first untouched. Save a
-   region at watabou.github.io/perilous-shores and import it: one note,
-   *Cidades*, *Perigos*, *Lugares*; click a town: its note is made with its
-   description, `seed` and *Abrir no gerador*. A city's JSON is named, not
+   the same files again: the dialog offers the folder of the last import
+   (not the new map's folder in front); the folder is *“… 2”*, the first
+   untouched. Save a region at watabou.github.io/perilous-shores and import
+   it: one note, *Cidades*, *Perigos*, *Lugares*; click a town: its note is
+   made with its description, `seed`, the generator embedded at that seed
+   (asked about once) and *Abrir no gerador*. Export a house at
+   watabou.github.io/dwellings (*Export › as JSON*) and import it: *Dwellings
+   “…”: N andares, M cômodos, com o desenho.*; the note says the house in a
+   sentence and lists every room under *Porão (B)*, *Térreo (GF)*, *1º andar
+   (1F)*…, with its squares, doors, stairs and windows; the board has one
+   frame per floor, side by side, the stairs at the same spot in each, rooms
+   named as in the note (*Room 1*, *Room 2* where a floor has two), the
+   windows over the outer walls, the entrance's arrow, a spiral stair as a
+   round tower. A city's JSON is named, not
    imported. ⌘⇧P › *Novo mapa gerado…*: pick a generator, the seed drawn (or
    typed), *Criar nota*: the note embeds the generator (asked about once)
    with `seed` in its properties. Level: H (the import, the drawing, the
    region, the generated note); A (the generator's *Export* inside the note
    saving into the folder, `docs/reference/manual-checks.md`); E:
-   `watabou-import.spec.mjs`; U: `test/watabou.test.mjs`.
+   `watabou-import.spec.mjs`; U: `test/watabou.test.mjs`,
+   `test/watabouHouse.test.mjs`.
 
 ## 15. Structured data as a diagram (note 16, the sample files)
 

@@ -8,7 +8,10 @@
   nosso desenho"* (an imported dungeon: let's make our own drawing). On
   downloads from an embedded page (ADR 0056): *"deveria ser SIM!"* (it should
   be YES!). The other answers came as choices of the report's options,
-  relayed by the main session; no other words of his are recorded.
+  relayed by the main session; no other words of his are recorded. Later
+  the same day, to the four `[OPEN]` questions below (Q1–Q4), accepting the
+  four recommendations: *"ok para watabou"*; the answers' detail (what
+  Dwellings' drawing and note hold) came relayed by the main session.
 - Status in the briefing: not present
 - Builds on: [0056](0056-embedded-web-pages.md) (revised by item 6),
   [0057](0057-board-json-canvas.md) (the board's drawing),
@@ -59,6 +62,24 @@ nothing.
    Verso (open source, MPL-2.0), with attribution, no redistribution of his
    code, links back. The maintainer sends it himself; drafted outside the
    repository.
+
+**Decided on 2026-11-12 by the maintainer**, answering Q1–Q4 with *"ok para
+watabou"* (the four recommendations accepted), items 8–11.
+
+8. **A town's or a danger's note made on click embeds its generator** at
+   its seed (the address the region's JSON gives), as item 5's note does.
+   (Q1.)
+9. **One Page Dungeon door numbers 0, 8 and 9 stay drawn as open ways**
+   until a sample shows otherwise. (Q2.)
+10. **The next generator imported is Dwellings** (houses): floors, named
+    rooms, doors, windows, stairs, and the walls stored as the dungeon's
+    are (`verso.walls`). Drawn with Verso's own drawing, an editable board,
+    one board or one frame per floor; the note holds the house's
+    description and its room list. Samples are taken from the generator
+    (its page, or the export format read from its code); his code is never
+    redistributed. (Q3.)
+11. **A board with the region's hex map comes later**, with the table's
+    maps (0110). Recorded, not built. (Q4.)
 
 ### How it was built — the author's reading, for the maintainer to confirm
 
@@ -149,11 +170,80 @@ address — loaded through 0056's gate (the site asked about once).
   export, opens the import with it. No `std::fs` in the host; the copy into
   the folder is the core's. The temporary file is left to the system.
 
+**A house of Dwellings** (item 10; `dwelling.ts`, `drawHouse.ts`,
+`houseNote.ts`), the author's reading:
+
+- **The export** (*Export › as JSON*) was read from the generator's page
+  code (its `JsonExporter`) and captured from the page itself (v1.4.x,
+  2026-11-12, six houses; two are the tests' samples): `floors[]`, each with
+  `level` (0 the ground floor, up from there, -1 the basement, listed
+  last), `rooms[]` (`cells` of a grid, `i` the row and `j` the column; a
+  `name` when the generator gave one), `doors[]` (`edge`: a cell and the
+  side, `n`/`e`/`s`/`w`; `type` `REGULAR`, `DOORWAY`, `NULL` or none),
+  `windows[]` (edges), `stairs[]` (a cell, a direction, `up`); then the
+  house's `exit` and, when it has one, its `spiral` stair. **No seed and no
+  name**: the file is named after the house (`castle_by_the_sea.json`), so
+  the title comes from the file's name, each word capitalised as the
+  generator writes it. Recognised by its content (`floors` whose first has
+  `rooms`).
+- **Doors**, from how the generator draws them: `REGULAR` a door (a leaf in
+  a gap of half a cell), `DOORWAY` or no type a gap of half a cell with no
+  leaf, `NULL` the wall left out the whole side; `exit` the house's
+  entrance (a door, an arrow coming in); the spiral's side a gap.
+- **The board**: one **frame** (the canvas's group) per floor, named
+  *Porão (B)*, *Térreo (GF)*, *1º andar (1F)*… (the generator's own short
+  names in brackets), side by side from the basement up, every floor on the
+  house's whole grid, so a floor's stairs sit where the next floor's do;
+  each floor's elements in one Excalidraw group inside its frame, so
+  dragging the frame moves its drawing. Walls on every side of a cell
+  between two rooms (thin) or a room and the outside (thick), collinear
+  stretches joined; windows as a pane over the outer wall; stairs as steps,
+  an arrow the way up; a spiral stair as a round tower at the corner the
+  generator turns it round, under the floor. Room names in each room's
+  largest box; two of one name on a floor are numbered (*Room 1*,
+  *Room 2*), and a room the generator left unnamed is called *Escada* /
+  *Stairs* when it holds a stair, else *Passagem* / *Passage* — in the note
+  only, the drawing leaves it unnamed as the generator does. The house's
+  note is a card beside the floors.
+- **The note**: properties `generator: "dwellings"`, `map`, `export`,
+  `credit` (no `seed`: none came); the house in one sentence (floors,
+  basement, rooms, the entrance's side and room); then each floor as a
+  heading and each room as a list item with its size in squares, its doors
+  and where they lead, the entrance, stairs up or down, the spiral stair
+  and its windows — the drawing's **text equivalent** (0035), with the same
+  names. The rooms' names are the generator's, in English; Verso's words
+  follow the interface's language.
+- **The walls**, as the dungeon's, with what a house adds:
+
+  ```json
+  "walls": {"version": 1, "generator": "dwellings", "cell": 40,
+    "lines": [[x1, y1, x2, y2], …],
+    "doors": [{"line": […], "type": "REGULAR", "kind": "door", "level": 0}, …],
+    "windows": [{"line": […], "level": 0}, …],
+    "floors": [{"level": -1, "frame": "wh-floor-b1", "box": [x, y, w, h]}, …]}
+  ```
+
+  `lines` are the solid walls of every floor (a window's wall included:
+  one cannot walk through it); a door's `line` is its gap (`kind`
+  `door`, `doorway`, `opening` or `entrance`); `windows` the stretch one
+  sees through; `floors` say which box is which floor. Floors never share
+  a segment, each lying in its own frame.
+
+**The import's folder** (a bug of the first round: a second import offered
+the folder of the tab in front, which right after an import is the new
+map's own folder, so the second map landed inside the first): of the two
+ways the main session relayed, the simpler is taken — the dialog offers the
+folder the person last imported into, while it exists, and before any
+import the folder of the tab in front. Remembered for the window's session
+only. A folder's **New** menu still offers that folder. The author's
+reading.
+
 ## Consequences
 
 - Verso writes Watabou's generated maps into the folder as Markdown, JSON
   Canvas and the original exports: all readable in Obsidian.
-- The board gains a `verso.walls` key that only this import writes.
+- The board gains a `verso.walls` key that only this import writes: a
+  dungeon's, and a house's with its floors and windows.
 - ADR 0056's sandbox list and its navigation allowance grow by one item
   each; recorded there and in the threat model.
 - What only the real app shows — a download from an iframe reaching the
@@ -171,15 +261,18 @@ address — loaded through 0056's gate (the site asked about once).
 
 ## Status
 
-Accepted on 2026-11-12 by the maintainer, in session: items 1–7. The
-mechanism under them is the author's, built under that decision and
-labelled as such above. `[OPEN]`, for the maintainer:
+Accepted on 2026-11-12 by the maintainer, in session: items 1–7; then
+items 8–11 the same day (*"ok para watabou"*), closing the four questions
+that were `[OPEN]` here, each as recommended:
 
-- **Q1.** Should a town's or danger's note, made on click, embed its
-  generator (as item 5's note does)? Recommended: yes, the same note.
-- **Q2.** Door numbers 0, 8 and 9: drawn as open ways until observed.
-  Recommended: keep, revisit when a sample shows them.
-- **Q3.** Next generators: Dwellings (rooms, doors, windows per floor, walls
-  as for the dungeon), then the city's districts. Recommended: Dwellings.
-- **Q4.** The region's hex map as a board. Recommended: later, with the
-  table's maps.
+- **Q1** → item 8: a town's or danger's note made on click embeds its
+  generator. Built.
+- **Q2** → item 9: door numbers 0, 8 and 9 stay open ways until a sample
+  shows them. Unchanged.
+- **Q3** → item 10: Dwellings is the next generator. Built (a frame per
+  floor, the note, the walls). The city's districts are not decided.
+- **Q4** → item 11: the region's hex map as a board, later, with the
+  table's maps. Not built.
+
+The mechanism under every item is the author's, built under these
+decisions and labelled as such above.

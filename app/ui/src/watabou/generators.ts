@@ -8,7 +8,7 @@
 // with the seed it drew — kept in the note's properties, so that the same
 // map can be made again. Pure.
 
-import { CREDIT, type NoteWords, frontMatter, webLink } from "./notes";
+import { CREDIT, type NoteWords, frontMatter, generatorFrame, webLink } from "./notes";
 import { WATABOU } from "./region";
 
 /** The generators whose address takes a seed, by the first part of their
@@ -58,6 +58,5 @@ export function generatedNote(slug: string, seed: number, title: string, name: s
     ["generator_link", link],
     ["credit", CREDIT],
   ]);
-  const src = link.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-  return `${props}# ${title}\n\n<iframe src="${src}" style="width: 100%; height: 640px; border: 0;"></iframe>\n\n${webLink(w.openGenerator, link)}\n`;
+  return `${props}# ${title}\n\n${generatorFrame(link) ?? ""}\n\n${webLink(w.openGenerator, link)}\n`;
 }
