@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { seededText } from "./watabou/seeded";
 import { sharedUnder } from "./shares";
 import { sh } from "./shareStrings";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -215,17 +216,20 @@ export function unportable(typed: string): boolean {
   return true;
 }
 /** `quietTaken`: a name already taken is answered "exists", unsaid, for
- *  the caller to try another. */
-export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false, quietTaken = false): Promise<"exists" | void> {
+ *  the caller to try another. `from`: the note whose link is followed to
+ *  make this one — a region imported from Watabou's Perilous Shores gives a
+ *  town or a danger its first text (ADR 0120 item 4). */
+export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false, quietTaken = false, from?: string): Promise<"exists" | void> {
   const clean = nameTyped.trim().replace(/\.md$/i, "");
   // A note's file name ends in `.md`: a dot before it is kept by Windows.
   if (!clean || unlinkable(clean) || unportable(`${clean}.md`)) return;
   const path = folder ? `${folder}/${clean}` : clean;
-  let initialText = `# ${clean.split("/").pop() ?? clean}\n\n`;
+  const seeded = from ? await seededText(from, clean) : null;
+  let initialText = seeded ?? `# ${clean.split("/").pop() ?? clean}\n\n`;
   // The folder's template, when it names one; else the note offers the
   // templates folder's under its title (ADR 0068).
-  let fromFolder = false;
-  const fn = folder ? folderNoteOf(folder) : null;
+  let fromFolder = seeded !== null;
+  const fn = folder && !seeded ? folderNoteOf(folder) : null;
   if (fn) {
     try {
       const read = await opening.readNote(fn);
