@@ -336,6 +336,15 @@ export const commands = {
 	webBounds: (label: string, place: WebPlace) => typedError<null, ContractError>(__TAURI_INVOKE("web_bounds", { label, place })),
 	/**  Show or hide a web page's view (its tab left the front, an overlay opened). */
 	webVisible: (label: string, visible: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("web_visible", { label, visible })),
+	/**
+	 *  A picture of a web page's view as it shows now, as a `data:` address
+	 *  (`image/jpeg`, or `image/png` where the system writes no JPEG): the
+	 *  window shows it in the page's place while an overlay is open, so the
+	 *  page seems to stay behind it instead of vanishing (ADR 0056, revision of
+	 *  2026-11-12). A platform that cannot draw one answers an error, and the
+	 *  window hides the page as before; that is said once a page in the log.
+	 */
+	webSnapshot: (label: string) => typedError<string, ContractError>(__TAURI_INVOKE("web_snapshot", { label })),
 	/**  Close a web page's view (its tab closed). */
 	webClose: (label: string) => typedError<null, ContractError>(__TAURI_INVOKE("web_close", { label })),
 	/**  Back, forward, reload, or go to another http(s) address. */

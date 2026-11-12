@@ -821,6 +821,7 @@ macro_rules! commands_for {
                 web_open::<$runtime>,
                 web_bounds::<$runtime>,
                 web_visible::<$runtime>,
+                web_snapshot::<$runtime>,
                 web_close::<$runtime>,
                 web_nav::<$runtime>,
                 web_url::<$runtime>,
@@ -1480,3 +1481,5 @@ mod tests_sync_data;
 mod tests_sync_rename;
 #[cfg(test)]
 mod tests_terminal;
+#[cfg(test)]
+mod tests_web;

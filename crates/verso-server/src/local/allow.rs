@@ -212,6 +212,7 @@ pub const REFUSED: &[&str] = &[
     "web_open",
     "web_bounds",
     "web_visible",
+    "web_snapshot",
     "web_close",
     "web_nav",
     "web_url",

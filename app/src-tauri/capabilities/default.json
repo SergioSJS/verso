@@ -71,6 +71,7 @@
     "allow-web-open",
     "allow-web-bounds",
     "allow-web-visible",
+    "allow-web-snapshot",
     "allow-web-close",
     "allow-web-nav",
     "allow-web-url",

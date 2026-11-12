@@ -30,6 +30,10 @@
 //! never outlives the call that read it. If a platform cannot build the
 //! container, that view falls back to what came before — cut to the
 //! visible part, the page's top shown — with one WARN in the log.
+//!
+//! The same platform files draw a picture of a page (`snapshot`, ADR 0056,
+//! revision of 2026-11-12): the window shows it in the page's place while
+//! an overlay is open, since nothing of the DOM can draw over the view.
 
 pub(crate) mod geometry;
 
@@ -64,10 +68,14 @@ mod platform {
     }
     pub(super) fn show(_: &tauri::webview::PlatformWebview, _: bool) {}
     pub(super) fn release(_: &tauri::webview::PlatformWebview) {}
+    pub(super) fn snapshot(_: &tauri::webview::PlatformWebview, done: super::Done) {
+        let _ = done.send(Err("no picture of a page on this platform".to_owned()));
+    }
 }
 
 use std::collections::BTreeSet;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use geometry::{Rect, frames};
 use verso_service::lock;
@@ -169,4 +177,40 @@ pub(crate) fn show<R: tauri::Runtime>(wv: &tauri::Webview<R>, visible: bool) {
 pub(crate) fn release<R: tauri::Runtime>(wv: &tauri::Webview<R>) {
     lock(&FELL_BACK).remove(wv.label());
     let _ = wv.with_webview(|pw| platform::release(&pw));
+}
+
+/// A picture of a page as it shows now: an encoded image and its type.
+pub(crate) struct Picture {
+    pub(crate) mime: &'static str,
+    pub(crate) bytes: Vec<u8>,
+}
+
+/// Where a platform hands its picture, from the main thread, whenever the
+/// engine has drawn it.
+type Done = tokio::sync::oneshot::Sender<Result<Picture, String>>;
+
+/// How long a picture may take before the page is given up on: the window
+/// has hidden the page long before (it waits about 150 ms), and a late
+/// picture is still shown while the overlay stays.
+const PICTURE_WAIT: Duration = Duration::from_secs(2);
+
+/// A picture of the page's view, laid out as it is now (the slot's whole
+/// size): what the window shows in the page's place while something floats
+/// over it, so that the page seems to stay behind the overlay (ADR 0056,
+/// revision of 2026-11-12). A view cut to its visible part (`FELL_BACK`)
+/// has no picture of its slot, and a platform without a way to draw one
+/// answers an error: the window then hides the page, as before.
+pub(crate) async fn snapshot<R: tauri::Runtime>(wv: &tauri::Webview<R>) -> Result<Picture, String> {
+    if fell_back(wv.label()) {
+        return Err("the page is cut to the part that shows; no picture of its box".to_owned());
+    }
+    let (done, picture) = tokio::sync::oneshot::channel();
+    wv.with_webview(move |pw| platform::snapshot(&pw, done))
+        .map_err(|e| e.to_string())?;
+    match tokio::time::timeout(PICTURE_WAIT, picture).await {
+        Ok(Ok(answer)) => answer,
+        // The platform's call never ran, or dropped its answer.
+        Ok(Err(_)) => Err("the page's view gave no picture".to_owned()),
+        Err(_) => Err("the page's picture took too long".to_owned()),
+    }
 }
