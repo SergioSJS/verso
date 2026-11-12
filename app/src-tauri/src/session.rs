@@ -183,14 +183,27 @@ pub(crate) fn restore<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         "host",
         &format!("reopening {} window(s) of the last session", keys.len()),
     );
+    // A file handed at launch (a double-click on a note that started the
+    // app, `open -a`) waits for a window too: handed over as usual, the
+    // first folder took the main window and the file was left in the
+    // queue with no window to open it. Each folder then gets a window of
+    // its own, and the file and the folders one window each.
+    let file_waiting = !crate::lock(&app.state::<App>().initial_file).is_empty();
+    let hand = |handed: Handed| {
+        if file_waiting {
+            in_a_window_of_its_own(app, handed);
+        } else {
+            hand_over(app, handed);
+        }
+    };
     for key in keys {
         if let Some((url, folder)) = parse_server_key(&key) {
-            hand_over(app, Handed::Server(url, folder));
+            hand(Handed::Server(url, folder));
         } else if let Some(path) = kept::folder_for_key(&key, config.as_deref()) {
             // The folder named on the command line is already waiting.
             let waiting = crate::lock(&app.state::<App>().initial_folder).contains(&path);
             if !waiting {
-                hand_over(app, Handed::Path(path));
+                hand(Handed::Path(path));
             }
         } else {
             log::write(
@@ -199,6 +212,28 @@ pub(crate) fn restore<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
                 &format!("a window of the last session is not reopened: folder {key} is gone"),
             );
         }
+    }
+}
+
+/// `handed` waits in line and a new window is made for it: the window
+/// takes the next folder or file waiting as it starts (`open_initial`).
+#[cfg(desktop)]
+fn in_a_window_of_its_own<R: tauri::Runtime>(app: &tauri::AppHandle<R>, handed: Handed) {
+    {
+        let state = app.state::<App>();
+        match handed {
+            Handed::Path(folder) => crate::lock(&state.initial_folder).push_back(folder),
+            Handed::Server(url, folder) => {
+                crate::lock(&state.initial_server).push_back((url, folder))
+            }
+        }
+    }
+    if let Err(e) = crate::windows::open_folder_window(app, None) {
+        log::write(
+            "ERROR",
+            "host",
+            &format!("no window for a folder of the last session: {e}"),
+        );
     }
 }
 
@@ -459,6 +494,49 @@ mod tests {
         crate::folder_handed(app.handle(), vault.path().to_path_buf());
         assert_eq!(told.load(Ordering::SeqCst), 0);
         assert_eq!(app.webview_windows().len(), windows + 1);
+    }
+
+    /// A note handed at launch while the last session comes back (`open -a
+    /// Verso nota.md` with the app closed, 2026-11-12): the note and the
+    /// session's folder open, one window each; before, the folder took the
+    /// main window and the note was left waiting with no window.
+    #[test]
+    fn a_file_handed_at_launch_and_the_last_session_both_open() {
+        use serde_json::json;
+        let one = tempfile::tempdir().unwrap();
+        let loose = tempfile::tempdir().unwrap();
+        let _a = crate::tests::note(one.path(), "A.md", "# A\n");
+        let _n = crate::tests::note(loose.path(), "Decisões.md", "# D\n");
+        let (app, main) = crate::tests::app_with(Some(one.path().to_path_buf()));
+        let key = crate::tests::call(&main, "open_initial", json!({})).unwrap()["info"]["key"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let config = app.state::<App>().service.config().map(Path::to_path_buf);
+        // The next start: the set holds the folder, and a note was handed
+        // before the main window opened.
+        app.state::<App>().service.release("main");
+        kept::keep_open_windows(config.as_deref(), std::slice::from_ref(&key)).unwrap();
+        crate::lock(&app.state::<App>().initial_file).push_back(loose.path().join("Decisões.md"));
+        let before: Vec<String> = app.webview_windows().into_keys().collect();
+        restore(app.handle());
+        let made: Vec<String> = app
+            .webview_windows()
+            .into_keys()
+            .filter(|l| !before.contains(l))
+            .collect();
+        assert_eq!(made.len(), 1, "the folder gets a window of its own");
+        let other = app.get_webview_window(&made[0]).unwrap();
+        let first = crate::tests::call(&main, "open_initial", json!({})).unwrap();
+        let second = crate::tests::call(&other, "open_initial", json!({})).unwrap();
+        let mut kinds = [
+            first["kind"].as_str().unwrap().to_owned(),
+            second["kind"].as_str().unwrap().to_owned(),
+        ];
+        kinds.sort();
+        assert_eq!(kinds, ["file", "folder"]);
+        assert!(crate::lock(&app.state::<App>().initial_file).is_empty());
+        assert!(crate::lock(&app.state::<App>().initial_folder).is_empty());
     }
 
     /// Every folder window's close says why in one line, with the label and

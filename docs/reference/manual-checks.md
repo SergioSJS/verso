@@ -541,6 +541,12 @@ in a note long enough to scroll.
   *Baixando 3 arquivos do iCloud…* and all three move; one alone renamed
   and one sent to the bin come down first too. Offline: nothing moves and
   the status names the file.
+- [ ] **A note opened with Verso closed** (A, ADR 0114 + 0065, fixed
+  2026-11-12): with a folder open, quit Verso (⌘Q); in Finder, double-click a
+  `.md` outside that folder (or `open -a "Verso Beta" nota.md`): the folder
+  of the last session comes back in its window and the note opens in a
+  window of its own; the log shows *a file handed at launch* then
+  *reopening 1 window(s)*.
 - [ ] **Download from the sync card, on real evicted files** (A, ADR 0043,
   2026-10-27): on the Mac, a folder in iCloud Drive that syncs with a server,
   some files sent back to the cloud (*Remove Download* in Finder) that sync
