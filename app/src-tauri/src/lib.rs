@@ -82,9 +82,9 @@ mod secrets;
 mod session;
 mod shared;
 mod shares;
+mod storage;
 mod sync;
 mod sync_commands;
-mod storage;
 mod table;
 mod terminal;
 mod trash;
@@ -92,6 +92,7 @@ mod trash;
 mod tray;
 mod tunnel;
 mod update;
+mod update_source;
 mod version;
 mod web;
 mod web_clip;
@@ -858,11 +859,11 @@ macro_rules! commands_for {
                 set_menu_commands::<$runtime>,
                 mobile::set_bars_dark::<$runtime>,
                 shared::take_shared,
-                set_menu_enabled::<$runtime>,
-                menu_sections,
                 storage::shared_storage,
                 storage::shared_storage_access,
                 storage::open_shared_folder::<$runtime>,
+                set_menu_enabled::<$runtime>,
+                menu_sections,
                 quit_app::<$runtime>,
                 reindex::<$runtime>,
                 capabilities::<$runtime>,

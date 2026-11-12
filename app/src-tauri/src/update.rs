@@ -13,6 +13,10 @@ use verso_contract::{ContractError, ErrorKind, InstallResult, UpdateInfo, Update
 use crate::version::ParsedVersion;
 
 pub(crate) fn github_token() -> Option<String> {
+    // A token goes to GitHub only (update_source.rs).
+    if !crate::update_source::SOURCE.is_github() {
+        return None;
+    }
     if let Ok(tok) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")) {
         let t = tok.trim();
         if !t.is_empty() {
@@ -64,13 +68,8 @@ pub(crate) struct GhAsset {
     digest: Option<String>,
 }
 
-/// The one repository updates come from. The API URL is built from this
-/// constant and every asset URL is checked against it — the UI never
-/// chooses where an update is downloaded from.
-pub(crate) const UPDATE_REPO: &str = "SergioSJS/verso";
-
-/// Fetches the releases of `UPDATE_REPO` — the only place updates are
-/// looked for.
+/// Fetches the releases of the one place updates come from, fixed when the
+/// app is built (update_source.rs) — the UI never chooses it.
 pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
     let current_str = env!("CARGO_PKG_VERSION");
     let client = reqwest::blocking::Client::builder()
@@ -83,9 +82,7 @@ pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
         })?;
 
     let mut req = client
-        .get(format!(
-            "https://api.github.com/repos/{UPDATE_REPO}/releases"
-        ))
+        .get(crate::update_source::SOURCE.releases_url())
         .header("Accept", "application/vnd.github.v3+json");
     if let Some(token) = github_token() {
         req = req.header("Authorization", format!("Bearer {token}"));
@@ -103,7 +100,9 @@ pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
         {
             "Limite de requisições da API do GitHub atingido. Tente novamente mais tarde."
                 .to_string()
-        } else if status == reqwest::StatusCode::NOT_FOUND {
+        } else if status == reqwest::StatusCode::NOT_FOUND
+            && crate::update_source::SOURCE.is_github()
+        {
             // A private repository answers 404 to a request without a
             // credential; the likeliest cause is the missing token, not
             // a repository that vanished.
@@ -261,20 +260,11 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
 }
 
 /// A download URL is trusted only when it names an asset of
-/// `UPDATE_REPO`'s own releases — not merely any GitHub URL. The
+/// the release place's own files (update_source.rs) — not merely any URL. The
 /// redirect GitHub answers with is followed by the client internally;
 /// what is validated is where the download starts.
 pub(crate) fn is_trusted_update_url(url: &str) -> bool {
-    let Ok(parsed) = reqwest::Url::parse(url) else {
-        return false;
-    };
-    if parsed.scheme() != "https" {
-        return false;
-    }
-    let release_download = format!("https://github.com/{UPDATE_REPO}/releases/download/");
-    let api_asset = format!("https://api.github.com/repos/{UPDATE_REPO}/releases/assets/");
-    let s = parsed.as_str();
-    s.starts_with(&release_download) || s.starts_with(&api_asset)
+    crate::update_source::SOURCE.trusts(url)
 }
 
 /// Whether a release asset is an installer run as downloaded (Windows'
@@ -388,7 +378,7 @@ pub(crate) const UPDATE_MAX_BYTES: u64 = 1024 * 1024 * 1024; // 1 GiB
 
 /// Downloads and installs an update directly from within the app.
 ///
-/// The command takes no URL: the host asks `UPDATE_REPO`'s API for the
+/// The command takes no URL: the host asks the release place for the
 /// releases again, picks the asset for this platform itself, and
 /// verifies the download against the `sha256` digest the API reports and
 /// against the release's checksums list, signed with Verso's release key,
