@@ -58,9 +58,13 @@
   code stays private (item 10). F-Droid: not now.
   2026-11-12, afternoon — the maintainer answered the six questions of the
   round (`decisoes-2026-11-12-tarde.md` §1), leaving five recommendations
-  marked and changing one, 1.5, to *"Resolver agora"* (solve it now): the
-  installers in a public GitHub repository that holds only the releases
-  (10.3); a beta beside the release with its own `.beta` id (A3); background
+  marked and changing one, 1.5, to *"Resolver agora"* (solve it now); and
+  then 1.1, the place of the installers: *"Usa os links como estão agora de
+  release, mesmo ele estando privado, porque daqui a pouco quando a gente
+  tiver pelo menos uma versão certa de cada um dos ambientes, a gente já
+  libera o código"* (use the release links as they are now, even with the
+  repository private, because soon, once there is at least one good version
+  for each platform, the code is opened) (10.3); a beta beside the release with its own `.beta` id (A3); background
   sync without keeping the phone awake (6.3); what is shared goes at the top
   of the open folder (5); the window's files no longer twice in the APK
   (item 7); the source pin of `cloudflared` confirmed (3.3).
@@ -382,12 +386,16 @@ phone).
    environment.
 2. **The release workflow builds the APK** beside macOS, Windows and Linux.
 3. **The installers in a public place while the code stays private**: the
-   updater reads a base address that can be set. **Decided 2026-11-12 (the
-   afternoon): a public GitHub repository that holds only the releases**
-   (for example `SergioSJS/verso-releases`; its name is the maintainer's to
-   confirm), the apps built with `VERSO_UPDATE_REPO` naming it; the release
-   workflow publishes there with a token kept as a secret. Cloudflare R2 was
-   the other option weighed.
+   updater reads a base address that can be set (`VERSO_UPDATE_REPO`,
+   `VERSO_UPDATE_BASE`, an option that changes no default). **Decided
+   2026-11-12 (the afternoon): the release links as they are, this
+   repository's own releases, private for now** — *"daqui a pouco quando a
+   gente tiver pelo menos uma versão certa de cada um dos ambientes, a gente
+   já libera o código"*. No separate place. Weighed and set aside the same
+   day: a public repository holding only the releases, and Cloudflare R2.
+   Consequence: while the repository is private, a phone's updater cannot
+   download (*"Sem acesso ao repositório"*: a phone has no `gh` signed in);
+   it ends when the code is opened, after one good version per platform.
 
 ## Consequences
 
@@ -438,7 +446,7 @@ answered B1, A6, A8 and A9 the same day; A4, A7 and item 5's updater on
 2026-11-10 (Revisions), and Phase 1 started that day; A1 (`minSdk` 29) and
 A2 (the APK only, no Play Store for now) on 2026-11-11; on 2026-11-12, 3.2's
 type, 3.3's build, items 4.4, 5's intents and audio capture, 6.3 and 10
-(but 10.3's place), all into v1; that afternoon 10.3's place (a public
-releases-only GitHub repository), A3's `.beta`, 6.3 without a wake lock, the
+(but 10.3's place), all into v1; that afternoon 10.3's place (this
+repository's own releases, private until the code is opened), A3's `.beta`, 6.3 without a wake lock, the
 shared notes at the folder's top, the window's files once in the APK and the
 `cloudflared` source pin.
