@@ -483,3 +483,22 @@ test("a storage that refuses: the list lives in the window, and the centre says 
   await expect(centre.locator(".notify-item")).toHaveCount(1);
   await expect(centre.getByRole("note")).toHaveText("Este computador não está guardando a lista (o armazenamento do navegador recusou): ela some quando a janela fecha.");
 });
+
+// ADR 0118, 2026-11-12: on a phone a toast that stays (a sync without its
+// server) covered the buttons of a dialog opened after it. It folds away
+// while that dialog shows and comes back when it closes; on a computer it
+// stays where it was.
+test("a standing toast folds away under a dialog opened after it, on a phone @layout", async ({ app, page }) => {
+  await app.open();
+  await say(app, SYNC);
+  await say(app, FAILED);
+  const toast = toasts(page);
+  await expect(toast).toHaveCount(1);
+  await app.key("Mod+,");
+  await expect(page.locator(".settings")).toBeVisible();
+  if (phone(page)) await expect(toast).toBeHidden();
+  else await expect(toast).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".settings")).toBeHidden();
+  await expect(toast).toBeVisible();
+});

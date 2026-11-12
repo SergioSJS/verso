@@ -70,6 +70,24 @@ function build(): HTMLElement {
   return region;
 }
 
+/* On a phone a toast already up when a dialog opens folds away while the
+ * dialog shows: a warning that stays (a sync without its server) covered
+ * the dialog's own buttons on the maintainer's phone (ADR 0118, 2026-11-12).
+ * A toast raised while the dialog is open — the feedback of what was done
+ * in it — still shows. The list of notifications keeps them all. */
+const phoneScreen = typeof window.matchMedia === "function" ? window.matchMedia(PHONE_MEDIA) : null;
+const modalUp = (): boolean =>
+  [...document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]')].some((d) => !d.hidden && d.getClientRects().length > 0);
+addEventListener("verso:overlay", (e) => {
+  const opening = (e as CustomEvent<boolean>).detail;
+  if (opening && phoneScreen?.matches) for (const t of shown) t.el.classList.add("under-dialog");
+  // Closing: once the dialog is gone from the page (its own code removes it
+  // after saying so), and no other is up.
+  else if (!opening) requestAnimationFrame(() => {
+    if (!modalUp()) for (const t of shown) t.el.classList.remove("under-dialog");
+  });
+});
+
 /** Say `text` to a screen reader: assertive for an error. */
 function announce(level: Level, text: string): void {
   build();
