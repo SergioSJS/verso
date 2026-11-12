@@ -96,7 +96,7 @@ Dice, statblocks, oracles and the game table, alone or with other people.
 
 - [[22 - Dice and Random Tables]] — `dice:` in a note rolls dice, a table or list with `^id` draws a row; nothing is written, and in a shared note everyone sees it.
 - [[23 - Statblocks]] — An example of each `statblock` layout, with dice and counters that write to the note, and the layout editor. A complete example, the Fractal, is in the [[Fractal Campaign/World|Fractal Campaign]].
-- [[24 - Oracles and World Building]] — The oracle that writes the answer into the highlight; random tables; the new-project wizard with the tree in view; and each feature's switch in Settings.
+- [[24 - Oracles and World Building]] — The oracle that writes the answer into the highlight; random tables; the new-project wizard with the tree in view; maps from Watabou's generators, drawn by Verso; and each feature's switch in Settings.
 - [[25 - The Table]] — One log of every roll, table roll and oracle question, with who made it and from which note, in the right panel; other people's rolls arrive with their names.
 - [[26 - Running a Table]] — A campaign folder on a UniVerso: inviting the players, notes hidden until you release them, links to what has not appeared yet drawn with a padlock, who edits what, and the table's limits.
 - [[27 - Sound and Music at the Table]] — The game master plays a sound file and everyone at the table hears it at the same point, each with their own volume; a note of sound links becomes the soundboard, and whoever does not see the file does not hear it.

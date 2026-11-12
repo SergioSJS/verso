@@ -40,6 +40,9 @@ import { historyStrings } from "./dialogs/historyStrings";
 import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts";
 import { hasCapability } from "./capabilities";
 import { showWorldWizard } from "./dialogs/worldWizard";
+import { showWatabouImport } from "./watabou/dialog";
+import { showNewMap } from "./watabou/newMap";
+import { ww } from "./watabou/words";
 import { listAll } from "./tree/tree";
 import { clearSelection, enterSelectMode } from "./tree/selection";
 import { openTerminal, terminalOn } from "./terminal/open";
@@ -224,6 +227,8 @@ export function createMenuItems(folder = ""): MenuItem[] {
       : []),
     ...(notes && boards && hasCapability("campaignBundles") ? [[t.newWorld, () => void showWorldWizard(folder), "world"] as MenuItem] : []),
     ...(notes ? [[t.newBase, () => void newBase(folder), "calendar"] as MenuItem] : []),
+    // ADR 0120: a map exported from Watabou's generators.
+    ...(notes ? [[ww.command, () => showWatabouImport(folder), "foldedMap"] as MenuItem, [ww.newMap, () => showNewMap(folder), "foldedMap"] as MenuItem] : []),
     ...(boards ? [[boardText.newBoard, () => void newBoard(folder || settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")), "board"] as MenuItem] : []),
     ...(notes ? [[t.newWebPage, () => newWebPagePrompt(folder), "globe"] as MenuItem] : []),
     // Files from the system through its picker, for whoever cannot drag (A11Y.10).

@@ -745,7 +745,7 @@ export class NoteLeaf extends Leaf {
         return;
       }
       // Note does not exist: auto-create note like Obsidian
-      void createNote(dirOf(this.path), notePart, this.pane, false).then(() => {
+      void createNote(dirOf(this.path), notePart, this.pane, false, false, this.path).then(() => {
         if (headingPart && this.pane.active instanceof NoteLeaf) {
           jumpToHeading(this.pane.active, headingPart);
         }

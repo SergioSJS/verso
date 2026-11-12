@@ -108,6 +108,7 @@ import { UpdateController } from "./update";
 import { clearSelection, selectedPaths } from "./tree/selection";
 import { importFile } from "./theme/actions";
 import { installDropHost } from "./dropHost";
+import { installPageDownloads } from "./watabou/pageDownload";
 import { watchSuggestion } from "./theme/suggest";
 
 watchDeskOnPhone();
@@ -458,6 +459,8 @@ installScreen();
 // from.
 installNotify(() => settingsDialog.show("notify"));
 installDropHost();
+// What a page embedded in a note downloads goes into the folder (ADR 0120 item 6).
+installPageDownloads();
 installSources();
 installServerTable();
 installTableSound();

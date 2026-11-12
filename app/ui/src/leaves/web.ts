@@ -76,6 +76,9 @@ function frameableNow(url: string): boolean | undefined {
  *    asks for a window. The desktop host denies every new window (its
  *    view has no handler), so they only matter where a browser shows the
  *    frame; they are the flags of the browser's frame as well.
+ *  - allow-downloads: what the page saves (a generator's "Export") goes
+ *    into the folder, beside the note, in the desktop app; into the
+ *    browser's Downloads in a browser (ADR 0120 item 6, revising ADR 0056).
  *  No allow-top-navigation: the page cannot steer the window. No `allow`
  *  attribute: no camera, microphone, location or other feature is lent to
  *  it. No referrer is sent. */
@@ -85,7 +88,7 @@ export function embedFrame(url: string): HTMLIFrameElement {
   frame.title = url;
   frame.referrerPolicy = "no-referrer";
   frame.setAttribute("loading", "lazy");
-  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
+  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads");
   return frame;
 }
 
