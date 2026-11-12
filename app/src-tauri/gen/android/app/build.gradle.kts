@@ -50,6 +50,12 @@ android {
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "com.versomd.app"
+        // A beta beside the release (ADR 0118 A3, decided 2026-11-12): its
+        // own id, com.versomd.app.beta, and its own name in the launcher.
+        // The release workflow sets VERSO_ANDROID_BETA=1 for a test release.
+        val beta = System.getenv("VERSO_ANDROID_BETA") == "1"
+        if (beta) applicationIdSuffix = ".beta"
+        manifestPlaceholders["appLabel"] = if (beta) "Verso Beta" else "Verso"
         minSdk = 29
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()

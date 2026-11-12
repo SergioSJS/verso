@@ -555,8 +555,8 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "sigs=$(node scripts/release.mjs per-file-signatures)" >> "$GITHUB_OUTPUT"
           case "$EVENT:$version" in
-            push:*-beta.*|workflow_dispatch:*) echo "name=Verso Beta" >> "$GITHUB_OUTPUT" ;;
-            *) echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
+            push:*-beta.*|workflow_dispatch:*) echo "name=Verso Beta" >> "$GITHUB_OUTPUT"; echo "beta=1" >> "$GITHUB_OUTPUT" ;;
+            *) echo "name=Verso" >> "$GITHUB_OUTPUT"; echo "beta=0" >> "$GITHUB_OUTPUT" ;;
           esac
       # The NDK the Gradle build names (app/build.gradle.kts `ndkVersion`)
       # and the platform it compiles against.
@@ -581,6 +581,9 @@ jobs:
           VERSO_ANDROID_KEY_ALIAS: ${{ secrets.VERSO_ANDROID_KEY_ALIAS }}
           VERSO_ANDROID_KEY_PASSWORD: ${{ secrets.VERSO_ANDROID_KEY_PASSWORD }}
           VERSO_ANDROID_REQUIRE_RELEASE_KEY: "1"
+          # A test release installs beside the release (ADR 0118 A3):
+          # com.versomd.app.beta, "Verso Beta".
+          VERSO_ANDROID_BETA: ${{ steps.version.outputs.beta }}
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
             echo "::error::no release key: the VERSO_ANDROID_* secrets are not set (scripts/android/release-key.sh)"
