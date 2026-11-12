@@ -364,7 +364,8 @@ export class SettingsDialog {
       await walkRulesChanged();
       this.paint();
     };
-    if (can("devtools")) add("general", t.devtools, t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
+    // A phone or tablet has no View menu: its window is inspected from a computer.
+    if (can("devtools")) add("general", t.devtools, host() === "mobile" ? t.devtoolsDescMobile : t.devtoolsDesc, () => this.toggle(settings.devtools, (v) => { settings.devtools = v; saveSettings(); }));
     if (can("updates")) add("general", t.checkUpdates, t.checkUpdatesDesc, () => this.toggle(settings.checkUpdates, (v) => { settings.checkUpdates = v; saveSettings(); }));
     add("general", t.appVersion, t.appVersionDesc, () => {
       const wrap = h("div", "setting-version-wrap");
@@ -532,6 +533,9 @@ export class SettingsDialog {
     // a server; then the system's notifications, this machine's (item 9).
     const ns = notifyStrings();
     for (const k of KINDS) {
+      // No updates where the app does not update itself (iOS, the web
+      // window): their row would choose for notices that never come.
+      if (k === "updates" && !can("updates")) continue;
       add("notify", ns.kinds[k], ns.kindsDesc[k], () =>
         this.select(MODES.map((m) => [m, ns.modes[m]] as [Mode, string]), modeOf(settings.notify, k), (v) => {
           settings.notify = { ...settings.notify, [k]: v };

@@ -60,6 +60,9 @@ test release.
 
 ### Fixed
 
+- **On a phone, Settings › General says where the window's console opens** (ADR 0119, 2026-11-12). The line under **Developer console** named *View › Open Console*, a menu a phone does not have; on a phone or tablet it now says the inspector opens on a computer connected to the device, in its browser's developer tools (chrome://inspect for Android).
+- **Settings › Notifications lists Updates only where Verso updates itself** (ADR 0119, 2026-11-12). In a browser's window on a UniVerso, which never shows a new version's notice, the row chose for notices that never came; the desktop and Android keep it.
+- **A server's sign-in page that does not open is said as a failure** (ADR 0119, 2026-11-12). When the app could not open the server's page in the browser, **Settings › Servers** began the error with *That path cannot name a file of the folder*, which is about something else; it now says it could not be done, in the app's words.
 - **Verso is offered under Open with for a `.toml` again on macOS 27** (2026-11-12). macOS 27 types a `.toml` as its own `public.toml`, and Verso named only the older `io.toml`, so Finder did not list it. Both are declared now.
 - **The folder switcher no longer opens behind a web page** (2026-11-12). With a web page open in a tab, the folder list opened under the page and could not be used. Every dialog and popover now hides the page while it is open, as menus already did.
 - **A note opened while Verso was closed opens with the last session** (2026-11-12). Double-clicking a `.md` (or `open -a`) with Verso closed started the app and brought back the folders of the last session, but the note itself never appeared: the first folder took the window the note was waiting for. Now the note and each folder of the last session open, one window each.

@@ -108,4 +108,14 @@ describe("Connecting the desktop app to a server", () => {
     assert.deepEqual(r, unreachable);
     assert.deepEqual(log, ["sign in https://notas.exemplo"]);
   });
+
+  test("a page the host does not open is a failure in its words, not a refused path", async () => {
+    clipboard();
+    const refusing = {
+      ...host(),
+      open: async () => ({ status: "error", error: { kind: "refused", message: "no server's page waits to be opened" } }),
+    };
+    const r = await startSignIn("https://notas.exemplo", { ...refusing, copy: copyWhenKnown });
+    assert.deepEqual(r, { status: "error", error: { kind: "failed", message: "no server's page waits to be opened" } });
+  });
 });
