@@ -354,6 +354,7 @@ allowlist, reader or editor, never owner; 64 connections, 16 per address,
 `app/src-tauri/src/local_server/`). **Changed:** 0096 item 2 (the folders
 ticked in Settings, whole or in part) by D2. **Gone:** 0096 item 11 by D4.
 *2026-11-08 — "phone" here is the window served to a phone's browser; the native Android app of [0118](0118-a-native-android-app-from-the-same-core-and-ui.md) has the desktop app's role: it syncs, and may host.*
+*2026-11-12 — *Keep on at start* (0096 item 1), amended for iOS by the maintainer (*"bora"*, to the question of [0119](0119-an-ios-and-ipados-app-through-altstore.md) B12/A2): iOS may end the app while it serves off the screen (a locked device); a start less than ten minutes after it went away, when the person had turned serving on, serves again by itself once the app is on the screen, and says so; later, serving stays off and says why. Elsewhere, and on iOS after a stop by hand, a start serves only with *Keep on at start*.*
 
 ### D13. Decided 2026-11-03 (was D4; *"gosto de todas sugestões"*) — built
 

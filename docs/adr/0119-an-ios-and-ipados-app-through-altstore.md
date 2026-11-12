@@ -23,6 +23,10 @@
 - Revisions: 2026-11-12 — the maintainer answers part of item 10 (decisions
   doc of 2026-11-12, his recommendations left marked, with his laptop's
   policy pasted for B5); recorded in the table's rows and in Status.
+- Revisions: 2026-11-12 — Phase 0 on his iPad ("Phase 0 on the
+  maintainer's iPad"); B12/A2's serving after a lock built; *"bora"*: a
+  start soon after iOS ended the app while serving serves again (0117 D12
+  amended for iOS).
 - Revisions: 2026-11-12 — the maintainer accepts the recommendations of
   Phase 0 in the Simulator: *"sobre ios, aceito as recomendações"* (on
   iOS, I accept the recommendations); A13–A18 decided in their rows, the
@@ -498,11 +502,130 @@ iPad's, and Phase 0's acceptance still needs the device.
       Simulator's reinstall gave a new path). A folder kept by its
       absolute path, as recents are, then names a place that is gone; the
       own folder is found again at start.
-    - A window on a server's folder gets the app's abilities from a fixed
-      list (`remote_abilities.rs` `APP_ABILITIES`) whatever the platform.
-      On Android and iOS that list names the terminal, windows and child
-      web views; the three new values are filtered by the platform, the
-      older ones are not.
+    - A window on a server's folder got the app's abilities from a fixed
+      list (`remote_abilities.rs` `APP_ABILITIES`) whatever the platform:
+      fixed the same day (`b85bb362e`), filtered by the platform's own.
+
+Phase 0 on the maintainer's iPad (2026-11-12; iPad Pro 11-inch 4th
+generation, iPad14,3, iPadOS 26.6.1 (23G83); facts, measured from this Mac
+over USB; a **debug** build, its Rust unoptimised, so the numbers are a
+floor for a release build, not its measure):
+
+- Signing: his Personal Team (A11: the id from the environment; Tauri
+  writes `DEVELOPMENT_TEAM` into `project.pbxproj` at each build, a local
+  change restored, never committed). The team had no device: the first
+  build was an `xcodebuild -allowProvisioningDeviceRegistration
+  -destination id=<UDID>`, which registered the iPad, claimed
+  `com.versomd.app` for the team and made the Apple Development
+  certificate and profile; `tauri ios build` then built. Its archive step
+  fails: the `cdylib` (Android's) cannot link on iOS (the Swift plugins'
+  `init_plugin_*` symbols are the Xcode binary's), so the build product in
+  Xcode's DerivedData is what was installed (`devicectl device install`).
+  The release `.ipa` (Phase 1) needs that link solved. The debug `.app` is
+  1.6 GB.
+- Measured through Web Inspector's protocol (pymobiledevice3's CDP
+  bridge; Safari's Web Inspector reaches the same) and DVT's process
+  monitor:
+  - Start: first contentful paint 1.0–1.1 s after `devicectl process
+    launch` (three cold starts; the Mac's and the iPad's clocks); the
+    window at 970×1389 points, `navigator.platform` `MacIntel`.
+  - The demo vault imported in 1.2 s (78 files); a long note opened in
+    about 0.15 s.
+  - Typing: a character inserted (`insertText`) and drawn in 17 ms
+    (median and worst 17–18 ms of 40, deletes the same): synthetic input,
+    not a finger's.
+  - The Verso Tour board (70 cards) opened in 0.4 s; panned by wheel
+    events at 50 fps, median frame 17 ms, 4 of 158 frames over 33 ms
+    (the first, 272 ms). WebKit drew at 60 Hz, not the screen's 120 Hz.
+  - Memory (A1; `physFootprint`): the app 17 MB and its web content
+    157 MB with a note open; 20 MB and 538 MB with the board. Not past
+    any limit the system enforced; the increased-memory entitlement was
+    not needed for this.
+- A UniVerso: signed in to `universo-test.casa.meioorc.com` (the page in
+  Safari, approved; the poll survived Verso's suspension), and its folder
+  opened online over `wss://` in 0.27 s. The device's name is told as
+  "iPad" (iOS 16+'s model, as expected).
+- Serving on the LAN (B12): on, the Mac reached it over TLS 1.3 at
+  `192.168.3.83:57253` in 20 ms. With Verso off the screen (another app)
+  nothing answers, from the first second (no grace time); back on the
+  screen it answers within 1 s. **After a lock and unlock** the listener
+  was gone ("connection refused") while the section still said *Serving
+  on …* — fixed (below).
+- Pairing's mDNS: during the pairing window the Mac browsed no
+  `_verso-local._tcp` from the iPad, as A4 expected without the multicast
+  entitlement; pairing is by the QR and the address.
+- A18: "Nova janela" on the icon opened a black, empty window (tao made
+  the scene, the app no window in it). Fixed (below): it now flashes
+  black and closes by itself, Verso's window staying (the maintainer, on
+  the iPad).
+- The icon was Tauri's template: now Verso's (`193f34900`), seen on the
+  Home screen.
+- Seen besides: in a window on a server's folder, Turn into a server used
+  the desktop's words (the host is the server's): fixed with A2's words.
+  The server once stopped by itself saying *the network changed* while
+  a developer tunnel came and went (cause not isolated).
+
+After the device (2026-11-12, decided by B12/A2 of the maintainer's answers:
+*"Serve na rede local só com o app na tela, e o painel diz isso quando o
+iOS suspende"*):
+
+- Back on the screen (the window's scene active again), the app connects to its own
+  address; a closed port listens again on the same port
+  (`LocalServer::listen_again`), and the section says *"While the device
+  was locked, iOS closed the server's port; back on the screen, Verso
+  serves again at the same address."*; when it cannot, serving stops and
+  says so. `LocalServerStatus.listened_again` is new, additive (`serde`
+  default). The words of a device that serves only on screen are chosen
+  by `Can::ServeAway`'s absence in any window of the app.
+- A second lock (18:16–18:17) went otherwise: iPadOS **ended the app**
+  as the device locked (the window destroyed with no request, the app's
+  own exit, a new process — pid 735 then 745 — started in the same second,
+  no crash report), so no foreground handler had a server to look at; the
+  section showed serving off, without a word, and the maintainer turned
+  it on by hand. Why iPadOS ended it then and not at the first lock is
+  not known (the debug build's memory is a guess, not a measure). Now the
+  app keeps the person's wish to serve (`local.wanted`): a start after
+  the system ended the app while it served leaves serving off — serving
+  at a start is *Keep on*'s alone (ADR 0096 item 1) — and the section
+  says *"With Verso off the screen (the device locked, say), iOS closed
+  the app, and the server stopped with it. Turn it on again to serve."*
+  Whether such a start should serve again by itself was asked the same
+  day: **decided 2026-11-12** (*"bora"*): yes, within a few minutes and
+  only when the person had turned serving on — ten minutes, chosen in the
+  build. The app keeps when it left the screen while serving
+  (`local.away`, at the scene's resigning); a start within ten minutes
+  serves again once the app is on the screen (the scene active again) and
+  says *"While Verso was off the screen, iOS closed its server; back on
+  the screen, Verso serves again at the same address."*; later it stays
+  off and says *"iOS closed Verso while it was off the screen, more than
+  ten minutes ago, and the server stopped with it. Turn it on again to
+  serve."* Recorded in 0117 D12 as an iOS amendment of 0096 item 1
+  (0096 is archived, superseded by 0117). Tauri's `RunEvent::Resumed` is
+  not the app's return (it fires with the event loop's polls); the
+  window's `Focused`, from tao's scene callbacks, is.
+- Checked on the iPad (2026-11-12), the build `4d247e2cd`:
+  - A real lock, 18:59 to 19:00 (UTC-3), Verso serving on screen: no
+    answer while locked; on unlock the app found its port closed and
+    listened again on 192.168.3.83:57253 within a second of the scene's
+    return (the log: *"the server's port was found closed: listening
+    again"*), and the section said *"Com o Verso fora da tela, o iOS
+    fechou o servidor; de volta à tela, o Verso voltou a servir no mesmo
+    endereço."* The app was not ended this time.
+  - The app ended off the screen (another app in front, Verso's process
+    ended from the Mac, Verso opened again): serving back within a
+    second, the same words.
+  - After that lock the window turned dark: iPadOS had turned to its dark
+    appearance (`prefers-color-scheme: dark`, the system's status bar dark
+    too) and the app's theme there is *auto*, which follows the system —
+    not a lost setting. A theme the person chose on the iPad is not
+    affected.
+  - Not fixed: each install moves the app's container, so the recent
+    folders kept by path (four by then) name places that are gone, and
+    *Folders served* lists them.
+- A18, recommended: one window. A second scene iPadOS makes is closed at
+  once (`requestSceneSessionDestruction`), the first window staying;
+  "Nova janela" may still be offered by iPadOS. A real second window
+  needs `Can::Windows` on iOS, which B14 left off.
 
 ## Consequences
 
