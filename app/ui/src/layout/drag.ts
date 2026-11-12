@@ -21,9 +21,7 @@ import { current, layout, openIn, Space, spaces } from "./spaces";
 
 /** An overlay (switcher, palette, plan, menu, dialog) is on screen: native
  *  web views would paint over it, so they hide meanwhile. */
-export function overlayOpen(): boolean {
-  return document.querySelector(".quick:not([hidden]), .plan:not([hidden]), .menu:not([hidden]), .slash:not([hidden]), .confirm") !== null;
-}
+export { overlayOpen } from "./overlay";
 
 /* ---------- Pointer drag: tabs and tree rows, dropped where the pointer says ---------- */
 /** A tab, or a row of the tree — with the other rows selected with it,
