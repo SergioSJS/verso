@@ -99,8 +99,8 @@ export const CREDITS: Credit[] = [
     id: "cloudflared",
     name: "cloudflared (Cloudflare)",
     line: {
-      pt: "Licença Apache-2.0: o programa da Cloudflare que leva o link pela internet de Transformar em servidor (ADR 0117). Não vem no app: é baixado na primeira vez que o link é ligado, numa versão fixa, conferida pela soma SHA-256, do GitHub da Cloudflare, e roda sem se atualizar sozinho.",
-      en: "Apache-2.0: Cloudflare's program that carries the internet link of Turn into a server (ADR 0117). It does not ship with the app: it is downloaded the first time the link is turned on, a pinned version checked by its SHA-256 sum, from Cloudflare's GitHub, and it runs without updating itself.",
+      pt: "Licença Apache-2.0: o programa da Cloudflare que leva o link pela internet de Transformar em servidor (ADR 0117). Não vem no app: é baixado na primeira vez que o link é ligado, numa versão fixa, conferida pela soma SHA-256, do GitHub da Cloudflare, e roda sem se atualizar sozinho. No app para Android ele vem dentro do app, compilado para o Android a partir do código-fonte dessa mesma versão (ADR 0118).",
+      en: "Apache-2.0: Cloudflare's program that carries the internet link of Turn into a server (ADR 0117). It does not ship with the app: it is downloaded the first time the link is turned on, a pinned version checked by its SHA-256 sum, from Cloudflare's GitHub, and it runs without updating itself. In the Android app it ships inside the app, built for Android from the source of that same version (ADR 0118).",
     },
     link: "https://github.com/cloudflare/cloudflared",
     licence: "Apache-2.0",
