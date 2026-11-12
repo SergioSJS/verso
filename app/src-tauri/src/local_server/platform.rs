@@ -157,6 +157,7 @@ pub(super) fn status_of<R: tauri::Runtime>(
         cloudflare_signed_in: crate::tunnel::signed_in(),
         read_links: local.read_links_on()?,
         owner_name: local.owner_name()?,
+        listened_again: s.listened_again,
         supported: true,
         serving: s.serving,
         port: s.port.map(u32::from),
@@ -398,6 +399,10 @@ pub(super) async fn start<R: tauri::Runtime>(
     blocking(move || {
         check_not_received(&app, &local)?;
         local.start()?;
+        // iOS may end the app off the screen: its next start says serving
+        // ended so (ADR 0119 B12/A2).
+        #[cfg(target_os = "ios")]
+        let _ = local.set_wanted(true);
         status_of(&app, &local)
     })
     .await
@@ -410,6 +415,8 @@ pub(super) async fn stop<R: tauri::Runtime>(
     blocking(move || {
         crate::tunnel::stop_with(&app, crate::tunnel::LinkEnd::Stopped);
         local.stop();
+        #[cfg(target_os = "ios")]
+        let _ = local.set_wanted(false);
         status_of(&app, &local)
     })
     .await
@@ -575,6 +582,17 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let Ok(local) = server(&app) else { return };
+        // The system ended the app while it served (iOS, a locked device:
+        // seen on the maintainer's iPad, 2026-11-12): the window says so
+        // (ADR 0119 B12/A2).
+        #[cfg(target_os = "ios")]
+        if local.ended_while_serving() {
+            log::write(
+                "WARN",
+                "host",
+                "iOS: the app was ended while it served; serving is off until turned on",
+            );
+        }
         let Ok(set) = local.settings() else { return };
         // The own address follows *Keep on at start*; a quick link never
         // does (ADR 0117 D10, D3 item 6).
@@ -603,6 +621,38 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
                 "WARN",
                 "host",
                 &format!("serving to a phone not resumed: {why}"),
+            ),
+        }
+    });
+}
+
+/// The app back on the screen (iOS, `RunEvent::Resumed`): iOS takes an
+/// app's listening socket while the device is locked, and the port then
+/// refused every connection while the section still said it served (seen
+/// on the maintainer's iPad on 2026-11-12). Serving on the network that no
+/// longer listens listens again, on the same port (ADR 0119 B12/A2: it
+/// serves while the app is on the screen, and says so).
+#[cfg(target_os = "ios")]
+pub(super) fn after_resume<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let Some(local) = app.state::<App>().local_server.server.get().cloned() else {
+        return;
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        // The Wi-Fi comes back with the screen: a moment before asking.
+        std::thread::sleep(std::time::Duration::from_millis(800));
+        if local.listening() != Some(false) {
+            return;
+        }
+        match local.listen_again() {
+            Ok(_) => log::write(
+                "INFO",
+                "host",
+                "iOS: the server's port was closed while off the screen; it listens again",
+            ),
+            Err(why) => log::write(
+                "WARN",
+                "host",
+                &format!("iOS: the server could not listen again: {why}"),
             ),
         }
     });

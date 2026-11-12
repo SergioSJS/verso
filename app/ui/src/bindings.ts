@@ -3520,6 +3520,14 @@ export type LocalServerStatus = {
 	 *  name, the system's user at first (`local_server_owner_name`).
 	 */
 	owner_name: string,
+	/**
+	 *  The server found its port closed and listens again, on the port it
+	 *  had (ADR 0119 B12/A2: iOS takes an app's listener while the device
+	 *  is locked; back on the screen it serves again). The window says so;
+	 *  false once serving is turned on or off by hand. Added after
+	 *  version 1: an answer without it reads as false.
+	 */
+	listened_again?: boolean,
 };
 
 /**  One file the loose-files window shows (ADR 0114 item 18). */

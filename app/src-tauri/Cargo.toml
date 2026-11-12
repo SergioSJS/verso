@@ -238,11 +238,12 @@ tauri-plugin-opener = "2"
 # The device's name for the conflict copies and a server's sessions
 # (`UIDevice.name`, src/ios.rs): objc2's UIKit and Foundation bindings
 # (0.3.2 and 0.6, Zlib OR Apache-2.0 OR MIT), in the tree already through
-# tao, named here for one call. They replace the `hostname` fallback,
-# which answered "ios".
+# tao, named here for two safe calls. They replace the `hostname`
+# fallback, which answered "ios", and close a second window's scene, which
+# showed black (ADR 0119 A18).
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
-objc2-ui-kit = { version = "0.3", default-features = false, features = ["std", "UIDevice"] }
+objc2-ui-kit = { version = "0.3", default-features = false, features = ["std", "block2", "UIDevice", "UIApplication", "UIResponder", "UIScene", "UISceneSession", "UISceneOptions"] }
 
 [target.'cfg(windows)'.dependencies]
 # The same on Windows (src/web_clip/windows.rs): WebView2's host window

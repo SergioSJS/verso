@@ -107,3 +107,21 @@ pub(crate) fn open_page(page: &str) -> Result<(), String> {
         .open_url(page, None::<&str>)
         .map_err(|e| e.to_string())
 }
+
+/// A scene iPadOS made for a second window ("New window" on the app's
+/// icon, or a window dragged out): the app has one window, so the scene's
+/// session is destroyed at once, which closes it, and the first window
+/// stays. Without it the new scene showed black: the app opened no window
+/// in it (ADR 0119 A18, seen on the maintainer's iPad on 2026-11-12).
+pub(crate) fn one_window(scene: &objc2_ui_kit::UIScene) {
+    let Some(main) = objc2::MainThreadMarker::new() else {
+        return;
+    };
+    log::write(
+        "INFO",
+        "host",
+        "iOS: a second window was asked for and closed",
+    );
+    objc2_ui_kit::UIApplication::sharedApplication(main)
+        .requestSceneSessionDestruction_options_errorHandler(&scene.session(), None, None);
+}

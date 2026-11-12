@@ -265,6 +265,7 @@ export class LocalServerHarness {
       cloudflare_signed_in: this.signedIn,
       read_links: this.readLinks,
       owner_name: this.ownerName,
+      listened_again: false,
       ...this.cert,
     };
   }

@@ -439,6 +439,13 @@ pub(crate) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     platform::auto_start(app);
 }
 
+/// The app back on the screen (iOS): a server whose port iOS closed while
+/// the device was locked listens again (ADR 0119 B12/A2).
+#[cfg(target_os = "ios")]
+pub(crate) fn after_resume<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    platform::after_resume(app);
+}
+
 /// Whether it serves, how many folders and how many phones are connected
 /// now; none before the server was first used.
 #[cfg(any(target_os = "macos", windows, target_os = "android"))]

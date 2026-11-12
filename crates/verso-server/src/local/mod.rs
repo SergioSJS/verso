@@ -74,7 +74,7 @@ mod tests_ui_files;
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -202,6 +202,18 @@ impl Default for LocalSettings {
 }
 
 const SETTINGS: &str = "local.settings";
+
+/// Why serving stopped when its port was found closed and could not be
+/// opened again (ADR 0119 B12/A2): the window says it in words.
+pub const LISTEN_AGAIN_FAILED: &str = "the port was closed while the app was off the screen and could not be opened again: turn serving on again";
+
+/// Why serving is off at a start when the app was serving as it went away
+/// by the system's hand (iOS ends an app off the screen, a locked device
+/// included; ADR 0119 B12/A2): the window says it in words.
+pub const ENDED_OFF_SCREEN: &str = "the system closed the app while it was off the screen, and serving with it: turn serving on again";
+
+/// Serving was on when the app last went away (`LocalServer::set_wanted`).
+const WANTED: &str = "local.wanted";
 const PORT: &str = "local.port";
 
 /// The state of the mode for Settings.
@@ -235,6 +247,11 @@ pub struct Status {
     pub link_port: Option<u16>,
     /// The internet link's origin, once known.
     pub link_origin: Option<String>,
+    /// Its port was found closed and it listens again
+    /// ([`LocalServer::listen_again`]): an iOS app's listener is taken
+    /// while the device is locked (ADR 0119 B12/A2). False once serving is
+    /// turned on or off by hand.
+    pub listened_again: bool,
 }
 
 /// What the pairing dialog shows.
@@ -333,6 +350,8 @@ struct Shared {
     ifaces: Arc<dyn Interfaces>,
     inner: Mutex<Option<Running>>,
     last_stop: Mutex<Option<String>>,
+    /// Serving listened again by itself since it was last turned on.
+    listened_again: AtomicBool,
     next: AtomicU64,
     /// The stops asked so far, whether or not anything was serving: the
     /// internet link asked for before a stop does not start serving after
@@ -377,6 +396,7 @@ impl LocalServer {
                 ifaces,
                 inner: Mutex::new(None),
                 last_stop: Mutex::new(None),
+                listened_again: AtomicBool::new(false),
                 next: AtomicU64::new(1),
                 stops: AtomicU64::new(0),
                 #[cfg(any(test, feature = "test-support"))]
@@ -425,6 +445,7 @@ impl LocalServer {
                 ifaces,
                 inner: Mutex::new(None),
                 last_stop: Mutex::new(None),
+                listened_again: AtomicBool::new(false),
                 next: AtomicU64::new(1),
                 stops: AtomicU64::new(0),
                 loopback,
@@ -513,13 +534,72 @@ impl LocalServer {
             dropped: parts::read_dropped(&r.server.db),
             link_port: r.link.as_ref().map(|l| l.port),
             link_origin: r.policy.link_origin(),
+            listened_again: self.shared.listened_again.load(Ordering::Relaxed),
         })
+    }
+
+    /// Serving turned on (`true`) or off (`false`) by the person, kept: an
+    /// app the system ended while it served finds it at its next start
+    /// ([`Self::ended_while_serving`]; ADR 0119 B12/A2).
+    pub fn set_wanted(&self, on: bool) -> Result<(), String> {
+        self.with_db(|db| db.set_setting(WANTED, if on { "1" } else { "0" }))
+    }
+
+    /// At a start: serving was on when the app went away and nobody turned
+    /// it off. It stays off (serving at start is *Keep on*'s, ADR 0096
+    /// item 1), and the window says why; true when so.
+    pub fn ended_while_serving(&self) -> bool {
+        let wanted = self
+            .with_db(|db| db.setting(WANTED))
+            .ok()
+            .flatten()
+            .is_some_and(|v| v == "1");
+        if wanted && lock(&self.shared.inner).is_none() {
+            let _ = self.set_wanted(false);
+            *lock(&self.shared.last_stop) = Some(ENDED_OFF_SCREEN.to_owned());
+            (self.shared.events)(Event::Changed);
+        }
+        wanted
+    }
+
+    /// Whether serving on the network still listens: the app connects to
+    /// its own address once (as [`Self::self_test`] does); `None` when it
+    /// does not serve on the network.
+    pub fn listening(&self) -> Option<bool> {
+        let addr = {
+            let running = lock(&self.shared.inner);
+            let r = running.as_ref()?;
+            SocketAddr::new(r.nets.first()?.ip, r.port)
+        };
+        Some(reachable(addr))
+    }
+
+    /// Serving again, on the port it had, after its listener was found
+    /// gone (ADR 0119 B12/A2: an iOS app's socket is taken while the device
+    /// is locked; the app back on the screen serves again). The phones'
+    /// sessions are kept in the database; the connections were gone with
+    /// the listener. When it cannot start again it stops, saying why.
+    pub fn listen_again(&self) -> Result<Status, String> {
+        crate::log::warn("the server's port was found closed: listening again");
+        self.stop_inner();
+        match self.start_with(false, None) {
+            Ok(status) => {
+                self.shared.listened_again.store(true, Ordering::Relaxed);
+                (self.shared.events)(Event::Changed);
+                self.status().or(Ok(status))
+            }
+            Err(why) => {
+                self.stop_because(LISTEN_AGAIN_FAILED);
+                Err(why)
+            }
+        }
     }
 
     /// Turn serving on, over the folders ticked, on the network (the box
     /// *On my network*; the link opens with [`Self::link_open`]). `Err`
     /// says why it did not start, in words the person reads.
     pub fn start(&self) -> Result<Status, String> {
+        self.shared.listened_again.store(false, Ordering::Relaxed);
         self.start_with(false, None)
     }
 
@@ -879,6 +959,8 @@ impl LocalServer {
 
     fn stop_because(&self, why: &str) {
         self.stop_inner();
+        // Said now: not again at the next start as the system's end.
+        let _ = self.set_wanted(false);
         *lock(&self.shared.last_stop) = Some(why.to_owned());
         (self.shared.events)(Event::Stopped {
             why: why.to_owned(),
@@ -889,6 +971,7 @@ impl LocalServer {
     /// Turn serving off: the port closes, every connection with it, the
     /// goodbye is sent, the pairing window ends.
     pub fn stop(&self) {
+        self.shared.listened_again.store(false, Ordering::Relaxed);
         let was = self.stop_inner();
         *lock(&self.shared.last_stop) = None;
         if was {

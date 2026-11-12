@@ -1397,6 +1397,15 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             app.state::<App>().shares.end_all();
             log::write("INFO", "host", "exiting");
         }
+        // A second window the person asked iPadOS for (its icon's "New
+        // window"): the app shows one window (no `Can::Windows`), so the
+        // new scene is closed again (ADR 0119 A18).
+        #[cfg(target_os = "ios")]
+        tauri::RunEvent::SceneRequested { scene, .. } => ios::one_window(scene),
+        // Back on the screen: a server whose port iOS closed while the
+        // device was locked listens again (ADR 0119 B12/A2).
+        #[cfg(target_os = "ios")]
+        tauri::RunEvent::Resumed => local_server::after_resume(app),
         _ => {}
     }
     match event {

@@ -1302,3 +1302,44 @@ fn pairing_on_loopback_alone_announces_nothing_on_the_network() {
         assert!(super::lock(&policy.announcer).is_none());
     });
 }
+
+/// iOS takes an app's listening socket while the device is locked (ADR
+/// 0119 B12/A2): the app back on the screen finds its port closed and
+/// listens again, on the same port, and the section says so; serving
+/// turned off or on by hand forgets it.
+#[test]
+fn a_server_whose_port_is_gone_listens_again_on_the_same_port() {
+    let mut lab = lab();
+    lab.serve();
+    assert_eq!(lab.local.listening(), Some(true));
+    let status = lab.local.listen_again().unwrap();
+    assert!(status.serving && status.listened_again);
+    assert_eq!(status.port, Some(lab.port));
+    assert_eq!(lab.local.listening(), Some(true));
+    lab.local.stop();
+    assert_eq!(lab.local.listening(), None);
+    assert!(!lab.local.status().unwrap().listened_again);
+    assert!(!lab.local.start().unwrap().listened_again);
+}
+
+/// iOS may end the app while it serves, off the screen (ADR 0119 B12/A2;
+/// the maintainer's iPad, a lock, 2026-11-12): at the next start serving
+/// stays off and says why, once; a stop by hand forgets the wish.
+#[test]
+fn an_app_ended_while_serving_says_so_at_its_next_start() {
+    let mut lab = lab();
+    lab.serve();
+    lab.local.set_wanted(true).unwrap();
+    // The system's end: the listeners go, the wish stays.
+    lab.local.stop();
+    assert!(lab.local.ended_while_serving());
+    let status = lab.local.status().unwrap();
+    assert!(!status.serving);
+    assert_eq!(
+        status.stopped_because.as_deref(),
+        Some(super::ENDED_OFF_SCREEN)
+    );
+    assert!(!lab.local.ended_while_serving(), "said once");
+    lab.local.set_wanted(false).unwrap();
+    assert!(!lab.local.ended_while_serving());
+}

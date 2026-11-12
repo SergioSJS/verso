@@ -58,7 +58,7 @@ const stubCan = {
 await esbuild.build({
   stdin: {
     contents: `export { linkBoxes } from "./src/dialogs/localServerLink";
-export { localStrings } from "./src/dialogs/localServerStrings";`,
+export { localStrings, stoppedWords } from "./src/dialogs/localServerStrings";`,
     resolveDir: ".",
     loader: "ts",
   },
@@ -69,7 +69,7 @@ export { localStrings } from "./src/dialogs/localServerStrings";`,
   logLevel: "error",
   plugins: [stubCan],
 });
-const { linkBoxes, localStrings } = await import("./.bundles/appServerAbilities.test-bundle.mjs");
+const { linkBoxes, localStrings, stoppedWords } = await import("./.bundles/appServerAbilities.test-bundle.mjs");
 
 const IOS_OFF = ["link", "discover", "serve_away", "updates", "audio_share"];
 
@@ -123,5 +123,29 @@ test("a phone that serves off the screen keeps its words; one that does not says
     // Nothing of Android's foreground service, nor of a link it has not.
     assert.doesNotMatch(ios.firstBody.join(" "), /notifica|link/i);
     assert.match(ios.lead, lang === "en" ? /only while Verso is open/ : /só enquanto o Verso estiver aberto/);
+
+    // The iOS app's window on a server's folder: the host is the server's,
+    // the words still the device's that serves only while open.
+    globalThis.__side = { host: "server", off: IOS_OFF };
+    assert.equal(localStrings().lead, ios.lead);
+    // A browser's window has no app server at all: nothing changes there.
+    globalThis.__side = { host: "server", off: [...IOS_OFF, "local_folders"] };
+    assert.equal(localStrings().lead, desk.lead);
+  }
+});
+
+test("a stop by itself is said by its cause, each phrase still the host's own", async () => {
+  const { readFileSync } = await import("node:fs");
+  const rust = readFileSync("../../crates/verso-server/src/local/mod.rs", "utf8");
+  const ended = "closed the app while it was off the screen";
+  const port = "port was closed while the app was off the screen";
+  assert.ok(rust.includes(ended) && rust.includes(port), "the host no longer says it so");
+  for (const lang of ["en", "pt-BR"]) {
+    document.documentElement.lang = lang;
+    const w = localStrings();
+    assert.equal(stoppedWords(`the system ${ended}, and serving with it`, w), w.stoppedEnded);
+    assert.equal(stoppedWords(`the ${port} and could not be opened again`, w), w.stoppedScreen);
+    assert.equal(stoppedWords("the network changed: turn serving on again", w), w.stoppedNet);
+    for (const k of ["stoppedEnded", "stoppedScreen", "listenedAgain"]) assert.ok(w[k].length > 20, k);
   }
 });

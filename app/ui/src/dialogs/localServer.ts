@@ -18,7 +18,7 @@ import { phoneConnectedHeard, serveDroppedHeard, serveStoppedHeard } from "../no
 import { busy } from "../reach";
 import { asDialog, closed, opened } from "./a11y";
 import { servedFolders } from "./servedFolders";
-import { eventSubject, eventWords, localStrings } from "./localServerStrings";
+import { eventSubject, eventWords, localStrings, stoppedWords } from "./localServerStrings";
 import { linkBoxes, linkSentence, whyOf } from "./localServerLink";
 import { newest } from "./localServerFresh";
 import { linkStrings, markSaid } from "./localServerLinkStrings";
@@ -534,7 +534,10 @@ export function localServerBody(_item: Item): HTMLElement {
     pairHelp.hidden = onNet;
     pairHelp.textContent = s.serving ? linkStrings().pairNeedsNetwork : w.pairNeedsOn;
     boxes.draw(s);
-    if (!s.serving && s.stopped_because) say(w.stoppedNet);
+    // Why it stopped by itself, from the host's phrase (verso-server local/mod.rs).
+    if (!s.serving && s.stopped_because) say(stoppedWords(s.stopped_because, w));
+    // iOS closed the port while the device was locked, and it listens again.
+    if (s.serving && s.listened_again) say(w.listenedAgain);
     const f = await commands.localServerFolders();
     if (f.status === "ok") drawFolders(f.data, s.serving);
     await invites.draw(s);
