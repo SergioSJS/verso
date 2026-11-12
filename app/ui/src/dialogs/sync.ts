@@ -10,6 +10,7 @@
 // left out and why, what crossed. The status bar says the state, and a
 // click on it opens the section. Nothing is silent (item 13).
 
+import { onPhone } from "../screen/phoneWords";
 import { listen } from "@tauri-apps/api/event";
 import { commands, type ServerAccount, type SyncStatus, type SyncVersions } from "../bindings";
 import { h, ui } from "../dom";
@@ -235,7 +236,7 @@ const en: typeof pt = {
 export function syncStrings(): typeof pt {
   const s = document.documentElement.lang.startsWith("pt") ? pt : en;
   // A phone's folder is not "on this computer", and Obsidian cannot read it.
-  return appHost() === "mobile" ? { ...s, desc: s.descPhone } : s;
+  return appHost() === "mobile" ? onPhone({ ...s, desc: s.descPhone }) : s;
 }
 
 let status: SyncStatus | null = null;
