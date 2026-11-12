@@ -56,6 +56,14 @@
   from its source (item 3.3); a release key made now and kept by him; the
   APK in the release workflow; the installers in a public place while the
   code stays private (item 10). F-Droid: not now.
+  2026-11-12, afternoon — the maintainer answered the six questions of the
+  round (`decisoes-2026-11-12-tarde.md` §1), leaving five recommendations
+  marked and changing one, 1.5, to *"Resolver agora"* (solve it now): the
+  installers in a public GitHub repository that holds only the releases
+  (10.3); a beta beside the release with its own `.beta` id (A3); background
+  sync without keeping the phone awake (6.3); what is shared goes at the top
+  of the open folder (5); the window's files no longer twice in the APK
+  (item 7); the source pin of `cloudflared` confirmed (3.3).
 - Related: [0073](0073-self-hosted-server-first.md) items 2, 8 and 12 (one
   service, one code base; native mobile is Tauri 2 mobile from the same UI
   and core; "native mobile if needed", last),
@@ -147,7 +155,9 @@ How, from the platform's rules (`Constraint` unless marked):
    **Decided 2026-11-12** (*"aceito as recomendações"*): `cloudflared` is
    built for Android in our build — `GOOS=android` with cgo and the NDK
    (the system's resolver), from the source of the version pinned in
-   `tunnel/fetch.rs`, as Termux packages it.
+   `tunnel/fetch.rs`, as Termux packages it. The pin of that source (the
+   SHA-256 of GitHub's tarball of the tag, read on 2026-11-12) is confirmed
+   by the maintainer the same afternoon.
 4. On **mobile data** only the Cloudflare link reaches the phone (carrier
    NAT); the LAN mode needs Wi-Fi.
 5. While serving, the app says it drains the battery and heats the phone,
@@ -192,7 +202,7 @@ not shown):
 | Several windows, the loose-files window (0114), pop-outs (0065) | One activity; Android intents later (Phase 2) |
 | Native child web views (0056) | The UI's iframe path instead |
 | Self-updater (0055) — **kept on a sideloaded APK, decided 2026-11-10** | The sideloaded APK checks for a new version and offers it: it downloads the signed APK and hands it to Android's own install prompt (Android never installs silently), or at least says a new version exists and where to get it. A Play build, if one comes (A2), has none: Play forbids it |
-| Tray, native menus, single instance | Replaced by intents: open a `.md`, share to Verso — **in v1, decided 2026-11-12**, first of the four |
+| Tray, native menus, single instance | Replaced by intents: open a `.md`, share to Verso — **in v1, decided 2026-11-12**, first of the four; what comes is a new note **at the top of the open folder** (decided the same afternoon, as built) |
 | Capture of other apps' audio (0116) | **In v1, decided 2026-11-12**, last of the four: through `AudioPlaybackCapture` (Android 10+), with Android's screen-capture consent each time |
 
 The seam: `Host::Mobile` plus `cfg(target_os = "android")` (A6, decided 2026-11-08).
@@ -217,7 +227,9 @@ option once the basics run).
 3. **2026-11-12: in v1** (*"vai vir tudo com a v1"*), third of the four,
    by the route the decisions list recommended: the foreground service
    of item 3.2 with its persistent notification kept for sync, under
-   Doze's and Android 15's limits (`specialUse`, not `dataSync`).
+   Doze's and Android 15's limits (`specialUse`, not `dataSync`). **Without
+   keeping the phone awake** (no wake or Wi-Fi lock for sync alone; it syncs
+   when Android wakes the phone), decided 2026-11-12 in the afternoon.
 
 ### 7. What the build must change (the code at `cce63611b` / `b52019c5c`, facts)
 
@@ -270,6 +282,10 @@ on the entry function. Also:
 - The manifest drops the generated `LEANBACK_LAUNCHER` category (no TV
   build); the Android System WebView has a version floor, named in the
   spike.
+- **The window's files once in the APK** (decided 2026-11-12, afternoon,
+  *"Resolver agora"*): they were there twice, inside the library (Tauri's
+  own assets) and as `assets/ui-web` for the devices the phone serves;
+  the phone serves the copy the app already carries.
 
 ### 8. Still open `[OPEN]`
 
@@ -277,7 +293,7 @@ on the entry function. Also:
 |---|---|---|
 | A1 | `minSdk` (generated: 24; `targetSdk` 36, which is what brings the W^X rule) | **Decided 2026-11-11: 29 (Android 10)** (*"considere Android 10+"*): the keyring's Android store, a recent WebView, `AudioPlaybackCapture` |
 | A2 | Distribution: sideloaded APK, F-Droid, Play | **Decided 2026-11-11: the sideloaded APK only, for now; no Play Store** (*"sem playstore, so apk por enquanto"*). F-Droid was not answered |
-| A3 | Package id: `com.versomd.app` on Android too (0004's bundle id; `.beta` for betas) | Applied in the build (`applicationId = "com.versomd.app"`); `.beta` needs an `applicationIdSuffix` |
+| A3 | Package id: `com.versomd.app` on Android too (0004's bundle id; `.beta` for betas) | Applied in the build (`applicationId = "com.versomd.app"`). **Decided 2026-11-12 (afternoon): a beta has its own id, `com.versomd.app.beta`, and installs beside the release** |
 | A4 | `verso-server` behind a cargo feature, for a smaller client-only build | **Decided 2026-11-10: no** — one build, with the server (item 3); the maintainer: *"pq vc pensa em remover a parte servidor do app android?"* |
 | A5 | The TalkBack pass (0035 item 2, 0076 item 9) | Part of Phase 1's acceptance (item 9) |
 | A6 | The seam of item 5 — **decided 2026-11-08: `Host::Mobile` + `cfg(target_os = "android")` as recommended**; still open: the foreground service type (3.2); `cloudflared`'s build (3.3) (the updater: decided 2026-11-10, item 5) | Seam: `Host::Mobile` reported by the host in its capabilities (the UI reads capabilities, never the user agent — 0026 rule 2) plus `cfg(target_os = "android")` gates in the host. A contract change: bindings regenerated, the N/N-1 compatibility window applies. Service type: 3.2 |
@@ -356,7 +372,7 @@ accessibility tree of the main screen, the storage dialog and Settings ›
 Sync, with no unnamed control (TalkBack itself is not installed on that
 phone).
 
-### 10. Releases of the APK `[DECIDED 2026-11-12]`, one fork `[OPEN]`
+### 10. Releases of the APK `[DECIDED 2026-11-12]`
 
 *"aceito as recomendações"*, on the decisions list of 2026-11-12:
 
@@ -366,8 +382,12 @@ phone).
    environment.
 2. **The release workflow builds the APK** beside macOS, Windows and Linux.
 3. **The installers in a public place while the code stays private**: the
-   updater reads a base address that can be set. Which place — a public
-   repository that holds only releases, or Cloudflare R2 — is `[OPEN]`.
+   updater reads a base address that can be set. **Decided 2026-11-12 (the
+   afternoon): a public GitHub repository that holds only the releases**
+   (for example `SergioSJS/verso-releases`; its name is the maintainer's to
+   confirm), the apps built with `VERSO_UPDATE_REPO` naming it; the release
+   workflow publishes there with a token kept as a secret. Cloudflare R2 was
+   the other option weighed.
 
 ## Consequences
 
@@ -418,4 +438,7 @@ answered B1, A6, A8 and A9 the same day; A4, A7 and item 5's updater on
 2026-11-10 (Revisions), and Phase 1 started that day; A1 (`minSdk` 29) and
 A2 (the APK only, no Play Store for now) on 2026-11-11; on 2026-11-12, 3.2's
 type, 3.3's build, items 4.4, 5's intents and audio capture, 6.3 and 10
-(but 10.3's place), all into v1.
+(but 10.3's place), all into v1; that afternoon 10.3's place (a public
+releases-only GitHub repository), A3's `.beta`, 6.3 without a wake lock, the
+shared notes at the folder's top, the window's files once in the APK and the
+`cloudflared` source pin.
