@@ -446,6 +446,12 @@ pub(crate) fn after_resume<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     platform::after_resume(app);
 }
 
+/// The app leaves the screen (iOS): when it went, if it serves.
+#[cfg(target_os = "ios")]
+pub(crate) fn before_suspend<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    platform::before_suspend(app);
+}
+
 /// Whether it serves, how many folders and how many phones are connected
 /// now; none before the server was first used.
 #[cfg(any(target_os = "macos", windows, target_os = "android"))]

@@ -1402,10 +1402,22 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
         // new scene is closed again (ADR 0119 A18).
         #[cfg(target_os = "ios")]
         tauri::RunEvent::SceneRequested { scene, .. } => ios::one_window(scene),
-        // Back on the screen: a server whose port iOS closed while the
-        // device was locked listens again (ADR 0119 B12/A2).
+        // The window's scene active again (tao's `sceneDidBecomeActive`):
+        // a server whose port iOS closed while the device was locked, or
+        // one due to resume, listens again (ADR 0119 B12/A2). Leaving it
+        // (`sceneWillResignActive`): when, kept (iOS may end the app before
+        // it comes back; ADR 0096 item 1 amended for iOS).
         #[cfg(target_os = "ios")]
-        tauri::RunEvent::Resumed => local_server::after_resume(app),
+        tauri::RunEvent::WindowEvent {
+            event: tauri::WindowEvent::Focused(on),
+            ..
+        } => {
+            if *on {
+                local_server::after_resume(app);
+            } else {
+                local_server::before_suspend(app);
+            }
+        }
         _ => {}
     }
     match event {

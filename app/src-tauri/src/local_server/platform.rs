@@ -583,15 +583,23 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     tauri::async_runtime::spawn_blocking(move || {
         let Ok(local) = server(&app) else { return };
         // The system ended the app while it served (iOS, a locked device:
-        // seen on the maintainer's iPad, 2026-11-12): the window says so
-        // (ADR 0119 B12/A2).
+        // seen on the maintainer's iPad, 2026-11-12): within ten minutes
+        // serving resumes once the app is on the screen, later the window
+        // says it stopped (ADR 0119 B12/A2; ADR 0096 item 1 amended for
+        // iOS, the maintainer on 2026-11-12: "bora").
         #[cfg(target_os = "ios")]
-        if local.ended_while_serving() {
-            log::write(
+        match local.ended_while_serving(RESUME_WITHIN) {
+            Some(true) => log::write(
+                "INFO",
+                "host",
+                "iOS: the app was ended while it served; serving resumes on the screen",
+            ),
+            Some(false) => log::write(
                 "WARN",
                 "host",
-                "iOS: the app was ended while it served; serving is off until turned on",
-            );
+                "iOS: the app was ended while it served, too long ago; serving is off",
+            ),
+            None => {}
         }
         let Ok(set) = local.settings() else { return };
         // The own address follows *Keep on at start*; a quick link never
@@ -626,7 +634,22 @@ pub(super) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     });
 }
 
-/// The app back on the screen (iOS, `RunEvent::Resumed`): iOS takes an
+/// How long after the system ended the app while it served a start
+/// serves again by itself (iOS; ADR 0096 item 1 amended for iOS, decided
+/// 2026-11-12: "within a few minutes", the window chosen here).
+#[cfg(target_os = "ios")]
+const RESUME_WITHIN: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+
+/// The app leaves the screen (iOS, the window's scene resigning): when, kept, for
+/// a start after the system ended it while it served.
+#[cfg(target_os = "ios")]
+pub(super) fn before_suspend<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(local) = app.state::<App>().local_server.server.get() {
+        local.mark_away();
+    }
+}
+
+/// The app back on the screen (iOS, the window's scene active again): iOS takes an
 /// app's listening socket while the device is locked, and the port then
 /// refused every connection while the section still said it served (seen
 /// on the maintainer's iPad on 2026-11-12). Serving on the network that no
@@ -640,7 +663,9 @@ pub(super) fn after_resume<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     tauri::async_runtime::spawn_blocking(move || {
         // The Wi-Fi comes back with the screen: a moment before asking.
         std::thread::sleep(std::time::Duration::from_millis(800));
-        if local.listening() != Some(false) {
+        // A start after the system ended the app while it served, due now
+        // (`auto_start`), or a port iOS closed while the app lived.
+        if !local.take_resume() && local.listening() != Some(false) {
             return;
         }
         match local.listen_again() {

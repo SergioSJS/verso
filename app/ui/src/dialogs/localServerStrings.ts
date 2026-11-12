@@ -37,9 +37,9 @@ const pt = {
     `${paired === 0 ? "Nenhum celular pareado" : paired === 1 ? "1 celular pareado" : `${paired} celulares pareados`}${connected > 0 ? ` · ${connected} conectado${connected === 1 ? "" : "s"}` : ""}`,
   stoppedNet: "A rede mudou e o servidor parou sozinho. Ligue de novo para servir nesta.",
   // iOS takes the listener while the device is locked (ADR 0119 B12/A2).
-  listenedAgain: "Com o aparelho bloqueado, o iOS fechou a porta do servidor; de volta à tela, o Verso voltou a servir no mesmo endereço.",
+  listenedAgain: "Com o Verso fora da tela, o iOS fechou o servidor; de volta à tela, o Verso voltou a servir no mesmo endereço.",
   stoppedScreen: "Com o aparelho bloqueado, o iOS fechou a porta do servidor, e ela não abriu de novo. Ligue o servidor outra vez.",
-  stoppedEnded: "Com o Verso fora da tela (o aparelho bloqueado, por exemplo), o iOS fechou o app, e o servidor parou junto. Ligue-o outra vez para servir.",
+  stoppedEnded: "O iOS fechou o Verso quando ele estava fora da tela, há mais de dez minutos, e o servidor parou junto. Ligue-o outra vez para servir.",
   // Item 9: the app tried its own address and the system refused.
   unreachable: "Este computador não conseguiu conectar ao próprio endereço: o firewall provavelmente está recusando conexões de entrada, e o celular não vai alcançar. O Verso não mexe no firewall por conta própria.",
   unreachableMac: "No macOS: Ajustes do Sistema › Rede › Firewall › Opções, e permita conexões de entrada para o Verso; depois, Privacidade e Segurança › Rede Local, e ligue o Verso. Desligue e ligue o servidor de novo.",
@@ -283,9 +283,9 @@ const en: typeof pt = {
   phones: (paired: number, connected: number) =>
     `${paired === 0 ? "No phone paired" : paired === 1 ? "1 phone paired" : `${paired} phones paired`}${connected > 0 ? ` · ${connected} connected` : ""}`,
   stoppedNet: "The network changed and the server stopped by itself. Turn it on again to serve on this one.",
-  listenedAgain: "While the device was locked, iOS closed the server's port; back on the screen, Verso serves again at the same address.",
+  listenedAgain: "While Verso was off the screen, iOS closed its server; back on the screen, Verso serves again at the same address.",
   stoppedScreen: "While the device was locked, iOS closed the server's port, and it did not open again. Turn the server on again.",
-  stoppedEnded: "With Verso off the screen (the device locked, say), iOS closed the app, and the server stopped with it. Turn it on again to serve.",
+  stoppedEnded: "iOS closed Verso while it was off the screen, more than ten minutes ago, and the server stopped with it. Turn it on again to serve.",
   unreachable: "This computer could not connect to its own address: the firewall is probably refusing connections in, and the phone will not reach it. Verso does not change the firewall on its own.",
   unreachableMac: "On macOS: System Settings › Network › Firewall › Options, and allow incoming connections for Verso; then Privacy & Security › Local Network, and turn Verso on. Turn the server off and on again.",
   unreachableWindows: "On Windows: Windows Security › Firewall & network protection › Allow an app through firewall, and tick Verso under “Private”; the Wi-Fi network must also be set to Private (Settings › Network & internet › Wi-Fi › the network's properties). Turn the server off and on again.",

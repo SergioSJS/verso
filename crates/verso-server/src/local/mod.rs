@@ -214,6 +214,10 @@ pub const ENDED_OFF_SCREEN: &str = "the system closed the app while it was off t
 
 /// Serving was on when the app last went away (`LocalServer::set_wanted`).
 const WANTED: &str = "local.wanted";
+
+/// When the app last left the screen while serving, in seconds since the
+/// epoch (`LocalServer::mark_away`).
+const AWAY: &str = "local.away";
 const PORT: &str = "local.port";
 
 /// The state of the mode for Settings.
@@ -352,6 +356,9 @@ struct Shared {
     last_stop: Mutex<Option<String>>,
     /// Serving listened again by itself since it was last turned on.
     listened_again: AtomicBool,
+    /// A start after the system ended the app while serving, due when the
+    /// app is on the screen ([`LocalServer::take_resume`]).
+    resume: AtomicBool,
     next: AtomicU64,
     /// The stops asked so far, whether or not anything was serving: the
     /// internet link asked for before a stop does not start serving after
@@ -397,6 +404,7 @@ impl LocalServer {
                 inner: Mutex::new(None),
                 last_stop: Mutex::new(None),
                 listened_again: AtomicBool::new(false),
+                resume: AtomicBool::new(false),
                 next: AtomicU64::new(1),
                 stops: AtomicU64::new(0),
                 #[cfg(any(test, feature = "test-support"))]
@@ -446,6 +454,7 @@ impl LocalServer {
                 inner: Mutex::new(None),
                 last_stop: Mutex::new(None),
                 listened_again: AtomicBool::new(false),
+                resume: AtomicBool::new(false),
                 next: AtomicU64::new(1),
                 stops: AtomicU64::new(0),
                 loopback,
@@ -545,21 +554,52 @@ impl LocalServer {
         self.with_db(|db| db.set_setting(WANTED, if on { "1" } else { "0" }))
     }
 
+    /// The app leaves the screen while it serves (iOS): when it went, kept,
+    /// for [`Self::ended_while_serving`] at a next start.
+    pub fn mark_away(&self) {
+        if lock(&self.shared.inner).is_none() {
+            return;
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or_default();
+        let _ = self.with_db(|db| db.set_setting(AWAY, &now.to_string()));
+    }
+
     /// At a start: serving was on when the app went away and nobody turned
-    /// it off. It stays off (serving at start is *Keep on*'s, ADR 0096
-    /// item 1), and the window says why; true when so.
-    pub fn ended_while_serving(&self) -> bool {
-        let wanted = self
-            .with_db(|db| db.setting(WANTED))
-            .ok()
-            .flatten()
-            .is_some_and(|v| v == "1");
-        if wanted && lock(&self.shared.inner).is_none() {
+    /// it off. `None` when not so. `Some(true)` when it went away less than
+    /// `within` ago: serving resumes when the app is on the screen
+    /// ([`Self::take_resume`]; ADR 0096 item 1 amended for iOS, the
+    /// maintainer on 2026-11-12, "bora"). `Some(false)` when longer: it
+    /// stays off, and the window says why.
+    pub fn ended_while_serving(&self, within: Duration) -> Option<bool> {
+        let read = |key: &str| self.with_db(|db| db.setting(key)).ok().flatten();
+        if read(WANTED).as_deref() != Some("1") || lock(&self.shared.inner).is_some() {
+            return None;
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or_default();
+        let recent = read(AWAY)
+            .and_then(|v| v.parse::<u64>().ok())
+            .is_some_and(|at| now.saturating_sub(at) <= within.as_secs());
+        if recent {
+            self.shared.resume.store(true, Ordering::Relaxed);
+        } else {
             let _ = self.set_wanted(false);
             *lock(&self.shared.last_stop) = Some(ENDED_OFF_SCREEN.to_owned());
             (self.shared.events)(Event::Changed);
         }
-        wanted
+        Some(recent)
+    }
+
+    /// A resume [`Self::ended_while_serving`] found due, taken once: the
+    /// host starts it with [`Self::listen_again`] when the app is on the
+    /// screen.
+    pub fn take_resume(&self) -> bool {
+        self.shared.resume.swap(false, Ordering::Relaxed)
     }
 
     /// Whether serving on the network still listens: the app connects to

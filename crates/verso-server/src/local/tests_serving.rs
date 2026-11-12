@@ -1323,23 +1323,42 @@ fn a_server_whose_port_is_gone_listens_again_on_the_same_port() {
 }
 
 /// iOS may end the app while it serves, off the screen (ADR 0119 B12/A2;
-/// the maintainer's iPad, a lock, 2026-11-12): at the next start serving
-/// stays off and says why, once; a stop by hand forgets the wish.
+/// the maintainer's iPad, a lock, 2026-11-12): a start soon after resumes
+/// serving when the app is on the screen (ADR 0096 item 1 amended for
+/// iOS, "bora"); later, serving stays off and says why, once. A stop by
+/// hand forgets the wish.
 #[test]
-fn an_app_ended_while_serving_says_so_at_its_next_start() {
+fn an_app_ended_while_serving_resumes_soon_after_and_says_so_later() {
+    let ten = std::time::Duration::from_secs(600);
     let mut lab = lab();
     lab.serve();
     lab.local.set_wanted(true).unwrap();
-    // The system's end: the listeners go, the wish stays.
+    lab.local.mark_away();
+    // The system's end: the listeners go, the wish and the time stay.
     lab.local.stop();
-    assert!(lab.local.ended_while_serving());
+    assert_eq!(lab.local.ended_while_serving(ten), Some(true));
+    assert!(
+        lab.local.take_resume() && !lab.local.take_resume(),
+        "taken once"
+    );
+    let back = lab.local.listen_again().unwrap();
+    assert!(back.serving && back.listened_again);
+    assert_eq!(back.port, Some(lab.port));
+    // Gone too long: off, said once.
+    lab.local.mark_away();
+    lab.local.stop();
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    assert_eq!(
+        lab.local.ended_while_serving(std::time::Duration::ZERO),
+        Some(false)
+    );
     let status = lab.local.status().unwrap();
     assert!(!status.serving);
     assert_eq!(
         status.stopped_because.as_deref(),
         Some(super::ENDED_OFF_SCREEN)
     );
-    assert!(!lab.local.ended_while_serving(), "said once");
+    assert_eq!(lab.local.ended_while_serving(ten), None, "said once");
     lab.local.set_wanted(false).unwrap();
-    assert!(!lab.local.ended_while_serving());
+    assert_eq!(lab.local.ended_while_serving(ten), None);
 }
