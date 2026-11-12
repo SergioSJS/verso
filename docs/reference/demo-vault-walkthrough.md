@@ -579,6 +579,16 @@ point 13).
    verso-app`). Caught: a window holding a site no longer counted as one
    of the app's — "current webview is not a WebviewWindow" — and its menu
    went deaf.
+6. A page behind an overlay (ADR 0056, revision of 2026-11-12): with
+   `Web/jsoncanvas.org.md` on *Ver página*, open the quick switcher (⌘P),
+   the palette, a menu and the folder switcher in turn: the page stays in
+   sight behind each, still — a picture of itself, which takes no click —
+   and nothing flashes; closed, the live page is back where it was and
+   scrolls and clicks again. The same with an embedded page of a site that
+   refuses frames, half scrolled out of its pane. Level: H, A; E:
+   `web-snapshot.spec.mjs`; U: `test/webSnapshot.test.mjs`, `cargo test -p
+   verso-app tests_web`. Caught: the page vanished while any overlay
+   showed (the maintainer, 2026-11-12).
 
 ## 8. The board's file
 

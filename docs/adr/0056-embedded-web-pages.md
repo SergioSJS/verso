@@ -33,6 +33,13 @@
   [0029](0029-guardrails-in-ci.md). Recorded as the last two sections of the
   Decision, "Revised: an `<iframe>` when the site allows" and "Revised again:
   the page clipped as a frame is".
+- Revisions: 2026-11-12 — **revised by the maintainer**, in chat (*"pode
+  claro"*, to the proposal that followed his report *"nao entendi, agora se
+  eu abro alguma coisa que vai pra cima do documento de página web ela
+  some..."*): while an overlay is open, a page that is a child web view is
+  replaced by a picture of itself in the DOM instead of vanishing. Recorded
+  as the section "Revised: a picture of the page behind an overlay", before
+  the Status; the feature is unreleased, so it is written in place.
 
 ## Context
 
@@ -437,6 +444,59 @@ native view. Linux had not been seen with child web views at all
 ([0071](0071-linux-port.md)); its container is built and compiled, and
 waits for that check like the rest.
 
+### Revised: a picture of the page behind an overlay — decided on 2026-11-12
+
+A child web view floats over the window's page, and nothing of the DOM can
+draw over it. So, since the first child view, a page **hid** while anything
+floated over the panes (`overlayOpen`): the quick switcher, the palette, a
+menu, the slash list, a confirmation, and since 2026-11-12 (commit
+`e43f27634`, `app/ui/src/layout/overlay.ts`) any modal dialog, the folder
+switcher among them, which before opened behind the page and could not be
+used. The maintainer, the same day: *"nao entendi, agora se eu abro alguma
+coisa que vai pra cima do documento de página web ela some..."* (I don't
+get it: now if I open anything that goes over the web page's document, the
+page vanishes).
+
+**Decided by the maintainer on 2026-11-12**, in chat (*"pode claro"*): while
+an overlay is open, the page is replaced by a **picture of itself** — an
+image of its current pixels, shown in the DOM exactly where the page is; the
+overlay draws over the picture; when the overlay closes the live page shows
+again and the picture goes. To the person, the page stays put behind the
+overlay. For both kinds of child view: a web note's page and an embedded
+page of a site that refuses frames.
+
+**As built** (the mechanism is the author's):
+
+- The host's command `web_snapshot(label)` answers a picture of a page of
+  the calling window as a `data:` address (`app/src-tauri/src/web.rs`,
+  `web_clip/`): on macOS WebKit's `takeSnapshotWithConfiguration:completionHandler:`
+  encoded as JPEG by AppKit (`macos.rs`); on Windows WebView2's
+  `CapturePreview` as JPEG into a stream on memory (`windows.rs`); on Linux
+  WebKitGTK's `webkit_web_view_get_snapshot` encoded by GdkPixbuf (JPEG, or
+  PNG where it writes no JPEG; `linux.rs`, no `unsafe`). The new `unsafe`
+  calls are inside the two files of [0029](0029-guardrails-in-ci.md)'s
+  exception, each block with its `SAFETY` comment; the exception is not
+  widened. A view cut to its visible part (the fallback above), a phone,
+  or any other system answers an error; so does a picture that takes more
+  than two seconds.
+- The window (`app/ui/src/leaves/webSnapshot.ts`): when an overlay opens
+  over a page that shows, it asks for the picture, puts it in an `<img>`
+  laid exactly over the page's box (its border too, where the view lies),
+  waits until it is decoded and painted, and only then hides the native
+  view: no flash. If the picture has not come in **150 ms**, or there is
+  none, the view hides as before; a picture that comes late still fills
+  the place while the overlay stays. When the overlay closes the view is
+  placed and shown first, and the picture goes a painted frame later. A
+  page that leaves the screen meanwhile (its tab hidden or closed) drops
+  its picture at once. The picture is decorative (`aria-hidden`, empty
+  `alt`, no pointer events); its object URL is released when it goes.
+- A failure is said once a page in the log (*no picture of the page*), and
+  the page then only hides, as before this revision.
+- What only the real app shows — the picture on each system, its
+  sharpness, its timing — is in `docs/reference/manual-checks.md`.
+
+Discarded in this revision: none recorded.
+
 ## Status
 
 Accepted on 2026-09-29 by the maintainer, in session: points 1 and 2 of the
@@ -454,6 +514,7 @@ child web view is drawn as a frame is, by a native clipping container
 (B); the mechanism is the author's.
 Revised on 2026-10-15, in session, accepted as recommended: the host's frameability check (one `HEAD`, or a `GET` read only as far as its headers, once per origin) is **accepted**, which revises the earlier line that "nothing is fetched on the host's side" for an approved origin; a page's own links to another origin and the frames nested inside a framed page stay `[OPEN]`, as recorded above.
 Decided on 2026-10-21 by the maintainer (D.3 of the decisions list, option A): when the frameability check of a site fails (network down, timed out), the app asks again after **30 seconds**, instead of remembering the failure until the window closes.
+Revised on 2026-11-12 by the maintainer, in chat (*"pode claro"*): while an overlay is open, a page that is a child web view is replaced by a picture of itself instead of hiding; the mechanism is the author's.
 
 ### Amendment (2026-11-01): the pages have an engine profile of their own
 
