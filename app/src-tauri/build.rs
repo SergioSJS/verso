@@ -100,6 +100,7 @@ fn main() {
         "set_menu_language",
         "set_menu_commands",
         "set_bars_dark",
+        "take_shared",
         "set_menu_enabled",
         "menu_sections",
         "quit_app",

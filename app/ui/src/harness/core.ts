@@ -197,6 +197,8 @@ export class Core {
   readonly calls: { cmd: string; args: unknown }[] = [];
   /** What the window wrote into the app's log (`log_write`). */
   readonly log: { level: string; message: string }[] = [];
+  /** What another app handed to a phone's Verso (ADR 0118 item 5), until the window takes it. */
+  readonly shared: { name: string; text: string | null; problem: string | null }[] = [];
   private clock = 1_790_000_000;
   private revision = 1;
   private webViews = new Map<string, string>();
@@ -1278,6 +1280,7 @@ export class Core {
     set_menu_language: () => null,
     set_menu_commands: () => null,
     set_bars_dark: () => null,
+    take_shared: () => this.shared.splice(0),
     set_menu_enabled: () => null,
     menu_sections: (a) => menuSections(String(a["language"]), a["features"] as string[]),
     quit_app: () => null,

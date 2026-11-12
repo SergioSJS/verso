@@ -84,6 +84,14 @@ export type ScreenStrings = {
   webOnlyTab: string;
   /** The line at the top of a phone's pane (item 6). */
   dismiss: string;
+  /** What another app handed to Verso on a phone (ADR 0118 item 5). */
+  sharedName: string;
+  sharedMade: (name: string) => string;
+  sharedMany: (n: number) => string;
+  sharedTooBig: (name: string) => string;
+  sharedNotText: (name: string) => string;
+  sharedUnreadable: (name: string) => string;
+  sharedNoFolder: string;
 };
 
 const pt: ScreenStrings = {
@@ -141,6 +149,13 @@ const pt: ScreenStrings = {
   webOpenTab: "Abrir a página numa nova aba",
   webOnlyTab: "Este site só abre numa nova aba.",
   dismiss: "Dispensar",
+  sharedName: "Compartilhado",
+  sharedMade: (name) => `Recebido de outro app: “${name}”, uma nota nova nesta pasta.`,
+  sharedMany: (n) => `Recebidos de outro app: ${n} notas novas nesta pasta.`,
+  sharedTooBig: (name) => `“${name}” passa de 8 MiB: nada foi criado.`,
+  sharedNotText: (name) => `“${name}” não é texto: nada foi criado.`,
+  sharedUnreadable: (name) => `“${name}” não pôde ser lido: nada foi criado.`,
+  sharedNoFolder: "Abra uma pasta para receber o que outro app mandou ao Verso.",
 };
 
 const en: ScreenStrings = {
@@ -198,6 +213,13 @@ const en: ScreenStrings = {
   webOpenTab: "Open the page in a new tab",
   webOnlyTab: "This site only opens in a new tab.",
   dismiss: "Dismiss",
+  sharedName: "Shared",
+  sharedMade: (name) => `Received from another app: “${name}”, a new note in this folder.`,
+  sharedMany: (n) => `Received from another app: ${n} new notes in this folder.`,
+  sharedTooBig: (name) => `“${name}” is over 8 MiB: nothing was made.`,
+  sharedNotText: (name) => `“${name}” is not text: nothing was made.`,
+  sharedUnreadable: (name) => `“${name}” could not be read: nothing was made.`,
+  sharedNoFolder: "Open a folder to receive what another app sent to Verso.",
 };
 
 export const st: ScreenStrings = LANG.toLowerCase().startsWith("pt") ? pt : en;

@@ -78,6 +78,14 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
     invoke.resolve(answer)
   }
 
+  // What other apps handed to Verso since the window last asked (Shared.kt).
+  @Command
+  fun takeShared(invoke: Invoke) {
+    val answer = JSObject()
+    answer.put("items", Shared.take())
+    invoke.resolve(answer)
+  }
+
   // A server's sign-in page, opened in the browser the person uses.
   @Command
   fun openUrl(invoke: Invoke) {

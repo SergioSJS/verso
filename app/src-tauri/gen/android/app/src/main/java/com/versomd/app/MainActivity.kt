@@ -1,6 +1,7 @@
 package com.versomd.app
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
@@ -16,6 +17,23 @@ class MainActivity : TauriActivity() {
     // The system's certificate check for every TLS connection of the app
     // (rustls-platform-verifier needs the context once; src/android.rs).
     initTls(applicationContext)
+    // Started by a share or an "Open with" (ADR 0118 item 5): kept until
+    // the window, once up, takes it.
+    if (Shared.receive(this, intent) { tellPage() }) intent = Intent()
+  }
+
+  // A share or an "Open with" while Verso runs (one activity: singleTask).
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    Shared.receive(this, intent) { tellPage() }
+  }
+
+  private var page: WebView? = null
+
+  // The window takes what was handed (app/ui src/screen/shared.ts); before
+  // it is up, it takes it when its folder opens.
+  private fun tellPage() {
+    runOnUiThread { page?.evaluateJavascript("window.versoShared && window.versoShared()", null) }
   }
 
   // Back closes what is on top in the page — a menu, a dialog, a sheet, a
@@ -23,6 +41,7 @@ class MainActivity : TauriActivity() {
   // (app/ui/src/screen/back.ts answers `true` when it closed something).
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
+    page = webView
     onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
       override fun handleOnBackPressed() {
         webView.evaluateJavascript("(window.versoBack ? window.versoBack() : false) === true") { closed ->

@@ -78,6 +78,7 @@ mod remote_abilities;
 mod resolv_conf;
 mod secrets;
 mod session;
+mod shared;
 mod shares;
 mod sync;
 mod sync_commands;
@@ -853,6 +854,7 @@ macro_rules! commands_for {
                 set_menu_language::<$runtime>,
                 set_menu_commands::<$runtime>,
                 mobile::set_bars_dark::<$runtime>,
+                shared::take_shared,
                 set_menu_enabled::<$runtime>,
                 menu_sections,
                 quit_app::<$runtime>,

@@ -110,6 +110,7 @@
     "allow-set-menu-language",
     "allow-set-menu-commands",
     "allow-set-bars-dark",
+    "allow-take-shared",
     "allow-set-menu-enabled",
     "allow-menu-sections",
     "allow-quit-app",

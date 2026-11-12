@@ -540,6 +540,11 @@ export const commands = {
 	 */
 	setBarsDark: (dark: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_bars_dark", { dark })),
 	/**
+	 *  What other apps handed to Verso since the window last asked, handed
+	 *  over once; nothing on a desktop (its files come by `open_initial`).
+	 */
+	takeShared: () => typedError<Shared[], ContractError>(__TAURI_INVOKE("take_shared")),
+	/**
 	 *  The commands that can run just now (the palette's own list, from the
 	 *  window in focus): the other items are greyed, in place.
 	 */
@@ -4352,6 +4357,19 @@ export type SharePerson = {
 	email: string,
 	/**  `owner`, `editor` (writes) or `reader` (reads only). */
 	role: string,
+};
+
+/**  One thing handed to Verso. */
+export type Shared = {
+	/**
+	 *  Its name as the other app gave it (a file's name, a share's
+	 *  subject); empty when it gave none.
+	 */
+	name: string,
+	/**  Its text; absent when it could not be taken (`problem`). */
+	text: string | null,
+	/**  Why it could not be taken: `too_big`, `not_text` or `unreadable`. */
+	problem: string | null,
 };
 
 /**  Why a note that links to what moved got no rewrite. */

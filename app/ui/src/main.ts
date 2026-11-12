@@ -40,6 +40,7 @@ import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { frameMenuButton, installFrame } from "./frame";
 import { installBack } from "./screen/back";
+import { installShared } from "./screen/shared";
 import { installBars } from "./screen/bars";
 import { initZoom } from "./zoom";
 import { installStatusLive } from "./statusLive";
@@ -429,6 +430,7 @@ paintToggles();
 installFrame();
 // Android's Back closes what is on top (screen/back.ts).
 installBack();
+installShared();
 // The phone's status and gesture bars follow the theme (screen/bars.ts).
 installBars();
 initZoom();

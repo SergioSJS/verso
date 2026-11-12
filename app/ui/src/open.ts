@@ -28,6 +28,8 @@ import { t } from "./strings";
 import { listAll, showOutline } from "./tree/tree";
 import { attachFolderLayouts } from "./statblock/folderWire";
 import { focusOnOpen } from "./screen/openFocus";
+import { receiveShared } from "./screen/shared";
+import { host } from "./can";
 
 /** A popped-out window joins the session: the folder is open already. */
 export async function joinAsPopout(): Promise<void> {
@@ -155,6 +157,9 @@ export async function showFolder(info: FolderInfo): Promise<void> {
     endRestore();
   }
   focusOnOpen(ui.search);
+  // What another app handed to the phone's Verso, kept until a folder is
+  // here (ADR 0118 item 5).
+  if (host() === "mobile") void receiveShared();
 }
 /** The folder's lists, then its tabs as they were left. */
 async function showListsAndTabs(info: FolderInfo): Promise<void> {
