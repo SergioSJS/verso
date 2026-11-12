@@ -96,7 +96,7 @@ Dados, fichas, oráculos e a mesa de jogo, sozinho ou com outras pessoas.
 
 - [[22 - Dados e Tabelas Sorteadas]] — `dice:` numa nota rola dados, uma tabela ou lista com `^id` sorteia uma linha; nada escrito, e numa nota compartilhada todos veem.
 - [[23 - Fichas]] — Um exemplo de cada layout de ficha `statblock`, com dados e contadores que gravam na nota, e o editor de layouts. Um exemplo completo, o Fractal, está na [[Campanha Fractal/Mundo|Campanha Fractal]].
-- [[24 - Oráculos e Criação de Mundos]] — O oráculo que escreve a resposta no destaque; as tabelas sorteadas; o assistente de novo projeto com a árvore à vista; e a chave de cada recurso em Ajustes.
+- [[24 - Oráculos e Criação de Mundos]] — O oráculo que escreve a resposta no destaque; as tabelas sorteadas; o assistente de novo projeto com a árvore à vista; os mapas dos geradores do Watabou, desenhados pelo Verso; e a chave de cada recurso em Ajustes.
 - [[25 - A Mesa]] — Um registro de todas as rolagens, sorteios e perguntas ao oráculo, com quem fez e de qual nota, no painel da direita; as de outras pessoas chegam com o nome delas.
 - [[26 - Rodando uma Mesa]] — Uma pasta de campanha num UniVerso: convidar as jogadoras, notas ocultas até você liberar, links para o que ainda não apareceu com um cadeado, quem edita o quê e os limites da mesa.
 - [[27 - Som e Música na Mesa]] — A mestra toca um arquivo de som e todos da mesa ouvem no mesmo ponto, cada um com o seu volume; uma nota com links de som vira a mesa de som, e quem não vê o arquivo não o ouve.
