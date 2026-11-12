@@ -92,6 +92,20 @@ export type ScreenStrings = {
   sharedNotText: (name: string) => string;
   sharedUnreadable: (name: string) => string;
   sharedNoFolder: string;
+  /** A folder of the phone's shared storage (ADR 0118 item 4.4). */
+  storageTitle: string;
+  storageAbout: string;
+  storageNeeds: string;
+  storageAllow: string;
+  storageTop: string;
+  storageUp: string;
+  storageEmpty: string;
+  storageNew: string;
+  storageNewName: string;
+  storageMake: string;
+  storageOpen: string;
+  storageOpenHere: (name: string) => string;
+  storagePickInside: string;
 };
 
 const pt: ScreenStrings = {
@@ -156,6 +170,19 @@ const pt: ScreenStrings = {
   sharedNotText: (name) => `“${name}” não é texto: nada foi criado.`,
   sharedUnreadable: (name) => `“${name}” não pôde ser lido: nada foi criado.`,
   sharedNoFolder: "Abra uma pasta para receber o que outro app mandou ao Verso.",
+  storageTitle: "Abrir uma pasta do celular",
+  storageAbout: "Uma pasta do armazenamento do celular, que outros apps (o Obsidian, o gerenciador de arquivos, o Syncthing) também veem — e que fica no celular mesmo se o Verso for desinstalado.",
+  storageNeeds: "Para isso o Verso precisa do “Acesso a todos os arquivos”. O Android abre a página dele: ligue para o Verso e volte aqui.",
+  storageAllow: "Permitir acesso",
+  storageTop: "Celular",
+  storageUp: "Voltar uma pasta",
+  storageEmpty: "Nenhuma pasta aqui.",
+  storageNew: "Nova pasta…",
+  storageNewName: "Nome da nova pasta (ela abre em seguida):",
+  storageMake: "Criar e abrir",
+  storageOpen: "Abrir esta pasta",
+  storageOpenHere: (name) => `Abrir “${name}”`,
+  storagePickInside: "Escolha uma pasta: o armazenamento inteiro não é uma pasta de notas.",
 };
 
 const en: ScreenStrings = {
@@ -220,6 +247,19 @@ const en: ScreenStrings = {
   sharedNotText: (name) => `“${name}” is not text: nothing was made.`,
   sharedUnreadable: (name) => `“${name}” could not be read: nothing was made.`,
   sharedNoFolder: "Open a folder to receive what another app sent to Verso.",
+  storageTitle: "Open a folder of the phone",
+  storageAbout: "A folder of the phone's storage, which other apps (Obsidian, the file manager, Syncthing) see too — and which stays on the phone even if Verso is uninstalled.",
+  storageNeeds: "For this Verso needs “All files access”. Android opens its page: turn it on for Verso and come back here.",
+  storageAllow: "Allow access",
+  storageTop: "Phone",
+  storageUp: "Up one folder",
+  storageEmpty: "No folder here.",
+  storageNew: "New folder…",
+  storageNewName: "Name of the new folder (it opens next):",
+  storageMake: "Make and open",
+  storageOpen: "Open this folder",
+  storageOpenHere: (name) => `Open “${name}”`,
+  storagePickInside: "Choose a folder: the whole storage is not a folder of notes.",
 };
 
 export const st: ScreenStrings = LANG.toLowerCase().startsWith("pt") ? pt : en;

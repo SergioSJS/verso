@@ -82,6 +82,7 @@ mod shared;
 mod shares;
 mod sync;
 mod sync_commands;
+mod storage;
 mod table;
 mod terminal;
 mod trash;
@@ -857,6 +858,9 @@ macro_rules! commands_for {
                 shared::take_shared,
                 set_menu_enabled::<$runtime>,
                 menu_sections,
+                storage::shared_storage,
+                storage::shared_storage_access,
+                storage::open_shared_folder::<$runtime>,
                 quit_app::<$runtime>,
                 reindex::<$runtime>,
                 capabilities::<$runtime>,
@@ -932,7 +936,7 @@ macro_rules! commands_for {
                 read_link_create::<$runtime>,
                 read_link_revoke::<$runtime>,
                 server_prove::<$runtime>,
-                recent_folders,
+                recent_folders::<$runtime>,
                 local_server_status::<$runtime>,
                 local_server_folders::<$runtime>,
                 local_server_tick::<$runtime>,

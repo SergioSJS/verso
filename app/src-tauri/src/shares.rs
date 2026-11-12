@@ -297,15 +297,28 @@ pub(crate) fn place_of(folder: &Path, home: Option<&Path>) -> String {
 /// a short label of where each sits, no path.
 #[tauri::command]
 #[specta::specta]
-pub(crate) fn recent_folders(state: State<'_, App>) -> Vec<RecentFolder> {
+pub(crate) fn recent_folders<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, App>,
+) -> Vec<RecentFolder> {
     let home =
         std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
+    // A phone's folders in words: inside the app, or where in its storage.
+    #[cfg(target_os = "android")]
+    let place = |path: &Path| {
+        crate::storage::place_here(&app, path).unwrap_or_else(|| place_of(path, home.as_deref()))
+    };
+    #[cfg(not(target_os = "android"))]
+    let place = |path: &Path| {
+        let _ = &app;
+        place_of(path, home.as_deref())
+    };
     verso_core::recent_folders(state.service.config())
         .into_iter()
         .take(40)
         .map(|path| RecentFolder {
             key: verso_core::folder_key(&path),
-            place: place_of(&path, home.as_deref()),
+            place: place(&path),
             name: path
                 .file_name()
                 .map(|n| n.to_string_lossy().into_owned())

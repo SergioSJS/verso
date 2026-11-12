@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- The DNS servers of the network the phone is on (ADR 0097, src/phone.rs). -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -15,9 +16,18 @@
     <!-- A sideloaded APK's updater hands the new version to Android's install
          prompt (ADR 0118 item 5); a Play build would leave it out. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- A folder in the phone's shared storage, the one other apps see
+         (ADR 0118 item 4.4): All files access on Android 11+, the storage
+         permission with the legacy view on Android 10. -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
 
     <application
         android:allowBackup="false"
+        android:requestLegacyExternalStorage="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"

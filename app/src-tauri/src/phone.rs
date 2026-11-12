@@ -25,6 +25,9 @@ pub(crate) struct Facts {
     pub(crate) dns_servers: Vec<String>,
     pub(crate) native_library_dir: String,
     pub(crate) sdk: u32,
+    /// The top of the shared storage (`/storage/emulated/0`).
+    #[serde(default)]
+    pub(crate) shared_storage: String,
 }
 
 /// The plugin, registered with the app's other plugins.
@@ -49,11 +52,18 @@ pub(crate) fn call<T: serde::de::DeserializeOwned>(
         .map_err(|e| e.to_string())
 }
 
+static KEPT: OnceLock<Facts> = OnceLock::new();
+
+/// The phone's facts if they were asked already; never asks (a caller on
+/// the main thread, which the plugin answers on, must not wait for it).
+pub(crate) fn facts_kept() -> Option<Facts> {
+    KEPT.get().cloned()
+}
+
 /// The phone's facts: asked of Android the first time, kept after. Before
 /// the plugin is ready (or if Android does not answer) the defaults, said
 /// in the log, and asked again next time.
 pub(crate) fn facts() -> Facts {
-    static KEPT: OnceLock<Facts> = OnceLock::new();
     if let Some(kept) = KEPT.get() {
         return kept.clone();
     }

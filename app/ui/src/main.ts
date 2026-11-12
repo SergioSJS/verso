@@ -853,6 +853,17 @@ export const started: Promise<void> = (async () => {
   if (open.status === "ok" && open.data) return void (await showFolder(open.data));
   // A reload of the loose-files window finds its files still open.
   if (await rejoinLoose()) return;
+  // A phone opens the folder of its own storage it showed last (one of
+  // its shared storage, ADR 0118 item 4.4); else the app's own folder.
+  if (host() === "mobile" && !secondary) {
+    let kept: string | null = null;
+    try {
+      kept = localStorage.getItem(LAST_FOLDER);
+    } catch {
+      // No storage: the app's own folder.
+    }
+    if (kept && !kept.includes("/") && !parseServerKey(kept) && (await openFolderBy(() => commands.reopenFolder(kept), true))) return;
+  }
   // `verso <folder>` (or a Markdown file, ADR 0114) on the command line
   // wins over the last folder.
   if (await openOpened(() => commands.openInitial())) {

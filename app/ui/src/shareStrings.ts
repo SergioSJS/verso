@@ -61,6 +61,7 @@ const pt = {
   // The folder switcher (item 5).
   switcher: "Trocar de pasta",
   here: "Neste computador",
+  herePhone: "Neste celular",
   mine: "Meus",
   sharedWithMe: "Compartilhados comigo",
   sharedByMe: "Compartilhados por mim",
@@ -132,6 +133,7 @@ const en: typeof pt = {
   notOnServer: "This folder is not on a server: sync it with a UniVerso to share it.",
   switcher: "Switch folder",
   here: "On this computer",
+  herePhone: "On this phone",
   mine: "Mine",
   sharedWithMe: "Shared with me",
   sharedByMe: "Shared by me",

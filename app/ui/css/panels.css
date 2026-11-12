@@ -661,6 +661,18 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .confirm-box { width: min(48ch, 92vw); padding: 1.1rem 1.3rem 1rem; background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
 .confirm-box p { margin: 0 0 1rem; font-size: .93rem; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+/* A folder of the phone's shared storage (dialogs/sharedFolder.ts, ADR 0118 item 4.4). */
+.storage-box { width: min(56ch, 94vw); max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem); display: flex; flex-direction: column; }
+.storage-box h2 { margin: 0 0 .5rem; font-size: 1.05rem; }
+.storage-body { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.storage-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: .15rem; margin-bottom: .4rem; color: var(--ink-3); }
+.storage-crumb { background: none; border: 0; padding: .3rem .35rem; border-radius: 6px; color: inherit; font: inherit; }
+.storage-crumb[aria-current] { color: var(--ink); font-weight: 600; }
+.storage-list { list-style: none; margin: 0 0 .8rem; padding: 0; overflow-y: auto; min-height: 6rem; flex: 1; border: 1px solid var(--hair); border-radius: 8px; }
+.storage-row { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 44px; padding: .35rem .7rem; background: none; border: 0; border-bottom: 1px solid var(--hair); text-align: left; color: var(--ink); font: inherit; overflow-wrap: anywhere; }
+.storage-row svg { flex: none; color: var(--ink-3); }
+.storage-empty { padding: .8rem .7rem; color: var(--ink-3); }
+.storage-box .confirm-actions { flex-wrap: wrap; }
 
 /* ---------- A property the panel shows but does not rewrite (props.ts): Source mode edits it ---------- */
 .prop.fixed .prop-input:disabled { color: var(--ink-2); background: none; cursor: default; }

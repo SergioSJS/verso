@@ -29,6 +29,7 @@ import { listAll, showOutline } from "./tree/tree";
 import { attachFolderLayouts } from "./statblock/folderWire";
 import { focusOnOpen } from "./screen/openFocus";
 import { receiveShared } from "./screen/shared";
+import { openSharedFolderDialog } from "./dialogs/sharedFolder";
 import { host } from "./can";
 
 /** A popped-out window joins the session: the folder is open already. */
@@ -203,6 +204,9 @@ async function showListsAndTabs(info: FolderInfo): Promise<void> {
   if (!restored) newSpace();
 }
 export async function openFolderDialog(): Promise<void> {
+  // A phone has no folder picker that answers with a folder: its shared
+  // storage is walked in the window (ADR 0118 item 4.4).
+  if (host() === "mobile") return openSharedFolderDialog();
   await openFolderBy(() => commands.pickFolder());
 }
 /** A scan rule turned on or off: the host takes the new rules, and the

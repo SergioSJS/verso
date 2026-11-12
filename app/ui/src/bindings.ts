@@ -545,6 +545,23 @@ export const commands = {
 	 */
 	takeShared: () => typedError<Shared[], ContractError>(__TAURI_INVOKE("take_shared")),
 	/**
+	 *  The folders of the shared storage at `path` (relative to its top, `/`
+	 *  between names, `""` for the top).
+	 */
+	sharedStorage: (path: string) => typedError<SharedStorage, ContractError>(__TAURI_INVOKE("shared_storage", { path })),
+	/**
+	 *  Ask Android for the access: its own page for *All files access* (the
+	 *  person turns it on there and comes back), or the storage permission's
+	 *  prompt on Android 10.
+	 */
+	sharedStorageAccess: () => typedError<null, ContractError>(__TAURI_INVOKE("shared_storage_access")),
+	/**
+	 *  Open the folder at `path` of the shared storage in this window, first
+	 *  making the folder `make` inside it when one is named. The top itself is
+	 *  not a folder of notes.
+	 */
+	openSharedFolder: (path: string, make: string | null) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("open_shared_folder", { path, make })),
+	/**
 	 *  The commands that can run just now (the palette's own list, from the
 	 *  window in focus): the other items are greyed, in place.
 	 */
@@ -4370,6 +4387,21 @@ export type Shared = {
 	text: string | null,
 	/**  Why it could not be taken: `too_big`, `not_text` or `unreadable`. */
 	problem: string | null,
+};
+
+/**  What the shared storage holds at a place. */
+export type SharedStorage = {
+	/**
+	 *  Whether Verso may reach the shared storage (Android's *All files
+	 *  access*; the storage permission on Android 10): without it, no
+	 *  folder is listed and the window asks for it.
+	 */
+	access: boolean,
+	/**
+	 *  The folders directly at the place, by name, sorted; hidden ones are
+	 *  left out.
+	 */
+	folders: string[],
 };
 
 /**  Why a note that links to what moved got no rewrite. */

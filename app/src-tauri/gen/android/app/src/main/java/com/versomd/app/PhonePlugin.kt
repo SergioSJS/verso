@@ -9,6 +9,7 @@ import android.net.ConnectivityManager
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -75,6 +76,8 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
     answer.put("dnsServers", dns)
     answer.put("nativeLibraryDir", context.applicationInfo.nativeLibraryDir)
     answer.put("sdk", Build.VERSION.SDK_INT)
+    @Suppress("DEPRECATION")
+    answer.put("sharedStorage", Environment.getExternalStorageDirectory().absolutePath)
     invoke.resolve(answer)
   }
 
@@ -84,6 +87,52 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
     val answer = JSObject()
     answer.put("items", Shared.take())
     invoke.resolve(answer)
+  }
+
+  // Whether Verso may reach the phone's shared storage (ADR 0118 item 4.4),
+  // and where its top is: All files access on Android 11+, the storage
+  // permission on Android 10 (with the legacy view the manifest asks for).
+  @Command
+  fun storageAccess(invoke: Invoke) {
+    val context = activity.applicationContext
+    val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      Environment.isExternalStorageManager()
+    } else {
+      ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+    }
+    val answer = JSObject()
+    answer.put("granted", granted)
+    @Suppress("DEPRECATION")
+    answer.put("top", Environment.getExternalStorageDirectory().absolutePath)
+    invoke.resolve(answer)
+  }
+
+  // Ask for that access: Android's own page for Verso's All files access
+  // (the person turns it on and comes back; the window asks again when it
+  // is shown), or the permission's prompt on Android 10.
+  @Command
+  fun askStorageAccess(invoke: Invoke) {
+    val context = activity.applicationContext
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        val own = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + context.packageName))
+          .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+          activity.startActivity(own)
+        } catch (e: Exception) {
+          // A system without the page for one app: the list of all of them.
+          activity.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+      } else {
+        activity.requestPermissions(
+          arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE),
+          7341,
+        )
+      }
+      invoke.resolve()
+    } catch (e: Exception) {
+      invoke.reject(e.message ?: "the page for the access did not open")
+    }
   }
 
   // A server's sign-in page, opened in the browser the person uses.

@@ -82,3 +82,48 @@ test("a file Verso cannot take is said, and nothing is made", async ({ app, page
   await expect(page.locator(".web-notice")).toContainText("“foto.png” não é texto: nada foi criado.");
   expect(await page.evaluate(() => window.__harness.files())).toEqual(before);
 });
+
+// A folder of the phone's shared storage (ADR 0118 item 4.4, in v1 since
+// 2026-11-12): "Open another folder" walks the storage in the window, asks
+// for All files access first, and opens the folder chosen.
+async function switcher(page) {
+  if (page.viewportSize().width < 760 && (await page.locator("body.side-open").count()) === 0) {
+    await page.locator(".bottom-bar .bar-files").click();
+    await page.locator("aside.side").evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
+  }
+  await page.locator("#open").click();
+  return page.getByRole("dialog", { name: "Trocar de pasta" });
+}
+
+test("a phone opens a folder of its shared storage", async ({ app, page }) => {
+  await app.open("?host=mobile");
+  const box = await switcher(page);
+  await expect(box.getByRole("region", { name: "Neste celular" })).toBeVisible();
+  await box.getByRole("button", { name: "Abrir outra pasta…" }).click();
+  const storage = page.getByRole("dialog", { name: "Abrir uma pasta do celular" });
+  await expect(storage).toContainText("Acesso a todos os arquivos");
+  await storage.getByRole("button", { name: "Permitir acesso" }).click();
+  // Back from Android's page: the window asks again.
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(storage.getByRole("button", { name: "Documents" })).toBeVisible();
+  await expect(storage.getByRole("button", { name: "Abrir esta pasta" })).toBeDisabled();
+  await storage.getByRole("button", { name: "Documents" }).click();
+  await storage.getByRole("button", { name: "Obsidian" }).click();
+  await storage.getByRole("button", { name: "Abrir “Obsidian”" }).click();
+  await expect(storage).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.__harness.core.storage.opened)).toEqual(["Documents/Obsidian"]);
+  await expect(page.locator("#folder")).toHaveText("Obsidian");
+});
+
+test("a new folder of the shared storage is made and opened", async ({ app, page }) => {
+  await app.open("?host=mobile");
+  await page.evaluate(() => (window.__harness.core.storage.access = true));
+  const box = await switcher(page);
+  await box.getByRole("button", { name: "Abrir outra pasta…" }).click();
+  const storage = page.getByRole("dialog", { name: "Abrir uma pasta do celular" });
+  await storage.getByRole("button", { name: "Documents" }).click();
+  await storage.getByRole("button", { name: "Nova pasta…" }).click();
+  await page.locator(".prompt-field").fill("Campanha");
+  await page.locator(".prompt-box").getByRole("button", { name: "Criar e abrir" }).click();
+  await expect.poll(() => page.evaluate(() => window.__harness.core.storage.opened)).toEqual(["Documents/Campanha"]);
+});

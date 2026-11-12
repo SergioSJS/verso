@@ -199,6 +199,8 @@ export class Core {
   readonly log: { level: string; message: string }[] = [];
   /** What another app handed to a phone's Verso (ADR 0118 item 5), until the window takes it. */
   readonly shared: { name: string; text: string | null; problem: string | null }[] = [];
+  /** A phone's shared storage (ADR 0118 item 4.4): whether All files access is on, and its folders by path. */
+  readonly storage = { access: false, folders: new Set<string>(["Documents", "Documents/Obsidian", "Download", "Music"]), opened: [] as string[] };
   private clock = 1_790_000_000;
   private revision = 1;
   private webViews = new Map<string, string>();
@@ -1281,6 +1283,21 @@ export class Core {
     set_menu_commands: () => null,
     set_bars_dark: () => null,
     take_shared: () => this.shared.splice(0),
+    shared_storage: (a) => {
+      const at = String(a["path"]);
+      const under = [...this.storage.folders].filter((f) => f.includes("/") ? f.slice(0, f.lastIndexOf("/")) === at : at === "");
+      return { access: this.storage.access, folders: this.storage.access ? under.map((f) => f.split("/").pop()!).sort() : [] };
+    },
+    shared_storage_access: () => {
+      this.storage.access = true;
+      return null;
+    },
+    open_shared_folder: (a) => {
+      const at = [String(a["path"]), a["make"] ? String(a["make"]) : ""].filter(Boolean).join("/");
+      this.storage.folders.add(at);
+      this.storage.opened.push(at);
+      return { ...this.folderInfo(), name: at.split("/").pop()! };
+    },
     set_menu_enabled: () => null,
     menu_sections: (a) => menuSections(String(a["language"]), a["features"] as string[]),
     quit_app: () => null,
