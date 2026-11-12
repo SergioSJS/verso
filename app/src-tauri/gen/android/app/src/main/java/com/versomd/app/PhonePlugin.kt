@@ -14,6 +14,9 @@ import android.provider.Settings
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import java.io.File
+import androidx.activity.result.ActivityResult
+import android.media.projection.MediaProjectionManager
+import app.tauri.annotation.ActivityCallback
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
@@ -45,6 +48,12 @@ class LockArgs {
 @InvokeArg
 class CopyArgs {
   var to: String = ""
+}
+
+@InvokeArg
+class CaptureArgs {
+  var title: String = ""
+  var text: String = ""
 }
 
 @InvokeArg
@@ -134,6 +143,57 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
     } catch (e: Exception) {
       invoke.reject(e.message ?: "the page for the access did not open")
     }
+  }
+
+  // The sound of the phone's other apps (Capture.kt): the microphone's
+  // permission first (Android asks it of AudioPlaybackCapture), then
+  // Android's screen-capture prompt, then the service that holds the
+  // capture. Resolves once the person allowed it; the samples follow.
+  private var captureWords = CaptureArgs()
+
+  @Command
+  fun captureStart(invoke: Invoke) {
+    captureWords = invoke.parseArgs(CaptureArgs::class.java)
+    val context = activity.applicationContext
+    if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+      activity.requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 7343)
+      invoke.reject("Verso is not allowed to record audio")
+      return
+    }
+    val manager = context.getSystemService(MediaProjectionManager::class.java)
+    if (manager == null) {
+      invoke.reject("no screen capture on this phone")
+      return
+    }
+    startActivityForResult(invoke, manager.createScreenCaptureIntent(), "captureAllowed")
+  }
+
+  @ActivityCallback
+  fun captureAllowed(invoke: Invoke, result: ActivityResult) {
+    val data = result.data
+    if (result.resultCode != Activity.RESULT_OK || data == null) {
+      invoke.reject("the screen capture was not allowed")
+      return
+    }
+    val context = activity.applicationContext
+    val service = Intent(context, CaptureService::class.java)
+      .putExtra(CaptureService.TITLE, captureWords.title)
+      .putExtra(CaptureService.TEXT, captureWords.text)
+      .putExtra(CaptureService.CODE, result.resultCode)
+      .putExtra(CaptureService.DATA, data)
+    try {
+      ContextCompat.startForegroundService(context, service)
+      invoke.resolve()
+    } catch (e: Exception) {
+      invoke.reject(e.message ?: "the capture did not start")
+    }
+  }
+
+  @Command
+  fun captureStop(invoke: Invoke) {
+    val context = activity.applicationContext
+    context.stopService(Intent(context, CaptureService::class.java))
+    invoke.resolve()
   }
 
   // A server's sign-in page, opened in the browser the person uses.

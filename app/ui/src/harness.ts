@@ -245,7 +245,7 @@ core.handlers["share_list"] = (a) => ((core.sync.on && core.sync.role === "owner
 // src/mobile.rs `NOT_ON_A_PHONE`).
 if (params.get("host") === "mobile") {
   const asked = core.handlers["capabilities"]!;
-  const notOnAPhone = ["loose_files", "terminal", "audio_share", "windows", "web_views", "agents", "reveal"];
+  const notOnAPhone = ["loose_files", "terminal", "windows", "web_views", "agents", "reveal"];
   core.handlers["capabilities"] = (a) => {
     const c = asked(a) as { host: string; can: string[] };
     return { ...c, host: c.host === "desktop" ? "mobile" : c.host, can: c.can.filter((x) => !notOnAPhone.includes(x)) };

@@ -9,6 +9,11 @@
          Wi-Fi kept awake, multicast (mDNS) while a device pairs. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- The sound of the phone's other apps shared at the table
+         (AudioPlaybackCapture, ADR 0118 item 5): Android asks the
+         microphone's permission for it and a mediaProjection service. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -75,6 +80,11 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Serves the person's own notes to their own devices, on the local network and through their internet link, while they ask it to (a self-hosted server)." />
         </service>
+
+        <service
+            android:name=".CaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
         <provider
           android:name="androidx.core.content.FileProvider"

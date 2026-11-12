@@ -28,5 +28,9 @@
 -keep class com.versomd.app.StatusBarPlugin { *; }
 -keep class com.versomd.app.*Args { *; }
 -keep class com.versomd.app.ServeService { *; }
+-keep class com.versomd.app.CaptureService { *; }
+# Their natives are named after them (src/background.rs, src/audio_share/android.rs).
+-keep class com.versomd.app.Conditions { *; }
+-keep class com.versomd.app.Capture { *; }
 -keep class io.crates.keyring.Keyring { *; }
 -keep class io.crates.keyring.Keyring$Companion { *; }

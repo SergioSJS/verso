@@ -165,3 +165,31 @@ test("a folder of the shared storage is said to stay if Verso goes", async ({ ap
   await section(app, page, "Sincronizar");
   await expect(page.locator(".settings-body")).toContainText("no armazenamento que outros apps veem: fica mesmo se o Verso for desinstalado");
 });
+
+// The sound of the phone's other apps shared at the table (ADR 0118 item 5,
+// in v1 since 2026-11-12): a phone's game master has the share, its one
+// source named in the window's language, and Android's refusals said in words.
+test("a phone's game master shares the phone's sound, and a refusal is said", async ({ app, page }) => {
+  await app.open("?host=mobile&vault=empty");
+  await page.evaluate(() => {
+    const t = window.__harness.table;
+    t.role = "owner";
+    t.up = true;
+    window.__harness.audioShare.sources = [{ id: "phone", name: "Sound of the phone's apps", kind: "system" }];
+    window.__harness.audioShare.captureFails = "the screen capture was not allowed";
+  });
+  await app.writeOutside("Sessao.md", "# Sessão\n");
+  await app.folderChanged(["Sessao.md"], true);
+  if ((page.viewportSize()?.width ?? 1500) <= 760) {
+    if (!(await page.locator("body.right-open").count())) await page.locator(".bar-right").click();
+  } else await page.evaluate(() => document.body.classList.remove("no-right"));
+  await page.locator("#right-tabs").getByRole("tab", { name: /^Música/ }).click();
+  const view = page.locator(".music-view");
+  await view.getByRole("button", { name: /^Compartilhar áudio/ }).first().click();
+  const picker = page.getByRole("dialog", { name: "Compartilhar áudio" });
+  await expect(picker).toContainText("Som dos apps do celular");
+  await picker.getByRole("button", { name: "Começar a compartilhar" }).click();
+  const notice = page.getByRole("dialog", { name: "Compartilhar áudio" });
+  if (await notice.getByRole("button", { name: "Entendi, compartilhar" }).count()) await notice.getByRole("button", { name: "Entendi, compartilhar" }).click();
+  await expect(page.locator("body")).toContainText("toque em Começar no aviso de captura de tela do Android");
+});

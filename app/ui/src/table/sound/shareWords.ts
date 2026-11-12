@@ -22,6 +22,10 @@ type Words = {
   needsPulse: string;
   noPages: string;
   pagesName: string;
+  /** A phone's one source and its refusals (ADR 0118 item 5). */
+  phoneName: string;
+  phoneRefused: string;
+  phoneMic: string;
   pagesHint: string;
   pagesHintMac: string;
   pagesHintLinux: string;
@@ -68,6 +72,9 @@ const pt: Words = {
   needsPulse: "Compartilhar áudio no Linux precisa das ferramentas de som do PulseAudio (pactl e parec; no Debian e no Ubuntu, o pacote pulseaudio-utils, que o PipeWire também usa). Instale-as e escolha compartilhar de novo.",
   noPages: "Abra uma página no Verso (como página, não dentro de uma nota) e deixe-a tocar; depois escolha compartilhar de novo.",
   pagesName: "Páginas abertas no Verso",
+  phoneName: "Som dos apps do celular",
+  phoneRefused: "O Android não deixou: para compartilhar o som do celular, toque em Começar no aviso de captura de tela do Android.",
+  phoneMic: "O Android pede a permissão do microfone para captar o som dos outros apps: permita e escolha compartilhar de novo.",
   pagesHint: "Só o som das páginas abertas como página no Verso (YouTube, Spotify Web, uma trilha de ambiente) vai para a mesa, todas juntas. Os sons do próprio Verso (dados, avisos, a música da mesa) e de outros programas nunca vão. Uma página mostrada dentro de uma nota não conta: abra-a como página.",
   pagesHintMac: "Só o som das páginas abertas no Verso (YouTube, Spotify Web, uma trilha de ambiente) vai para a mesa, todas juntas. Os sons do próprio Verso (dados, avisos, a música da mesa, os players de áudio das notas) e de outros programas nunca vão. No Mac, um vídeo ou uma página mostrada dentro de uma nota não dá para separar: o som dela vai junto.",
   quality: "Qualidade",
@@ -112,6 +119,9 @@ const en: Words = {
   needsPulse: "Sharing audio on Linux needs the PulseAudio sound tools (pactl and parec; on Debian and Ubuntu the package pulseaudio-utils, which PipeWire uses too). Install them and choose to share again.",
   noPages: "Open a page in Verso (as a page, not inside a note) and let it play; then choose to share again.",
   pagesName: "Pages open in Verso",
+  phoneName: "Sound of the phone's apps",
+  phoneRefused: "Android did not allow it: to share the phone's sound, tap Start on Android's screen-capture prompt.",
+  phoneMic: "Android asks for the microphone's permission to capture the other apps' sound: allow it and choose to share again.",
   pagesHint: "Only the sound of pages opened as a page in Verso (YouTube, Spotify Web, an ambience loop) goes to the table, all together. Verso's own sounds (dice, alerts, the table's music) and other programs never do. A page shown inside a note does not count: open it as a page.",
   pagesHintMac: "Only the sound of pages open in Verso (YouTube, Spotify Web, an ambience loop) goes to the table, all together. Verso's own sounds (dice, alerts, the table's music, the audio players in notes) and other programs never do. On a Mac, a video or a page shown inside a note cannot be told apart: its sound goes too.",
   quality: "Quality",
@@ -167,11 +177,17 @@ export const HOST_DENIED = "Verso is not allowed to record system audio";
 export const HOST_NEEDS_WINDOWS = "audio capture needs Windows 11 or later";
 export const HOST_NEEDS_PULSE = "audio capture needs the PulseAudio tools (pactl, parec)";
 export const HOST_NO_PAGES = "no page is open in Verso to share";
+/** A phone's refusals (src-tauri audio_share/android.rs). */
+export const HOST_PHONE_REFUSED = "the screen capture was not allowed";
+export const HOST_PHONE_MIC = "Verso is not allowed to record audio";
+/** A phone's one source: its other apps' sound. */
+export const PHONE_ID = "phone";
 /** The id of Windows's one source, the pages open in Verso (`winpages.rs`). */
 export const PAGES_ID = "pages";
 /** The host names the source in English; the window says it in its language. */
 export function sourceName(id: string, name: string): string {
   if (id === PAGES_ID) return name.replace(/^Pages open in Verso/, ss.pagesName);
+  if (id === PHONE_ID) return ss.phoneName;
   return name;
 }
 
@@ -182,5 +198,7 @@ export function hostWhy(message: string): string | null {
   if (message === HOST_NEEDS_WINDOWS) return ss.needsWindows;
   if (message === HOST_NEEDS_PULSE) return ss.needsPulse;
   if (message === HOST_NO_PAGES) return ss.noPages;
+  if (message === HOST_PHONE_REFUSED) return ss.phoneRefused;
+  if (message === HOST_PHONE_MIC) return ss.phoneMic;
   return null;
 }
