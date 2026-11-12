@@ -40,6 +40,16 @@ pub(crate) fn with_app_abilities(caps: &mut Value) {
             can.push(json!(ability));
         }
     }
+    // This app as a server — its link, its mDNS, serving off the screen —
+    // is this app's whatever folder the window shows, as far as this
+    // platform has it (ADR 0119 A13): a server never says it.
+    let here = crate::mobile::local_can(false);
+    for ability in verso_contract::Can::APP_SERVER {
+        let word = json!(ability);
+        if here.contains(ability) && !can.contains(&word) {
+            can.push(word);
+        }
+    }
     // A window on a server's folder is a folder window. A server older than
     // ADR 0114 does not say so (it never had a loose session), and the
     // window would hide the tree, the search and the bin: the folder's

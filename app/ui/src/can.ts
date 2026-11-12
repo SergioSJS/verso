@@ -27,7 +27,7 @@ export { FOLDER_CAN };
 
 const DESKTOP: Capabilities = {
   host: "desktop",
-  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files", ...FOLDER_CAN, "terminal"],
+  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files", "link", "discover", "serve_away", ...FOLDER_CAN, "terminal"],
   latency_ms: null,
 };
 

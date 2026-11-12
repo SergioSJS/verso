@@ -134,7 +134,7 @@ if (params.get("loose") === "1") {
   };
   core.handlers["current_folder"] = () => null;
   core.handlers["loose_files"] = () => (handed ? [] : [info()]);
-  core.handlers["capabilities"] = (): Capabilities => ({ host: "desktop", can: ["write", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files"], latency_ms: null });
+  core.handlers["capabilities"] = (): Capabilities => ({ host: "desktop", can: ["write", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files", "link", "discover", "serve_away"], latency_ms: null });
   core.handlers["backlinks"] = () => [];
   core.handlers["open_sibling"] = (a) => {
     const target = String(a["target"]).replace(/\.md$/, "");
@@ -240,12 +240,14 @@ for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "
 // up: the game master's rows of the menu are the owner's (ADR 0081).
 const sharesOwn = core.handlers["share_list"]!;
 core.handlers["share_list"] = (a) => ((core.sync.on && core.sync.role === "owner" && rooms?.up) || core.localServer.isSeated() ? [{ id: null, path: "", people: [], attachments: null, missing: false }] : sharesOwn(a));
-// The app on an Android phone (`?host=mobile`, ADR 0118): the host says
-// "mobile" and leaves out what a phone does not offer (src-tauri
-// src/mobile.rs `NOT_ON_A_PHONE`).
-if (params.get("host") === "mobile") {
+// The app on an Android phone (`?host=mobile`, ADR 0118) or an iPhone or
+// iPad (`?host=ios`, ADR 0119): the host says "mobile" and leaves out what
+// the platform does not offer (src-tauri src/mobile.rs `OFF_ON_ANDROID`,
+// `OFF_ON_IOS`).
+if (params.get("host") === "mobile" || params.get("host") === "ios") {
   const asked = core.handlers["capabilities"]!;
-  const notOnAPhone = ["loose_files", "terminal", "windows", "web_views", "agents", "reveal"];
+  const android = ["loose_files", "terminal", "windows", "web_views", "agents", "reveal"];
+  const notOnAPhone = params.get("host") === "ios" ? [...android, "audio_share", "updates", "link", "discover", "serve_away"] : android;
   core.handlers["capabilities"] = (a) => {
     const c = asked(a) as { host: string; can: string[] };
     return { ...c, host: c.host === "desktop" ? "mobile" : c.host, can: c.can.filter((x) => !notOnAPhone.includes(x)) };

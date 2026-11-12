@@ -21,15 +21,15 @@ pub(crate) const HOST: Host = Host::Desktop;
 #[cfg(mobile)]
 pub(crate) const HOST: Host = Host::Mobile;
 
-/// What the phone does not offer (ADR 0027: the window hides what is
-/// absent): no shell, no second window, no page inside
-/// a note, no agents' command line, no file manager to show a file in, no file
-/// opened without its folder (Android's picker hands a content:// file the
-/// app does not open yet: Phase 2, decided 2026-11-10). A sideloaded APK
-/// keeps its updater (item 5, decided 2026-11-10), and shares its other
-/// apps' sound at the table (item 5, decided 2026-11-12).
-#[cfg(target_os = "android")]
-const NOT_ON_A_PHONE: [Can; 6] = [
+/// What the Android app does not offer (ADR 0027: the window hides what
+/// is absent): no shell, no second window, no page inside a note, no
+/// agents' command line, no file manager to show a file in, no file opened
+/// without its folder (Android's picker hands a content:// file the app
+/// does not open yet: Phase 2, decided 2026-11-10). A sideloaded APK keeps
+/// its updater (item 5, decided 2026-11-10), and shares its other apps'
+/// sound at the table (item 5, decided 2026-11-12).
+#[cfg(any(test, target_os = "android"))]
+const OFF_ON_ANDROID: &[Can] = &[
     Can::LooseFiles,
     Can::Terminal,
     Can::Windows,
@@ -38,10 +38,13 @@ const NOT_ON_A_PHONE: [Can; 6] = [
     Can::Reveal,
 ];
 
-/// The same on an iPhone or iPad (ADR 0119 B14, decided 2026-11-12), and
-/// no updater: AltStore's source, or a store, updates the app.
-#[cfg(target_os = "ios")]
-const NOT_ON_A_PHONE: [Can; 8] = [
+/// What the iOS app does not offer: Android's list (ADR 0119 B14, decided
+/// 2026-11-12), the capture of other apps' sound, no updater (AltStore's
+/// source, or a store, updates the app), and none of the app server's
+/// three abilities (A13, decided 2026-11-12): no internet link (A3), no
+/// mDNS (A4), no serving off the screen (A2).
+#[cfg(any(test, target_os = "ios"))]
+const OFF_ON_IOS: &[Can] = &[
     Can::LooseFiles,
     Can::Terminal,
     Can::AudioShare,
@@ -50,14 +53,30 @@ const NOT_ON_A_PHONE: [Can; 8] = [
     Can::Agents,
     Can::Reveal,
     Can::Updates,
+    Can::Link,
+    Can::Discover,
+    Can::ServeAway,
 ];
+
+/// What this platform's app leaves out of the window's list.
+#[cfg(desktop)]
+const OFF_HERE: &[Can] = &[];
+#[cfg(target_os = "android")]
+const OFF_HERE: &[Can] = OFF_ON_ANDROID;
+#[cfg(target_os = "ios")]
+const OFF_HERE: &[Can] = OFF_ON_IOS;
 
 /// What this app can do in a window of its own (not a server's): every
 /// ability of the window on the desktop, the window of loose files without
 /// those of a folder (ADR 0114 items 18 and 25); a phone without what it
-/// does not have ([`NOT_ON_A_PHONE`]). It stays a server and opens its own
+/// does not have ([`OFF_HERE`]). It stays a server and opens its own
 /// folders (decided 2026-11-08).
 pub(crate) fn local_can(loose: bool) -> Vec<Can> {
+    can_without(loose, OFF_HERE)
+}
+
+/// [`local_can`] for a platform that leaves `off` out.
+fn can_without(loose: bool, off: &[Can]) -> Vec<Can> {
     let mut can = vec![
         Can::Write,
         Can::Reveal,
@@ -70,6 +89,8 @@ pub(crate) fn local_can(loose: bool) -> Vec<Can> {
         Can::LocalFolders,
         Can::LooseFiles,
     ];
+    // This app as a server, whatever its window shows (ADR 0119 A13).
+    can.extend_from_slice(Can::APP_SERVER);
     if loose {
         can.retain(|c| !matches!(c, Can::Reveal | Can::CopyPath));
     } else {
@@ -80,8 +101,7 @@ pub(crate) fn local_can(loose: bool) -> Vec<Can> {
         // Capture is the desktop host's alone (ADR 0116 item 27).
         can.push(Can::AudioShare);
     }
-    #[cfg(mobile)]
-    can.retain(|c| !NOT_ON_A_PHONE.contains(c));
+    can.retain(|c| !off.contains(c));
     can
 }
 
@@ -390,4 +410,41 @@ pub(crate) fn ws_connector() -> Option<tokio_tungstenite::Connector> {
     })
     .clone()
     .map(tokio_tungstenite::Connector::Rustls)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The desktop lists the app server's three abilities, in a folder's
+    /// window and in one of loose files (ADR 0119 A13).
+    #[test]
+    fn the_desktop_serves_with_the_link_the_network_and_off_screen() {
+        for loose in [false, true] {
+            let can = can_without(loose, &[]);
+            assert!(Can::APP_SERVER.iter().all(|c| can.contains(c)), "{can:?}");
+        }
+    }
+
+    /// Android keeps them all, its updater and the sound's capture; it
+    /// leaves out what it has not (ADR 0118 item 5).
+    #[test]
+    fn android_keeps_the_app_servers_abilities() {
+        let can = can_without(false, OFF_ON_ANDROID);
+        assert!(Can::APP_SERVER.iter().all(|c| can.contains(c)), "{can:?}");
+        assert!(can.contains(&Can::Updates) && can.contains(&Can::AudioShare));
+        assert!(!can.contains(&Can::Terminal) && !can.contains(&Can::Windows));
+    }
+
+    /// iOS lists none of them, no updater and no capture, and keeps the
+    /// folder's abilities and the server on the network (ADR 0119 A13,
+    /// B12, B14).
+    #[test]
+    fn ios_serves_only_on_the_network_while_on_screen() {
+        let can = can_without(false, OFF_ON_IOS);
+        assert!(Can::APP_SERVER.iter().all(|c| !can.contains(c)), "{can:?}");
+        assert!(!can.contains(&Can::Updates) && !can.contains(&Can::AudioShare));
+        assert!(Can::FOLDER.iter().all(|c| can.contains(c)));
+        assert!(can.contains(&Can::Write) && can.contains(&Can::LocalFolders));
+    }
 }

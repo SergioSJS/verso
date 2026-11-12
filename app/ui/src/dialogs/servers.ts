@@ -327,14 +327,20 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
 
   // The servers announced on this network: a click fills the address the
   // row shows and goes on as typing it would (serversFound.ts, ADR 0097).
-  const found = foundList(
-    { start: commands.discoverServersStart, list: commands.discoverServersList, stop: commands.discoverServersStop },
-    (f) => {
-      url.value = f.url;
-      form.requestSubmit();
-    },
-  );
-  box.append(form, found, deviceForm(), list);
+  // Not where the app has no mDNS (iOS: `Can::Discover` absent, ADR 0119
+  // A4 and A13): the address or the QR reach a server there.
+  const found = can("discover")
+    ? [
+        foundList(
+          { start: commands.discoverServersStart, list: commands.discoverServersList, stop: commands.discoverServersStop },
+          (f) => {
+            url.value = f.url;
+            form.requestSubmit();
+          },
+        ),
+      ]
+    : [];
+  box.append(form, ...found, deviceForm(), list);
   void draw();
   return box;
 }

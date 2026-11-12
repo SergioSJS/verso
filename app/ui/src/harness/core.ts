@@ -1432,7 +1432,7 @@ export class Core {
     capabilities: (): Capabilities => ({
       // Seated, the window's side is its own server, as the host forwards it.
       host: this.localServer.isSeated() ? "server" : "desktop",
-      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files", ...FOLDER_CAN, "terminal", "audio_share"],
+      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files", "link", "discover", "serve_away", ...FOLDER_CAN, "terminal", "audio_share"],
       latency_ms: null,
       // A server's size cap for a bin (ADR 0080), set by a test.
       ...(this.trashCap === null ? {} : { trash_cap: this.trashCap }),

@@ -12,6 +12,7 @@
 // failure says why, in words (`linkWhy`).
 
 import { commands, type ContractError, type LocalLink, type LocalServerStatus } from "../bindings";
+import { can } from "../can";
 import { button, h } from "../dom";
 import { errorSentence } from "../errors";
 import { busy } from "../reach";
@@ -110,7 +111,15 @@ export function linkBoxes(ctx: Ctx): Boxes {
   cancel.hidden = true;
   const own = ownAddress(ctx);
   panel.append(live, fresh, where, left, extend, cancel, notes);
+  // An app that has no internet link (iOS: `Can::Link` absent, ADR 0119
+  // A3 and A13) shows the network's box alone.
+  const withoutLink = () => {
+    const off = !can("link");
+    for (const part of [linkRow, linkHelp, testing, own.el]) part.hidden = off;
+    if (off) panel.hidden = true;
+  };
   el.append(title, netRow, netHelp, linkRow, linkHelp, testing, panel, own.el);
+  withoutLink();
 
   let status: LocalServerStatus | null = null;
   let wish = false;
@@ -191,6 +200,7 @@ export function linkBoxes(ctx: Ctx): Boxes {
     tick();
     if (l.state === "on" && !timer) timer = window.setInterval(tick, 30_000);
     own.draw(s);
+    withoutLink();
   };
 
   const turnOn = async (): Promise<boolean> => {

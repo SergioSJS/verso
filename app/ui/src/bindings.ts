@@ -2068,7 +2068,29 @@ export type Can =
  *  files never list it, and where it is absent *Share audio…* is not
  *  drawn.
  */
-"audio_share";
+"audio_share" | 
+/**
+ *  This app, as a server, reaches people anywhere through an internet
+ *  link (`cloudflared`, ADR 0117): the desktop and Android list it;
+ *  the iOS app does not (ADR 0119 A3 and A13, decided 2026-11-12), and
+ *  the window hides the link's box there.
+ */
+"link" | 
+/**
+ *  This app finds servers announced on the network and is found while
+ *  a phone pairs (mDNS, ADR 0097, ADR 0096 item 8): the desktop and
+ *  Android list it; the iOS app does not (ADR 0119 A4 and A13), and
+ *  the window hides *Found on this network*.
+ */
+"discover" | 
+/**
+ *  This app keeps serving while it is not on the screen (Android's
+ *  foreground service, a desktop's window in the background): absent
+ *  on iOS, which suspends an app that leaves the screen (ADR 0119 A2
+ *  and A13); the window then says the server runs only while Verso is
+ *  open.
+ */
+"serve_away";
 
 export type Capabilities = Capabilities_Serialize | Capabilities_Deserialize;
 

@@ -495,6 +495,10 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
         // This computer's shell, in the home directory (ADR 0115 Q4).
         "terminal",
         "audio_share",
+        // This app as a server (ADR 0119 A13): the desktop has all three.
+        "link",
+        "discover",
+        "serve_away",
         // An old server never says it: a folder window by default.
         "index",
         "search",
@@ -515,7 +519,7 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
     }
     // Asked twice, nothing is added twice.
     remote::with_app_abilities(&mut caps);
-    assert_eq!(caps["can"].as_array().unwrap().len(), 9 + 11);
+    assert_eq!(caps["can"].as_array().unwrap().len(), 9 + 3 + 11);
 }
 
 /// Plain HTTP is a server's address from any machine, not only this

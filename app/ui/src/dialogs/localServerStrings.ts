@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { host as appHost } from "../can";
+import { can, host as appHost } from "../can";
 
 // The words of "this app is a server" (ADR 0096): Settings' section, the
 // pairing dialog, the status mark — in both languages (ADR 0035), the
@@ -195,6 +195,15 @@ const pt = {
     "Ligar faz este celular aceitar conexões do seu Wi-Fi. Só os endereços privados dele, só enquanto o Verso estiver servindo, só para os aparelhos que você parear aqui.",
     "Enquanto serve, o celular fica acordado mesmo com a tela apagada, e uma notificação diz isso: gasta bateria e esquenta o celular. Deixe-o carregando.",
     "Nos dados móveis, só o link pela internet alcança o celular; a rede local precisa de Wi-Fi.",
+    "Use numa rede em que você confia (a sua casa), não num café ou hotel.",
+  ],
+  // A device that serves only while Verso is on its screen (iOS: no
+  // `serve_away`, no link; ADR 0119 A2, A3 and A13, decided 2026-11-12).
+  leadOnScreen: "O Verso deste aparelho pode servir as pastas que você marcar aos seus outros aparelhos e a quem está no mesmo Wi-Fi, só enquanto o Verso estiver aberto na tela. Fica desligado até você ligar.",
+  firstBodyOnScreen: [
+    "Ligar faz este aparelho aceitar conexões do seu Wi-Fi. Só os endereços privados dele, só enquanto o Verso estiver servindo, só para os aparelhos que você parear aqui.",
+    "Ele serve só enquanto o Verso estiver aberto na tela: se a tela apagar ou você for para outro app, o servidor deixa de responder.",
+    "A rede local precisa de Wi-Fi.",
     "Use numa rede em que você confia (a sua casa), não num café ou hotel.",
   ],
   // The pairing dialog.
@@ -422,6 +431,13 @@ const en: typeof pt = {
     "On mobile data, only the internet link reaches the phone; the local network needs Wi-Fi.",
     "Use it on a network you trust (your home), not in a café or a hotel.",
   ],
+  leadOnScreen: "Verso on this device can serve the folders you tick to your other devices and the people on the same Wi-Fi, only while Verso is open on the screen. It stays off until you turn it on.",
+  firstBodyOnScreen: [
+    "Turning it on makes this device accept connections from your Wi-Fi. Only its private addresses, only while Verso is serving, only for the devices you pair here.",
+    "It serves only while Verso is open on the screen: if the screen locks or you go to another app, the server stops answering.",
+    "The local network needs Wi-Fi.",
+    "Use it on a network you trust (your home), not in a café or a hotel.",
+  ],
   pairTitle: "Pair a phone",
   pairSteps: "Open the phone's camera and scan the QR. If it cannot, open the address below in the phone's browser and type the code.",
   qrLabel: "Pairing QR",
@@ -466,8 +482,10 @@ const en: typeof pt = {
 
 export function localStrings(): typeof pt {
   const s = document.documentElement.lang.startsWith("pt") ? pt : en;
-  // A phone is not "this computer" and has no firewall to ask.
-  return appHost() === "mobile" ? { ...s, lead: s.leadPhone, firstBody: s.firstBodyPhone } : s;
+  // A phone is not "this computer" and has no firewall to ask; a device
+  // that serves only while Verso is on its screen says so (ADR 0119 A13).
+  if (appHost() !== "mobile") return s;
+  return can("serve_away") ? { ...s, lead: s.leadPhone, firstBody: s.firstBodyPhone } : { ...s, lead: s.leadOnScreen, firstBody: s.firstBodyOnScreen };
 }
 
 /** An event of "O que aconteceu" in the window's language: its words, or
