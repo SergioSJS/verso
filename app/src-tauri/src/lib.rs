@@ -44,6 +44,7 @@ use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 #[cfg(target_os = "android")]
 mod android;
 mod audio_share;
+mod background;
 mod boards;
 mod campaign;
 mod cli;
@@ -859,6 +860,7 @@ macro_rules! commands_for {
                 set_menu_commands::<$runtime>,
                 mobile::set_bars_dark::<$runtime>,
                 shared::take_shared,
+                background::set_background_sync::<$runtime>,
                 storage::shared_storage,
                 storage::shared_storage_access,
                 storage::open_shared_folder::<$runtime>,

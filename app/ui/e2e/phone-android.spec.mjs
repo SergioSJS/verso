@@ -127,3 +127,28 @@ test("a new folder of the shared storage is made and opened", async ({ app, page
   await page.locator(".prompt-box").getByRole("button", { name: "Criar e abrir" }).click();
   await expect.poll(() => page.evaluate(() => window.__harness.core.storage.opened)).toEqual(["Documents/Campanha"]);
 });
+
+// Background sync (ADR 0118 item 6.3, in v1 since 2026-11-12): a phone's
+// Settings › Sync has the option, off by default, its two conditions
+// usable only with it on; the host hears the choice at once and at the
+// next start. A desktop has no such row.
+test("a phone turns background sync on, with its conditions", async ({ app, page }) => {
+  await app.open("?host=mobile");
+  await expect.poll(() => page.evaluate(() => window.__harness.core.background)).toEqual({ on: false, wifiOnly: false, chargingOnly: false });
+  await section(app, page, "Sincronizar");
+  const row = page.locator(".sync-background");
+  await expect(row).toContainText("Sincronizar em segundo plano");
+  await expect(row.getByRole("checkbox", { name: "Só no Wi-Fi" })).toBeDisabled();
+  await row.locator(".switch").click();
+  await row.getByRole("checkbox", { name: "Só no Wi-Fi" }).check();
+  await expect.poll(() => page.evaluate(() => window.__harness.core.background)).toEqual({ on: true, wifiOnly: true, chargingOnly: false });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => window.__harness.core.background)).toEqual({ on: true, wifiOnly: true, chargingOnly: false });
+});
+
+test("a desktop's Sync has no background option", async ({ app, page }) => {
+  await app.open();
+  await section(app, page, "Sincronizar");
+  await expect(page.locator(".settings-body")).toContainText("está só neste computador");
+  await expect(page.locator(".sync-background")).toHaveCount(0);
+});

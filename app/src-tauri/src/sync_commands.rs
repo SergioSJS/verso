@@ -64,6 +64,9 @@ pub(crate) fn start<R: tauri::Runtime>(
 ) -> Arc<Syncer> {
     let s = Syncer::new(key, state);
     lock(&app.state::<App>().syncs).insert(key.to_owned(), Arc::clone(&s));
+    // A phone's background sync keeps its service while a folder syncs.
+    #[cfg(target_os = "android")]
+    crate::phone::follow(app);
     let (ctx, app, task) = (context(app), app.clone(), Arc::clone(&s));
     tauri::async_runtime::spawn(async move {
         // A window seated at the table served from this folder holds it
@@ -84,6 +87,8 @@ pub(crate) fn start<R: tauri::Runtime>(
                 syncs.remove(&task.key);
             }
         }
+        #[cfg(target_os = "android")]
+        crate::phone::follow(&app);
         // Turned off, by the person or a revoked share: a seat lets go.
         // Still on (no window shows the folder), a hold that cannot open
         // it has no sync left to say it in: the log does.

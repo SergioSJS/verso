@@ -101,6 +101,7 @@ fn main() {
         "set_menu_commands",
         "set_bars_dark",
         "take_shared",
+        "set_background_sync",
         "shared_storage",
         "shared_storage_access",
         "open_shared_folder",

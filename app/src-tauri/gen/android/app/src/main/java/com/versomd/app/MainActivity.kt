@@ -17,6 +17,8 @@ class MainActivity : TauriActivity() {
     // The system's certificate check for every TLS connection of the app
     // (rustls-platform-verifier needs the context once; src/android.rs).
     initTls(applicationContext)
+    // Wi-Fi and charging, for background sync (src/background.rs).
+    Conditions.watch(applicationContext)
     // Started by a share or an "Open with" (ADR 0118 item 5): kept until
     // the window, once up, takes it.
     if (Shared.receive(this, intent) { tellPage() }) intent = Intent()
@@ -29,6 +31,17 @@ class MainActivity : TauriActivity() {
   }
 
   private var page: WebView? = null
+
+  // On screen or not: background sync's conditions count only when not.
+  override fun onStart() {
+    super.onStart()
+    Conditions.shown(true)
+  }
+
+  override fun onStop() {
+    Conditions.shown(false)
+    super.onStop()
+  }
 
   // The window takes what was handed (app/ui src/screen/shared.ts); before
   // it is up, it takes it when its folder opens.

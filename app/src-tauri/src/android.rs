@@ -29,6 +29,7 @@ pub(crate) fn setup(app: &tauri::App) {
     verso_core::set_host_config_dir(data.join("config"));
     log::open();
     crate::phone::warm();
+    crate::background::keep(app.handle());
     keep_secrets();
     log::write(
         "INFO",

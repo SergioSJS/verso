@@ -545,6 +545,11 @@ export const commands = {
 	 */
 	takeShared: () => typedError<Shared[], ContractError>(__TAURI_INVOKE("take_shared")),
 	/**
+	 *  Background sync on or off, with its conditions (the window keeps them
+	 *  and tells them at each start). A no-op on a desktop.
+	 */
+	setBackgroundSync: (on: boolean, wifiOnly: boolean, chargingOnly: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_background_sync", { on, wifiOnly, chargingOnly })),
+	/**
 	 *  The folders of the shared storage at `path` (relative to its top, `/`
 	 *  between names, `""` for the top).
 	 */
@@ -1220,7 +1225,7 @@ export const commands = {
 	/**
 	 *  Downloads and installs an update directly from within the app.
 	 * 
-	 *  The command takes no URL: the host asks `UPDATE_REPO`'s API for the
+	 *  The command takes no URL: the host asks the release place for the
 	 *  releases again, picks the asset for this platform itself, and
 	 *  verifies the download against the `sha256` digest the API reports and
 	 *  against the release's checksums list, signed with Verso's release key,

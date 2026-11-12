@@ -62,6 +62,7 @@ import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
 import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
 import { hearLocalServer } from "./dialogs/localServer";
 import { hearSync } from "./dialogs/sync";
+import { pushBackgroundSync } from "./dialogs/syncBackground";
 import { offline } from "./web/offline/manager";
 import { icon } from "./icons";
 import { installMenuBar } from "./menuBar";
@@ -845,6 +846,8 @@ export const started: Promise<void> = (async () => {
   });
   // The host knows the terminal's switch before a restored tab asks for one.
   const terminalPushed = loadCan().then(() => pushSwitch());
+  // A phone's background sync, as the person left it (ADR 0118 item 6.3).
+  void loadCan().then(() => pushBackgroundSync());
   await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed, terminalPushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the

@@ -219,30 +219,81 @@ pub(crate) fn serving_words(
     }
 }
 
-/// The foreground service follows serving (ADR 0118 item 3.2): on, with
-/// its words, while the server serves on the network or the link is up;
-/// off when neither. Off the thread that said it (it may hold the server's
-/// locks).
+/// The notification's words while the service is on for background sync
+/// alone (ADR 0118 item 6.3): how many folders sync, and what they wait
+/// for; and the channel's name.
+pub(crate) fn syncing_words(
+    lang: &str,
+    folders: usize,
+    held: Option<crate::background::Held>,
+) -> (String, String, &'static str) {
+    use crate::background::Held;
+    let en = lang == "en";
+    let title = if en {
+        "Verso syncs in the background"
+    } else {
+        "O Verso sincroniza em segundo plano"
+    };
+    let what = match (en, folders) {
+        (true, 1) => "1 folder syncs".to_owned(),
+        (true, n) => format!("{n} folders sync"),
+        (false, 1) => "1 pasta sincroniza".to_owned(),
+        (false, n) => format!("{n} pastas sincronizam"),
+    };
+    let wait = match (en, held) {
+        (true, Some(Held::Wifi)) => ", waiting for Wi-Fi",
+        (true, Some(Held::Charger)) => ", waiting for the charger",
+        (false, Some(Held::Wifi)) => ", esperando o Wi-Fi",
+        (false, Some(Held::Charger)) => ", esperando o carregador",
+        (_, None) => "",
+    };
+    let text = if en {
+        format!("{what} while Verso is closed{wait}. Turn it off in Settings › Sync.")
+    } else {
+        format!("{what} com o Verso fechado{wait}. Desligue em Ajustes › Sincronizar.")
+    };
+    let channel = if en {
+        "Background sync"
+    } else {
+        "Sincronização"
+    };
+    (title.to_owned(), text, channel)
+}
+
+/// The foreground service follows serving (ADR 0118 item 3.2) and
+/// background sync (item 6.3): on, with its words, while the server serves
+/// on the network or the link is up, or while background sync is on and a
+/// folder syncs; off when none. It keeps the phone awake only to serve.
+/// Off the thread that said it (it may hold the server's locks).
 pub(crate) fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     use tauri::Manager;
     let app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let (on, folders, devices) = crate::local_server::serving_now(&app).unwrap_or_default();
         let link = crate::tunnel::link_up(&app);
+        let syncing = verso_service::lock(&app.state::<crate::App>().syncs).len();
+        let background = crate::background::wanted() && syncing > 0;
         let lang = verso_service::lock(&app.state::<crate::App>().menu_language).clone();
-        let (title, text, channel) = serving_words(&lang, folders, devices, link);
+        let serving = on || link;
+        let (title, text, channel) = if serving {
+            serving_words(&lang, folders, devices, link)
+        } else {
+            syncing_words(&lang, syncing, crate::background::held())
+        };
         #[derive(serde::Serialize)]
         struct Serve {
             on: bool,
             title: String,
             text: String,
             channel: &'static str,
+            awake: bool,
         }
         let serve = Serve {
-            on: on || link,
+            on: serving || background,
             title,
             text,
             channel,
+            awake: serving,
         };
         if let Err(e) = call::<serde_json::Value>("serve", serve) {
             log::write(

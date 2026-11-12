@@ -16,9 +16,11 @@ import androidx.core.app.NotificationCompat
 // The phone as a server (ADR 0118 item 3.2): while Verso serves — on the
 // network or by its internet link — this foreground service keeps the
 // process, the CPU and the Wi-Fi awake with the screen off, and says so in
-// a notification that never leaves while it runs. It keeps the server alive
-// and nothing else (item 6: sync runs while the app is open). The words come
-// from Rust in the window's language (src/phone.rs `follow`).
+// a notification that never leaves while it runs. It also keeps a folder's
+// sync going while Verso is not on screen, when the person turned on
+// background sync (item 6.3, in v1 since 2026-11-12); then, without
+// serving, it holds no lock. The words come from Rust in the window's
+// language (src/phone.rs `follow`).
 class ServeService : Service() {
   private var wake: PowerManager.WakeLock? = null
   private var wifi: WifiManager.WifiLock? = null
@@ -29,6 +31,7 @@ class ServeService : Service() {
     val title = intent?.getStringExtra(TITLE) ?: "Verso"
     val text = intent?.getStringExtra(TEXT) ?: ""
     val channel = intent?.getStringExtra(CHANNEL_NAME) ?: "Verso"
+    val awake = intent?.getBooleanExtra(AWAKE, true) ?: true
     val manager = getSystemService(NotificationManager::class.java)
     manager?.createNotificationChannel(
       NotificationChannel(CHANNEL, channel, NotificationManager.IMPORTANCE_LOW)
@@ -54,7 +57,9 @@ class ServeService : Service() {
     } else {
       startForeground(NOTICE, notice)
     }
-    hold()
+    // Serving keeps the CPU and the Wi-Fi awake; background sync alone does
+    // not (ADR 0118 item 6.3: it syncs when Android lets the phone wake).
+    if (awake) hold() else letGo()
     return START_NOT_STICKY
   }
 
@@ -76,11 +81,15 @@ class ServeService : Service() {
     }
   }
 
-  override fun onDestroy() {
+  private fun letGo() {
     wake?.takeIf { it.isHeld }?.release()
     wifi?.takeIf { it.isHeld }?.release()
     wake = null
     wifi = null
+  }
+
+  override fun onDestroy() {
+    letGo()
     super.onDestroy()
   }
 
@@ -88,6 +97,7 @@ class ServeService : Service() {
     const val TITLE = "title"
     const val TEXT = "text"
     const val CHANNEL_NAME = "channel"
+    const val AWAKE = "awake"
     private const val CHANNEL = "serving"
     private const val NOTICE = 7340
   }

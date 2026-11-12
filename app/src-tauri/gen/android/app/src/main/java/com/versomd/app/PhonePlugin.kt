@@ -33,6 +33,7 @@ class ServeArgs {
   var title: String = ""
   var text: String = ""
   var channel: String = ""
+  var awake: Boolean = true
 }
 
 @InvokeArg
@@ -171,6 +172,7 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
         service.putExtra(ServeService.TITLE, args.title)
           .putExtra(ServeService.TEXT, args.text)
           .putExtra(ServeService.CHANNEL_NAME, args.channel)
+          .putExtra(ServeService.AWAKE, args.awake)
         ContextCompat.startForegroundService(context, service)
       } else {
         context.stopService(service)

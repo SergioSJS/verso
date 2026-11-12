@@ -768,6 +768,9 @@ pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
 .sync-cloud-ok:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: 2px; }
 .sync-cloud { margin-top: 1.4rem; }
 .sync-device .sync-saved { margin-left: .6rem; font-size: .8rem; color: var(--ink-3); }
+.sync-background { flex-wrap: wrap; }
+.sync-conditions { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; margin-top: .4rem; }
+.sync-condition { display: inline-flex; align-items: center; gap: .4rem; min-height: 44px; }
 .sync-body { display: block; }
 .sync-together { display: flex; align-items: flex-start; gap: .6rem; margin-top: 1.1rem; cursor: pointer; }
 .sync-together input { margin-top: .2rem; }

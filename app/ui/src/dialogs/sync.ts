@@ -17,6 +17,7 @@ import { syncHeard } from "../notify/sources";
 import { errorSentence, fail } from "../errors";
 import { addressOf, attempt, reachStrings } from "../reach";
 import { host as appHost } from "../can";
+import { backgroundRow } from "./syncBackground";
 import { currentFolder, folderName } from "../folder";
 import { liveTogether } from "../settings";
 import { seatedFrom } from "../seatState";
@@ -405,6 +406,8 @@ export function syncBody(item: Item): HTMLElement {
   // server (ADR 0104 item 4, C.13).
   const body = h("div", "sync-body");
   box.append(body, deviceNameRow(item));
+  // A phone keeps syncing with Verso closed, if asked (ADR 0118 item 6.3).
+  if (appHost() === "mobile") box.append(backgroundRow(item));
   let wasOn: boolean | null = null;
   let wasRevoked: string | null = null;
   const draw = () => {

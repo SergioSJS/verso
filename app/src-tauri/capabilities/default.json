@@ -111,6 +111,7 @@
     "allow-set-menu-commands",
     "allow-set-bars-dark",
     "allow-take-shared",
+    "allow-set-background-sync",
     "allow-shared-storage",
     "allow-shared-storage-access",
     "allow-open-shared-folder",

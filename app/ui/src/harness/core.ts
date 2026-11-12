@@ -198,6 +198,8 @@ export class Core {
   /** What the window wrote into the app's log (`log_write`). */
   readonly log: { level: string; message: string }[] = [];
   /** What another app handed to a phone's Verso (ADR 0118 item 5), until the window takes it. */
+  /** A phone's background sync as the window last told it (ADR 0118 item 6.3). */
+  background: { on: boolean; wifiOnly: boolean; chargingOnly: boolean } | null = null;
   readonly shared: { name: string; text: string | null; problem: string | null }[] = [];
   /** A phone's shared storage (ADR 0118 item 4.4): whether All files access is on, and its folders by path. */
   readonly storage = { access: false, folders: new Set<string>(["Documents", "Documents/Obsidian", "Download", "Music"]), opened: [] as string[] };
@@ -1283,6 +1285,10 @@ export class Core {
     set_menu_commands: () => null,
     set_bars_dark: () => null,
     take_shared: () => this.shared.splice(0),
+    set_background_sync: (a) => {
+      this.background = { on: Boolean(a["on"]), wifiOnly: Boolean(a["wifiOnly"]), chargingOnly: Boolean(a["chargingOnly"]) };
+      return null;
+    },
     shared_storage: (a) => {
       const at = String(a["path"]);
       const under = [...this.storage.folders].filter((f) => f.includes("/") ? f.slice(0, f.lastIndexOf("/")) === at : at === "");

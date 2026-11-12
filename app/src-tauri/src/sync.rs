@@ -920,7 +920,8 @@ pub(crate) struct Passed {
 /// One comparison and its plan carried out. An error of the connection
 /// ends the pass; one of a file is listed and the rest goes on.
 pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, ContractError> {
-    if s.paused.load(Ordering::Relaxed) {
+    // Held too while a phone's background sync waits for its conditions.
+    if s.paused.load(Ordering::Relaxed) || crate::background::held().is_some() {
         s.set(ctx, |st| {
             st.state = "paused".to_owned();
             st.deletions = None;
