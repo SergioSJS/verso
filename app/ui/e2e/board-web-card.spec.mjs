@@ -47,7 +47,7 @@ test("an approved, frameable origin shows the page in a sandboxed frame; a first
   const frame = c.locator("iframe");
   await expect(frame).toHaveCount(1);
   await expect(frame).toHaveAttribute("src", OK);
-  await expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
+  await expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads");
   await expect(frame).toHaveAttribute("referrerpolicy", "no-referrer");
   await expect(frame).toHaveAttribute("title", /frames-ok\.example/);
   // The native clipped view is not used in a board.

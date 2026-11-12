@@ -103,7 +103,8 @@ describe("an embedded page in a note", () => {
     assert.equal(frame.getAttribute("loading"), "lazy");
     assert.equal(frame.hasAttribute("allow"), false);
     const flags = frame.getAttribute("sandbox").split(" ");
-    assert.deepEqual(flags.sort(), ["allow-forms", "allow-popups", "allow-popups-to-escape-sandbox", "allow-same-origin", "allow-scripts"]);
+    // allow-downloads: a page's download goes into the folder (ADR 0120 item 6, revising ADR 0056).
+    assert.deepEqual(flags.sort(), ["allow-downloads", "allow-forms", "allow-popups", "allow-popups-to-escape-sandbox", "allow-same-origin", "allow-scripts"]);
     assert.ok(!flags.includes("allow-top-navigation"), "the page cannot steer the window");
   });
 
