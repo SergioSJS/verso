@@ -324,6 +324,15 @@ fn commit() {
             }
         }
     }
+    // iOS links the static library into the Xcode project's binary; the
+    // shared library (Android's `cdylib`, built for every target) cannot
+    // link alone there: the Swift halves of Tauri's plugins
+    // (`init_plugin_*`, `log_stdout`) are the Xcode binary's. Left to be
+    // found when loaded — it never is: no one loads it on iOS — so a
+    // release archive builds (ADR 0119 Phase 0, the device).
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("ios") {
+        println!("cargo:rustc-cdylib-link-arg=-Wl,-undefined,dynamic_lookup");
+    }
 }
 
 /// Whether the build is for Windows with Microsoft's linker.

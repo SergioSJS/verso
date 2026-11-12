@@ -53,3 +53,21 @@ pulldown-cmark = { git = "https://github.com/pulldown-cmark/pulldown-cmark", rev
 opt-level = 3
 [profile.dev.package.blake2]
 opt-level = 3
+
+# The iOS release archive: the Swift halves of Tauri and of its plugins
+# (`register_plugin`, `init_plugin_*`, `log_stdout`, `on_webview_created`)
+# are built by swift-rs in the configuration Cargo's `DEBUG` names, and in
+# Swift's release configuration (Xcode 27's toolchain) their `@_cdecl`
+# symbols come out local, so the app's binary cannot link them (ADR 0119,
+# the first release `.ipa`, 2026-11-12). Line tables only in these four
+# crates turn `DEBUG` on for their build scripts: their Swift is built as in
+# a debug build, exported; the Rust stays optimised. Elsewhere the four
+# crates' release builds only carry line tables.
+[profile.release.package.tauri]
+debug = "line-tables-only"
+[profile.release.package.tauri-plugin-dialog]
+debug = "line-tables-only"
+[profile.release.package.tauri-plugin-notification]
+debug = "line-tables-only"
+[profile.release.package.tauri-plugin-opener]
+debug = "line-tables-only"
