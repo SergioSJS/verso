@@ -143,11 +143,20 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
             // A synced folder's note out of its room saves here (ADR 0082).
             if (!this.collab?.live) this.scheduleSave();
           }
-          this.updateWords();
+          wordsSoon(this);
         }
       }),
     ],
   });
+}
+
+/** The status bar's count of words, once the typing pauses: counted over
+ *  the whole note at every key, it was a good part of a key's time on a
+ *  long note on a phone (ADR 0118 Phase 1, typing latency). */
+const wordTimers = new WeakMap<NoteLeaf, number>();
+function wordsSoon(leaf: NoteLeaf): void {
+  window.clearTimeout(wordTimers.get(leaf));
+  wordTimers.set(leaf, window.setTimeout(() => leaf.updateWords(), 300));
 }
 
 export function wrap(this: NoteLeaf, before: string, after: string): void {

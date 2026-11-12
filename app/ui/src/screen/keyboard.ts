@@ -173,8 +173,11 @@ export function coveredBelow(): number {
  *  notes after `[[` off the screen (the maintainer's phone, 2026-10-16). */
 export const editorKeepsInView = [
   // Nothing without a keyboard: the editor scrolls as it always has.
+  // What the keyboard covers is read in the editor's own measuring, with
+  // its other reads: read here, at every key, it made the browser lay the
+  // page out once more per key (ADR 0118 Phase 1, typing latency).
   EditorView.updateListener.of((update) => {
-    if ((update.selectionSet || update.docChanged) && update.view.hasFocus && coveredBelow() > 0) keepCursorAbove(update.view);
+    if ((update.selectionSet || update.docChanged) && update.view.hasFocus && touchScreen?.matches) keepCursorAbove(update.view);
   }),
 ];
 
@@ -185,7 +188,7 @@ const keepKey = {};
 function keepCursorAbove(view: EditorView): void {
   view.requestMeasure({
     key: keepKey,
-    read: (v) => v.coordsAtPos(v.state.selection.main.head),
+    read: (v) => (coveredBelow() > 0 ? v.coordsAtPos(v.state.selection.main.head) : null),
     write: (cursor, v) => {
       if (!cursor) return;
       const over = cursor.bottom - (visibleBox().bottom - shownHeight - 8);
