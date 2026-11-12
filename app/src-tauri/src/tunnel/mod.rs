@@ -879,26 +879,26 @@ fn binary_going<R: tauri::Runtime>(
 /// The phone's `cloudflared` (ADR 0118 item 3.3): shipped in the APK as a
 /// native library, `libcloudflared.so`, which Android puts on disk in the
 /// app's native library directory — the only place an app targeting API
-/// 29+ may run a file from. Checked against the pinned Linux arm64 binary
-/// (the build step that places it checks it too).
+/// 29+ may run a file from. Built for Android from the pinned source
+/// (scripts/android/cloudflared.sh, decided 2026-11-12), so no sum of
+/// Cloudflare's binaries is its own: what the build pins is the source and
+/// the toolchain, and the APK's signature covers the file on the phone.
+/// Here it must be there and say the pinned version.
 #[cfg(target_os = "android")]
 fn bundled() -> Result<PathBuf, String> {
-    let pin = fetch::pin_for("linux", "aarch64")
-        .ok_or_else(|| "no cloudflared is pinned for the phone".to_owned())?;
     let dir = crate::phone::facts().native_library_dir;
     if dir.is_empty() {
         return Err("the app's native library directory is unknown".to_owned());
     }
     let path = Path::new(&dir).join("libcloudflared.so");
     match files::sha256_of(&path)? {
-        Some(sum) if sum == pin.binary_sha256 => {
+        Some(_) => {
             // That it runs on this phone, once per start of the app.
             static RAN: OnceLock<Result<(), String>> = OnceLock::new();
             RAN.get_or_init(|| run::version_check(&path, fetch::VERSION))
                 .clone()
                 .map(|()| path)
         }
-        Some(_) => Err("the cloudflared inside the app is not the pinned one".to_owned()),
         None => Err("this build of the app carries no cloudflared".to_owned()),
     }
 }

@@ -32,7 +32,9 @@ pub const VERSION: &str = "2026.10.3";
 #[cfg(not(target_os = "android"))]
 const CAP: u64 = 128 * 1024 * 1024;
 
-/// One system's `cloudflared`.
+/// One system's `cloudflared`. The phone's is built from the source
+/// (scripts/android/cloudflared.sh): no row here.
+#[cfg(not(target_os = "android"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pin<'a> {
     /// `std::env::consts::OS`.
@@ -67,6 +69,7 @@ impl Pin<'_> {
 }
 
 /// The systems Verso ships for; one row each.
+#[cfg(not(target_os = "android"))]
 pub const PINNED: &[Pin<'static>] = &[
     Pin {
         os: "macos",
@@ -106,6 +109,7 @@ pub const PINNED: &[Pin<'static>] = &[
 ];
 
 /// The row for a system; `None` where Cloudflare publishes none Verso pins.
+#[cfg(not(target_os = "android"))]
 #[must_use]
 pub fn pin_for(os: &str, arch: &str) -> Option<&'static Pin<'static>> {
     PINNED.iter().find(|p| p.os == os && p.arch == arch)
