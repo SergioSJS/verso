@@ -289,6 +289,11 @@ textarea.embed-allowed { width: 100%; min-width: 16rem; font-family: var(--mono)
    clipped by the box's corners, scrolling with the note. */
 .embed-web[data-embed-framed] { overflow: hidden; }
 .embed-frame { display: block; width: 100%; height: 100%; border: 0; background: white; }
+/* While an overlay is open, a page that is a native view is replaced by a
+   picture of itself, laid exactly over its box (webSnapshot.ts; ADR 0056,
+   revision of 2026-11-12): decorative, it takes no pointer. */
+.embed-web, .web-host { position: relative; }
+.embed-web > img.web-snapshot, .web-host > img.web-snapshot { position: absolute; display: block; margin: 0; border: 0; border-radius: 0; outline: 0; max-width: none; max-height: none; object-fit: fill; pointer-events: none; user-select: none; -webkit-user-select: none; }
 
 /* The bug button, and the dot it wears when the window swallowed an
    error since it was last opened. */
