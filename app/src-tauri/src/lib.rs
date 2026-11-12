@@ -1320,6 +1320,9 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
 /// lost what was typed since the last autosave. A window whose text could
 /// not be saved stays open if the user keeps it.
 fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
+    // The iOS app's own: its scenes (ios.rs).
+    #[cfg(target_os = "ios")]
+    ios::on_event(app, &event);
     // Why the app goes, in the log: a quit asked for, each window that
     // closes, and the exit itself — an app that vanished otherwise leaves
     // no trace of which of them it was.
@@ -1396,27 +1399,6 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             app.state::<App>().terminals.end_all_before_exit();
             app.state::<App>().shares.end_all();
             log::write("INFO", "host", "exiting");
-        }
-        // A second window the person asked iPadOS for (its icon's "New
-        // window"): the app shows one window (no `Can::Windows`), so the
-        // new scene is closed again (ADR 0119 A18).
-        #[cfg(target_os = "ios")]
-        tauri::RunEvent::SceneRequested { scene, .. } => ios::one_window(scene),
-        // The window's scene active again (tao's `sceneDidBecomeActive`):
-        // a server whose port iOS closed while the device was locked, or
-        // one due to resume, listens again (ADR 0119 B12/A2). Leaving it
-        // (`sceneWillResignActive`): when, kept (iOS may end the app before
-        // it comes back; ADR 0096 item 1 amended for iOS).
-        #[cfg(target_os = "ios")]
-        tauri::RunEvent::WindowEvent {
-            event: tauri::WindowEvent::Focused(on),
-            ..
-        } => {
-            if *on {
-                local_server::after_resume(app);
-            } else {
-                local_server::before_suspend(app);
-            }
         }
         _ => {}
     }

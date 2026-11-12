@@ -125,3 +125,28 @@ pub(crate) fn one_window(scene: &objc2_ui_kit::UIScene) {
     objc2_ui_kit::UIApplication::sharedApplication(main)
         .requestSceneSessionDestruction_options_errorHandler(&scene.session(), None, None);
 }
+
+/// The iOS app's part of the run's events (split from `lib.rs`'s
+/// `on_event`, ADR 0067):
+/// - a second window the person asked iPadOS for (its icon's "New
+///   window"): the app shows one window (no `Can::Windows`), so the new
+///   scene is closed again (ADR 0119 A18);
+/// - the window's scene active again (tao's `sceneDidBecomeActive`): a
+///   server whose port iOS closed while the device was locked, or one due
+///   to resume, listens again (ADR 0119 B12/A2); leaving it
+///   (`sceneWillResignActive`): when, kept (iOS may end the app before it
+///   comes back; ADR 0096 item 1 amended for iOS).
+pub(crate) fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: &tauri::RunEvent) {
+    match event {
+        tauri::RunEvent::SceneRequested { scene, .. } => one_window(scene),
+        tauri::RunEvent::WindowEvent {
+            event: tauri::WindowEvent::Focused(true),
+            ..
+        } => crate::local_server::after_resume(app),
+        tauri::RunEvent::WindowEvent {
+            event: tauri::WindowEvent::Focused(false),
+            ..
+        } => crate::local_server::before_suspend(app),
+        _ => {}
+    }
+}
