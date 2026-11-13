@@ -17,7 +17,7 @@ tail -1 "$LAB/image-build.log"
 
 C="$LAB/certs"
 [ -f "$C/cert.pem" ] || openssl req -x509 -newkey ec \
-  -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 1 -subj /CN=localhost \
+  -pkeyopt ec_paramgen_curve:prime256v1 -pkeyopt ec_param_enc:named_curve -nodes -days 1 -subj /CN=localhost \
   -addext subjectAltName=DNS:localhost -keyout "$C/key.pem" -out "$C/cert.pem" 2>/dev/null
 chmod 644 "$C"/*.pem
 

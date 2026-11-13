@@ -57,7 +57,9 @@ docker build -q -f packaging/server/Dockerfile -t universo:check "$ctx"
 
 printf '\n== the image running, over its own TLS\n'
 certs="$dir/certs" && rm -rf "$certs" && mkdir -p "$certs"
-openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 1 \
+# named_curve: macOS's LibreSSL otherwise writes the curve's parameters out
+# in full, a key rustls refuses ("failed to parse private key").
+openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -pkeyopt ec_param_enc:named_curve -nodes -days 1 \
   -subj /CN=localhost -addext subjectAltName=DNS:localhost \
   -keyout "$certs/key.pem" -out "$certs/cert.pem" 2>/dev/null
 chmod 644 "$certs"/*.pem
