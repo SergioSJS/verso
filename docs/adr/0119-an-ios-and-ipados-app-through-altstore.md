@@ -29,6 +29,11 @@
   maintainer's iPad"); B12/A2's serving after a lock built; *"bora"*: a
   start soon after iOS ended the app while serving serves again (0117 D12
   amended for iOS).
+- Revisions: 2026-11-13 — A5 and B11 decided by the maintainer, in
+  session: *"a5 - Sim devem aparecer"* (A5: yes, they must show) and *"só
+  brasil por enquanto, a gente documenta isso na landing page"* (Brazil only
+  for now; we document it on the landing page). Recorded in their rows and
+  in Status.
 - Revisions: 2026-11-12 — the maintainer accepts the recommendations of
   Phase 0 in the Simulator: *"sobre ios, aceito as recomendações"* (on
   iOS, I accept the recommendations); A13–A18 decided in their rows, the
@@ -351,7 +356,7 @@ Questions for the maintainer (B) and for the build (A):
 | B8 | Whether iPadOS is reachable through PAL in Brazil — answered by AltStore or a test | Ask AltStore; observe |
 | B9 | The App Store: funding, timing | After PAL |
 | B10 | Which Apple ID signs the app on the iPad: his personal one, already on it, or one made for this | **Decided 2026-11-12:** his personal Apple ID, already on the iPad |
-| B11 | PAL: Verso listed in Brazil only, or the EU and Japan too (the EU asks for trader details) | — |
+| B11 | PAL: Verso listed in Brazil only, or the EU and Japan too (the EU asks for trader details) | **Decided 2026-11-13:** Brazil only for now; the landing page says so (*"a gente documenta isso na landing page"*) — in the iOS install page, a vault note in both languages imported into the site's wiki (0058 points 16–18), when the iOS download is published |
 | B12 | Whether the iPad is a server at all (0118 item 3 was the phone as a mini server) | **Decided 2026-11-12:** as recommended |
 | B13 | Where the iPad's notes live in v1: the app's private folder (as Android, deleted with the app unless synced) or a picked folder / iCloud Drive | **Decided 2026-11-12:** as recommended |
 | B14 | The same off list as Android (terminal, CLI, windows, audio capture…); the updater off, the AltStore source updating | **Decided 2026-11-12:** as recommended |
@@ -363,7 +368,7 @@ Questions for the maintainer (B) and for the build (A):
 | A2c | A sync in flight when the app leaves the screen (0118 item 6 is Android's): stop and resume, or `beginBackgroundTask` / scheduled background tasks | Stop and resume on return |
 | A3 | `cloudflared` as a linked library (gomobile) or the link off on iOS | **Decided 2026-11-12:** as recommended (`cloudflared` off on iOS in v1) |
 | A4 | mDNS: request the multicast entitlement (paid account) or announce through Apple's Bonjour API (`NSBonjourServices`) | **Decided 2026-11-12:** as recommended (QR/address in v1) |
-| A5 | Show the private folder in Files | — |
+| A5 | Show the private folder in Files | **Decided 2026-11-13:** yes (*"Sim devem aparecer"*). To build: the notes move from `<app_data_dir>/Verso` (`ios.rs`, under `Library`, which Files never shows) to `Documents/Verso`, an existing install's folder moved once at start; `UIFileSharingEnabled` + `LSSupportsOpeningDocumentsInPlace` in `Info.plist`; the folder still excluded from iCloud backup (A6); the configuration stays in `Library`. Outside changes made in Files are seen when the app returns, not live (no watcher, row 4.1) |
 | A6 | Exclude the folder and `servers.json` from iCloud backup, as Android's A9 | **Decided 2026-11-12:** as recommended (excluded from iCloud backup) |
 | A7 | Whether v1 is in V1's scope (Android is, 0118 A7 decided 2026-11-10) | **Decided 2026-11-13:** in V1 (*"ios entra na v1"*) |
 | A8 | VoiceOver pass (a task, not a question) | Phase 1's acceptance, as 0118 A5 |
@@ -697,8 +702,10 @@ None recorded. The App Store first was not discarded: it comes later (item
 
 ## Status
 
-**iOS in V1 (2026-11-13):** A7 decided by the maintainer, *"ios entra na v1"*;
-A5 and B11 still `[OPEN]`.
+**iOS in V1 (2026-11-13):** A7 decided by the maintainer, *"ios entra na v1"*.
+**A5 and B11 decided (2026-11-13):** the private folder shows in Files (to
+build: the move to `Documents`, A5's row); PAL in Brazil only for now, said on
+the landing page's iOS install page.
 
 **Phase 0's answers (2026-11-12):** A13–A17 decided as recommended
 (*"sobre ios, aceito as recomendações"*); A18 waits for the iPad.
