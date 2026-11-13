@@ -172,12 +172,14 @@ export function coveredBelow(): number {
  *  take a cursor near the note's end for hidden — and keep the list of
  *  notes after `[[` off the screen (the maintainer's phone, 2026-10-16). */
 export const editorKeepsInView = [
-  // Nothing without a keyboard: the editor scrolls as it always has.
   // What the keyboard covers is read in the editor's own measuring, with
   // its other reads: read here, at every key, it made the browser lay the
-  // page out once more per key (ADR 0118 Phase 1, typing latency).
+  // page out once more per key (ADR 0118 Phase 1, typing latency). Asked
+  // on every screen, not only a touch one: a keyboard can cover a window
+  // whose pointer is fine (a Windows laptop's on-screen keyboard; the e2e's
+  // stand-in), and with none the measure reads 0 and does nothing.
   EditorView.updateListener.of((update) => {
-    if ((update.selectionSet || update.docChanged) && update.view.hasFocus && touchScreen?.matches) keepCursorAbove(update.view);
+    if ((update.selectionSet || update.docChanged) && update.view.hasFocus) keepCursorAbove(update.view);
   }),
 ];
 
