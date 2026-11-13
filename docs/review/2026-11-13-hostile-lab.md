@@ -63,10 +63,13 @@ masking) carried the sign-in cookie onto `/api/ws` and ran two live tests:
 |---|----|--------|--------|
 | W1 | member Bea | `open_server_folder` over the WS on a folder she is not in | **held** — `{"kind":"not_found"}` |
 | W2 | two members in one note's room | Cadu makes a **secret** roll (`collab_roll` `secret:true`); does it reach Bea? | **held** — Bea received nothing. Control: a **plain** roll from Cadu did reach Bea (1 `collab-roll` push), so both were genuinely in the room |
+| W3 | a player at a table (`ws_audience.py`) | Bea, a reader (so a veiled player) of a folder made a table, reads a note set to audience **hidden** | **held** — `read_note` on the hidden note → `not_found` (the player's projection excludes it), and its text never appeared in her sync stream. Control: she reads a note set to the whole **table** and gets its text |
 
 W2 matches the code: a secret roll never calls `tell` (the room broadcast),
 so it reaches only the roller and the folder's owners through the table
-(`collab_dice.rs`), never another player in the room.
+(`collab_dice.rs`), never another player in the room. W3 matches the
+projection: a player sees the table's audience of a note, never a hidden
+one, over `read_note` and over sync.
 
 What the code shows for the rest of the room surface:
 
@@ -89,10 +92,13 @@ What the code shows for the rest of the room surface:
 
 ## Not covered (why item 16 still stands)
 
-- The live two-player WebSocket secret-roll case is done (W2); the
-  **audience / board veil** case (a player's board sight, hidden pins and
-  text) was checked only through the green `board_sight_tests` unit tests,
-  not with two live board connections.
+- The live secret-roll (W2) and audience-note (W3) cases are done. The
+  **board-element veil** (a secret pin or a locked card inside a `.canvas`
+  room, drawn over `collab_update`) was checked only through the green
+  `board_sight_tests` unit tests (26 cases: "a secret pin is not there", "no
+  hidden id or text reaches a player", "an update to an id not seen is
+  refused"), not with two live board connections — the Excalidraw element
+  entries were not reconstructed over the wire.
 - A resource-bounds / load test against the item-18 limits — run separately
   on Proxmox VM 107 (1 core, 1 GB); see `docs/review/2026-11-13-load-vm107.md`
   when present.
@@ -104,10 +110,12 @@ What the code shows for the rest of the room surface:
 
 Every HTTP attack the lab ran was held, and the two candidates were verified
 false. The live WebSocket run held too: a member cannot open a folder she is
-not in, and a secret roll never reaches another player in the room (with a
-passing positive control). The remaining room cases reuse the same access
-check and are guarded by green adversarial unit tests. Nothing here blocks
-opening the test server to a few invited, known people (ADR 0083 item 16
-gates the *announcement*, not the first invited users). The live board/veil
-case, the VM-107 load test, and the outside-person pentest (item 16) remain
-before the announcement.
+not in, a secret roll never reaches another player in the room, and a note
+hidden from the players is unreadable by a player and absent from their sync
+(all with passing positive controls). The VM-107 load flood held every bound
+(`docs/review/2026-11-13-load-vm107.md`). The one remaining room case — a
+board element's veil inside a `.canvas` room — is covered by the green
+`board_sight_tests` unit tests, not yet live. Nothing here blocks opening the
+test server to a few invited, known people (ADR 0083 item 16 gates the
+*announcement*, not the first invited users). The live board-element case and
+the outside-person pentest (item 16) remain before the announcement.
