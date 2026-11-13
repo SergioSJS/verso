@@ -22,7 +22,16 @@ announcement.
   admin ("Segredos"). Fake data only.
 - Harness: `lab/hostile/attack.py` (Python stdlib, no network beyond the lab),
   run with `python3 -I`. Each candidate was verified adversarially before
-  being called a finding.
+  being called a finding. The board case is `lab/hostile/ws_board.mjs`
+  (Node 24, `yjs` and `ws` from `app/ui/node_modules`): `node
+  lab/hostile/ws_board.mjs https://localhost:18443` against the same
+  container.
+- Certificates: the EC key is made with `-pkeyopt
+  ec_param_enc:named_curve` (in `run.sh` and `scripts/check-server-image.sh`
+  since 2026-11-13): macOS's own LibreSSL otherwise writes the curve's
+  parameters out in full and rustls refuses the key. The image check failed
+  this way in a shell without Homebrew's `openssl` first in `PATH`; a tooling
+  fault, not a server one.
 
 ## Attacks and results — HTTP/REST surface
 
@@ -65,6 +74,41 @@ masking) carried the sign-in cookie onto `/api/ws` and ran two live tests:
 | W2 | two members in one note's room | Cadu makes a **secret** roll (`collab_roll` `secret:true`); does it reach Bea? | **held** — Bea received nothing. Control: a **plain** roll from Cadu did reach Bea (1 `collab-roll` push), so both were genuinely in the room |
 | W3 | a player at a table (`ws_audience.py`) | Bea, a reader (so a veiled player) of a folder made a table, reads a note set to audience **hidden** | **held** — `read_note` on the hidden note → `not_found` (the player's projection excludes it), and its text never appeared in her sync stream. Control: she reads a note set to the whole **table** and gets its text |
 
+| W4 | the board veil (`ws_board.mjs`, 15:28–15:45) | A table's board seeded by the game master's window with a card of a released note, a card of a hidden note, a text card with a `[!secret]` block, a **secret pin**, an edge to the pin and an arrow bound to it with a label — every hidden thing carrying a canary. Bea may **edit** the board; Cadu only **sees** it | **held** — see below |
+
+W4 is the live twin of `tests_board_players.rs`, over TLS, the sign-in
+cookie and `/api/ws`, with `yjs` (from `app/ui`) building the room updates
+as the window does; every frame Bea and Cadu heard was searched for the
+canaries with each base64 string in it decoded first:
+
+- Bea joins the room as an editor and is given `c-hid`, `c-open`, `free`,
+  `note` only: no pin, no edge to it, no drawing bound to it; the hidden
+  note's card is a **locked marker with the same id and no file**. Controls:
+  her own card is whole, the text card's secret block is hers (she edits,
+  ADR 0087 item 5), and an edit of hers reaches the game master's window.
+- Seven edits she does not see are **refused whole**, each with the veil's
+  own message: move the locked marker, write the pin by its id, delete the
+  pin's edge by its room key ("an element you do not see"), make a secret pin
+  of her own ("a secret pin is the game master's"), a card of the hidden note
+  or of a file that is not there ("a card of a file you do not see"), an
+  arrow to the pin ("an element they would not see"). Nothing of them reached
+  the game master and the hidden elements stayed as they were. Control: an
+  allowed edit built the same way (a copy of her room) is accepted, so the
+  refusals are the veil's, not the copy's.
+- The game master moves the pin, adds a second secret pin and moves the
+  hidden card: neither pin reaches her; the marker moves, still locked.
+- Cadu (sees only): the room is **refused** ("a board is followed live by
+  those who may edit it"), a write is refused, and the board's file he reads
+  holds both cards but no canary — the text card's `[!secret]` block included
+  (ADR 0087, revised 2026-10-15). Control: the file reads, both cards there.
+- No canary in any frame either player heard. **0 findings.**
+
+Run at `0cb1a9d1` (the server crate and `packaging/` unchanged since
+`23b194183`). One false positive of the script's own was found and removed
+before the result above: an attempt refused by the server had stayed in Bea's
+*local* copy of the room and was then read back as "a pin reached her"; the
+attempts are now built on a throwaway copy.
+
 W2 matches the code: a secret roll never calls `tell` (the room broadcast),
 so it reaches only the roller and the folder's owners through the table
 (`collab_dice.rs`), never another player in the room. W3 matches the
@@ -92,13 +136,12 @@ What the code shows for the rest of the room surface:
 
 ## Not covered (why item 16 still stands)
 
-- The live secret-roll (W2) and audience-note (W3) cases are done. The
-  **board-element veil** (a secret pin or a locked card inside a `.canvas`
-  room, drawn over `collab_update`) was checked only through the green
-  `board_sight_tests` unit tests (26 cases: "a secret pin is not there", "no
-  hidden id or text reaches a player", "an update to an id not seen is
-  refused"), not with two live board connections — the Excalidraw element
-  entries were not reconstructed over the wire.
+- The live secret-roll (W2), audience-note (W3) and board-element veil (W4)
+  cases are done. W4 covers one table, one board and two players; the
+  board's other exits to a player (`board_preview`, the index's public text,
+  a share of the board, a read link) were not attacked live — they stay
+  covered by `board_sight_tests`, `tests_board_shares.rs` and the projection
+  tests of ADR 0087.
 - A resource-bounds / load test against the item-18 limits — run separately
   on Proxmox VM 107 (1 core, 1 GB); see `docs/review/2026-11-13-load-vm107.md`
   when present.
@@ -113,12 +156,12 @@ false. The live WebSocket run held too: a member cannot open a folder she is
 not in, a secret roll never reaches another player in the room, and a note
 hidden from the players is unreadable by a player and absent from their sync
 (all with passing positive controls). The VM-107 load flood held every bound
-(`docs/review/2026-11-13-load-vm107.md`). The one remaining room case — a
-board element's veil inside a `.canvas` room — is covered by the green
-`board_sight_tests` unit tests, not yet live. Nothing here blocks opening the
-test server to a few invited, known people (ADR 0083 item 16 gates the
-*announcement*, not the first invited users). The live board-element case and
-the outside-person pentest (item 16) remain before the announcement.
+(`docs/review/2026-11-13-load-vm107.md`). The board-element veil held live
+as well (W4): no secret pin, edge, drawing or hidden card's file reached a
+player, and every edit touching what she does not see was refused whole.
+Nothing here blocks opening the test server to a few invited, known people
+(ADR 0083 item 16 gates the *announcement*, not the first invited users).
+The outside-person pentest (item 16) remains before the announcement.
 
 ## When to run this whole suite again (the trigger)
 
