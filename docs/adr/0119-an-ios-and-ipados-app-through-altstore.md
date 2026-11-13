@@ -365,7 +365,7 @@ Questions for the maintainer (B) and for the build (A):
 | A4 | mDNS: request the multicast entitlement (paid account) or announce through Apple's Bonjour API (`NSBonjourServices`) | **Decided 2026-11-12:** as recommended (QR/address in v1) |
 | A5 | Show the private folder in Files | — |
 | A6 | Exclude the folder and `servers.json` from iCloud backup, as Android's A9 | **Decided 2026-11-12:** as recommended (excluded from iCloud backup) |
-| A7 | Whether v1 is in V1's scope (Android is, 0118 A7 decided 2026-11-10) | — |
+| A7 | Whether v1 is in V1's scope (Android is, 0118 A7 decided 2026-11-10) | **Decided 2026-11-13:** in V1 (*"ios entra na v1"*) |
 | A8 | VoiceOver pass (a task, not a question) | Phase 1's acceptance, as 0118 A5 |
 | A9 | Classic: unsigned `.ipa` vs development-signed; the bundle id after re-signing | Phase 1 observes |
 | A10 | The iPhone's layout without an iPhone: the harness's 390×844 projects (0076), and/or the iOS Simulator that comes with Xcode (the real WKWebView) | — |
@@ -696,6 +696,9 @@ None recorded. The App Store first was not discarded: it comes later (item
 2.3). SideStore is mentioned, not weighed.
 
 ## Status
+
+**iOS in V1 (2026-11-13):** A7 decided by the maintainer, *"ios entra na v1"*;
+A5 and B11 still `[OPEN]`.
 
 **Phase 0's answers (2026-11-12):** A13–A17 decided as recommended
 (*"sobre ios, aceito as recomendações"*); A18 waits for the iPad.
