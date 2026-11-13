@@ -65,6 +65,7 @@ test release.
 
 ### Fixed
 
+- **Copying from the reading view no longer carries the theme's colours** (the maintainer, 2026-11-13: a block copied in reading mode pasted into a website came out in the theme's colours, and "only a piece" of it). When a page is copied, the system inlines the computed colour of the selected elements into the clipboard, so a dark theme's light text landed as light text on a white page. Verso now writes the clipboard itself from the selection, with the colour-carrying styles stripped: the paste keeps the structure (headings, bold, lists, links) and takes the colours of wherever it lands.
 - **A second Watabou import no longer lands inside the first map's folder** (ADR 0120): **Import Watabou map…** from the palette offers the folder you last imported into, and only before any import the folder of the tab in front.
 - **On a phone, Verso speaks of the phone, not of "this computer"** (ADR 0118, 2026-11-12): Settings › Sync said *Nome deste computador* and *editadas neste computador*, and the notifications' line about a list it cannot keep said *Este computador*; on a phone these now say *celular* (*phone* in English).
 

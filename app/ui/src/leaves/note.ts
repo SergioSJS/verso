@@ -72,6 +72,7 @@ import * as folds from "./note/folds";
 import { unfoldFor } from "./note/folds";
 import * as live from "./note/live";
 import * as web from "./note/web";
+import { cleanCopy } from "./note/copyClean";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
 import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, joinGiveUp, type JoinAnswer, joinPending, lostLine, onJoinRetry, sideCan } from "../collab";
@@ -393,6 +394,10 @@ export class NoteLeaf extends Leaf {
     // Focusable from code, not by Tab: a link followed from the keyboard
     // hands the keyboard to the note that opened (`focusContent`).
     this.preview.tabIndex = -1;
+    // Copying from the reader writes the clipboard without the theme's
+    // colours (copyClean.ts), so a paste into another app takes that app's
+    // colours, not Verso's.
+    this.preview.addEventListener("copy", (ev) => void cleanCopy(ev, this.preview));
     // A double click on the text opens it for editing, as a note app does.
     this.preview.addEventListener("dblclick", (ev) => {
       if ((ev.target as HTMLElement).closest("a, input, button, select, .embed-pdf, .embed-note, .embed-base, .math")) return;
