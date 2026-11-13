@@ -119,3 +119,51 @@ board element's veil inside a `.canvas` room — is covered by the green
 test server to a few invited, known people (ADR 0083 item 16 gates the
 *announcement*, not the first invited users). The live board-element case and
 the outside-person pentest (item 16) remain before the announcement.
+
+## When to run this whole suite again (the trigger)
+
+This run is a snapshot: it proves the server held at `23b194183`, not forever.
+Re-run the full suite (`lab/hostile/*` + the VM-107 flood) when a change could
+move the access, visibility, auth or resource boundary — concretely:
+
+**Server code that gates access, auth or limits changed.** Any diff under
+`crates/verso-server/src/` in: `access.rs`, `access/` (`door.rs`, `rules.rs`),
+`auth.rs`, `http.rs` (routes, `Origin`/CSRF, body limit), `rpc.rs`,
+`rpc_collab.rs`, `rpc_open.rs`, `shares.rs`, `campaign*.rs`, `collab*.rs`,
+`board_sight.rs`, `readers.rs`, `audience` logic, `limit.rs`, `inflight.rs`,
+`listen.rs` (the caps), `pace.rs`, `fair.rs`, `visit.rs` (read links),
+`device.rs`, `passkeys.rs`, `passwords.rs`, `crypto.rs`, `admin.rs`,
+`db/access.rs`. A new route or a new `collab_*`/folder command always counts.
+
+**The access model or a sharing/table feature changes by ADR.** e.g. ADR 0112
+(device confirmation), 0117 R3–R8 (the owner pairs through the link, a
+UniVerso's link), 0081 (sharing), 0113 (rights), 0110 (table), 0082 (co-edit),
+or any new role/capability. A contract-version bump is a flag by itself.
+
+**A security-relevant dependency moves.** `axum`, `tokio`, `rustls`/TLS,
+`rusqlite`/`libsqlite3-sys`, `serde`/`serde_json`, the password hasher
+(`argon2`), the WebAuthn/passkey crate, `tower-http`. A new `cargo deny`
+advisory on any of these is a flag too.
+
+**A release gate.** Before cutting a version that will be *announced publicly*
+— this is where ADR 0083 item 16's outside-person pentest is required, not
+just this automated suite.
+
+**The audience widens.** Before opening a server to people beyond the first
+known, invited few (a public sign-up, an unknown crowd, a bigger host).
+
+**After any fix to a BLOCKING or visibility finding, anywhere** — re-run to
+confirm the fix and catch a regression.
+
+**A new platform/transport touches the server.** A new OS port of the server,
+a change to the Cloudflare link / `cloudflared`, a new proxy in front, a
+change to `VERSO_TRUSTED_PROXY` handling.
+
+Not a trigger (no re-run needed): UI-only changes, docs, fixtures, the demo
+vault, themes, or anything that does not reach `crates/verso-server` or the
+access model.
+
+*Suggestion (not a decision — the maintainer's to make, `[OPEN]`):* a CI check
+that fails, or warns, when a PR touches any file in the first list above
+without a line in the PR saying the hostile suite was re-run, so the trigger
+is not forgotten.
