@@ -54,10 +54,21 @@ announcement.
 access 404, admin routes 403, path traversal blocked, CSRF + `Origin`
 enforced, body limit enforced without a crash.
 
-## WebSocket / room surface — analysed in code, not yet exercised live
+## WebSocket / room surface — exercised live (dice) + analysed in code
 
-Not fully scripted over the wire in this run (an honest gap, below). What the
-code shows:
+A raw RFC6455 client (`lab/hostile/ws_attack.py`, Python stdlib, client
+masking) carried the sign-in cookie onto `/api/ws` and ran two live tests:
+
+| # | As | Attack | Result |
+|---|----|--------|--------|
+| W1 | member Bea | `open_server_folder` over the WS on a folder she is not in | **held** — `{"kind":"not_found"}` |
+| W2 | two members in one note's room | Cadu makes a **secret** roll (`collab_roll` `secret:true`); does it reach Bea? | **held** — Bea received nothing. Control: a **plain** roll from Cadu did reach Bea (1 `collab-roll` push), so both were genuinely in the room |
+
+W2 matches the code: a secret roll never calls `tell` (the room broadcast),
+so it reaches only the roller and the folder's owners through the table
+(`collab_dice.rs`), never another player in the room.
+
+What the code shows for the rest of the room surface:
 
 - `/api/ws` upgrade (`rpc.rs:120`) runs the same `Origin` check as the REST
   routes for a browser, and tokens for the app/programs.
@@ -78,10 +89,13 @@ code shows:
 
 ## Not covered (why item 16 still stands)
 
-- A full over-the-wire WebSocket attack with two live player connections
-  against one table (secret rolls and audience, live, not only in unit tests).
-- A resource-bounds / load test against the item-18 limits — belongs on
-  Proxmox VM 107 (1 core, 1 GB), not this shared box; not run here.
+- The live two-player WebSocket secret-roll case is done (W2); the
+  **audience / board veil** case (a player's board sight, hidden pins and
+  text) was checked only through the green `board_sight_tests` unit tests,
+  not with two live board connections.
+- A resource-bounds / load test against the item-18 limits — run separately
+  on Proxmox VM 107 (1 core, 1 GB); see `docs/review/2026-11-13-load-vm107.md`
+  when present.
 - Passkey/WebAuthn flows (no authenticator in the lab).
 - The automated lab does not replace **ADR 0083 item 16**: a penetration test
   by a person outside the project, before the public announcement.
@@ -89,9 +103,11 @@ code shows:
 ## Verdict
 
 Every HTTP attack the lab ran was held, and the two candidates were verified
-false. The WebSocket room gate reuses the same access check, and the
-visibility leaks are guarded by green adversarial unit tests. Nothing here
-blocks opening the test server to a few invited, known people (ADR 0083
-item 16 gates the *announcement*, not the first invited users). The live
-WebSocket attack and the outside-person pentest remain to be done before the
-announcement.
+false. The live WebSocket run held too: a member cannot open a folder she is
+not in, and a secret roll never reaches another player in the room (with a
+passing positive control). The remaining room cases reuse the same access
+check and are guarded by green adversarial unit tests. Nothing here blocks
+opening the test server to a few invited, known people (ADR 0083 item 16
+gates the *announcement*, not the first invited users). The live board/veil
+case, the VM-107 load test, and the outside-person pentest (item 16) remain
+before the announcement.
