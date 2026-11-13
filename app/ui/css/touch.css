@@ -140,3 +140,19 @@ html.desk-on-phone body { grid-template-columns: var(--ribbon-w) var(--side-w) 0
 html.desk-on-phone body.no-side { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 0; }
 html.desk-on-phone #right-divider { display: none; }
 html.desk-on-phone body aside.right { position: fixed; top: 0; right: 0; bottom: 0; z-index: 8; width: min(calc(56 * var(--u-vw)), 280px); box-sizing: border-box; box-shadow: 0 0 40px oklch(0% 0 0 / .25); }
+
+/* A tablet's status bar (the maintainer's iPad in landscape, 2026-11-12:
+   "a barra é mais que o dobro do que a versão normal do Verso"): the
+   desktop's row and padding, its controls 24px — WCAG 2.5.8's minimum —
+   instead of the 44px above, and only a small inset above the home
+   indicator, the bar's background reaching under it; about 35px against
+   the desktop's 31. The ⌘ hints say nothing without a keyboard. Neither a
+   phone (max-width 760px, or a short landscape screen) nor the desktop
+   (a fine pointer) is matched: test/tabletBar.test.mjs. */
+@media (pointer: coarse) and (min-width: 761px) and (min-height: 501px) {
+  .status-bar { padding-bottom: max(4px, calc(env(safe-area-inset-bottom) - 14px)); }
+  .status-bar :is(#toggle-side, #toggle-right, #report-bug, #keys-commands, .bar-toggle, .notify-bell-bar) { min-width: 24px; min-height: 24px; }
+}
+@media (pointer: coarse) and (hover: none) and (min-width: 761px) and (min-height: 501px) {
+  .status-bar .status-keys { display: none; }
+}
