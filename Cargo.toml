@@ -12,7 +12,7 @@ members = ["crates/*", "app/src-tauri"]
 exclude = ["crates/verso-dialect/fuzz", "crates/verso-server/fuzz"]
 
 [workspace.package]
-version = "0.8.4-beta.1"
+version = "0.8.5-beta.1"
 edition = "2024"
 rust-version = "1.98"
 license = "MPL-2.0"
