@@ -285,6 +285,18 @@ impl Link {
     fn binary(&self, preparing: &verso_tunnel::Preparing) -> Result<PathBuf, String> {
         match &self.program {
             Program::Given(path) => Ok(path.clone()),
+            // On Android the app carries its own cloudflared (ADR 0118,
+            // scripts/android/cloudflared.sh) and the fetch is not built:
+            // the server never downloads one there.
+            #[cfg(target_os = "android")]
+            Program::Pinned => {
+                let _ = preparing;
+                Err(
+                    "on Android the app carries its own cloudflared; none is downloaded here"
+                        .to_owned(),
+                )
+            }
+            #[cfg(not(target_os = "android"))]
             Program::Pinned => {
                 let server = self
                     .server
