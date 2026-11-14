@@ -117,7 +117,11 @@ Accepted (2026-10-10, Status).
    console, edited in the environment — Status.)* *(Revised 2026-11-04,
    Revisions: the UniVerso's own Cloudflare link is turned on and off from
    the console, per [0117](0117-this-app-is-a-universo-server.md) D14 (c);
-   not built.)*
+   not built.)* *(Built 2026-11-14, 0117 R5: the Server page's *Link on
+   the internet*, its state and address, *Turn on* — a quick link, or the
+   own address by a tunnel's token — *Extend 12 hours* and *Turn off*;
+   turning it on or extending it wants a fresh proof. The configuration
+   stays read-only otherwise; a token pasted there holds for that run.)*
 7. **Both languages, accessibility**: every page in pt-BR and English,
    tables with headers and captions, keyboard sorting and paging, and the
    console's own e2e tests in the server's suite (`e2e-server`), at

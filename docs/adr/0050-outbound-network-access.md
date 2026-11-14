@@ -51,6 +51,22 @@
   Cloudflare account, whose login page it opens in the browser (0117 D10).
   The core still reaches no network: `verso-server` and `verso-service`
   spawn nothing; the host owns both (`app/src-tauri/src/tunnel/`).
+  2026-11-14 — revised by [0117](0117-this-app-is-a-universo-server.md) D4
+  item 2 (decided by the maintainer on 2026-11-04 and 2026-11-13; built in
+  R5); the text below is kept as it was decided. The same two reaches,
+  for **a UniVerso** too, only when its admin turns its own link on
+  (`VERSO_TUNNEL=quick|own`, `universo.sh link`, or the console): the
+  server **downloads the pinned `cloudflared`** once, from the same
+  GitHub releases, checked against the same SHA-256, into
+  `<VERSO_DATA_DIR>/tunnel/`; and it **runs `cloudflared`**, which connects
+  out to Cloudflare's network — a quick link on `trycloudflare.com`, or an
+  own address by a tunnel's token made in Cloudflare's dashboard (no
+  login page: a server has no browser). On a UniVerso the server process
+  is the host, so it is the one that spawns `cloudflared`
+  (`verso_server::tunnel`, over the module the desktop app ran, moved into
+  `crates/verso-tunnel` for both hosts); "this app is a server" still
+  spawns nothing in `verso-server` (its host runs the tunnel). The core
+  (`verso-core`, `verso-service`) still reaches no network.
 
 ## Context
 
