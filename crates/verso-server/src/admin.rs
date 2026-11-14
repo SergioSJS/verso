@@ -241,7 +241,9 @@ pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
             folder: body.folder.as_deref(),
             role: body.role,
             share: body.share.as_deref(),
-            most_pending: None,
+            // The admin still, as the row is written.
+            inviter: Some(acts::Inviter::Admin),
+            owned: false,
         },
     )?;
     let address = link(&ctx, "invite", &token);

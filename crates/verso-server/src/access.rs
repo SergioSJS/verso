@@ -74,7 +74,7 @@ pub use door::{
 mod rules;
 pub use rules::{
     AccessFacts, Action, Asker, Cap, Kind, Level, Made, NodeSet, Reason, Right, Seat, TableFact,
-    Target, Verdict, Why, may,
+    Target, Verdict, Why, invites_new, may,
 };
 
 #[cfg(test)]
