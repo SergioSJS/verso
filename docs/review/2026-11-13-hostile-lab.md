@@ -75,6 +75,7 @@ masking) carried the sign-in cookie onto `/api/ws` and ran two live tests:
 | W3 | a player at a table (`ws_audience.py`) | Bea, a reader (so a veiled player) of a folder made a table, reads a note set to audience **hidden** | **held** — `read_note` on the hidden note → `not_found` (the player's projection excludes it), and its text never appeared in her sync stream. Control: she reads a note set to the whole **table** and gets its text |
 
 | W4 | the board veil (`ws_board.mjs`, 15:28–15:45) | A table's board seeded by the game master's window with a card of a released note, a card of a hidden note, a text card with a `[!secret]` block, a **secret pin**, an edge to the pin and an arrow bound to it with a label — every hidden thing carrying a canary. Bea may **edit** the board; Cadu only **sees** it | **held** — see below |
+| W5 | game masters' invitations and the console's link (`ws_gm.py`, 2026-11-14 ~02:30 UTC-3, after R3–R9 merged at `d4160077`; re-run because R3 and R6 touch access, the trigger below) | An account given *may create folders* makes a table and invites (control); then an editor's invitation, an invitation into the admin's table where it is an editor (table and dialog), past 20 waiting, and from a window opened before the admin takes the power; a member and a stranger on `GET/POST/DELETE /api/admin/link` and `/extend` | **held** — readers only (400), never into another's folder (refused / 403), refused at 20 waiting, the open window refused once the power went and its waiting invitation 404, the console's link routes the admin's alone. One MINOR, not a leak: a session reads *may create folders* at sign-in, so the account must sign in again before making its first folder |
 
 W4 is the live twin of `tests_board_players.rs`, over TLS, the sign-in
 cookie and `/api/ws`, with `yjs` (from `app/ui`) building the room updates
@@ -133,6 +134,10 @@ What the code shows for the rest of the room surface:
   "no hidden id or text reaches a player", "an update to an id not seen is
   refused", "a players' canvas never writes over what they do not see"),
   `access/vectors.rs` (27 access-decision vectors), `collab_tests.rs`.
+
+### Whole suite again, 2026-11-14 (R3–R9 merged)
+
+`lab/hostile/run.sh` now runs every script of the lab in one pass against one container: `attack.py`, `ws_attack.py`, `ws_audience.py`, `ws_board.mjs` and the new `ws_gm.py`. Run at `d4160077` (the image built by `scripts/check-server-image.sh`): every earlier attack held again with its control, and W5 held. Not attacked live: the internet link itself (the lab runs no tunnel; R3's and R5's link paths are covered by `local::tests_link_pair`, the server's tunnel tests and the R5 spike on VM 107), and this computer's server's resting folders (the desktop app's server, not the image; `local::tests_rest`).
 
 ## Not covered (why item 16 still stands)
 

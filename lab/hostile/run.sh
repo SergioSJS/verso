@@ -39,4 +39,16 @@ for _ in $(seq 1 30); do
 done
 
 echo "== attacks"
-python3 -I lab/hostile/attack.py "https://localhost:$PORT"
+URL="https://localhost:$PORT"
+NODE="${NODE:-$HOME/.nvm/versions/node/v24.20.0/bin/node}"
+rc=0
+python3 -I lab/hostile/attack.py "$URL" || rc=1
+echo "== the WebSocket: the folder gate and secret rolls"
+python3 -I lab/hostile/ws_attack.py "$URL" || rc=1
+echo "== the audience veil"
+python3 -I lab/hostile/ws_audience.py "$URL" || rc=1
+echo "== the board veil"
+"$NODE" lab/hostile/ws_board.mjs "$URL" || rc=1
+echo "== game masters' invitations and the console's link (R6, R5)"
+python3 -I lab/hostile/ws_gm.py "$URL" || rc=1
+exit $rc
