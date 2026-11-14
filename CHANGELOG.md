@@ -81,6 +81,8 @@ Nothing yet.
 
 ### Fixed
 
+- **A UniVerso on a final version updates only to final versions** (the maintainer, 2026-11-14). `universo.sh update` (and the weekly update of `universo.sh schedule update`) took the newest release of either kind, so a server on a final version would have moved to the next test version. A server on a test version still takes the newest of either; a new install takes the newest final version, or the newest test version while there is no final one.
+
 - **Verso Beta updates only to test versions, and Verso only to final ones** (the maintainer, 2026-11-14). The update check took the newest release of either kind: a beta would have offered the first final version, and a final one the next beta. Each app is its own, with its own identifier, beside the other, and now takes only its own channel's file.
 
 - **A folder this computer stops serving keeps its table** (ADR 0117 D2, 2026-11-13). Unticking a served folder in **Settings › Turn into a server** deleted, at the next start, everything the server kept of it: the table, its players, the chat and the rolls, the shares and read links. Now the folder rests: nobody reaches it, by its list, its id, a share or a link, and serving it again brings back the same table and the same people. And two served folders with the same name (*Campanha* in two places) each keep their own name for good: unticking the first gave its name, and its players, to the second, so a player of one table could open the other folder.

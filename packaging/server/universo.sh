@@ -436,12 +436,13 @@ gh_get() {
 # list-signature-url: the package's own .sig (releases up to 0.8.3), and
 # the release's signed checksums list, verso-<version>-SHA256SUMS, with
 # its .sig (from 0.8.3 on; ADR 0055, revised 2026-10-14). A URL the
-# release does not have is empty.
+# release does not have is empty. FINALS=1 skips the test releases.
 pick_asset() {
   if command -v jq >/dev/null 2>&1; then
-    jq -r --arg re "$PKG_RE" '
+    jq -r --arg re "$PKG_RE" --arg finals "${FINALS:-0}" '
       def url($r; $n): [ $r.assets[] | select(.name == $n) | .url ] | first // "";
-      [ (if type == "array" then .[] else . end) | select(.draft | not) | . as $r
+      [ (if type == "array" then .[] else . end) | select(.draft | not)
+        | select($finals != "1" or (.prerelease | not)) | . as $r
         | ("verso-" + ($r.tag_name | ltrimstr("v")) + "-SHA256SUMS") as $sums
         | $r.assets[] | select(.name | test($re)) | . as $a
         | [ $r.tag_name, $a.name, $a.url, ($a.digest // ""),
@@ -453,7 +454,7 @@ import json, re, sys
 data = json.load(open(sys.argv[1]))
 rels = data if isinstance(data, list) else [data]
 for r in rels:
-    if r.get("draft"):
+    if r.get("draft") or (sys.argv[3] == "1" and r.get("prerelease")):
         continue
     url = lambda n: next((s["url"] for s in r["assets"] if s["name"] == n), "")
     tag = r["tag_name"]
@@ -463,7 +464,7 @@ for r in rels:
             print("\t".join([r["tag_name"], a["name"], a["url"], a.get("digest") or "",
                              url(a["name"] + ".sig"), url(sums), url(sums + ".sig")]))
             sys.exit(0)
-' "$1" "$PKG_RE"
+' "$1" "$PKG_RE" "${FINALS:-0}"
   else
     die "Reading GitHub's answer needs jq or python3. Install one (apt install jq / dnf install jq), or use --package FILE." \
         "Ler a resposta do GitHub pede jq ou python3. Instale um (apt install jq / dnf install jq), ou use --package ARQ."
@@ -502,7 +503,17 @@ fetch_package() {
       fi ;;
     *) die "GitHub answered $code to $api." "O GitHub respondeu $code para $api." ;;
   esac
-  line=$(pick_asset "$TMPD/release.json")
+  # The channel (the maintainer, 2026-11-14): a final version updates only
+  # to finals (CHANNEL=final, set by `update`); a test version to the
+  # newest of either (CHANNEL=any); a new install takes the newest final,
+  # or the newest test version while there is no final yet.
+  line=''
+  if [ -z "$1" ] && [ "${CHANNEL:-}" != any ]; then
+    line=$(FINALS=1 pick_asset "$TMPD/release.json")
+  fi
+  if [ -z "$line" ] && { [ -n "$1" ] || [ "${CHANNEL:-}" != final ]; }; then
+    line=$(FINALS=0 pick_asset "$TMPD/release.json")
+  fi
   if [ -z "$line" ] && [ -n "$1" ]; then
     die "Release v${1#v} has no UniVerso package for this machine ($PM, $(uname -m))." \
         "A release v${1#v} não tem pacote do UniVerso para esta máquina ($PM, $(uname -m))."
@@ -953,6 +964,10 @@ cmd_update() {
   [ -n "$old" ] || die "UniVerso is not installed here: sh universo.sh install" \
                        "O UniVerso não está instalado aqui: sh universo.sh install"
   oldrun=$(running_version)
+  case "$old" in
+    *~*|*beta*|*alpha*|*rc.*) CHANNEL=any ;;
+    *) CHANNEL=final ;;
+  esac
   info "Installed now: $oldrun (package $old). Settings and data are kept; a backup first is wise: sh universo.sh backup" \
        "Instalado agora: $oldrun (pacote $old). Configurações e dados ficam; um backup antes é prudente: sh universo.sh backup"
   if [ -n "$PKGFILE" ]; then local_package "$PKGFILE"; else fetch_package "$VERSION"; fi
