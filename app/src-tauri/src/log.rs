@@ -90,10 +90,6 @@ const MAX_LINE: usize = 4 * 1024;
 /// several lines is flattened, so one entry is always one line and the
 /// file stays readable by eye and by `tail`.
 pub(crate) fn write(level: &str, source: &str, message: &str) {
-    #[cfg(test)]
-    if let Ok(mut kept) = SAID.lock() {
-        kept.push(format!("{level} {source} {message}"));
-    }
     let Some(file) = path() else {
         return;
     };
@@ -137,22 +133,6 @@ pub(crate) fn write(level: &str, source: &str, message: &str) {
         let _ = out.set_permissions(std::fs::Permissions::from_mode(0o600));
     }
     let _ = writeln!(out, "{} {level:<5} {source:<6} {flat}", stamp(secs));
-}
-
-/// Every line written under test, `LEVEL source message`: a test never
-/// has a file to read (see [`DEST`]), so what it asks of the log is kept
-/// here, as `verso_server::log` keeps its own.
-#[cfg(test)]
-static SAID: Mutex<Vec<String>> = Mutex::new(Vec::new());
-
-/// The lines written so far that name `what` (a test's). Unix only, as
-/// the one test that reads it (`tunnel::tests`, which runs a stand-in
-/// `cloudflared` script): on Windows it would be dead code.
-#[cfg(all(test, unix))]
-pub(crate) fn said(what: &str) -> Vec<String> {
-    SAID.lock()
-        .map(|s| s.iter().filter(|l| l.contains(what)).cloned().collect())
-        .unwrap_or_default()
 }
 
 /// The end of the log, whole lines, at most `bytes` of it: what a bug

@@ -8,11 +8,10 @@
 # module, so the confinement here is the grep in `scripts/check.sh`:
 # `std::fs` in this crate lives in `src/update.rs`, `src/log.rs` and
 # `src/resolv_conf.rs` (the Linux resolver files, ADR 0097: an exception
-# that awaits the maintainer's ratification) and `src/tunnel/files.rs`
-# (the internet link's pinned `cloudflared` and an own address's
-# credentials in `<config>/tunnel/`, ADR 0117 D3 item 5 and D10: declared
-# with S5, awaiting the maintainer's ratification)
-# alone, exactly as `verso-core` confines it to `src/sidecar.rs`.
+# that awaits the maintainer's ratification) alone, exactly as `verso-core`
+# confines it to `src/sidecar.rs`. (The internet link's files, once
+# `src/tunnel/files.rs`, moved with the tunnel into `crates/verso-tunnel`
+# in R5, its exception with them: ADR 0117 D14.)
 # `src/log.rs` writes the app's diagnostic log in the configuration
 # directory — never the open folder — added on 2026-09-29, when the
 # maintainer found the app kept no record of its own errors. Declared in the

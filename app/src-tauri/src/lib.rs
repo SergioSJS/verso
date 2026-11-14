@@ -1233,6 +1233,8 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     // where there is a terminal, come here too.
     verso_server::log::set_sink(Some(|level, message| log::write(level, "local", message)));
     log::install_panic_hook();
+    // The internet link's lines (`verso-tunnel`) in this app's log.
+    tunnel::log_to_the_app();
     log::write(
         "INFO",
         "host",

@@ -103,12 +103,32 @@ pub fn origin(text: &str) -> Result<Origin, String> {
     })
 }
 
-impl Policy {
-    /// The link's origin while it has one: the base of the links handed
-    /// out, and the `Origin` its pages carry.
+/// The link's public origin, set at runtime, and its listener's proxies:
+/// "this app is a server"'s ([`Policy`]) and a UniVerso's own link
+/// (`crate::tunnel`, ADR 0117 D4 item 2) each hold one. The origin is set
+/// once the tunnel said it and gone the moment the link is off; the
+/// proxies are `127.0.0.1` and `::1`, **named**.
+#[derive(Debug)]
+pub struct LinkOrigin {
+    origin: std::sync::RwLock<Option<Origin>>,
+    proxies: crate::proxy::Proxies,
+}
+
+impl Default for LinkOrigin {
+    fn default() -> Self {
+        Self {
+            origin: std::sync::RwLock::new(None),
+            proxies: crate::proxy::Proxies::loopback(),
+        }
+    }
+}
+
+impl LinkOrigin {
+    /// The origin while it has one: the base of the links handed out, and
+    /// the `Origin` its pages carry.
     #[must_use]
-    pub fn link_origin(&self) -> Option<String> {
-        self.link
+    pub fn origin(&self) -> Option<String> {
+        self.origin
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
@@ -118,8 +138,8 @@ impl Policy {
     /// Whether `host` (a `Host` header) is the link's name: false whenever
     /// the link has no address.
     #[must_use]
-    pub fn link_knows(&self, host: &str) -> bool {
-        self.link
+    pub fn knows(&self, host: &str) -> bool {
+        self.origin
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
@@ -128,22 +148,55 @@ impl Policy {
 
     /// The link's listener's proxies, named: `127.0.0.1` and `::1`.
     #[must_use]
+    pub fn proxies(&self) -> &crate::proxy::Proxies {
+        &self.proxies
+    }
+
+    /// Say (or forget) the origin.
+    pub fn set(&self, origin: Option<Origin>) {
+        *self
+            .origin
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = origin;
+    }
+}
+
+impl Policy {
+    /// The link's origin while it has one: the base of the links handed
+    /// out, and the `Origin` its pages carry.
+    #[must_use]
+    pub fn link_origin(&self) -> Option<String> {
+        self.link.origin()
+    }
+
+    /// Whether `host` (a `Host` header) is the link's name: false whenever
+    /// the link has no address.
+    #[must_use]
+    pub fn link_knows(&self, host: &str) -> bool {
+        self.link.knows(host)
+    }
+
+    /// The link's listener's proxies, named: `127.0.0.1` and `::1`.
+    #[must_use]
     pub fn link_proxies(&self) -> &crate::proxy::Proxies {
-        &self.link_proxies
+        self.link.proxies()
+    }
+
+    /// The link's origin and proxies, as `crate::auth` reads them.
+    #[must_use]
+    pub fn link(&self) -> &LinkOrigin {
+        &self.link
     }
 
     fn set_link(&self, origin: Option<Origin>) {
-        *self
-            .link
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = origin;
+        self.link.set(origin);
     }
 }
 
 /// The link's listener while it is open: dropping it closes it without
 /// waiting (serving stopping takes the runtime with it); [`Self::close`]
 /// waits for every connection to be closed.
-pub(super) struct Listener {
+pub(crate) struct Listener {
     pub port: u16,
     stop: tokio::sync::watch::Sender<bool>,
     /// Hung up when the listener's task ends, every connection closed.
@@ -155,7 +208,7 @@ impl Listener {
     /// it kept are closed (off is off): a request under way has
     /// `listen::LINK_GRACE` to be answered, an idle connection none. Not
     /// to be called on the server's own runtime, which does the closing.
-    fn close(self) {
+    pub(crate) fn close(self) {
         let _ = self.stop.send(true);
         // A margin past the grace: the connections dropped at its end are
         // closed a moment after it.
@@ -191,7 +244,7 @@ const LISTEN_BACKLOG: i32 = -BACKLOG;
 #[cfg(not(windows))]
 const LISTEN_BACKLOG: i32 = BACKLOG;
 
-/// The link's socket on `127.0.0.1`, at a port the system picks, with the
+/// The link's socket on `127.0.0.1`, with the
 /// long queue it asks for (`LISTEN_BACKLOG`): past its places a connection
 /// waits there for one (`listen::Plain::for_link`). macOS keeps the queue
 /// to its `kern.ipc.somaxconn`, 128, whatever is asked (only root changes
@@ -200,14 +253,18 @@ const LISTEN_BACKLOG: i32 = BACKLOG;
 ///
 /// socket2, not tokio's `TcpSocket`, whose `listen` takes no negative
 /// number and so cannot ask Windows for its long queue.
-pub(super) fn bind() -> std::io::Result<tokio::net::TcpListener> {
+///
+/// At `port`, or one the system picks for 0: a UniVerso's own address by a
+/// tunnel's token keeps one port, the service Cloudflare's dashboard names
+/// (`crate::tunnel`).
+pub(crate) fn bind_at(port: u16) -> std::io::Result<tokio::net::TcpListener> {
     let socket = socket2::Socket::new(
         socket2::Domain::IPV4,
         socket2::Type::STREAM,
         Some(socket2::Protocol::TCP),
     )?;
     socket.set_nonblocking(true)?;
-    socket.bind(&SocketAddr::from((Ipv4Addr::LOCALHOST, 0)).into())?;
+    socket.bind(&SocketAddr::from((Ipv4Addr::LOCALHOST, port)).into())?;
     socket.listen(LISTEN_BACKLOG)?;
     tokio::net::TcpListener::from_std(socket.into())
 }
@@ -219,15 +276,28 @@ pub(super) fn open(
     runtime: &tokio::runtime::Handle,
     server: &Arc<Server>,
 ) -> Result<Listener, String> {
+    let app = super::routes::router(Arc::clone(server));
+    open_serving(runtime, server, app, 0)
+}
+
+/// The link's listener serving `app` — "this app is a server"'s routes, or
+/// a UniVerso's own (`crate::tunnel`) — at `port` (0: the system picks),
+/// every request marked [`ByLink`] by this router alone.
+pub(crate) fn open_serving(
+    runtime: &tokio::runtime::Handle,
+    server: &Arc<Server>,
+    app: axum::Router,
+    port: u16,
+) -> Result<Listener, String> {
     let _enter = runtime.enter();
     let said = |e: std::io::Error| format!("the internet link's listener: {e}");
-    let tcp = bind().map_err(said)?;
+    let tcp = bind_at(port).map_err(said)?;
     let port = tcp.local_addr().map_err(said)?.port();
     let slots = server
         .slots
         .beside(Arc::new(admits), crate::listen::LOCAL_LINK);
     let plain = crate::listen::Plain::for_link(tcp, slots);
-    let app = super::routes::router(Arc::clone(server)).layer(axum::Extension(ByLink));
+    let app = app.layer(axum::Extension(ByLink));
     let (stop, mut stopped) = tokio::sync::watch::channel(false);
     let (end, ended) = std::sync::mpsc::channel::<()>();
     runtime.spawn(async move {

@@ -50,3 +50,19 @@ pub fn remove_for_tests(path: &Path) {
         .close()
         .unwrap();
 }
+
+/// A runnable script with `text`, for a test's stand-in `cloudflared`
+/// (`tests_tunnel.rs`): no test runs the real one.
+#[cfg(test)]
+#[cfg(unix)]
+pub fn write_script_for_tests(path: &Path, text: &str) {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    let dir = path.parent().unwrap_or(Path::new("."));
+    let mut file = tempfile::Builder::new()
+        .permissions(std::fs::Permissions::from_mode(0o755))
+        .tempfile_in(dir)
+        .unwrap();
+    file.write_all(text.as_bytes()).unwrap();
+    let _ = file.persist(path).unwrap();
+}

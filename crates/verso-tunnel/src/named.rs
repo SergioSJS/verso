@@ -153,6 +153,41 @@ pub fn run_args(port: u16, credentials: &Path, uuid: &str, http2: bool) -> Vec<O
     args
 }
 
+/// `cloudflared tunnel --no-autoupdate [--protocol http2] run --url
+/// http://127.0.0.1:<port>`: an own address by a tunnel's token, which
+/// `cloudflared` reads from its environment (`TUNNEL_TOKEN`,
+/// [`crate::run::spawn_with`]), never from this line. The tunnel's
+/// hostname routes to the service set in Cloudflare's dashboard
+/// (`http://localhost:<port>`, the port the server's link listener keeps
+/// for it); `--url` names the same, for a tunnel whose dashboard sets none.
+#[must_use]
+pub fn token_run_args(port: u16, http2: bool) -> Vec<OsString> {
+    let mut args = vec![os("tunnel"), os("--no-autoupdate")];
+    if http2 {
+        args.push(os("--protocol"));
+        args.push(os("http2"));
+    }
+    args.extend([
+        os("run"),
+        os("--url"),
+        os(format!("http://127.0.0.1:{port}")),
+    ]);
+    args
+}
+
+/// Whether `text` has the shape of a tunnel's token: what Cloudflare's
+/// dashboard shows after `--token` — base64 of a small JSON object, one
+/// word, no space. Its content is `cloudflared`'s to read (and
+/// Cloudflare's to accept); this only keeps a pasted sentence, a whole
+/// install line or an empty field from being started as one.
+#[must_use]
+pub fn valid_token(text: &str) -> bool {
+    (32..=4096).contains(&text.len())
+        && text
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'/' | b'=' | b'-' | b'_'))
+}
+
 /// `cloudflared tunnel --origincert <cert> delete <uuid>`.
 #[must_use]
 pub fn delete_args(cert: &Path, uuid: &str) -> Vec<OsString> {

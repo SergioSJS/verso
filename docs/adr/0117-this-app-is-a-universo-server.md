@@ -183,7 +183,7 @@ app Desktop, e em ambos os casos ser possível ter links do cloudflare."*
    chooses it.
 2. A Cloudflare link — quick or own address — exists on **both hosts**. On
    this computer it is built (D11, D10). **On a UniVerso it is new scope,
-   planned, not built (R5)**: the UniVerso **reuses this app's tunnel
+   built in R5 (below)**: the UniVerso **reuses this app's tunnel
    module** (`app/src-tauri/src/tunnel/`: the pinned download and its
    checksums, the quick link, the own address, the stop on exit), moved
    into a crate both hosts use rather than written again; on the server it
@@ -196,7 +196,7 @@ app Desktop, e em ambos os casos ser possível ter links do cloudflare."*
    well as by the environment variable and `universo.sh` (for a server
    with no browser); a quick link keeps the 12 hours with *Extend*. This
    revises [0077](0077-the-server-administration-console-and-folder-quotas.md)
-   item 6 (no setting edited in the console), dated there. Not built (R5).
+   item 6 (no setting edited in the console), dated there. Built in R5 (below).
    *(Decided 2026-11-13, `[DECIDED 2026-11-13]`:)* in V1, built **last**
    of R3–R9 (it serves a UniVerso with no domain of its own; this
    computer's table and the first invited people do not need it). The
@@ -206,6 +206,29 @@ app Desktop, e em ambos os casos ser possível ter links do cloudflare."*
    Cloudflare's dashboard and pasted in the console or given by a variable
    (its name the build's choice), not `cloudflared tunnel login` and its
    account-wide `cert.pem`; R5's spike confirms it before the code.
+   *Built 2026-11-14 (R5: `80f32160` the module moved into
+   `crates/verso-tunnel`, `b04eaca7` the server, `4bba6553` the console,
+   `b58d71e0` `universo.sh` and the packaging; the spike in As built).* The
+   server runs the tunnel itself (`verso_server::tunnel`) — on a UniVerso
+   it is the host — through the desktop's own door, the link listener of
+   `local/link.rs`, its origin and named proxies now
+   `local::link::LinkOrigin`, held by this computer's policy and by a
+   UniVerso alike; `Server::public_origin()` is `VERSO_PUBLIC_URL` when set,
+   else the link's origin while it has one. The own address on a server is
+   by a token only (`Mode::Token`: `cloudflared tunnel run` with
+   `TUNNEL_TOKEN` in its environment), the token's variable
+   `VERSO_TUNNEL_TOKEN` / `VERSO_TUNNEL_TOKEN_FILE`. Smallest choices kept
+   in the code, `[OPEN]` for the maintainer (R5): the own address's
+   loopback port is fixed, `VERSO_TUNNEL_PORT`, 7341 by default — the
+   dashboard's service names it (a quick link's port is the system's, as
+   on this computer); a token pasted in the console holds for that run
+   only, never written down (the environment keeps one across starts); the
+   console's *Turn on* and *Extend* want a fresh proof, *Turn off* only the
+   admin; the address is never logged, so a server whose admin has no
+   browser reaching its console learns it there only; whether the
+   dashboard's Public Hostname service or the `--url` the server passes
+   decides where a remotely-managed tunnel's requests go is not verified
+   (no account: a manual check).
 3. A folder this person did not share as its owner (a share received from
    another account, synced to this computer) is not served from here: by
    [0081](0081-sharing-between-people-on-one-universo.md) item 4
@@ -376,7 +399,7 @@ session). "Through the link" results are the spike's (As built).
 | Sign-in by mail, "forgot the password" | **Out** `[DECIDED 2026-11-03]`; the owner makes a new-password link (`27eece626`) | `local/players.rs` |
 | Passkeys, tokens (0074 items 3, 8) | **Built** (S13 `cd5bc9289`); a passkey only through the link; a quick link's passkey dies with it | `passkeys.rs` |
 | The owner's own browser or phone through the link (D5) | **Built** (R3 `2e7a35cb`): pairing through the link while *Pair a phone* is open; a quick link's device ends with its address | `local/routes.rs`, `local/link_pair.rs`, `web/pages.ts` |
-| A UniVerso's own Cloudflare link (D4) | **New**: **R5** | — |
+| A UniVerso's own Cloudflare link (D4) | **Built** (R5, 2026-11-14): a quick link and an own address by a token, from `VERSO_TUNNEL`, `universo.sh link` and the console; through Cloudflare PASS (R5 spike: `Host`, `Origin`, a forged `X-Forwarded-For`, the switch with no restart, the stops) | `crates/verso-tunnel`, `verso-server/src/tunnel.rs`, `console.rs`, `web/consoleLink.ts` |
 
 ### D10. "My own address": a named Cloudflare Tunnel `[DECIDED 2026-11-03]`
 
@@ -410,7 +433,10 @@ twelve-hour stop; follows *Keep on at start*. Built (S5b `8453abd86`, S6b
    only, pinned per system (on macOS the `.tgz`'s and the binary's
    SHA-256), into the app's data directory, never `PATH`; one download at a
    time (`29340f43f`); run by the Tauri host (`app/src-tauri/src/tunnel/`),
-   never by `verso-server`. `flate2` + `tar`. Built (S5).
+   never by `verso-server`. `flate2` + `tar`. Built (S5). *(2026-11-14, R5:
+   the module is `crates/verso-tunnel`, both hosts' (`80f32160`); this
+   computer's is still run by the Tauri host, a UniVerso's by the server,
+   its only host; same pin, into `VERSO_DATA_DIR/tunnel/`.)*
 6. Never kept on across starts; a new quick link each run; visible in the
    status mark, the tray (macOS, Windows), Settings with *Copy*, a QR and
    the time left; stops on *Stop*, quit (Job Object on Windows, a watcher
@@ -537,7 +563,10 @@ not on the network even with the host's own certificate files
 boxes on, a change of network stops both (`780e2cadc`); the seat's address
 `https://this-computer.invalid` before any address exists (`32bacc553`);
 the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
-2026-11-04 ([0029](0029-guardrails-in-ci.md); `8453abd86`).
+2026-11-04 ([0029](0029-guardrails-in-ci.md); `8453abd86`) — the same file
+moved with R5 to `crates/verso-tunnel/src/files.rs`, touching the same
+directory, its guard moved with it in `scripts/check.sh` and `ci.yml`
+(`80f32160`): not a new exception.
 
 ### D15. What is built on `feat/app-server`: stays, changes, goes
 
@@ -552,10 +581,10 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | Changed | A served subfolder for players = a share or a table root on the owner's registered folder (D1, D2) — nothing of the app's own | **Built** 2026-11-05 (R1) | `local/parts.rs`, `access.rs`, `shares.rs`, `readlinks.rs`, `local/tests_subfolders.rs` |
 | Changed | The folder's page: serve from this computer (card and tree), stop serving with its confirmation, the table's link; what is served changes while serving (D2, 2026-11-13) | **Built** 2026-11-13 (R4; `3f76ee9c`, `a7e392a6` and the UI commit). Settings' list stays tickable, not read-only: the phones' parts tree (D1) lives there and has no other place — `[OPEN]` for the maintainer | `tableCard.ts`, `dialogs/servedFolders.ts` |
 | Changed | The owner pairs through the link (D5, decided 2026-11-04 and 2026-11-13) | **Built** (`2e7a35cb`, R3) | `local/routes.rs`, `local/link_pair.rs`, `dialogs/localServerPairLink.ts`, `web/pages.ts` |
-| To build | The UniVerso's link from the admin console (D4.2, decided 2026-11-04; revises 0077 item 6) | Not built: R5 | `console.rs`, `app/ui/src/web/console.ts` |
+| Changed | The UniVerso's link from the admin console (D4.2, decided 2026-11-04; revises 0077 item 6) | **Built** 2026-11-14 (R5, `b04eaca7` routes, `4bba6553` page) | `console.rs`, `app/ui/src/web/consoleLink.ts` |
 | Changed | A game master who may make folders invites into their own tables (D7 (e), decided 2026-11-04; revises 0081 item 4) | **Built** 2026-11-13 (R6, `205cdfb8`) | `admin/acts.rs` (`Inviter`), `campaign_cmds.rs`, `shares.rs`, `db/invitations.rs` |
 | To build | Moving a table to the other host (D8, decided 2026-11-04; in V1 2026-11-13) | Not built: R9 | — |
-| To build | A UniVerso's own link, reusing the tunnel module (D4.2) | Not built: R5 | `app/src-tauri/src/tunnel/` → a crate |
+| Changed | A UniVerso's own link, reusing the tunnel module (D4.2) | **Built** 2026-11-14 (R5, `80f32160`, `b04eaca7`, `b58d71e0`) | `app/src-tauri/src/tunnel/` → `crates/verso-tunnel`; `verso-server/src/tunnel.rs` |
 | To build | Lessons 22, 23 and the UniVerso's 31 for its link; manual checks; the threat model's rows | Partly (29 and 28 say the folder's page, synced folders, received ones) | `demo-vault*/`, `docs/reference/` |
 
 ### D16. The build that remains (one commit each, with tests; was D8)
@@ -566,7 +595,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | R2 | ~~Synced folders served; a received share refused~~ — **built** (`96123d8f4`); the host per table follows D4.1 with nothing more to build | — |
 | R3 | **Built 2026-11-13** (`2e7a35cb`). The owner pairs through the link (D5): the link's pairing answers only while *Pair a phone* is open; *Was it you?* says the link, an editor first; the dialog shows the link's QR (alone) or switches to it (beside the network); the link's sign-in page offers the code; a quick link's device ends with its address (its session ended when the address ends, the next start for one a crash left), an own address's stays. The three attempts are the window's, not per address, so no forwarded address resets them; the audit keeps the tunnel's address. Tests (`local/tests_link_pair.rs`): refused until opened, works once allowed, refused when the app says no, three wrong codes with forged addresses, a new forwarded address resets nothing, never the owner, a quick link's device ends, an own address's stays. Left for R7: lessons, walkthrough, manual checks, threat-model row; for R8: the hostile lab (D5) | Opus |
 | R4 | **Built 2026-11-13.** The folder's page: serve from this computer (the card and the tree's menu; the server turned on in the same step), *Stop serving* with its confirmation, *Copy the table's link*; Settings' read-only list (D2, decided 2026-11-13). Both languages, keyboard, 390×844, e2e in Docker | Sonnet |
-| R5 | A UniVerso's own link (D4.2): the tunnel module moved into a crate both hosts use; a spike first (a quick link's address with no window; a named tunnel on a headless server); the runtime origin in `verso-server`; an environment variable and `universo.sh` for the `.deb`, Docker compose and ZimaOS; on and off from the console as well (D4.2, decided). Tests: `Host`/`Origin` follow the runtime origin; a forged header moves no limit | Opus |
+| R5 | **Built 2026-11-14** (`80f32160`, `ed9f2457`, `b04eaca7`, `4bba6553`, `b58d71e0`; its spike in As built; `[OPEN]` items in D4.2). A UniVerso's own link (D4.2): the tunnel module moved into a crate both hosts use; a spike first (a quick link's address with no window; a named tunnel on a headless server); the runtime origin in `verso-server`; an environment variable and `universo.sh` for the `.deb`, Docker compose and ZimaOS; on and off from the console as well (D4.2, decided). Tests: `Host`/`Origin` follow the runtime origin; a forged header moves no limit | Opus |
 | R6 | **Built 2026-11-13** (`205cdfb8`). D7 (e), decided: a game master who may make folders invites people into their own tables. Tests (`tests_gm_invites.rs`): never into another's folder; audited; at most 20 pending; the power taken away ends the pending ones | Opus |
 | R7 | Docs: lessons 22, 23 and the UniVerso's 31 for its link, the walkthrough, manual checks, threat-model rows (a synced folder served, a UniVerso's link); the site's wiki imported again | Sonnet |
 | R8 | The guardrails seen failing; the checks on the three systems; the hostile lab run again (R3 and R6 touch access); the beta installed on the maintainer's OK | Opus |
@@ -624,9 +653,11 @@ until the folder was opened again; the folder's windows now hear it
 - A folder that syncs can be served here: two hosts write one set of files,
   meeting by the sync's rules, with no live room across them (D8). A table
   is on one host at a time.
-- The UniVerso gains `cloudflared` in its packages and a runtime public
-  origin (R5): a new outbound reach for [0050](0050-outbound-network-access.md)
-  and new rows in the threat model.
+- The UniVerso gains `cloudflared` — downloaded at runtime into its data
+  directory, pinned and checked, not shipped in its packages — and a
+  runtime public origin (R5): a new outbound reach for
+  [0050](0050-outbound-network-access.md) (dated there 2026-11-14) and new
+  rows in the threat model (*A UniVerso's own Cloudflare link*).
 - D7's gaps are decided (2026-11-04): (e) closes the invitation gap (R6,
   built 2026-11-13);
   (f) keeps the console's folder list, said in the lesson.
@@ -696,6 +727,13 @@ D2, D4.2, D5, D7 (e), D8 and D14; the move becomes R9, in V1 with R5. Read
 by the session as "in V1" also for the move, which it had recommended for
 after V1. Recorded by an Opus session; nothing of it is built.
 
+**2026-11-14, R5.** Built on `feat/r5-universo-link` from `58f2749f`
+(commits in D16's R5 row) by an Opus session, after its spike (As built);
+the decided text of D4.2 kept, *Built* and its `[OPEN]` items added there;
+D9, D11 item 5, D14, D15, D16 and Consequences say what was built. 0050
+and 0077 item 6 carry their dated revisions; the threat model its rows.
+Awaits the maintainer's reading; no Fable reading.
+
 ## As built: the spike (2026-11-03)
 
 Run from `~/.cache/verso-kit/tunnel-spike/` (`RESULTS.md`) against a
@@ -708,3 +746,27 @@ no upload bound from Cloudflare up to 120 MiB; cold load 52 in flight, no
 429; every D9 row reachable from a browser passed, the two failures being
 the same without the tunnel; a passkey is bound to the quick link's name.
 Not run: the own address, a ten-minute audio share, a real phone.
+
+## As built: the R5 spike (2026-11-14)
+
+Run from `~/.cache/verso-kit/tunnel-spike/` (`RESULTS-R5.md`) on VM 107,
+never on the maintainer's Mac, with the server built from the branch on VM
+104; a throwaway UniVerso on `127.0.0.1:7399`, removed after. (1) **A quick
+link's address with no window**: `VERSO_TUNNEL=quick` under `nohup`, the
+pinned `cloudflared` downloaded and checked in 3 s, the link on in 10 s,
+the address read from the console's API and never in the log; through
+Cloudflare `/api/state` 200 (`secure`), the server's own listener 421 with
+the link's name, the link's listener 421 with a loopback name; three wrong
+passwords under three forged `X-Forwarded-For` 401, the fourth 429, the
+audit naming the real address only. (2) **The origin switched with no
+restart**: off, on with a new name and extended from the console's API, the
+server's process the same, the old name 421 and its `Origin` 403 on the new
+listener; SIGTERM stops `cloudflared`, `kill -9` of the server leaves it
+1 s (the watcher). (3) **The own address by a token** (no account): the
+pinned version takes `tunnel run --token` / `--token-file` /
+`TUNNEL_TOKEN`; a malformed token is refused at start by the server's own
+check; a well-formed token of no tunnel makes `cloudflared` log `Register
+tunnel error from server side error="Failed to get tunnel"` and retry for
+ever, which the build reads as a refusal (the start fails in 1 s, said in
+words). A real token, the dashboard's routing, the image and the package
+under their hardening: manual checks (`docs/reference/manual-checks.md`).

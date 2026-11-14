@@ -1,0 +1,19 @@
+# verso-tunnel keeps the internet link's files in the host's own data
+# directory — `<config>/tunnel/` for the desktop app, `<VERSO_DATA_DIR>/tunnel/`
+# for a UniVerso: the pinned `cloudflared` downloaded, checked and
+# extracted, an own address's credentials (ADR 0117 D11 item 5, D10) —
+# never a file of an open folder (ADR 0026 rule 5). Clippy's
+# disallowed-methods list is per crate, not per module, so the confinement
+# is the grep in `scripts/check.sh` and `.github/workflows/ci.yml`: `std::fs`
+# in this crate lives in `src/files.rs` alone. The exception was declared
+# with S5 for `app/src-tauri/src/tunnel/files.rs` and ratified by the
+# maintainer on 2026-11-04 (ADR 0117 D14); R5 moved that file here
+# unchanged in what it touches, which is not a new exception (ADR 0029).
+#
+# Clippy does not merge this file with the workspace one, so the test
+# allowances are repeated.
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+disallowed-methods = []

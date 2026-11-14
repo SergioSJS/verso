@@ -110,7 +110,7 @@ fn past_its_places_the_link_queues_what_it_asked_for() {
     // asked.
     const QUEUED: usize = 600;
     run(async {
-        let tcp = super::link::bind().unwrap();
+        let tcp = super::link::bind_at(0).unwrap();
         let port = tcp.local_addr().unwrap().port();
         let mut queued = Vec::new();
         for n in 0..QUEUED {

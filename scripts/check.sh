@@ -62,11 +62,20 @@ if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso
   echo 'std::fs outside crates/verso-server/src/data.rs (ADR 0029)'
   exit 1
 fi
-step "std::fs in verso-app only in src/update.rs, src/log.rs, src/resolv_conf.rs and src/tunnel/files.rs (ADR 0029, ADR 0097, ADR 0117)"
+step "std::fs in verso-app only in src/update.rs, src/log.rs and src/resolv_conf.rs (ADR 0029, ADR 0097)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' app/src-tauri/src \
-   | grep -vE '^app/src-tauri/src/(update|log|resolv_conf|tunnel/files)\.rs:' \
+   | grep -vE '^app/src-tauri/src/(update|log|resolv_conf)\.rs:' \
    | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
-  echo 'std::fs outside app/src-tauri/src/update.rs, src/log.rs, src/resolv_conf.rs and src/tunnel/files.rs (ADR 0029, ADR 0097, ADR 0117)'
+  echo 'std::fs outside app/src-tauri/src/update.rs, src/log.rs and src/resolv_conf.rs (ADR 0029, ADR 0097)'
+  exit 1
+fi
+# The internet link's files (ADR 0117 D11 item 5, D10), ratified 2026-11-04
+# (D14) as app/src-tauri/src/tunnel/files.rs, moved into verso-tunnel with R5.
+step "std::fs in verso-tunnel only in src/files.rs (ADR 0029, ADR 0117)"
+if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-tunnel/src \
+   | grep -v '^crates/verso-tunnel/src/files.rs:' \
+   | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+  echo 'std::fs outside crates/verso-tunnel/src/files.rs (ADR 0029, ADR 0117)'
   exit 1
 fi
 step "unsafe only in web_clip/{macos,windows}.rs and audio_share/{macos,windows,linux}.rs (ADR 0029, 0116)"

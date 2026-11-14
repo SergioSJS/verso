@@ -781,14 +781,14 @@ pub async fn signin_link(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Respon
 /// the victim must never carry it (a poisoned `Host` would send the reset
 /// token to the attacker; ADR 0073 item 6, amended 2026-10-16).
 pub fn mail_ready(server: &crate::state::Server) -> bool {
-    server.mail.get().is_some() && server.config.public_url.is_some()
+    server.mail.get().is_some() && server.public_origin().is_some()
 }
 
 fn mail_route_ready(ctx: &Ctx) -> ApiResult<()> {
     if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
     }
-    if ctx.server.config.public_url.is_none() {
+    if ctx.server.public_origin().is_none() {
         return Err(ApiError::bad(
             "no_mail",
             "links by mail need VERSO_PUBLIC_URL: set it to the address people use",
@@ -830,8 +830,10 @@ enum Mailed {
 /// its link and its line in the audit log follow on their own.
 fn mail_later(ctx: &Ctx, email: String, what: Mailed) {
     let server = std::sync::Arc::clone(&ctx.server);
-    // Only the configured address: never the request's own `Host`.
-    let base = ctx.server.config.public_url.clone().unwrap_or_default();
+    // Only the configured address, or the UniVerso's own link's origin
+    // the server set itself (ADR 0117 D4 item 2): never the request's own
+    // `Host`.
+    let base = ctx.server.public_origin().unwrap_or_default();
     let address = (ctx.address(), ctx.peer.key());
     tokio::spawn(async move {
         if let Err(e) = mailed(&server, &email, &base, &address, what).await {

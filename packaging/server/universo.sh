@@ -92,6 +92,14 @@ Comandos:
                     Senha de admin perdida: imprime um link de uso único.
   firewall          Abre as portas 80 e 443 (ufw, firewalld ou iptables).
                     Só quando pedido.
+  link [quick | own | off] [--hostname NOME] [--token-file ARQ]
+                    O link do servidor na internet pela Cloudflare, sem
+                    domínio nem portas abertas: quick (um endereço aleatório
+                    *.trycloudflare.com, novo a cada partida, 12 horas com
+                    Estender no console) ou own (o seu endereço: um túnel
+                    criado no painel da Cloudflare, o nome e o token dele).
+                    Grava VERSO_TUNNEL em /etc/universo/universo.env e
+                    reinicia. O endereço aparece no console (Servidor).
   help              Esta ajuda.
 
 Opções:
@@ -157,6 +165,14 @@ Commands:
                     A lost admin password: prints a link to use once.
   firewall          Opens ports 80 and 443 (ufw, firewalld or iptables).
                     Only when asked.
+  link [quick | own | off] [--hostname NAME] [--token-file FILE]
+                    The server's link on the internet through Cloudflare,
+                    with no domain or open port: quick (a random
+                    *.trycloudflare.com address, new at each start, 12 hours
+                    with Extend in the console) or own (your address: a
+                    tunnel made in Cloudflare's dashboard, its name and its
+                    token). Writes VERSO_TUNNEL into /etc/universo/universo.env
+                    and restarts. The address is shown in the console (Server).
   menu              What `sh universo.sh` with no command opens: a guided menu
                     (arrow keys with whiptail when the machine has it, else a
                     numbered list) that runs the commands below, asking before
@@ -1677,7 +1693,8 @@ support|7. Support: a report to paste when asking for help|7. Suporte: um relat�
 swap|8. Swap: help a small machine (1 GB of memory)|8. Swap: ajudar uma máquina pequena (1 GB de memória)
 firewall|9. Open ports 80 and 443 on this machine|9. Abrir as portas 80 e 443 nesta máquina
 schedule|10. Automatic backup and update (off by default)|10. Backup e atualização automáticos (desligados por padrão)
-uninstall|11. Uninstall|11. Desinstalar
+link|11. A link on the internet through Cloudflare (no domain needed)|11. Um link na internet pela Cloudflare (sem precisar de domínio)
+uninstall|12. Uninstall|12. Desinstalar
 quit|0. Quit|0. Sair
 EOF
 }
@@ -1705,6 +1722,8 @@ menu_about() {
                 "Abre as portas 80 e 443 no firewall desta máquina (ufw, firewalld ou iptables)." ;;
     schedule) t "Turns on, or off, a daily backup and a weekly update, as systemd timers." \
                 "Liga, ou desliga, um backup diário e uma atualização semanal, como timers do systemd." ;;
+    link) t "Turns on, or off, the server's own link through Cloudflare: a quick random address, or your own address by a tunnel's token from Cloudflare's dashboard. Restarts the server." \
+            "Liga, ou desliga, o link do servidor pela Cloudflare: um endereço rápido e aleatório, ou o seu endereço pelo token de um túnel do painel da Cloudflare. Reinicia o servidor." ;;
     uninstall) t "Removes the program; your data and settings stay unless you also ask to purge." \
                  "Remove o programa; seus dados e configurações ficam, a menos que você peça também a remoção total." ;;
   esac
@@ -2331,6 +2350,115 @@ Para um endereço que o celular abra: sh universo.sh https"
   esac
 }
 
+# --- the link on the internet (ADR 0117 D4 item 2) ---------------------------
+
+# The server's log since $1 says the link came up, or did not (the link
+# itself is never in the log: it is shown in the console). Up to 3 minutes:
+# the first start downloads cloudflared (about 40 MB).
+link_wait() {
+  i=0
+  while [ "$i" -lt 180 ]; do
+    log=$(journalctl -u "$SERVICE" --since "$1" --no-pager 2>/dev/null)
+    case "$log" in
+      *"the internet link is on"*) return 0 ;;
+      *"the internet link did not start"*|*"VERSO_TUNNEL"*"ERROR"*|*"VERSO_TUNNEL"*": "*) return 1 ;;
+    esac
+    i=$((i + 1))
+    sleep 1
+  done
+  return 1
+}
+
+cmd_link() {
+  detect_arch
+  detect_pm
+  [ -n "$(installed_version)" ] || die "UniVerso is not installed here: sh universo.sh install" "O UniVerso não está instalado aqui: sh universo.sh install"
+  mode=$LINK_MODE
+  if [ -z "$mode" ]; then
+    [ "$YES" = 1 ] && die "Which link? Give quick, own or off." "Qual link? Dê quick, own ou off."
+    echo
+    t "A link on the internet through Cloudflare: people outside your network open the server by an https address,
+with no domain and no port opened here. Nothing is seen without an account or an invitation.
+  1) A quick link: a random https://….trycloudflare.com, new at each start of the server; it ends after 12 hours
+     (Extend in the admin console gives 12 more). Nothing to sign up for.
+  2) My own address: a tunnel I make in Cloudflare's dashboard (a free account and a domain at Cloudflare); it stays.
+  3) Off." \
+      "Um link na internet pela Cloudflare: quem está fora da sua rede abre o servidor por um endereço https,
+sem domínio e sem abrir porta aqui. Nada é visto sem conta ou convite.
+  1) Um link rápido: um https://….trycloudflare.com aleatório, novo a cada partida do servidor; acaba depois de 12 horas
+     (Estender, no console do admin, dá mais 12). Nada a cadastrar.
+  2) O meu endereço: um túnel que eu crio no painel da Cloudflare (conta grátis e um domínio na Cloudflare); ele fica.
+  3) Desligado."
+    ask "$(t "Number [1]: " "Número [1]: ")" || die "Nothing to read: give quick, own or off." "Nada para ler: dê quick, own ou off."
+    case "${ANSWER:-1}" in
+      1) mode=quick ;;
+      2) mode=own ;;
+      3) mode=off ;;
+      *) die "Not an option." "Não é uma opção." ;;
+    esac
+  fi
+  tokfile=$ETC_DIR/tunnel-token
+  case "$mode" in
+    off)
+      env_set VERSO_TUNNEL off
+      svc_restart || :
+      t "The link is off; the server no longer starts it." "O link está desligado; o servidor não o liga mais."
+      return 0 ;;
+    quick) ;;
+    own)
+      host=$LINK_HOST
+      if [ -z "$host" ]; then ask "$(t "Your address (the Public Hostname in Cloudflare, e.g. table.example.com): " "O seu endereço (o Public Hostname na Cloudflare, ex.: mesa.exemplo.com): ")" || :; host=$ANSWER; fi
+      host=$(printf '%s' "$host" | tr 'A-Z' 'a-z')
+      host=${host#https://}
+      host=${host%/}
+      case "$host" in *.*) ;; *) die "An address has at least two parts, like table.example.com." "Um endereço tem pelo menos duas partes, como mesa.exemplo.com." ;; esac
+      case "$host" in *[!a-z0-9.-]*|.*|*.|-*) die "Not an address: $host" "Não é um endereço: $host" ;; esac
+      port=$(env_get VERSO_TUNNEL_PORT)
+      port=${port:-7341}
+      t "In Cloudflare's dashboard (Zero Trust > Networks > Tunnels): make a tunnel (Cloudflared), copy the long word shown
+after --token in its install line, and under Public Hostname point $host to the service http://localhost:$port.
+Nothing else is installed here: the server runs cloudflared itself." \
+        "No painel da Cloudflare (Zero Trust > Networks > Tunnels): crie um túnel (Cloudflared), copie a palavra longa que
+aparece depois de --token na linha de instalação e, em Public Hostname, aponte $host para o serviço http://localhost:$port.
+Nada mais é instalado aqui: o próprio servidor roda o cloudflared."
+      if [ -n "$LINK_TOKEN_FILE" ]; then
+        tok=$(head -n 1 "$LINK_TOKEN_FILE") || die "Could not read $LINK_TOKEN_FILE." "Não consegui ler $LINK_TOKEN_FILE."
+      else
+        ask_secret "$(t "The tunnel's token (not shown as you type): " "O token do túnel (não aparece enquanto você digita): ")" || :
+        tok=$ANSWER
+      fi
+      tok=$(printf '%s' "$tok" | tr -d ' \r\n')
+      # A whole install line pasted: the word after --token.
+      case "$tok" in *--token*) tok=${tok##*--token} ;; esac
+      case "$tok" in ''|*[!A-Za-z0-9+/=_-]*) die "That is not a tunnel's token: nothing was changed." "Isso não é o token de um túnel: nada foi mudado." ;; esac
+      [ "${#tok}" -ge 32 ] || die "That is not a tunnel's token (too short): nothing was changed." "Isso não é o token de um túnel (curto demais): nada foi mudado."
+      # Readable by root and the universo group only; written by printf, a
+      # shell builtin, so no process lists it.
+      (umask 077; printf '%s\n' "$tok" > "$tokfile.tmp")
+      tok=
+      chown root:universo "$tokfile.tmp" 2>/dev/null || :
+      chmod 640 "$tokfile.tmp"
+      mv "$tokfile.tmp" "$tokfile"
+      env_set VERSO_TUNNEL_HOSTNAME "$host"
+      env_set VERSO_TUNNEL_TOKEN ""
+      env_set VERSO_TUNNEL_TOKEN_FILE "$tokfile" ;;
+    *) die "quick, own or off." "quick, own ou off." ;;
+  esac
+  env_set VERSO_TUNNEL "$mode"
+  since=$(date '+%Y-%m-%d %H:%M:%S')
+  step "Restarting UniVerso with its link (the first time it downloads cloudflared, pinned and checked)." \
+       "Reiniciando o UniVerso com o link (na primeira vez ele baixa o cloudflared, fixado e conferido)."
+  svc_restart || :
+  if link_wait "$since"; then
+    t "The link is on. Its address is in the admin console, page Server (it is never written in the log)." \
+      "O link está ligado. O endereço está no console do admin, página Servidor (ele nunca vai para o log)."
+  else
+    reason=$(journalctl -u "$SERVICE" --since "$since" --no-pager 2>/dev/null | grep -E 'internet link|VERSO_TUNNEL' | tail -n 1)
+    die "The link did not come up: ${reason:-no answer in 3 minutes (sudo journalctl -u universo -n 30)}" \
+        "O link não ligou: ${reason:-sem resposta em 3 minutos (sudo journalctl -u universo -n 30)}"
+  fi
+}
+
 # --- timers: a daily backup, a weekly update ----------------------------------
 
 sched_state() {
@@ -2541,12 +2669,12 @@ case "$1" in -y|--yes) set -- menu "$@" ;; esac
 CMD=$1
 case "$CMD" in
   help|-h|--help) usage; exit 0 ;;
-  menu|install|update|uninstall|status|logs|backup|restore|reset-admin|firewall|https|admin|swap|schedule|support) need_root "$@" ;;
+  menu|install|update|uninstall|status|logs|backup|restore|reset-admin|firewall|https|admin|swap|schedule|support|link) need_root "$@" ;;
   *) t "Unknown command: $CMD" "Comando desconhecido: $CMD" >&2; usage >&2; exit 1 ;;
 esac
 shift
 
-GUIDED=${UNIVERSO_GUIDED:-0} DRYRUN=0 KEEP='' HTTPS_MODE='' DOMAIN_ARG='' DUCK_NAME='' DUCK_TOKEN_FILE='' PWFILE='' SCHED_ARGS=''
+GUIDED=${UNIVERSO_GUIDED:-0} DRYRUN=0 KEEP='' HTTPS_MODE='' LINK_MODE='' LINK_HOST='' LINK_TOKEN_FILE='' DOMAIN_ARG='' DUCK_NAME='' DUCK_TOKEN_FILE='' PWFILE='' SCHED_ARGS=''
 VERSION='' PKGFILE='' URL='' INSECURE=0 NOSIG=0 PURGE=0 FOLLOW=0 BACKUP_DIR='' EMAIL=
 ENCRYPT=0 PASSPHRASE=0 KEYGEN=0 TO_STDOUT=0 IDENTITY='' RESTORE_FILE='' RESTORE_TO=''
 while [ "$#" -gt 0 ]; do
@@ -2581,6 +2709,10 @@ while [ "$#" -gt 0 ]; do
     restore:--to) [ "$#" -ge 2 ] || die "--to needs a directory." "--to precisa de uma pasta."; RESTORE_TO=$2; shift ;;
     restore:-*) die "Unknown option for restore: $1" "Opção desconhecida para restore: $1" ;;
     restore:*) [ -z "$RESTORE_FILE" ] || die "One backup at a time." "Um backup por vez."; RESTORE_FILE=$1 ;;
+    link:--hostname) [ "$#" -ge 2 ] || die "--hostname needs a name." "--hostname precisa de um nome."; LINK_HOST=$2; shift ;;
+    link:--token-file) [ "$#" -ge 2 ] || die "--token-file needs a file." "--token-file precisa de um arquivo."; LINK_TOKEN_FILE=$2; shift ;;
+    link:quick|link:own|link:off) [ -z "$LINK_MODE" ] || die "One of quick, own or off." "Um só: quick, own ou off."; LINK_MODE=$1 ;;
+    link:*) die "Unknown option for link: $1" "Opção desconhecida para link: $1" ;;
     reset-admin:-*) die "Unknown option for reset-admin: $1" "Opção desconhecida para reset-admin: $1" ;;
     reset-admin:*) EMAIL=$1 ;;
     *) die "Unknown option for $CMD: $1 (sh universo.sh --help)" "Opção desconhecida para $CMD: $1 (sh universo.sh --help)" ;;
@@ -2604,4 +2736,5 @@ case "$CMD" in
   swap) cmd_swap ;;
   schedule) cmd_schedule ;;
   support) cmd_support ;;
+  link) cmd_link ;;
 esac

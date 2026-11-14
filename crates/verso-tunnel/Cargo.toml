@@ -1,0 +1,50 @@
+[package]
+name = "verso-tunnel"
+description = "The internet link's cloudflared — the pinned download, its run, the quick link, the own address, the stop on exit — for both hosts, the desktop app and a UniVerso (ADR 0117 D4 item 2, D10, D11)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# Moved from app/src-tauri/src/tunnel/ (R5): the same code, the same
+# dependencies, each justified where it was. No crate is new to the tree.
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+# The pinned binary's SHA-256 (ADR 0117 D11 item 5); in the tree already
+# (MIT OR Apache-2.0).
+sha2 = "0.10"
+# The internet link's `cloudflared` for macOS comes as a `.tgz` (ADR 0117
+# D11 item 5 and D13 Q7, "flate2 + tar"): `flate2` (MIT OR Apache-2.0; in
+# the tree already, at this version, through zip and reqwest; its pure-Rust
+# miniz_oxide back end) un-gzips it, and `tar` (MIT OR Apache-2.0; its
+# xattr default off, nothing of the archive's metadata is applied) reads
+# the one file out of it (src/files.rs). They replace a run of the system's
+# `/usr/bin/tar` (discarded in ADR 0117) and our own tar reader.
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
+tar = { version = "0.4", default-features = false }
+# The download from GitHub's releases (src/fetch.rs), blocking: it runs on
+# a thread of its own. No TLS provider is chosen here — each host has its
+# own: the app's reqwest brings its features, a UniVerso installs `ring`
+# at its start (`verso_server::install_crypto_provider`), so the server's
+# static build still carries no aws-lc. In the tree already (MIT OR
+# Apache-2.0).
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls-no-provider"] }
+
+[target.'cfg(unix)'.dependencies]
+# `SIGTERM` to the child before a kill (src/run.rs): `nix` already in the
+# tree (0.31, MIT, through verso-fs) with its `signal` feature.
+nix = { version = "0.31", default-features = false, features = ["signal"] }
+
+[target.'cfg(windows)'.dependencies]
+# The child in a Job Object that kills it when the host's handle closes, a
+# crash included (ADR 0117 D11 item 6): the safe API over the job calls
+# (MIT OR Apache-2.0) the app's terminal uses; no `unsafe`.
+win32job = "2"
+
+[dev-dependencies]
+tempfile = "3.27"
+
+[lints]
+workspace = true

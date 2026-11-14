@@ -20,6 +20,41 @@ in the real app.
 
 ## Not yet checked
 
+### A UniVerso's own Cloudflare link (ADR 0117 D4 item 2, R5, feat/r5-universo-link, 2026-11-14)
+
+The Rust tests run a stand-in `cloudflared`; the spike
+(`~/.cache/verso-kit/tunnel-spike/RESULTS-R5.md`) ran the real one on VM
+107 with a quick link and a token of no tunnel: a quick link from
+`VERSO_TUNNEL`, the console's off/on/extend with no restart, `Host`,
+`Origin` and a forged `X-Forwarded-For` through Cloudflare, the stops on
+SIGTERM and `kill -9`. What it could not reach:
+
+- [ ] **An own address by a real token** `[OPEN]` (no Cloudflare account was
+  used): in Cloudflare's dashboard make a tunnel, copy its token, route a
+  Public Hostname to `http://localhost:7341`; set `VERSO_TUNNEL=own`,
+  `VERSO_TUNNEL_HOSTNAME`, `VERSO_TUNNEL_TOKEN_FILE` (or `sh universo.sh
+  link own`); the log says `the internet link is on (own address, …)`, the
+  console shows `https://<hostname>`, a browser opens it and signs in.
+  Then once more pasting the token in the console instead (*Turn on my own
+  address*), and with a wrong token: the console says Cloudflare refused it.
+  Say whether the dashboard's service or the port the server listens on
+  decided where the requests went (change `VERSO_TUNNEL_PORT` to try).
+- [ ] **The Docker image** as the compose file runs it (`read_only`,
+  `cap_drop: ALL`, `mem_limit: 768m`): `VERSO_TUNNEL=quick` downloads into
+  `/data/tunnel` and comes up; the address in the console opens from a
+  phone on mobile data.
+- [ ] **The `.deb`** under `universo.service`'s hardening
+  (`MemoryDenyWriteExecute`, `SystemCallFilter=@system-service`,
+  `ProtectSystem=strict`): `sh universo.sh link quick` restarts the service
+  and says the link is on; `journalctl -u universo` holds no address.
+- [ ] **The console's Server page**, desktop and 390×844: *Turn on a quick
+  link* asks to prove it is you when the session is older than ten
+  minutes, then says *Turning on…*, the download's progress the first
+  time, then the address with *Copy* and the time left; *Extend 12 hours*
+  moves it; *Turn off* ends it; a screen reader reads each state.
+- [ ] **ZimaOS / CasaOS**: the variable set in the app's settings reaches
+  the container and the link comes up.
+
 ### A web page behind an overlay is a picture of itself (feat/web-snapshot, ADR 0056 revision of 2026-11-12)
 
 The harness draws its own picture (two blue pixels) and the host tests run
