@@ -39,6 +39,8 @@
   removed it); D14 confirmed as built.
   2026-11-13, later — R6 built (`205cdfb8`), D7 (e) says how; two
   `[OPEN]` details of the build there.
+  2026-11-14 — R9 built (`fd543a30`), D8 says how; five `[OPEN]` details
+  of the build there.
 - Related: [0073](0073-self-hosted-server-first.md), [0074](0074-accounts-and-access-on-the-server.md),
   [0077](0077-the-server-administration-console-and-folder-quotas.md),
   [0079](0079-sync-a-local-folder-with-a-server.md), [0081](0081-sharing-between-people-on-one-universo.md),
@@ -330,6 +332,67 @@ stay there until that table is turned back into a folder (0110 item 1).
 Not built. *(Decided 2026-11-13, the maintainer: "tudo na v1",
 `[DECIDED 2026-11-13]`:)* in V1, as **R9**.
 
+*(Built 2026-11-14, R9, `fd543a30`; the smallest mechanism, with what the
+decision left open chosen by the session building it and marked
+`[OPEN]` below for the maintainer's reading:)*
+
+1. **Where it is offered.** In the table's window, to its game master, a
+   card *Mudar de servidor* / *Move to another server* when the table has
+   another host. The host says which (`local_server_table_host`): for the
+   window at this computer's own table (the seat), the UniVerso the folder
+   syncs with, when this person owns the folder there (not a cloud, not a
+   received share); for a window on a UniVerso's folder, this computer,
+   when it serves now a folder of its own that syncs with that very
+   UniVerso folder. Nothing in a browser.
+2. **The move** (`local_server_move_table(root)`, a host command, asked
+   first in words): on the new host the table is made at the same folder
+   with the existing `campaign_make` — on the UniVerso through the sync's
+   live link (refused as unavailable while it is down), on this computer
+   through the owner's door in memory (refused while it does not serve);
+   every note starts hidden and nobody is invited, as on any new table.
+   Only then is the old host's table closed and marked moved, with the
+   existing `campaign_settings` and a new argument `moved` (schema 23,
+   `campaigns.moved`, kept in the bin with the table): a failure leaves
+   the table where it was, and running the move again is harmless. The
+   window then goes to the new host's folder (the UniVerso's opened, or
+   this computer's, where it sits by itself) and opens the table's window
+   there, whose *Invite players* is the next step.
+3. **The old host's table** is closed for good: the switch does not open
+   it (refused in words) and the window shows, instead of the switch and
+   the invitation, what the move means and a way to the new host. A player
+   who opens it is refused with `TABLE_MOVED`, *"a mesa está fechada: ela
+   mudou de servidor"*, which begins with `TABLE_CLOSED`, so a window of a
+   release before R9 keeps them out as from a closed table; a window inside
+   is sent out with the reason `moved`, the desktop's remote window hears
+   `server-gone` `moved`, a synced folder's sync says the problem
+   `table_moved`, and the folder's place says *A mesa mudou de servidor.
+   Peça ao mestre um convite novo.* with no timer trying again (the sync and
+   the remote window still try now and then, as for a closed table). Its
+   chat, rolls, releases, rights and players stay in that host's database,
+   untouched, and nothing of them crosses to the new host (the tests). An
+   older server, which does not know `moved`, only closes the table.
+4. **Undoing the moved table** is 0110 item 1 as built: the table's row,
+   its access and its rights go; its log becomes the folder's own (kept, as
+   for any undone table); a table made there again starts open, not moved.
+
+`[OPEN]` (smallest choice kept): the notes' audiences, secret names and
+grants are not carried to the new host — every note starts hidden there.
+`[OPEN]` (smallest choice kept): a moved table comes back to its old host
+only by undoing it and making it again; there is no *bring it back*.
+`[OPEN]` (smallest choice kept, **for the maintainer's attention**):
+undoing a moved table on its old host makes the players still there
+ordinary readers of that folder, who then read every note there (0110
+item 1, as for any undo); the table's window says so in words beside
+*Undo table* and keeps the players' card to remove them first, but the
+undo does not take them out by itself.
+`[OPEN]` (smallest choice kept): the old host does not tell its players
+where the table went, only to ask the game master for a new invitation.
+`[OPEN]` (smallest choice kept): a moved table still counts in
+`LocalFolder.tables`, so a window on the served folder still sits by
+itself at this computer's moved table — the way to it and to its undo;
+the table on the UniVerso is then reached by opening the UniVerso's folder
+(the moved table's window has the button).
+
 ### D9. What of the UniVerso works here `[DECIDED 2026-11-03: parity is the goal]`
 
 *"Esse modo seria compatível com tudo que temos relacionado ao UniVerso,
@@ -534,7 +597,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | To build | The owner pairs through the link (D5, decided 2026-11-04) | Not built: R3 | `local/routes.rs`, `web/localTable.ts` |
 | To build | The UniVerso's link from the admin console (D4.2, decided 2026-11-04; revises 0077 item 6) | Not built: R5 | `console.rs`, `app/ui/src/web/console.ts` |
 | Changed | A game master who may make folders invites into their own tables (D7 (e), decided 2026-11-04; revises 0081 item 4) | **Built** 2026-11-13 (R6, `205cdfb8`) | `admin/acts.rs` (`Inviter`), `campaign_cmds.rs`, `shares.rs`, `db/invitations.rs` |
-| To build | Moving a table to the other host (D8, decided 2026-11-04; in V1 2026-11-13) | Not built: R9 | — |
+| Changed | Moving a table to the other host (D8, decided 2026-11-04; in V1 2026-11-13) | **Built** 2026-11-14 (R9, `fd543a30`): made there, closed and marked moved here; five details `[OPEN]` in D8 | `local_server/moving.rs`, `campaign_cmds.rs` (`moved`), `db/campaign.rs` (schema 23), `tableMoveCard.ts` |
 | To build | A UniVerso's own link, reusing the tunnel module (D4.2) | Not built: R5 | `app/src-tauri/src/tunnel/` → a crate |
 | To build | Lessons 22, 23 and the UniVerso's 31 for its link; manual checks; the threat model's rows | Partly (29 and 28 say the folder's page, synced folders, received ones) | `demo-vault*/`, `docs/reference/` |
 
@@ -550,7 +613,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | R6 | **Built 2026-11-13** (`205cdfb8`). D7 (e), decided: a game master who may make folders invites people into their own tables. Tests (`tests_gm_invites.rs`): never into another's folder; audited; at most 20 pending; the power taken away ends the pending ones | Opus |
 | R7 | Docs: lessons 22, 23 and the UniVerso's 31 for its link, the walkthrough, manual checks, threat-model rows (a synced folder served, a UniVerso's link); the site's wiki imported again | Sonnet |
 | R8 | The guardrails seen failing; the checks on the three systems; the hostile lab run again (R3 and R6 touch access); the beta installed on the maintainer's OK | Opus |
-| R9 | A table moved to the other host (D8, in V1 2026-11-13): the players invited again there; the old host's chat, rolls and grants stay where they were. Tests: nothing of the old host's log reaches the new one; the old table keeps its log until made a folder again | Opus |
+| R9 | **Built 2026-11-14** (`fd543a30`). A table moved to the other host (D8, in V1 2026-11-13): the players invited again there; the old host's chat, rolls and grants stay where they were. Tests (`tests_table_move.rs` in `verso-server` and in the app's `tests_local_seat`, both ways; `test/tableMove.test.mjs`; `e2e/table-move.spec.mjs`, to run in Docker): nothing of the old host's log reaches the new one; the old table keeps its log until made a folder again; its players are told it moved; undoing it frees it | Opus |
 
 Order (2026-11-13): R4 → R3 → R6 → R9 → R7 → R8, then R5 with its own
 lessons and checks.
