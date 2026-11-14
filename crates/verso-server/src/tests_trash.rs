@@ -437,3 +437,48 @@ fn an_entry_younger_than_a_day_outlives_the_size_cap_and_the_cap_is_told() {
         assert!(!actions(&r, &id).contains(&"trash_over_cap".to_owned()));
     });
 }
+
+/// The sweep of a folder a window has open waits for the window's lock: a
+/// deletion, a version a write replaced or a restore changes the bin under
+/// that lock, and none can land between the sweep's walk and what it
+/// removes or forgets (a record written after the walk, of a file the walk
+/// had not seen, was forgotten: the night stress, 2026-11-04).
+#[test]
+fn a_sweep_waits_for_the_lock_of_the_window_that_has_the_folder_open() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let _ws = opened(&r, &admin, &id).await;
+        let key = verso_service::lock(&r.server.keys)
+            .iter()
+            .find(|(_, f)| **f == id)
+            .map(|(k, _)| k.clone())
+            .unwrap();
+        let held = std::time::Duration::from_millis(600);
+        let (s, k) = (std::sync::Arc::clone(&r.server), key.clone());
+        let (taken_tx, taken_rx) = std::sync::mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            s.service
+                .with_key(&k, |_| {
+                    taken_tx.send(()).unwrap();
+                    std::thread::sleep(held);
+                    Ok(std::time::Instant::now())
+                })
+                .unwrap()
+        });
+        taken_rx.recv().unwrap();
+        let (s, f) = (std::sync::Arc::clone(&r.server), id.clone());
+        let swept_at = tokio::task::spawn_blocking(move || {
+            crate::trash::sweep(&s, &f);
+            std::time::Instant::now()
+        })
+        .await
+        .unwrap();
+        let released_at = holder.join().unwrap();
+        assert!(
+            swept_at >= released_at,
+            "the sweep ran while the window held the folder"
+        );
+    });
+}

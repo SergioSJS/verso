@@ -180,7 +180,9 @@ fn scalar_text(value: &Value) -> Option<String> {
 
 fn filter(value: &Value, at: &str, problems: &mut Vec<BaseProblem>) -> Option<Filter> {
     if let Some(s) = scalar_text(value) {
-        return Some(Filter::Statement(s));
+        // `filters:` with nothing after it is YAML's empty value, which the
+        // reader gives as an empty string: no filter, as null is.
+        return (!s.trim().is_empty()).then_some(Filter::Statement(s));
     }
     let Value::Mapping(map) = value else {
         if !matches!(value, Value::Null) {
@@ -521,6 +523,20 @@ views:
             base.problems,
             vec![BaseProblem::Shape("filters.xor".into())]
         );
+    }
+
+    /// `filters:` with nothing after it is no filter, as YAML reads an
+    /// empty value (null), for the base and for a view: the folder page of
+    /// a folder's root wrote it and showed "Expressão inválida: : empty
+    /// expression" over 0 results (the re-test of 2026-11-04).
+    #[test]
+    fn an_empty_filter_is_no_filter() {
+        let base = parse_base("filters:\nviews:\n  - type: table\n    filters:\n");
+        assert_eq!(base.filters, None);
+        assert_eq!(base.views[0].filters, None);
+        assert_eq!(base.problems, vec![]);
+        assert_eq!(parse_base("filters: \"\"\n").filters, None);
+        assert_eq!(parse_base("filters: \"  \"\n").filters, None);
     }
 
     #[test]

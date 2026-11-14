@@ -737,9 +737,10 @@ export function liveRoom(path: string): RoomSession | null {
 }
 
 /** Whether the side the window talks to is this computer's synced folder:
- *  the desktop app answering `collab` (ADR 0082 item 3). */
+ *  the app (desktop or phone) answering `collab` (ADR 0082 item 3). */
 async function syncedSide(): Promise<boolean> {
-  return (await sideCan())?.host === "desktop";
+  const side = (await sideCan())?.host;
+  return side === "desktop" || side === "mobile";
 }
 
 /** Join the room of `path`, made into a session by `make` (null: the room

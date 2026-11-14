@@ -125,6 +125,8 @@ test("a split layout on a phone: one pane at a time, a switcher, the layout kept
   await expect(page.locator('.pane:visible .tab[aria-selected="true"]')).toContainText("01 - Guia");
   // On a phone the split commands are absent: from the palette and from a tab.
   await app.key("Mod+Shift+p");
+  // A touch screen's field waits for a tap (screen/openFocus.ts).
+  await page.locator(".quick.palette:not([hidden]) input").click();
   await page.keyboard.type("Dividir");
   await expect(page.locator(".quick.palette:not([hidden]) .quick-list li")).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -263,7 +265,7 @@ test("the kanban by touch: a swipe scrolls, a long press opens the card's menu w
 
 test("the keyboard's bar: shown while the editor has the focus on a touch screen, its keys act on the text @layout", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("11 - Escrevendo");
+  await app.quickOpen("04 - Escrevendo");
   await app.key("Mod+e");
   const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   const editor = page.locator(".pane.focused .cm-content").first();
@@ -280,7 +282,8 @@ test("the keyboard's bar: shown while the editor has the focus on a touch screen
   // Inside the screen, at its bottom.
   const box = await bar.boundingBox();
   expect(Math.round(box.y + box.height)).toBeLessThanOrEqual(page.viewportSize().height);
-  const text = () => page.locator(".pane.focused .cm-content").first().textContent();
+  // The note's whole text (its state), not the lines the editor happens to draw: those follow the scroll.
+  const text = () => page.evaluate(() => document.querySelector(".pane.focused .leaf:not([hidden]) .note-sheet .editor").__cmView.state.doc.toString());
   const was = await text();
   await bar.getByRole("button", { name: "Link interno [[ ]]" }).click();
   await expect(editor).toBeFocused();
@@ -349,9 +352,9 @@ test("the tree by touch: Select turns it into a selection with a bar; Keep open 
   await expect(page.locator(".tab.preview")).toHaveCount(0);
   // "Open" in a note's menu opens it without the preview.
   await tree(app);
-  await menuOf(row("05 - Visualização de Grafo e Conexões.md"));
+  await menuOf(row("15 - Visualização de Grafo e Conexões.md"));
   await menu.getByRole("menuitem", { name: "Abrir", exact: true }).click();
-  await expect(page.locator(".tab", { hasText: "05 - Visualização" })).toHaveCount(1);
+  await expect(page.locator(".tab", { hasText: "15 - Visualização" })).toHaveCount(1);
   await expect(page.locator(".tab.preview")).toHaveCount(0);
 });
 
@@ -516,7 +519,7 @@ for (const [title, steps] of [
       test.info().annotations.push({ type: "skip", description: "the input method is driven through the DevTools protocol" });
       return;
     }
-    await app.quickOpen("11 - Escrevendo");
+    await app.quickOpen("04 - Escrevendo");
     await app.key("Mod+e");
     const editor = page.locator(".pane.focused .cm-content").first();
     await editor.click();

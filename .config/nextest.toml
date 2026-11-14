@@ -1,0 +1,17 @@
+# cargo-nextest, the runner of the workspace's tests in CI and in the local
+# checks (the maintainer's decision of 2026-11-02, fix release item C2).
+# It runs each test in a process of its own, in parallel across the test
+# binaries, and stops a test that hangs: on 2026-10-31 and 2026-11-02 one
+# Windows test never ended and held the runner until the job's own timeout.
+# Doctests are not its to run: the checks run `cargo test --doc` beside it.
+# https://nexte.st/docs/configuration/
+
+[profile.default]
+# Reported as slow at 60 s, stopped and failed at 5 × 60 s: a hang fails
+# the run in five minutes instead of holding it for the job's whole limit.
+slow-timeout = { period = "60s", terminate-after = 5 }
+# Every failure of a run, not the first one alone: a check is read once.
+fail-fast = false
+# A failing test's output where it happens and again at the end, where it
+# is read.
+failure-output = "immediate-final"

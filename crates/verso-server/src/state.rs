@@ -344,8 +344,9 @@ pub struct Server {
     /// The bytes of the WebSocket's large messages and answers under way
     /// (`crate::inflight`).
     pub inflight: crate::inflight::Inflight,
-    /// The contract's version: a hash of the generated bindings (the
-    /// maintainer's answer D of 2026-10-09), sent in the handshake.
+    /// The contract's hash: of the generated bindings (the maintainer's
+    /// answer D of 2026-10-09), sent in the handshake beside the
+    /// contract's version (ADR 0073 item 2, revised 2026-11-02).
     pub contract: String,
     next: AtomicU64,
     /// Device sign-ins waiting for the person's approval in the browser
@@ -406,6 +407,15 @@ pub struct Server {
     /// dedicated server: the one local owner, the phones paired to it, the
     /// folders ticked, the addresses served.
     pub local: Option<Arc<crate::local::Policy>>,
+    /// A UniVerso's own Cloudflare link's origin and its listener's
+    /// proxies (ADR 0117 D4 item 2, R5): set at runtime by the tunnel
+    /// (`crate::tunnel`), none while it is off. "This app is a server"
+    /// keeps its own in its policy ([`Self::link`] reads the right one).
+    own_link: crate::local::link::LinkOrigin,
+    /// A UniVerso's own link: its tunnel, made at start by `crate::serve`
+    /// (`crate::tunnel::Link`); none on "this app is a server", whose host
+    /// runs the tunnel itself (D11 item 5).
+    pub tunnel: std::sync::OnceLock<Arc<crate::tunnel::Link>>,
 }
 
 impl Server {
@@ -496,12 +506,41 @@ impl Server {
             history,
             this: std::sync::OnceLock::new(),
             local,
+            own_link: crate::local::link::LinkOrigin::default(),
+            tunnel: std::sync::OnceLock::new(),
         });
         let _ = server.this.set(Arc::downgrade(&server));
         service.set_events(Arc::new(ServerEvents {
             server: Arc::downgrade(&server),
         }));
         server
+    }
+
+    /// The internet link's origin and proxies: "this app is a server"'s,
+    /// or a UniVerso's own (ADR 0117 D4 item 2).
+    #[must_use]
+    pub fn link(&self) -> &crate::local::link::LinkOrigin {
+        self.local.as_ref().map_or(&self.own_link, |l| l.link())
+    }
+
+    /// Say (or forget) a UniVerso's own link's origin (`crate::tunnel`).
+    pub(crate) fn set_own_link(&self, origin: Option<crate::local::link::Origin>) {
+        self.own_link.set(origin);
+    }
+
+    /// The address people use, as the links that leave this server name
+    /// it: `VERSO_PUBLIC_URL` when it is set (it is the person's choice,
+    /// and keeps working as before), else a UniVerso's own link's origin
+    /// while it has one — set at runtime, no restart (R5). "This app is a
+    /// server" names its own (`crate::local::Policy::links_base`).
+    #[must_use]
+    pub fn public_origin(&self) -> Option<String> {
+        self.config.public_url.clone().or_else(|| {
+            self.local
+                .is_none()
+                .then(|| self.own_link.origin())
+                .flatten()
+        })
     }
 
     /// The server, owned: what a write hands a later task.
@@ -512,6 +551,17 @@ impl Server {
     /// A name for a new connection, never reused while the server runs.
     pub fn client_id(&self) -> String {
         format!("ws-{}", self.next.fetch_add(1, Ordering::Relaxed))
+    }
+
+    /// Whether a registered folder rests: this app's server keeps it, with
+    /// its table and players, but does not serve it now (ADR 0117 D2,
+    /// 2026-11-13). No one reaches a resting folder, its shares or its
+    /// read links; a UniVerso's folders never rest.
+    #[must_use]
+    pub fn rests(&self, dir: &str) -> bool {
+        self.local
+            .as_ref()
+            .is_some_and(|local| local.folder_path(dir).is_none())
     }
 
     /// The directory of a registered folder; the path is formed here and

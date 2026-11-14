@@ -50,8 +50,8 @@ export const CREDITS: Credit[] = [
     id: "randommind",
     name: "RandomMind",
     line: {
-      pt: "As duas músicas de amostra do tutorial (nota 36, assets/sons): “The Old Tower Inn” e “The Bard's Tale”, em domínio público (CC0 1.0), do OpenGameArt.",
-      en: "The tutorial's two sample tracks (note 36, assets/sons): “The Old Tower Inn” and “The Bard's Tale”, in the public domain (CC0 1.0), from OpenGameArt.",
+      pt: "As duas músicas de amostra do tutorial (nota 27, assets/sons): “The Old Tower Inn” e “The Bard's Tale”, em domínio público (CC0 1.0), do OpenGameArt.",
+      en: "The tutorial's two sample tracks (note 27, assets/sons): “The Old Tower Inn” and “The Bard's Tale”, in the public domain (CC0 1.0), from OpenGameArt.",
     },
     link: "https://opengameart.org/users/randommind",
     licence: "CC0 1.0",
@@ -93,6 +93,16 @@ export const CREDITS: Credit[] = [
       en: "By Aykut Saraç, Apache-2.0: the idea of the box-and-line view of structured data, which Verso's data diagram follows. None of its code is used; the drawing and the layout of the boxes are Verso's own.",
     },
     link: "https://github.com/AykutSarac/jsoncrack.com",
+    licence: "Apache-2.0",
+  },
+  {
+    id: "cloudflared",
+    name: "cloudflared (Cloudflare)",
+    line: {
+      pt: "Licença Apache-2.0: o programa da Cloudflare que leva o link pela internet de Transformar em servidor (ADR 0117). Não vem no app: é baixado na primeira vez que o link é ligado, numa versão fixa, conferida pela soma SHA-256, do GitHub da Cloudflare, e roda sem se atualizar sozinho. No app para Android ele vem dentro do app, compilado para o Android a partir do código-fonte dessa mesma versão (ADR 0118).",
+      en: "Apache-2.0: Cloudflare's program that carries the internet link of Turn into a server (ADR 0117). It does not ship with the app: it is downloaded the first time the link is turned on, a pinned version checked by its SHA-256 sum, from Cloudflare's GitHub, and it runs without updating itself. In the Android app it ships inside the app, built for Android from the source of that same version (ADR 0118).",
+    },
+    link: "https://github.com/cloudflare/cloudflared",
     licence: "Apache-2.0",
   },
 ];
@@ -339,10 +349,13 @@ export type Dependency = { name: string; version: string; license: string; link:
 /** Written by scripts/credits-deps.mjs from node_modules at build time. */
 const JS_LIBS: Dependency[] = deps.map(({ name, version, license, link }) => ({ name, version, license, link }));
 
-/** Rust: licences read from the crates' own Cargo.toml (tauri 2.11.6, yrs 0.28.0). */
+/** Rust: licences read from the crates' own Cargo.toml (tauri 2.11.6, yrs 0.28.0, flate2 1.1, tar 0.4.46). */
 const RUST_LIBS: Dependency[] = [
   { name: "Tauri", version: "2", license: "Apache-2.0 OR MIT", link: "https://tauri.app" },
   { name: "yrs (Yjs for Rust)", version: "0.28", license: "MIT", link: "https://github.com/y-crdt/y-crdt" },
+  // The cloudflared archive of macOS opened in Rust (ADR 0117 D4 Q7).
+  { name: "flate2", version: "1.1", license: "MIT OR Apache-2.0", link: "https://github.com/rust-lang/flate2-rs" },
+  { name: "tar", version: "0.4", license: "MIT OR Apache-2.0", link: "https://github.com/alexcrichton/tar-rs" },
 ];
 
 export const DEPENDENCIES: Dependency[] = [...RUST_LIBS, ...JS_LIBS];

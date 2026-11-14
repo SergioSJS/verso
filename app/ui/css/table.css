@@ -62,9 +62,11 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
   border-radius: 999px; background: var(--seal); color: var(--paper); font: 700 .65rem/1.05rem var(--ui); text-align: center; pointer-events: none;
 }
 /* The phone: the panel's Mesa tab is a sheet from the bottom (ADR 0107 item 10). */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   /* The sheet takes the height above the bottom bar (the log is what it is for; fix/phone-table-space, 2026-10-24). */
-  body[data-right-tab="table"] aside.right { top: .4rem; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
+  body[data-right-tab="table"] aside.right { top: calc(env(safe-area-inset-top) + .4rem); padding-top: 0; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
+  /* The sheet starts below the status bar, its close at its own top. */
+  body[data-right-tab="table"] .right-close { top: 0; }
   body.right-open[data-right-tab="table"] aside.right { transform: none; }
   /* The sheet and its rows never wider than the screen, closed or open (390 px phones measured 392). */
   body aside.right, body aside.right > .right-close, body aside.right > .right-tabs, body aside.right > .right-body { box-sizing: border-box; max-width: 100vw; }
@@ -112,7 +114,7 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .table-box { display: flex; flex-direction: column; box-sizing: border-box; background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; }
 .table-box:focus-within { outline: 2px solid var(--seal); outline-offset: 1px; }
 .table-input { flex: none; width: 100%; min-width: 0; resize: none; box-sizing: border-box; padding: .4rem .5rem; font: inherit; font-size: .88rem; line-height: 1.35; color: var(--ink); background: transparent; border: 0; outline: 0; border-radius: 8px; min-height: calc(var(--table-lines, 3) * 1.35em + .8rem + 2px); max-height: calc(8 * 1.35em + .8rem + 2px); overflow-y: auto; }
-@media (max-width: 760px) { .table-input { --table-lines: 1; max-height: calc(4 * 1.35em + .8rem + 2px); } }
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) { .table-input { --table-lines: 1; max-height: calc(4 * 1.35em + .8rem + 2px); } }
 .table-box-bar { display: flex; align-items: center; gap: .15rem; padding: .1rem .25rem .2rem; }
 .table-box-spacer { flex: 1; }
 .table-box-bar .iconic, .table-box-bar .tray-tool { width: 1.9rem; height: 1.9rem; min-width: 1.9rem; display: inline-grid; place-items: center; padding: 0; border-radius: 6px; }
@@ -135,7 +137,7 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .table-lightbox { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; gap: .6rem; align-content: center; background: oklch(0% 0 0 / .78); padding: 1rem; }
 .table-lightbox img { max-width: 94vw; max-height: 82vh; object-fit: contain; border-radius: 6px; background: var(--paper); }
 .table-lightbox-close { color: #fff; border: 1px solid #fff6; border-radius: 7px; padding: .35rem .9rem; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   /* The sheet rises above the on-screen keyboard while the field has it (screen/viewport.ts). */
   body[data-right-tab="table"] aside.right { bottom: max(calc(3.4rem + env(safe-area-inset-bottom)), var(--table-kb, 0px)); }
   .table-menu { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
@@ -143,7 +145,7 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
   .table-older { min-height: 2.2rem; }
   .table-roster-button { height: 40px; min-width: 40px; font-size: 14px; }
 }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .table-menu { width: 2.2rem; height: 2.2rem; min-width: 2.2rem; opacity: 1; }
 }
 
@@ -192,13 +194,16 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 .saved-empty { margin: 0; font-size: .76rem; line-height: 1.35; color: var(--ink-3); }
 .saved-save { display: flex; gap: .4rem; align-items: stretch; }
 .saved-name { flex: 1; min-width: 0; box-sizing: border-box; padding: .35rem .5rem; font: inherit; font-size: .85rem; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; min-height: 2.1rem; }
-@media (max-width: 760px) {
-  /* A phone: the targets are 40 px tall (the icons stay small); the row scrolls sideways inside itself, never the page. */
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
+  /* A phone: the targets are 44 px (the icons stay small; the maintainer, 2026-11-10); what does not fit goes
+     into the dots first (tray.ts `fit`), and what still does not fit scrolls sideways inside the row, never the page. */
   .tray-row { height: 44px; }
+  .tray-scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .tray-scroll::-webkit-scrollbar { display: none; }
   .table-box-bar .iconic, .table-box-bar .tray-tool { width: 40px; height: 40px; min-width: 40px; }
   .tray-mode { height: 40px; font-size: 14px; padding: 0 .6rem; }
-  .tray-die, .tray-tool, .tray-keep { height: 40px; min-width: 28px; }
-  .tray-mod { height: 40px; width: 44px; font-size: 16px; }
+  .tray-die, .tray-tool, .tray-keep { height: 44px; min-width: 44px; }
+  .tray-mod { height: 44px; width: 44px; font-size: 16px; }
   .saved-roll { min-height: 2.75rem; }
   .saved-which, .saved-save-go { min-height: 2.6rem; }
   .saved-name { font-size: 16px; min-height: 2.6rem; }
@@ -208,7 +213,7 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
 
 /* A phone, the Mesa's room (fix/phone-table-space, 2026-10-24): the header is ONE row, the composer ONE line like a chat's,
    the dice row behind a button that remembers its state. Every control stays, named and 40 px tall. */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .table-view { gap: .25rem; }
   .table-head { display: flex; align-items: center; gap: .3rem; min-width: 0; }
   .table-head .table-title { flex: 1 1 auto; min-width: 0; }

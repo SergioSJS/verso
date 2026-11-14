@@ -193,7 +193,16 @@ export function blockHandles(opts: BlockHandleOptions) {
         this.frame.style.height = `${Math.max(4, r.bottom - r.top)}px`;
         this.frame.style.left = `${lineLeft - 4}px`;
         this.frame.style.width = `${content.right - dom.left - lineLeft + 4}px`;
-        this.frame.hidden = false;
+        this.frame.hidden = this.selected(b);
+      }
+
+      /** A block among those a selection touches: the selection already
+       *  shows what the handle acts on, and a box inside it would read as
+       *  a change of the text's layout. */
+      selected(b: Block): boolean {
+        const state = this.view.state;
+        // By place: each state has its own blocks.
+        return !state.selection.main.empty && blocksOfSelection(blocksOf(state), state).some((x) => x.from === b.from && x.to === b.to);
       }
 
       hide(): void {
@@ -301,6 +310,7 @@ export function blockHandles(opts: BlockHandleOptions) {
           if (this.empty !== null) this.empty = u.changes.mapPos(this.empty, -1);
         }
         if (this.dragging || !this.block || this.at === null) return;
+        if (u.selectionSet && !this.box.hidden) this.frame.hidden = this.selected(this.block);
         if (!u.docChanged && !u.geometryChanged && !u.viewportChanged) return;
         // The block under the handle may have moved or gone. The layout is
         // read after the update, as CodeMirror requires.

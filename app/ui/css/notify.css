@@ -16,6 +16,8 @@
 .notify-toasts-top { top: 3.2rem; bottom: auto; }
 .notify-toast { pointer-events: auto; display: flex; flex-direction: column; gap: .2rem; padding: .55rem .6rem .6rem .8rem; background: var(--paper); color: var(--ink); border: 1px solid var(--hair); border-left: 4px solid var(--brass); border-radius: 10px; box-shadow: 0 14px 36px -12px oklch(0% 0 0 / .35); font-size: .84rem; animation: notify-in .22s var(--ease-out); }
 .notify-toast[data-level="warning"] { border-left-color: var(--brass-ink); }
+/* Folded away under a dialog that opened after it, on a phone (notify/toasts.ts). */
+.notify-toast.under-dialog { display: none; }
 .notify-toast[data-level="error"] { border-left-color: var(--seal); }
 .notify-toast:focus-within { outline: 2px solid var(--brass); outline-offset: 2px; }
 @keyframes notify-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -63,7 +65,7 @@
 .notify-system-hint { flex-basis: 100%; max-width: 24rem; margin-left: auto; font-size: max(12px, .76rem); color: var(--ink-3); text-align: right; }
 
 /* ---------- A phone (item 6) ---------- */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   /* The bell at the top of the pane, at the right end of its first row —
      the failed line's when it shows, the tab bar's otherwise — taking no
      row of its own: a phone's height is the text's. The toasts at the bottom,

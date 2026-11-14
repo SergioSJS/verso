@@ -22,7 +22,7 @@
   accepted.
 - Related: [0020](0020-sync-merge-in-core-transports-as-plugins.md) (sync:
   this ADR proposes to revise its order and two of its items),
-  [0021](0021-sync-automerge-layered-config.md) (Automerge: proposed to be
+  [0021](archive/0021-sync-automerge-layered-config.md) (Automerge: proposed to be
   revised), [0025](0025-own-server-and-mobile-pwa.md) (`verso serve`, PWA:
   proposed again here, its item 3 proposed as superseded),
   [0026](0026-core-ui-contract-inviolable-rules.md) (rule 2: the UI does not
@@ -55,7 +55,7 @@
   briefing gets a new version (the pt-BR original prevails,
   [0008](0008-documentation-language.md)), and
   [0020](0020-sync-merge-in-core-transports-as-plugins.md),
-  [0021](0021-sync-automerge-layered-config.md),
+  [0021](archive/0021-sync-automerge-layered-config.md),
   [0025](0025-own-server-and-mobile-pwa.md), [0034](0034-roadmap-in-phases.md)
   (the roadmap gains a Phase 3), [0044](0044-verso-fs-semantics.md) (the
   handles and the symlinks on a server), [0045](0045-server-and-mcp-security.md)
@@ -86,7 +86,7 @@
   open; item 12's order as first recorded is kept beside the revised one.
   The revisions the paragraph above names were made the same day: the
   briefing's version 0.13, [0020](0020-sync-merge-in-core-transports-as-plugins.md),
-  [0021](0021-sync-automerge-layered-config.md),
+  [0021](archive/0021-sync-automerge-layered-config.md),
   [0025](0025-own-server-and-mobile-pwa.md), [0034](0034-roadmap-in-phases.md),
   [0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md),
   [0050](0050-outbound-network-access.md),
@@ -151,7 +151,7 @@
   the network come after V1 (the maintainer, the same night). The
   Status's wording is kept.
   2026-10-15 — "this app is a server" is decided in full by
-  [0096](0096-this-app-is-a-server.md) (its Status: every item as
+  [0096](archive/0096-this-app-is-a-server.md) (its Status: every item as
   recommended). Two sentences of this record are revised by it: the
   Consequences' "runs on macOS and Windows as well" is **macOS and Linux
   first, Windows after** (0096 item 17, option (a): `verso-server` is not
@@ -163,7 +163,7 @@
   Later the same day (2026-10-15) the first of those two was revised again:
   the maintainer decided *"OpenSSL embutido no Windows"*, so `verso-server`
   builds on Windows and "runs on macOS and Windows as well" is true as
-  written ([0096](0096-this-app-is-a-server.md) item 17 and
+  written ([0096](archive/0096-this-app-is-a-server.md) item 17 and
   [0075](0075-server-packaging-and-storage.md) item 2, both revised).
   2026-10-16 — item 6 amended, and with it [0083](0083-security-hardening-of-universo.md)
   item 5: **plain HTTP works**, without what a secure context is for. The
@@ -218,7 +218,58 @@
   optional step. The old wording of item 6 is kept above, marked.
   2026-10-21 — six `[OPEN]` of the Status answered by the maintainer's marks
   in the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all as
-  recommended; each is written under the Status. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) brings the desktop's sync with WebDAV and a bucket into V1; item 4(b), the server's bucket, unchanged and after V1.
+  recommended; each is written under the Status. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) brings the desktop's sync with WebDAV and a bucket into V1; item 4(b), the server's bucket, unchanged and after V1 *(2026-11-01 the maintainer's item 16 = b had brought the bucket's pre-signed URL into V1 — roadmap V.52, [0044](0044-verso-fs-semantics.md) — which this line contradicted; on 2026-11-14, told what it is, he moved it back after V1: "fica pra depois mesmo". The pre-signed URL and the server's bucket mode are after V1, roadmap After V1 item 10)*.
+  2026-11-02 — item 2's contract version, amended (Architecture Path,
+  built on 2026-11-03 for 0.8.5). The Mac's beta stopped syncing with VM
+  107 because the two builds' binding hashes differed, and the maintainer
+  observed *"não temos controle disso quando lançado"* — after a release
+  apps update themselves and self-hosted servers do not — and chose
+  *"Versão + janela N/N-1"*: the contract gains an **integer version**
+  (`verso_contract::compat::VERSION`, 1 first), sent as `contractVersion`
+  in the WebSocket hello beside the hash (and in `/api/state` to someone
+  signed in); the contract changes **only by adding** (a new optional
+  field, a new command), and a change that breaks one side bumps the
+  number; the desktop app takes a server of its own number and of one
+  apart, either way, and refuses only beyond that, naming each side's
+  version, build and number. A server of a release before 0.8.5 says no
+  number and is taken as 0, the one before the first. The **hash never
+  refuses** a desktop app: when it differs it is written to the app's
+  log. A command the older side does not know yet is answered "the
+  server runs Verso X, which does not do this yet: update the server"
+  instead of "no such command"; a feature that needs one is shown off
+  with the same words when it is built, through `capabilities`
+  ([0027](0027-runtime-capabilities.md)). A browser page this server
+  served still reloads on the hash ([0096](archive/0096-this-app-is-a-server.md)
+  item 18): it is the server's own build. Item 2's words above are kept.
+  A synced folder is judged by the sync's version alone:
+  [0079](0079-sync-a-local-folder-with-a-server.md) item 5, revised the
+  same day.
+  2026-11-05 — item 2, how people learn the order of updates (the
+  maintainer: *"a gente só precisa pensar numa estratégia dos usuários
+  saberem disso … geralmente se atualiza o servidor e depois os
+  clientes"*; the five points below proposed and accepted the same day,
+  *"pode"*; not built, built with the rest of the N/N-1 work):
+  (a) the app says it **before** anything fails: a server one number
+  behind shows a quiet line on its folder (*the server … runs Verso X;
+  everything works; ask its administrator to update*), and beyond the
+  window the refusal names which side to update, the app or the server;
+  (b) the administrator sees *an update is available* in the UniVerso's
+  console and in the app's *Turn into a server* settings
+  (ADR 0117, on feat/app-server), with the order — the
+  server first, then the apps — and the devices connected now with the
+  version each runs;
+  (c) before a release that changes the server's database schema (22
+  on 2026-11-05: a table kept in the bin), the server copies its
+  database and says that a build before it can no longer open that
+  database, and where the copy is;
+  (d) the order is written where people read it: a *How to update*
+  section in the server's install lesson of the demo vault, both
+  languages ([0058](0058-demo-vault-as-tutorial.md)), and one line in
+  each version's notes;
+  (e) the one exception, said in those notes: apps of 0.8.4 and earlier
+  still ask for the server's exact build, so from 0.8.4 to 0.8.5 the
+  apps go first and the servers after; from 0.8.5 on, the server first
+  and the clients after, as is usual.
 
 ## Context
 
@@ -447,7 +498,7 @@ the date; what stays `[OPEN]` is listed in the Status.
    over a relay, not Yjs; the reconciliation is exported by the package, the
    relay lives in its app — and a
    `.canvas` holds typed relations ([0057](0057-board-json-canvas.md)): the
-   board's co-editing was `[OPEN]` (decided and built 2026-10-12, item 7 Revisions). [0021](0021-sync-automerge-layered-config.md)
+   board's co-editing was `[OPEN]` (decided and built 2026-10-12, item 7 Revisions). [0021](archive/0021-sync-automerge-layered-config.md)
    is proposed to be revised in two ways: Yjs in place of Automerge, and a
    CRDT as the mechanism of a live session, never the stored form of a
    note; the file is. *(Revised so on 2026-10-09, a Revisions line there.)*
@@ -468,7 +519,13 @@ the date; what stays `[OPEN]` is listed in the Status.
    of [0025](0025-own-server-and-mobile-pwa.md) (a companion server hands a
    finished index to the phone) is proposed as superseded: the server
    indexes, the phone asks it. *(Superseded on 2026-10-09, a Revisions line
-   there.)*
+   there.)* *(2026-11-08: the native Android app started, as this item
+   says, Tauri 2 from the same UI and core — [0118](0118-a-native-android-app-from-the-same-core-and-ui.md);
+   it moves item 12's last step forward for Android; the iPad stays in the
+   browser.)* *(2026-11-10: the iPad and the iPhone too, by the maintainer's
+   request — [0119](0119-an-ios-and-ipados-app-through-altstore.md): Tauri 2
+   iOS from the same UI and core, first through AltStore; the PWA stays
+   beside it.)*
 9. **The window on every size of screen is an investigation of its own,
    before the server's UI is built.** Phone, tablet, half a screen, a
    narrow pane: what Notion does is the reference, observed from the
@@ -633,7 +690,7 @@ them: the one-service shape, the storage modes, the identity model, the
 live editing, the browser first on mobile, the order inside Phase 3 as
 revised (item 12), and the revisions of
 [0020](0020-sync-merge-in-core-transports-as-plugins.md),
-[0021](0021-sync-automerge-layered-config.md),
+[0021](archive/0021-sync-automerge-layered-config.md),
 [0025](0025-own-server-and-mobile-pwa.md), [0034](0034-roadmap-in-phases.md),
 [0044](0044-verso-fs-semantics.md), [0045](0045-server-and-mcp-security.md),
 [0050](0050-outbound-network-access.md) and

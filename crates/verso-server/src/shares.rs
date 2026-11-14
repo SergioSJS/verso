@@ -53,9 +53,16 @@ pub fn scope_for(
     if server.db.share_role(&share.id, account)?.is_none() {
         return Ok(None);
     }
+    // A share of a folder served in part opens for whoever it was given to,
+    // as on a UniVerso (ADR 0117 R1, 2026-11-05): the owner's phones their
+    // parts, a player what the owner shared with them.
     let Some(folder) = server.db.folder(&share.folder)? else {
         return Ok(None);
     };
+    // A share of a folder that rests opens nothing (ADR 0117 D2).
+    if server.rests(&folder.dir) {
+        return Ok(None);
+    }
     let role = server
         .db
         .role_at(&folder.id, account, &share.path)?
@@ -103,8 +110,8 @@ pub fn opening(server: &Server, who: &Who, id: &str) -> ApiResult<Opening> {
         let (folder, role) = crate::access::role(server, who, id)?;
         // A closed table keeps its players out (ADR 0110 item 3, MC.1 = A).
         let master = crate::campaign::is_master(server, &folder.id, &who.account.id);
-        if crate::campaign::closed_for(server, &folder.id, "", !master) {
-            return Err(ApiError::forbidden(crate::campaign::CLOSED));
+        if let Some(words) = crate::campaign::shut_for(server, &folder.id, "", !master) {
+            return Err(ApiError::forbidden(words));
         }
         return Ok(Opening::Folder(folder, role));
     }
@@ -116,8 +123,8 @@ pub fn opening(server: &Server, who: &Who, id: &str) -> ApiResult<Opening> {
     let (folder, scope, role) =
         scope_for(server, &who.account.id, &share, writes)?.ok_or_else(ApiError::not_found)?;
     // A share is always a player's place, an editor's as a reader's.
-    if crate::campaign::closed_for(server, &folder.id, &scope.root, true) {
-        return Err(ApiError::forbidden(crate::campaign::CLOSED));
+    if let Some(words) = crate::campaign::shut_for(server, &folder.id, &scope.root, true) {
+        return Err(ApiError::forbidden(words));
     }
     Ok(Opening::Share(folder, scope, role))
 }
@@ -134,6 +141,11 @@ pub fn refresh(server: &Server, folder: &str, why: &str) {
         .filter_map(|(id, c)| {
             let scope = c.scope.as_ref()?;
             c.folder.as_ref().filter(|(f, _)| f == folder)?;
+            // A read link's page is no share's: its link is looked at
+            // again before each of its commands (`visit`).
+            if scope.guard.as_ref().is_some_and(|g| g.public) {
+                return None;
+            }
             Some((
                 id.clone(),
                 c.account.clone(),
@@ -337,10 +349,15 @@ fn share_json(server: &Server, folder: &Folder, path: &str) -> ApiResult<Value> 
 }
 
 fn of_share(server: &Server, folder: &Folder, share: &Share) -> ApiResult<Value> {
+    // The owner in a share of his own folder is a phones' part (ADR 0117
+    // R1, `local/parts.rs`): no person the share was given to.
     let people: Vec<Value> = server
         .db
         .share_people(&share.id)?
         .iter()
+        .filter(|(a, _)| {
+            server.local.is_none() || crate::db::fold_email(&a.email) != crate::db::LOCAL_OWNER
+        })
         .map(|(a, r)| person_json(a, *r))
         .collect();
     Ok(json!({
@@ -352,6 +369,14 @@ fn of_share(server: &Server, folder: &Folder, share: &Share) -> ApiResult<Value>
     }))
 }
 
+/// A folder's owner as a person is shown it: the name, and the e-mail —
+/// never this computer's inner address, which is no one's to write to
+/// ("this app is a server", ADR 0117).
+fn owner_json(a: &crate::db::Account) -> Value {
+    let email = (!crate::db::is_this_computer(&a.email)).then_some(a.email.as_str());
+    json!({ "name": a.name, "email": email })
+}
+
 /// The folders `who` may enter, for the lists of item 5: its own, the
 /// whole folders others own ("Shared with me", with the owner), and the
 /// shares given to it; and the shares of its own folders ("Shared by me").
@@ -361,14 +386,20 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
     let mut by_me = Vec::new();
     let person = !matches!(who.via, crate::auth::Via::Token { .. });
     for (f, role) in server.db.folders_of(&who.account.id)? {
-        if !who.reaches(&f.id).0 {
+        // A folder served in part is listed to no phone by its own id
+        // (`crate::access::role` refuses it as well); its owner's window
+        // lists it (ADR 0117 R1).
+        let phone = who.phone.is_some();
+        if !who.reaches(&f.id).0
+            || server.rests(&f.dir)
+            || (phone && server.local.as_ref().is_some_and(|p| p.hides(&f.id)))
+        {
             continue;
         }
         let owner = if role == Role::Owner {
             Value::Null
         } else {
-            owner_of(server, &f.id)?
-                .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }))
+            owner_of(server, &f.id)?.map_or(Value::Null, |a| owner_json(&a))
         };
         // The folder's bytes count its secret blocks' (ADR 0087): one who
         // only reads it is not told them, as a share's receiver is not.
@@ -395,21 +426,28 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
         if !reaches {
             continue;
         }
+        // A phones' part is the phones' list's alone: the owner's window
+        // has the whole folder (ADR 0117 R1).
+        let part = server
+            .local
+            .as_ref()
+            .is_some_and(|p| p.part_name(&share.id).is_some());
+        if part
+            && who.phone.is_none()
+            && crate::db::fold_email(&who.account.email) == crate::db::LOCAL_OWNER
+        {
+            continue;
+        }
         let Some((folder, scope, role)) = scope_for(server, &who.account.id, &share, writes)?
         else {
             continue;
         };
         // A folder chosen inside one this computer serves is the phone's own:
         // it has no owner to name (ADR 0096 item 2, amended 2026-10-16).
-        let owner = if server
-            .local
-            .as_ref()
-            .is_some_and(|p| p.part_name(&share.id).is_some())
-        {
+        let owner = if part && who.phone.is_some() {
             Value::Null
         } else {
-            owner_of(server, &folder.id)?
-                .map_or(Value::Null, |a| json!({ "name": a.name, "email": a.email }))
+            owner_of(server, &folder.id)?.map_or(Value::Null, |a| owner_json(&a))
         };
         folders.push(json!({
             "id": share.id, "name": scope.name, "role": role, "space": null,
@@ -439,9 +477,21 @@ fn audit(ctx: &Ctx, action: &str, subject: Option<&str>, folder: &str, path: &st
 }
 
 /// The owner, and the folder.
+///
+/// "This app is a server" (ADR 0117 D9): a folder's shares are this
+/// computer's owner's, from the window at the table — an invited account
+/// owns no folder here, and shares none, even owning one by a grant made
+/// by mistake (as `readlinks::make`). A folder served in part has no
+/// shares to show or make: `crate::access::role` refuses its id to
+/// everyone, the owner included (the hide lock), so no share names a path
+/// beside the folders chosen inside it.
 fn owned(ctx: &Ctx, id: &str) -> ApiResult<Folder> {
     let who = ctx.person()?;
-    Ok(crate::access::at_least(&ctx.server, who, id, Role::Owner)?.0)
+    let folder = crate::access::at_least(&ctx.server, who, id, Role::Owner)?.0;
+    if ctx.server.local.is_some() && !crate::db::is_this_computer(&who.account.email) {
+        return Err(ApiError::forbidden("sharing is the owner's here"));
+    }
+    Ok(folder)
 }
 
 /// Every share of a folder and its members, for its owner (item 7).
@@ -478,6 +528,17 @@ pub async fn grant(
     ctx.proved()?;
     let folder = owned(&ctx, &id)?;
     if body.path.is_empty() {
+        // Here a person is given reading or editing, never the folder: it
+        // stays this computer's owner's, as an invitation's grant does
+        // (`local::invites`). [OPEN] for the maintainer: ADR 0117 does not
+        // say whether the owner may make an invited account an owner of a
+        // folder of the laptop; the smaller choice is kept.
+        if ctx.server.local.is_some() && body.role == Role::Owner {
+            return Err(ApiError::bad(
+                "owner",
+                "a person invited here reads or edits: the folder stays yours",
+            ));
+        }
         crate::folders::grant_whole(&ctx, &folder.id, &body.email, body.role)?;
         return Ok(ok(share_json(&ctx.server, &folder, "")?));
     }
@@ -523,6 +584,89 @@ pub async fn grant(
         );
     }
     Ok(ok(of_share(&ctx.server, &folder, &share)?))
+}
+
+#[derive(Deserialize)]
+pub struct Invite {
+    path: String,
+    #[serde(default)]
+    email: Option<String>,
+    role: Role,
+}
+
+/// An invitation link for a person who has no account, carrying the
+/// folder at `path` (`""` the whole folder) at a role — asked from the
+/// share dialog when the e-mail given is no account's. The server's admin
+/// invites a person who has no account (ADR 0081 item 4), and on a
+/// UniVerso an account the admin lets make folders does too, to read, at
+/// most 20 waiting (`acts::Inviter`, ADR 0117 D7 (e)) — here the folder's
+/// owner in both cases, with a fresh proof (ADR 0083 item 6): the way a
+/// folder with no table is invited to, on a UniVerso and where the app
+/// serves (decided 2026-11-04; a table's is `campaign_invite`). The act is
+/// the console's (`admin::acts::make_invitation`); the link opens where a
+/// window's links do (`crate::window_link`), and with a mail server it is
+/// mailed as the console's is (`admin::mail_invitation`).
+pub async fn invite(
+    ctx: Ctx,
+    Path(id): Path<String>,
+    Json(body): Json<Invite>,
+) -> ApiResult<Response> {
+    ctx.changes()?;
+    ctx.proved()?;
+    let folder = owned(&ctx, &id)?;
+    let who = ctx.person()?;
+    // Who may invite and at what role, by the one answer (ADR 0113,
+    // `InviteNew`), before anything is made.
+    let door = crate::access::Door::build(
+        &ctx.server,
+        who,
+        (folder.id.clone(), Role::Owner, true),
+        true,
+        None,
+    )
+    .with_powers(&ctx.server)?;
+    let inviter = crate::admin::acts::Inviter::at(&door, body.role)?;
+    let admin = who.account.id.clone();
+    if body.path.is_empty() {
+        // As a grant of the whole folder here (`grant`): reading or
+        // editing, the folder stays this computer's owner's.
+        if ctx.server.local.is_some() && body.role == Role::Owner {
+            return Err(ApiError::bad(
+                "owner",
+                "a person invited here reads or edits: the folder stays yours",
+            ));
+        }
+    } else {
+        share_path(&body.path)?;
+        if !exists_folder(&ctx.server, &folder, &body.path)? {
+            return Err(ApiError::new(
+                axum::http::StatusCode::NOT_FOUND,
+                "no_folder",
+                "no folder there",
+            ));
+        }
+    }
+    let address = ctx.address();
+    let by = crate::admin::acts::By {
+        actor: Some(&admin),
+        address: Some(&address),
+    };
+    let to = crate::admin::acts::Invitee {
+        email: body.email.as_deref(),
+        folder: Some(&folder.id),
+        role: Some(body.role),
+        share: None,
+        inviter: Some(inviter),
+        owned: true,
+    };
+    let (token, inv) =
+        crate::admin::acts::make_invitation_at(&ctx.server.db, &by, Some(&admin), &to, &body.path)?;
+    let mailed = crate::admin::mail_invitation(&ctx, inv.email.as_deref(), &token).await?;
+    Ok(ok(json!({
+        "link": crate::window_link(&ctx.server, &format!("/invite/{token}")),
+        "expires": inv.expires,
+        "mailed": mailed,
+    })))
 }
 
 /// A folder given to `account`, which had no access to it before (ADR 0084
@@ -672,15 +816,25 @@ pub async fn attachments(
     Ok(ok(of_share(&ctx.server, &folder, &now)?))
 }
 
-/// What a write through the server did to the shares of `folder` (item
-/// 13): a rename or a move carries the shares of what moved, in the same
-/// step; a deletion removes the shares of what it deleted. `args` and
-/// `answer` are in the owner's paths.
-pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
-    // The read links of what moved or was deleted follow it (ADR 0105), and
-    // so does the state a table keeps of its notes (ADR 0110).
-    crate::readlinks::after_write(server, folder, cmd, args, answer);
+/// What follows a rename, a move or a deletion through the server — a
+/// window's or a device's — in the write's own session, before anyone
+/// reads the folder again (the audit of 2026-11-05): the state a table
+/// keeps of its notes (ADR 0110, 0113 K.2) and the read links of what
+/// moved or went (ADR 0105 item 9). Both are the database's alone.
+pub fn followed(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
     crate::campaign_cmds::after_write(server, folder, cmd, args, answer);
+    crate::readlinks::after_write(server, folder, cmd, args, answer);
+    carried(server, folder, cmd, args, answer);
+}
+
+/// What a write through the server does to the shares of `folder` (item
+/// 13): a rename or a move carries the shares of what moved; a deletion
+/// removes the shares of what it deleted. `args` and `answer` are in the
+/// owner's paths. In the write's session ([`followed`]): a window on a
+/// share looks at its share again before each command ([`check`]), so
+/// from then on it reaches the shared folder where it is now, never what
+/// is made at the old place.
+fn carried(server: &Server, folder: &str, cmd: &str, args: &Value, answer: &Value) {
     let mut moves: Vec<(String, String)> = Vec::new();
     match cmd {
         "rename_entry" | "rename_note" => {
@@ -696,18 +850,18 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
             }
         }
         "delete_entry" | "delete_note" => {
-            if let Some(path) = args["path"].as_str() {
-                deleted(server, folder, path);
+            if let Some(path) = args["path"].as_str()
+                && let Err(e) = server.db.drop_shares_under(folder, path)
+            {
+                crate::log::error(&format!("removing a share: {e}"));
             }
             return;
         }
         _ => return,
     }
-    let mut touched = false;
     for (from, to) in moves {
         match server.db.move_shares(folder, &from, &to) {
-            Ok(ids) if !ids.is_empty() => {
-                touched = true;
+            Ok(ids) => {
                 for id in ids {
                     let _ = server.db.audit_share(
                         &crate::db::Audit {
@@ -722,22 +876,49 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
                     );
                 }
             }
-            Ok(_) => {}
             Err(e) => crate::log::error(&format!("carrying a share: {e}")),
         }
     }
-    if touched {
+}
+
+/// After a rename, a move or a deletion through the server, the session
+/// free: the windows on the shares of `folder` learn at once what changed
+/// ([`refresh`]) — a share moved, or gone with its folder. What they reach
+/// followed already ([`followed`]).
+pub fn after_write(server: &Server, folder: &str, cmd: &str) {
+    if matches!(
+        cmd,
+        "rename_entry" | "rename_note" | "move_entries" | "delete_entry" | "delete_note"
+    ) {
         refresh(server, folder, "deleted");
     }
 }
 
-/// `path` of `folder` deleted through the server: its shares go with it.
-pub fn deleted(server: &Server, folder: &str, path: &str) {
-    match server.db.drop_shares_under(folder, path) {
-        Ok(ids) if !ids.is_empty() => refresh(server, folder, "deleted"),
-        Ok(_) => {}
-        Err(e) => crate::log::error(&format!("removing a share: {e}")),
+/// A device deleted `path`, and the server pruned the folders it left
+/// empty (`prune_empty_parents`), in the deletion's session: a shared
+/// folder gone that way goes with its shares, as a window's deletion of
+/// the folder does (item 13). Whether any went: the windows on them are
+/// then told ([`refresh`]), the session free.
+pub fn device_deleted(
+    server: &Server,
+    ws: &mut verso_core::Workspace,
+    folder: &str,
+    path: &str,
+) -> bool {
+    let Ok(shares) = server.db.shares_of(folder) else {
+        return false;
+    };
+    let mut gone = false;
+    for s in shares {
+        if !covers(&s.path, path) || ws.is_folder(&s.path) {
+            continue;
+        }
+        match server.db.drop_shares_under(folder, &s.path) {
+            Ok(ids) => gone |= !ids.is_empty(),
+            Err(e) => crate::log::error(&format!("removing a share: {e}")),
+        }
     }
+    gone
 }
 
 /// A device's sync renamed `from` to `to`: sync moves files, one at a

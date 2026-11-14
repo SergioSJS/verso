@@ -282,6 +282,92 @@ fn the_sweep_removes_only_what_is_due_and_only_in_the_bin() {
     assert!(std::fs::read_dir(&bin).unwrap().next().is_none());
 }
 
+/// A book that, asked for its records — after the sweep's walk, before it
+/// removes what it found empty — sees a file land in the bin: what a
+/// deletion or a version a write replaced does when it runs beside the
+/// server's sweep, which holds no lock of the window's.
+struct Landing<'a> {
+    book: Book,
+    at: &'a Path,
+    landed: bool,
+}
+
+impl TrashBook for Landing<'_> {
+    fn records(&mut self) -> Result<Vec<TrashRecord>, String> {
+        if !self.landed {
+            self.landed = true;
+            std::fs::write(self.at, "kept").map_err(|e| e.to_string())?;
+        }
+        self.book.records()
+    }
+    fn put(&mut self, r: &TrashRecord) -> Result<(), String> {
+        self.book.put(r)
+    }
+    fn forget(&mut self, path: &str) -> Result<(), String> {
+        self.book.forget(path)
+    }
+}
+
+/// A folder of the bin the sweep's walk found empty is removed only if it
+/// still is: a file put in it since — a version a device's write replaced,
+/// a note deleted — stays (the night stress, 2026-11-04: "P3-5 was accepted
+/// and is on the disk nowhere, nor in the trash", the version of
+/// `d/Fundo/C.md` a write replaced lost with the folder the sweep removed
+/// whole).
+#[test]
+fn the_sweep_never_removes_a_file_put_in_a_folder_it_found_empty() {
+    let folder = tempfile::tempdir().unwrap();
+    let root = folder.path();
+    let bin = make_dir(root, ".trash");
+    let d = make_dir(&bin, "d");
+    let fundo = make_dir(&d, "Fundo");
+    let at = fundo.join("C (2).md");
+    let mut book = Landing {
+        book: Book::default(),
+        at: &at,
+        landed: false,
+    };
+    let swept = sweep(root, &mut book, DAY, 30, None, None).unwrap();
+    assert!(swept.failed.is_empty(), "{:?}", swept.failed);
+    assert_eq!(std::fs::read_to_string(&at).unwrap(), "kept");
+    assert_eq!(
+        in_bin(root),
+        vec![".trash/d", ".trash/d/Fundo", ".trash/d/Fundo/C (2).md"]
+    );
+}
+
+/// An entry of the bin past its time goes with what the sweep's walk found
+/// in it, never with a file put in it since: a folder deleted long ago
+/// whose path a new deletion or a kept version lands under keeps the new
+/// file (it went with `remove_dir_all` before).
+#[test]
+fn an_expired_folder_goes_without_a_file_put_in_it_since_the_walk() {
+    let folder = tempfile::tempdir().unwrap();
+    let root = folder.path();
+    let bin = make_dir(root, ".trash");
+    let d = make_dir(&bin, "d");
+    std::fs::write(d.join("velha.md"), "v").unwrap();
+    make_dir(&d, "vazia");
+    let at = d.join("C (2).md");
+    let mut book = Landing {
+        book: Book::default(),
+        at: &at,
+        landed: false,
+    };
+    book.put(&record(".trash/d", "d", 0, None, false)).unwrap();
+    let swept = sweep(root, &mut book, 31 * DAY, 30, None, None).unwrap();
+    assert!(swept.failed.is_empty(), "{:?}", swept.failed);
+    let gone: Vec<&str> = swept
+        .removed
+        .iter()
+        .map(|(i, _)| i.record.path.as_str())
+        .collect();
+    assert_eq!(gone, vec![".trash/d"]);
+    // What was there went; what came since stays, in the bin.
+    assert_eq!(std::fs::read_to_string(&at).unwrap(), "kept");
+    assert_eq!(in_bin(root), vec![".trash/d", ".trash/d/C (2).md"]);
+}
+
 #[test]
 fn a_restore_beside_a_taken_name_and_a_copy_before_a_write() {
     let folder = tempfile::tempdir().unwrap();

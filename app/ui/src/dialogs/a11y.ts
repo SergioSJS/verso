@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { hotkeyRecorder } from "./settings";
+import { focusOnOpen } from "../screen/openFocus";
 
 /* ---------- Dialogs: named, modal, Tab kept inside, focus given back ---------- */
 export const focusBefore = new WeakMap<HTMLElement, Element | null>();
@@ -98,6 +99,8 @@ export function opened(el: HTMLElement): void {
   const own = Number.parseInt(getComputedStyle(el).zIndex, 10) || 0;
   if (under.length > 0 && own <= top) el.style.zIndex = String(top + 1);
   if (el.getAttribute("aria-modal") === "true") for (const x of under) x.inert = true;
+  // What floats above the overlays hears of it (notify/toasts.ts).
+  dispatchEvent(new CustomEvent("verso:overlay", { detail: true }));
 }
 /** A dialog closes: the overlay under it is alive again, and the focus
  *  goes back where it was, when that is still there (`restore` false when
@@ -105,17 +108,24 @@ export function opened(el: HTMLElement): void {
 export function closed(el: HTMLElement, restore = true): void {
   const at = stack.indexOf(el);
   if (at >= 0) stack.splice(at, 1);
+  dispatchEvent(new CustomEvent("verso:overlay", { detail: false }));
   el.style.zIndex = "";
   const open = openNow();
   const below = open[open.length - 1];
   if (below) below.inert = false;
   const back = focusBefore.get(el);
   focusBefore.delete(el);
-  if (restore && back instanceof HTMLElement && back.isConnected) back.focus({ preventScroll: true });
+  // The focus leaves the closed dialog at once: a hidden field kept it in
+  // Chromium until the next frame, and the next key (⌘P) went to the
+  // field's own handler — with nothing to give it back to (the page's
+  // body), it stayed there.
+  const inside = document.activeElement;
+  if (inside instanceof HTMLElement && el.contains(inside)) inside.blur();
+  if (restore && back instanceof HTMLElement && back.isConnected) focusOnOpen(back, { preventScroll: true });
   // The focus stays in the dialog now on top: a click on a button gives it
   // no focus in WebKit, so where it was may be the page behind.
   if (restore && below && shownNow(below) && !below.contains(document.activeElement)) {
-    below.querySelector<HTMLElement>("input, select, textarea, button, [tabindex]:not([tabindex='-1'])")?.focus();
+    focusOnOpen(below.querySelector<HTMLElement>("input, select, textarea, button, [tabindex]:not([tabindex='-1'])"));
   }
 }
 /** A list whose highlighted option is announced: the field keeps the

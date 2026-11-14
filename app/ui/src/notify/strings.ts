@@ -6,6 +6,7 @@
 // every string in both, the English typed as the Portuguese's shape.
 
 import { originalOf } from "../dialogs/conflictNames";
+import { onPhone } from "../screen/phoneWords";
 import type { Kind, Level, Mode } from "./core";
 
 const pt = {
@@ -197,5 +198,5 @@ const en: typeof pt = {
 };
 
 export function notifyStrings(): typeof pt {
-  return document.documentElement.lang.startsWith("pt") ? pt : en;
+  return onPhone(document.documentElement.lang.startsWith("pt") ? pt : en);
 }

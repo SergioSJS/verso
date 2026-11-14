@@ -14,6 +14,6 @@ test("closing a pane and closing a workspace are named apart", () => {
 });
 
 test("no pt-BR pane or workspace label says \"área\"", () => {
-  const keys = ["closePane", "maximize", "restore", "closeSpace", "keysSpace", "lessonKeys", "moveTabNextPane", "moveTabPrevPane"];
+  const keys = ["closePane", "maximize", "restore", "closeSpace", "keysSpace", "newSpace", "space", "lessonKeys", "moveTabNextPane", "moveTabPrevPane"];
   for (const k of keys) assert.ok(!/\bárea/i.test(pt[k]), `${k}: ${pt[k]}`);
 });

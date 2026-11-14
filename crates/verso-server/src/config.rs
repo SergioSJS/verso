@@ -29,6 +29,10 @@ pub struct Config {
     pub folders_dir: PathBuf,
     /// The window's files (`VERSO_UI_DIR`): the build of `app/ui`.
     pub ui_dir: PathBuf,
+    /// The window's files from memory in place of `ui_dir`: a phone's app,
+    /// which carries them inside itself (ADR 0118 item 7). `None` for a
+    /// server.
+    pub ui_files: Option<crate::ui_files::UiFiles>,
     /// The window served to a browser (`verso serve --web`, ADR 0073 item
     /// 2); without it, the contract and the API only, for the desktop app.
     pub web: bool,
@@ -75,6 +79,115 @@ pub struct Config {
     /// 0083 item 10): 365 when unset, 0 for ever. Swept once a day by time
     /// alone (`crate::audit`); nothing else deletes a row.
     pub audit_days: u32,
+    /// The UniVerso's own Cloudflare link (ADR 0117 D4 item 2, decided
+    /// 2026-11-13): `VERSO_TUNNEL`, `VERSO_TUNNEL_HOSTNAME`,
+    /// `VERSO_TUNNEL_TOKEN` and `VERSO_TUNNEL_PORT`.
+    pub tunnel: Tunnel,
+}
+
+/// The link at the start (`VERSO_TUNNEL=off|quick|own`, off when unset).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TunnelAtStart {
+    #[default]
+    Off,
+    /// A quick link, new at each start, twelve hours with *Extend*.
+    Quick,
+    /// The own address: `VERSO_TUNNEL_HOSTNAME` by `VERSO_TUNNEL_TOKEN`.
+    Own,
+}
+
+/// The UniVerso's own link, as the environment gives it (ADR 0117 D4 item
+/// 2). The console turns it on and off as well, for this run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Tunnel {
+    pub at_start: TunnelAtStart,
+    /// The own address's hostname (`VERSO_TUNNEL_HOSTNAME`), the one
+    /// Cloudflare's dashboard routes to the tunnel.
+    pub hostname: Option<String>,
+    /// The tunnel's token made in Cloudflare's dashboard
+    /// (`VERSO_TUNNEL_TOKEN`, or the file `VERSO_TUNNEL_TOKEN_FILE`
+    /// names): handed to `cloudflared` in its environment, never logged,
+    /// shown in the console as set or not.
+    pub token: Option<String>,
+    /// The loopback port the link listens on for an own address
+    /// (`VERSO_TUNNEL_PORT`, [`DEFAULT_TUNNEL_PORT`] when unset): the
+    /// service the dashboard names, `http://localhost:<port>`. A quick
+    /// link takes a port the system picks.
+    pub port: u16,
+}
+
+/// The own address's loopback port when `VERSO_TUNNEL_PORT` is unset:
+/// beside the server's 7340. `[OPEN]` for the maintainer (R5).
+pub const DEFAULT_TUNNEL_PORT: u16 = 7341;
+
+impl Default for Tunnel {
+    fn default() -> Self {
+        Self {
+            at_start: TunnelAtStart::Off,
+            hostname: None,
+            token: None,
+            port: DEFAULT_TUNNEL_PORT,
+        }
+    }
+}
+
+/// `VERSO_TUNNEL`, `VERSO_TUNNEL_HOSTNAME`, `VERSO_TUNNEL_TOKEN[_FILE]`,
+/// `VERSO_TUNNEL_PORT`: each checked here, so that a server that cannot
+/// start its link says so at its start, in words, naming the variable.
+fn tunnel(env: &dyn Env) -> Result<Tunnel, ConfigError> {
+    let at_start = match value(env, "VERSO_TUNNEL")?
+        .map(|v| v.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        None | Some("" | "off" | "0" | "false" | "no") => TunnelAtStart::Off,
+        Some("quick") => TunnelAtStart::Quick,
+        Some("own") => TunnelAtStart::Own,
+        Some(other) => {
+            return Err(ConfigError(format!(
+                "VERSO_TUNNEL: off, quick or own, not {other}"
+            )));
+        }
+    };
+    let hostname = value(env, "VERSO_TUNNEL_HOSTNAME")?
+        .map(|h| h.trim().trim_end_matches('.').to_ascii_lowercase());
+    if let Some(h) = &hostname
+        && !verso_tunnel::named::valid_hostname(h)
+    {
+        return Err(ConfigError(format!(
+            "VERSO_TUNNEL_HOSTNAME: a hostname such as mesa.example.com, not {h}"
+        )));
+    }
+    let token = value(env, "VERSO_TUNNEL_TOKEN")?.map(|t| t.trim().to_owned());
+    if token
+        .as_deref()
+        .is_some_and(|t| !verso_tunnel::named::valid_token(t))
+    {
+        // The token itself is never repeated in an error.
+        return Err(ConfigError(
+            "VERSO_TUNNEL_TOKEN: not a tunnel's token (the long word Cloudflare's dashboard shows after --token)".to_owned(),
+        ));
+    }
+    let port = value(env, "VERSO_TUNNEL_PORT")?
+        .map(|p| {
+            p.trim()
+                .parse::<u16>()
+                .ok()
+                .filter(|p| *p != 0)
+                .ok_or_else(|| ConfigError(format!("VERSO_TUNNEL_PORT: a port, not {p}")))
+        })
+        .transpose()?
+        .unwrap_or(DEFAULT_TUNNEL_PORT);
+    if at_start == TunnelAtStart::Own && (hostname.is_none() || token.is_none()) {
+        return Err(ConfigError(
+            "VERSO_TUNNEL=own needs VERSO_TUNNEL_HOSTNAME and VERSO_TUNNEL_TOKEN (or VERSO_TUNNEL_TOKEN_FILE): the tunnel made in Cloudflare's dashboard and its token".to_owned(),
+        ));
+    }
+    Ok(Tunnel {
+        at_start,
+        hostname,
+        token,
+        port,
+    })
 }
 
 /// The audit log's retention when `VERSO_AUDIT_DAYS` is unset (ADR 0083
@@ -278,6 +391,7 @@ impl Config {
             web: false,
             ui_dir: value(env, "VERSO_UI_DIR")?
                 .map_or_else(|| defaults.ui_dir.clone(), PathBuf::from),
+            ui_files: None,
             admin,
             trusted_proxy,
             tls,
@@ -299,6 +413,7 @@ impl Config {
             trash_max: trash_max(env)?,
             history_days: days(env, "VERSO_HISTORY_DAYS", verso_core::history::DEFAULT_DAYS)?,
             audit_days: days(env, "VERSO_AUDIT_DAYS", DEFAULT_AUDIT_DAYS)?,
+            tunnel: tunnel(env)?,
         })
     }
 
@@ -315,6 +430,7 @@ impl Config {
             folders_dir: data_dir.join("no-folders-here"),
             data_dir,
             ui_dir,
+            ui_files: None,
             web: true,
             admin: None,
             trusted_proxy: crate::proxy::Proxies::default(),
@@ -329,6 +445,7 @@ impl Config {
             trash_max: Some(DEFAULT_TRASH_MAX),
             history_days: verso_core::history::DEFAULT_DAYS,
             audit_days: DEFAULT_AUDIT_DAYS,
+            tunnel: Tunnel::default(),
         }
     }
 
@@ -519,5 +636,65 @@ mod tests {
         assert!(many.trusts("2001:db8::9".parse().unwrap()));
         let bad = read(&[("VERSO_TRUSTED_PROXY", "10.0.0.0/40")]).unwrap_err();
         assert!(bad.0.starts_with("VERSO_TRUSTED_PROXY"), "{bad}");
+    }
+
+    /// `VERSO_TUNNEL` and its companions (ADR 0117 D4 item 2, decided
+    /// 2026-11-13): off unless asked; an own address needs its hostname
+    /// and its token; each wrong value refused naming its variable, the
+    /// token never repeated.
+    #[test]
+    fn the_link_is_off_unless_asked_and_an_own_address_needs_its_token() {
+        let token = "eyJhIjoiMDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWYiLCJ0IjoiNmZmNDJhZTIifQ==";
+        let c = read(&[]).unwrap();
+        assert_eq!(c.tunnel, Tunnel::default());
+        assert_eq!(c.tunnel.port, DEFAULT_TUNNEL_PORT);
+        for off in ["off", "OFF", "0", "no", "false"] {
+            assert_eq!(
+                read(&[("VERSO_TUNNEL", off)]).unwrap().tunnel.at_start,
+                TunnelAtStart::Off
+            );
+        }
+        assert_eq!(
+            read(&[("VERSO_TUNNEL", "Quick")]).unwrap().tunnel.at_start,
+            TunnelAtStart::Quick
+        );
+        let why = read(&[("VERSO_TUNNEL", "always")]).unwrap_err().0;
+        assert!(why.starts_with("VERSO_TUNNEL:"), "{why}");
+        let why = read(&[("VERSO_TUNNEL", "own")]).unwrap_err().0;
+        assert!(why.contains("VERSO_TUNNEL_HOSTNAME") && why.contains("VERSO_TUNNEL_TOKEN"));
+        let own = read(&[
+            ("VERSO_TUNNEL", "own"),
+            ("VERSO_TUNNEL_HOSTNAME", "Mesa.Example.com."),
+            ("VERSO_TUNNEL_TOKEN", token),
+            ("VERSO_TUNNEL_PORT", "7399"),
+        ])
+        .unwrap()
+        .tunnel;
+        assert_eq!(own.at_start, TunnelAtStart::Own);
+        assert_eq!(own.hostname.as_deref(), Some("mesa.example.com"));
+        assert_eq!(own.token.as_deref(), Some(token));
+        assert_eq!(own.port, 7399);
+        assert!(read(&[("VERSO_TUNNEL_HOSTNAME", "localhost")]).is_err());
+        assert!(read(&[("VERSO_TUNNEL_PORT", "0")]).is_err());
+        assert!(read(&[("VERSO_TUNNEL_PORT", "http")]).is_err());
+        let bad = "not a token at all, a sentence";
+        let why = read(&[("VERSO_TUNNEL_TOKEN", bad)]).unwrap_err().0;
+        assert!(
+            why.starts_with("VERSO_TUNNEL_TOKEN") && !why.contains(bad),
+            "{why}"
+        );
+        // From a file, as Docker's secrets give it, its line end trimmed.
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("token");
+        crate::data::write_for_tests(&file, &format!("{token}\n"));
+        let path = file.display().to_string();
+        let from_file = read(&[
+            ("VERSO_TUNNEL", "own"),
+            ("VERSO_TUNNEL_HOSTNAME", "mesa.example.com"),
+            ("VERSO_TUNNEL_TOKEN_FILE", &path),
+        ])
+        .unwrap()
+        .tunnel;
+        assert_eq!(from_file.token.as_deref(), Some(token));
     }
 }

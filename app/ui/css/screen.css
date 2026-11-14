@@ -36,7 +36,7 @@
   .graph-body.controls-open .graph-show-all:not(.in-panel) { display: none; }
   .graph-body.controls-open .graph-show-all.in-panel { display: inline-flex; }
 }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .graph-controls-toggle { display: inline-flex; }
   .graph-controls { display: none; position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(17rem, 88%); background: var(--paper); box-shadow: -12px 0 32px -16px oklch(0% 0 0 / .35); }
   .graph-body.controls-open .graph-controls { display: flex; }
@@ -59,7 +59,7 @@
 .failed-line .failed-text { flex: 1; min-width: 0; }
 
 /* ---------- A phone (item 6) ---------- */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
     /* The ribbon and the status bar leave; a bar of five verbs comes. */
   body, body.no-side, body.no-right, body.no-side.no-right { grid-template-columns: 0 0 0 1fr 0 0; }
   .ribbon, .status-bar { display: none; }
@@ -71,7 +71,11 @@
   .bottom-bar-item .icon { width: 20px; height: 20px; }
   .bottom-bar-item:disabled { opacity: .35; }
   .bottom-bar-item:active:not(:disabled) { color: var(--seal); background: var(--paper-3); }
-  .bottom-bar-label { font-size: 12px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The focus ring inside the item: at the screen's edges an outer ring was cut off. */
+  .bottom-bar-item:focus-visible, .pane .tab:focus-visible, .notify-bell-phone:focus-visible, .right-close button:focus-visible { outline-offset: -3px; }
+  .bottom-bar-label { font-size: var(--bar-label-size, 12px); line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* No room for the words even small (Android's largest text): the marks alone, the words kept for a screen reader (screen/frame.ts `fitBar`). */
+  .bottom-bar.marks-only .bottom-bar-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .cannot-write .bar-write { display: none; }
   /* A save that failed, at the top of the pane; the server's word on the
      connection there too, not under the bar. */
@@ -81,7 +85,9 @@
      and the fold ("More") is a target a finger finds. */
   body .pane .tabs, body.no-right:not(.framed-windows) .pane .tabs { padding-right: 48px; height: 44px; min-height: 44px; max-height: 44px; }
   /* Targets of 44 px: the tab, the drawer's head, the place, the cover. */
-  .pane .tab { height: calc(44px - .35rem); }
+  /* A tab keeps its name (up to its 22ch, then an ellipsis) and the row scrolls:
+     squeezed, the third tab's name was down to two letters. */
+  .pane .tab { height: calc(44px - .35rem); flex: none; }
   .folder-button, #collapse, .side-order { min-height: 44px; }
   #collapse, .side-order { min-width: 44px; }
   .crumbs .crumb, .note-add-cover-btn { min-height: 36px; }
@@ -107,6 +113,15 @@
    frame keeps out of the notch and the rounded corners. */
 body { padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
 .status-bar { padding-bottom: max(.3rem, env(safe-area-inset-bottom)); }
+/* Every overlay keeps out of the status bar, the camera cut-out and the
+   gesture bar (Android draws edge-to-edge, iOS has its notch): its layer
+   starts below them, so no close, search or button sits where a finger's
+   tap never reaches (the maintainer's phone, 2026-11-08). */
+/* (`body` first: the layers' own rules, later in the cascade, set `inset: 0`.) */
+body :is(.quick, .plan, .web-offline, .confirm) { top: env(safe-area-inset-top); right: env(safe-area-inset-right); bottom: env(safe-area-inset-bottom); left: env(safe-area-inset-left); }
+/* A dialog that holds the focus for its field (screen/openFocus.ts) draws no
+   ring around the whole screen: the ring is its controls'. */
+:is(.quick, .confirm, [role="dialog"], dialog)[tabindex="-1"]:focus-visible { outline: none; }
 
 /* ---------- The keyboard's bar (item 7) ---------- */
 /* Room under the text for what the keyboard and its bar cover: the last

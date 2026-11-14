@@ -41,9 +41,10 @@
   game master and players; files hidden until released),
   [0113](0113-one-access-model-for-a-table.md) (one `may()`, per-path access,
   per-player rights, `FileAccess` in every answer),
-  [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) (the
-  desktop as the shared server through a Cloudflare Quick Tunnel),
-  [0096](0096-this-app-is-a-server.md), [0073](0073-self-hosted-server-first.md),
+  [0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md) (the
+  desktop as the shared server through a Cloudflare Quick Tunnel; since
+  2026-11-03 [0117](0117-this-app-is-a-universo-server.md)),
+  [0096](archive/0096-this-app-is-a-server.md), [0073](0073-self-hosted-server-first.md),
   [0076](0076-the-window-on-every-screen.md) (the phone and the web window),
   [0027](0027-runtime-capabilities.md), [0103](0103-feature-presets-and-capability-flags.md)
   (one switch per feature), [0101](0101-3d-dice-physics-overlay.md) (the
@@ -89,7 +90,12 @@
   file the table's veil hides answers *not found* (0110 item 4, 0113). On the
   desktop the same bytes come from `verso://` (`app/src-tauri/src/protocol.rs`,
   `media-src verso:` allowed). Nothing new is needed to stream a music file
-  to a listener who may see it.
+  to a listener who may see it. `[REVISED 2026-11-04]` Except on Linux:
+  WebKitGTK's media engine plays no custom scheme (`verso:` or `tauri:`
+  are refused before a byte is read, MediaError 4, in 0.8.4 too), so there
+  the page fetches the file and plays a blob it made
+  (`app/ui/src/audio/source.ts`; the whole file is held while it plays),
+  under `media-src blob:` (`1188c561e`).
 - *Audio in the window* is Web Audio: one `AudioContext` made only inside a
   gesture (`app/ui/src/dice3d/audio.ts`: `unlockAudio`, `armAudio`,
   `whenContext`, `keepWarm`, the audio clock watched for a standing
@@ -321,7 +327,7 @@ streamed to the table — independent of the files**
     simply starts receiving. One live share per table at a time in V1;
     starting another asks to replace it. The share ends on *Stop*, when the
     master's window disconnects, or when the table empties. **It needs no
-    file, no note and no setting**: the player's empty state (item 24) is a
+    file, no note and no setting**: the Music tab's header (items 24, 27) has a
     *Share audio…* button, and from a folder with nothing in it the master
     is sharing Spotify in two gestures — the button and the source (decided,
     item 3). The file state of section A is not consulted, not created and
@@ -509,9 +515,9 @@ streamed to the table — independent of the files**
     the contract already carries the list of channels.
 24. **"A corner of the window": in the Table panel, and a status item when it
     is closed.** A compact strip at the top of the *Mesa* / *Table* panel
-    (0107 item 10). **Empty state**, for the master: two buttons side by
-    side, ***Share audio…*** and *Play a file…*, the first in the leading
-    place — nothing to set up before either (decided, item 3); for a
+    (0107 item 10). **Empty state**, for the master: *Play a file…* and, in the
+    tab's header row, ***Share audio…*** (one place only, item 27) —
+    nothing to set up before either (decided, item 3); for a
     listener, *"Nothing is playing"*. Playing a file: the track's name,
     play/pause, previous/next, the position as a thin bar, loop, the master
     volume (master) and the own volume and *Follow* (everyone). Sharing: the
@@ -576,7 +582,8 @@ streamed to the table — independent of the files**
       or system, never video, never a window's title.
     - *No new script surface*: an `<audio>` element and a worklet run no
       page script; `media-src 'self'` and `media-src verso:` already allow
-      the files; `worker-src 'self' blob:` already allows the worklet; the
+      the files (on Linux `media-src blob:` too, a blob only the page's own
+      script makes, `[REVISED 2026-11-04]`); `worker-src 'self' blob:` already allows the worklet; the
       WASM decoder is the app's own file.
     - *Rule 5*: no `std::fs` anywhere; the capture module touches audio
       devices, never a file. *Rule 4*: paths relative to the table's root.
@@ -618,7 +625,7 @@ streamed to the table — independent of the files**
   scripted stream of frames, a fake `<audio>` with a controllable
   `currentTime`, a fake source list.
 - e2e, **two windows** (0107 item 15's pattern): from an **empty folder**,
-  the master's player shows *Share audio…* first and a share starts from the
+  the master's Music tab shows *Share audio…* in its header and a share starts from the
   fake list with no file anywhere; the listener's worklet receives frames
   and the live region says who shares; *Stop* propagates; the master plays a
   file, the player's element carries the right `src` and is not paused after
@@ -751,7 +758,7 @@ on the revision (in pt-BR):
   quem tá ali dentro."* → item 2, section B.
 - **The two-source proposal accepted; the share must work with no file**:
   *"A proposta é boa, se não tiver arquivo, tem que ter by pass para
-  compartilhar"* → item 3; items 16 and 24 (the empty state leads to *Share
+  compartilhar"* → item 3; items 16 and 24 (the tab's header leads to *Share
   audio…*; nothing of the share depends on the files).
 - **Solo use** (the first text's Q4): *"Uso solo sim"* → item 4.
 - **Everything in V1** (the first text's Q12 and the revision's phase
@@ -929,7 +936,7 @@ decided that the record leaves open.
 **Not built in phase 1** (since then S1–S5 of section B are built: see the
 Status). Section B (the live share: capture, Opus, the
 relay, the WASM decoder, the picker, `Can::AudioShare`, the responsibility
-line, the TCC prompt; the Music tab's empty state will lead to *Share
+line, the TCC prompt; the Music tab's header will lead to *Share
 audio…* there, and no button for it is drawn now) — the contract leaves room for it: a share is its own
 event beside `table-playback`, and `PlaybackSource.kind` tells a file from
 anything else. The measurements of item 28 on VM 107 and `server-install.md`
@@ -1040,11 +1047,16 @@ window event, `audio-share-level` (the peak of the last 100 ms, 0 to 1, a
 single number; the sound never crosses into the web view), through a wrapper
 of the chosen source (`audio_share/mod.rs`, `Metered`).
 
-- **Where it is drawn** (item 27): *Share audio…* is in the Music tab's
-  empty state and its header, only while `can("audio_share")` (the desktop
+- **Where it is drawn** (item 27): *Share audio…* is drawn **once**, in the
+  Music tab's header, only while `can("audio_share")` (the desktop
   host's capability) and `TableJoin.broadcast` (the game master) are both
   true and the table's sound is on; nowhere else, no dead button for a
-  player, a browser or a phone. The join's `broadcast` is read in
+  player, a browser or a phone. `[DECIDED 2026-11-04]` One place, not two (it
+  was the empty state and the header): the header row is on screen in every
+  state of the tab (empty, a file playing, a share running, desktop and
+  390 × 844), so the button is reachable wherever the second one was; it hides
+  itself only while this window's own share runs, and *Stop* stays the share
+  card's, the mini-player's and the status bar's. The join's `broadcast` is read in
   `table/join.ts` (`setMayShare`).
 - **The picker** (`sharePick.ts`): `audio_sources_list`, one radio per
   source with its kind (application, page, system) and its display name;

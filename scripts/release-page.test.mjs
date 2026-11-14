@@ -74,14 +74,14 @@ for (const v of ["0.8.1-beta.1", "1.0.0"]) {
 
 // ADR 0055, revised 2026-10-14: one signed checksums list in place of a
 // `.sig` per file, with 0.8.3 the bridge that publishes both.
-test("a release publishes its fourteen files and the signed list; the bridge, each file's .sig too", () => {
+test("a release publishes its sixteen files and the signed list; the bridge, each file's .sig too", () => {
   const v = "0.8.3-beta.1";
   const after = releaseAssets(v, false);
-  assert.equal(after.length, 16);
+  assert.equal(after.length, 18);
   assert.ok(after.includes("verso-0.8.3-beta.1-SHA256SUMS") && after.includes("verso-0.8.3-beta.1-SHA256SUMS.sig"));
   assert.equal(after.filter((a) => a.endsWith(".sig")).length, 1, "after the bridge, the list's .sig alone");
   const bridge = releaseAssets(v, true);
-  assert.equal(bridge.length, 30);
+  assert.equal(bridge.length, 34);
   for (const f of Object.values(releaseFiles(v))) assert.ok(bridge.includes(`${f}.sig`), `${f}.sig in the bridge`);
   assert.deepEqual(releaseAssets(v), releaseAssets(v, PER_FILE_SIGNATURES));
 });
@@ -96,6 +96,11 @@ test("the publish job publishes exactly the files release.mjs names", () => {
 test("the checksums job lists the files release.mjs names, under the list's name, and checks the signed comment", () => {
   const sums = job("checksums");
   assert.match(sums, /node scripts\/release\.mjs files "\$VERSION"/);
+  // Its count of the files is release.mjs's: the Android APK came without
+  // it (14 against 15, found 2026-11-14).
+  const count = /-ne (\d+) \]/.exec(sums);
+  assert.ok(count, "the checksums job counts no files");
+  assert.equal(Number(count[1]), Object.keys(releaseFiles("0.8.5-beta.1")).length, "the checksums job's count is not release.mjs's");
   const name = /list="(verso-\$VERSION-SHA256SUMS)"/.exec(sums);
   assert.ok(name, "the list's name is not set in the checksums job");
   for (const v of ["0.8.3-beta.1", "1.0.0"]) assert.equal(name[1].replace("$VERSION", v), checksumsList(v));

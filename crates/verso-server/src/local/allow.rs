@@ -157,6 +157,16 @@ pub const EDIT: &[&str] = &[
 /// not make the laptop fetch an address on the network for a phone), the
 /// folder's own settings and rules, emptying the bin, deleting history.
 pub const REFUSED: &[&str] = &[
+    // ADR 0118 (2026-11-12): the phone host's own commands, about the
+    // device the app runs on (its shared storage, what was shared to it,
+    // its background sync, its status bar): never a remote phone's.
+    "folder_in_app",
+    "open_shared_folder",
+    "set_background_sync",
+    "set_bars_dark",
+    "shared_storage",
+    "shared_storage_access",
+    "take_shared",
     "loose_close",         // ADR 0114: host-side loose-files window of the laptop
     "loose_files",         // ADR 0114: host-side loose-files window of the laptop
     "loose_save_again",    // ADR 0114: writes beside a file of the laptop's disk
@@ -202,6 +212,7 @@ pub const REFUSED: &[&str] = &[
     "web_open",
     "web_bounds",
     "web_visible",
+    "web_snapshot",
     "web_close",
     "web_nav",
     "web_url",
@@ -232,6 +243,7 @@ pub const REFUSED: &[&str] = &[
     "server_sign_out",
     "share_attachments",
     "share_grant",
+    "share_invite",
     "share_list",
     "share_revoke",
     // Read links are a server's (ADR 0105): the phone's server has none.
@@ -487,6 +499,27 @@ mod tests {
             "local_server_pair_open",
             "local_server_answer",
             "local_server_forget",
+            // ADR 0117's: the link, the own address, the invitations, the seat.
+            "local_server_network",
+            "local_server_link_on",
+            "local_server_link_off",
+            "local_server_link_extend",
+            "local_server_link_mode",
+            "local_server_own_address_login",
+            "local_server_own_address_set_up",
+            "local_server_own_address_remove",
+            "local_server_invitations",
+            "local_server_invitation_revoke",
+            "local_server_sit_at_table",
+            // S7c: the desktop apps signed in, and the read links' switch.
+            "local_server_devices",
+            "local_server_end_device",
+            "local_server_read_links",
+            // The people invited: the list, a new password, sessions, remove.
+            "local_server_accounts",
+            "local_server_account_reset",
+            "local_server_account_end_sessions",
+            "local_server_account_remove",
             "a_command_added_tomorrow",
         ] {
             for role in [Role::Reader, Role::Editor, Role::Owner] {

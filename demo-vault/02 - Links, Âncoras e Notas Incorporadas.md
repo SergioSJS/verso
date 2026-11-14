@@ -98,7 +98,7 @@ Em **Ajustes › Editor**, **Sugerir links enquanto escrevo** (desligado por pad
 
 Outro caminho, ligado por padrão (**Citar uma nota com @**, no mesmo lugar): digite `@` no começo de uma palavra e a mesma lista de notas do `[[` se abre; continue digitando para filtrar e escolha uma nota — o `@` e o que veio depois viram `[[Nome]]` (ou `[[Nome|texto]]`). **Esc** deixa o texto como você digitou. Não abre em `fulano@email`, nem em código, links, fórmulas ou tags.
 
-Renomear uma nota não quebra nada: o Verso mostra as notas que apontam para ela e atualiza os links quando você confirma (veja [[14 - Arquivos e Pastas]]).
+Renomear uma nota não quebra nada: o Verso mostra as notas que apontam para ela e atualiza os links quando você confirma (veja [[07 - Arquivos e Pastas]]).
 
 ---
 
@@ -121,4 +121,4 @@ Abaixo temos algumas linhas de preenchimento para garantir que o salto com ânco
 > **Você chegou à Seção de Destino Local!**
 > Se você clicou no link `[[#Seção de Destino Local]]`, a tela rolou até aqui automaticamente.
 
-Voltar para [[00 - Bem-vindo ao Verso|Início]] ou seguir para [[03 - Propriedades e Metadados]].
+Anterior: [[01 - Guia de Markdown e Sintaxe]] · Próxima: [[03 - Propriedades e Metadados]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

@@ -10,7 +10,7 @@
 // included, where the person acted.
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ContractError, type LocalAddressChoice, type LocalFolder, type LocalPairState, type LocalPairing, type LocalServerStatus } from "../bindings";
+import { commands, type ContractError, type LocalAddressChoice, type LocalFolder, type LocalLink, type LocalPairState, type LocalPairing, type LocalServerStatus } from "../bindings";
 import { button, h, ui } from "../dom";
 import { errorSentence } from "../errors";
 import { icon } from "../icons";
@@ -18,7 +18,17 @@ import { phoneConnectedHeard, serveDroppedHeard, serveStoppedHeard } from "../no
 import { busy } from "../reach";
 import { asDialog, closed, opened } from "./a11y";
 import { servedFolders } from "./servedFolders";
-import { localStrings } from "./localServerStrings";
+import { eventSubject, eventWords, localStrings, stoppedWords } from "./localServerStrings";
+import { linkBoxes, linkSentence, whyOf } from "./localServerLink";
+import { newest } from "./localServerFresh";
+import { linkStrings, markSaid } from "./localServerLinkStrings";
+import { invitations } from "./localServerInvites";
+import { accountsBlock } from "./localServerAccounts";
+import { playersBlock } from "./localServerPlayers";
+import { hearSeat, lookAgain, onSeatChange, setOpener } from "./localServerSeat";
+import type { openFolderBy } from "../open";
+import { drawQr } from "./qr";
+import { askedByLink, firstShown, linkSwitch, pairOffered, typedAddress, type Shown } from "./localServerPairLink";
 
 /** What the host emits as `local-server` (verso_server::local::Event). */
 type Heard =
@@ -48,13 +58,48 @@ let heard = false;
 let mark: HTMLElement | null = null;
 const redraws = new Set<() => void>();
 
+/** The host's answers, newest asked first, for the mark and the section
+ *  alike: the two draw the same state, and an answer asked before one
+ *  already drawn is dropped. Each asked apart and drawn as it came back,
+ *  the mark said "Servindo · ligando o link…" for seconds after the panel
+ *  said "Link no ar." (the re-test of 2026-11-04). */
+const order = newest();
+
 /** Refresh what shows the mode's state: the mark, and the section if it
  *  is on screen. */
 async function refreshMark(): Promise<void> {
+  const asked = order.ask();
   const r = await commands.localServerStatus();
-  if (r.status !== "ok" || !r.data.supported) return markOff();
-  const s = r.data;
-  if (!s.serving) return markOff();
+  if (r.status === "ok" && !order.take(asked)) return;
+  if (r.status !== "ok") return markOff();
+  drawMark(r.data);
+}
+
+/** The mark, from the host's status `s`. */
+/** Whether this app serves now, as the mark last drew it: Settings shows
+ *  the owner's Account while it does (masterAccount.ts). */
+let servingNow = false;
+export function serves(): boolean {
+  return servingNow;
+}
+
+function setServing(on: boolean): void {
+  if (on === servingNow) return;
+  servingNow = on;
+  // Settings' list of sections follows (the owner's Account), and the
+  // window's folder may have become served, or stopped being: it sits at
+  // its table by itself (localServerSeat.ts).
+  dispatchEvent(new Event("verso:serving"));
+  lookAgain();
+}
+
+function drawMark(s: LocalServerStatus): void {
+  setServing(s.serving);
+  if (!s.supported) return markOff();
+  // Starting the link alone, nothing serves yet: the mark says so, with
+  // its Stop, while cloudflared downloads (Linux has no tray).
+  const linkStarting = s.link.state === "starting";
+  if (!s.serving && !linkStarting) return markOff();
   const w = localStrings();
   // An app that started serving by itself before this window listened.
   if (s.dropped.length > 0) serveDroppedHeard(w.droppedSaid(s.dropped.join(", ")));
@@ -65,7 +110,6 @@ async function refreshMark(): Promise<void> {
     const text = h("span", "ls-mark-text");
     const stop = button("ghost ls-mark-stop", w.markStop);
     stop.textContent = w.markStop;
-    stop.setAttribute("aria-label", w.markStopLabel);
     stop.addEventListener("click", () => {
       busy(stop, true);
       void commands.localServerStop().then(() => {
@@ -80,11 +124,24 @@ async function refreshMark(): Promise<void> {
     ui.status.after(mark);
   }
   const text = mark.querySelector<HTMLElement>(".ls-mark-text");
-  if (text) text.textContent = w.mark(s.phones_connected);
-  mark.title = where(s);
+  // The internet link is said in the mark while it is on (ADR 0117 D3
+  // item 6): nothing listens on the internet without being visible.
+  // Up only once it has its address; until then, "turning the link on".
+  const said = markSaid(s, w.mark(s.phones_connected));
+  if (text) text.textContent = said;
+  // The Stop says what it stops, as it is now (the walk of 2026-11-06: "to
+  // the phone" while it served the internet link).
+  const stop = mark.querySelector<HTMLElement>(".ls-mark-stop");
+  if (stop) {
+    const label = w.markStopLabel(s.serving && s.port !== null, s.link.state === "on" || s.link.state === "starting");
+    stop.setAttribute("aria-label", label);
+    stop.title = label;
+  }
+  mark.title = s.link.state === "on" && s.link.origin ? s.link.origin : s.serving ? where(s) : said;
 }
 
 function markOff(): void {
+  setServing(false);
   mark?.remove();
   mark = null;
 }
@@ -92,9 +149,10 @@ function markOff(): void {
 /** Listen to the host, once: the mark follows, a phone's first connection
  *  and a stop by itself are notifications (ADR 0084), a phone asking opens
  *  the question wherever the person is. */
-export function hearLocalServer(): void {
+export function hearLocalServer(open: typeof openFolderBy, reload: () => Promise<void>): void {
   if (heard) return;
   heard = true;
+  setOpener(open, reload);
   void listen<Heard>("local-server", (e) => {
     const p = e.payload;
     void refreshMark();
@@ -105,6 +163,19 @@ export function hearLocalServer(): void {
     // folders that are gone from the disk.
     else if (p.kind === "dropped") serveDroppedHeard(localStrings().droppedSaid(p.what.join(", ")));
     else if (p.kind === "asked") openPairing();
+  });
+  // The internet link (ADR 0117 D3 item 6): the mark and the section
+  // follow; a link that ended by itself is said where the person reads.
+  hearSeat();
+  onSeatChange(() => {
+    void refreshMark();
+    for (const redraw of redraws) redraw();
+  });
+  void listen<LocalLink>("local-server-link", (e) => {
+    void refreshMark();
+    for (const redraw of redraws) redraw();
+    const l = e.payload;
+    if (l.state === "offline" || l.ended === "ceiling") serveStoppedHeard(`${linkStrings().linkFell}. ${linkSentence(l)}`);
   });
   void refreshMark();
 }
@@ -122,6 +193,14 @@ export function restartNote(n: number): string {
 
 /* ---------- The section ---------- */
 
+/** The next section drawn goes to its paired phones: *Ver os celulares
+ *  pareados* in Settings › Account (masterAccount.ts) went to the top of
+ *  the section, the phones far below (the walk of 2026-11-06). */
+let toPhones = false;
+export function showPhonesNext(): void {
+  toPhones = true;
+}
+
 type Item = (title: string, desc: string, control: HTMLElement | null) => HTMLElement;
 
 export function localServerBody(_item: Item): HTMLElement {
@@ -132,9 +211,21 @@ export function localServerBody(_item: Item): HTMLElement {
   const say = (text: string): void => {
     said.textContent = text;
   };
-  const failed = (e: ContractError | unknown) => say(errorSentence(e) || w.failed);
+  // The host's refusals of serving in words (a synced folder, serving on); the rest as everywhere.
+  const failed = (e: ContractError | unknown) => say(whyOf(e) || w.failed);
 
   const lead = h("p", "ls-lead", w.lead);
+  // The two boxes under the switch, and the link (ADR 0117 D1).
+  const boxes = linkBoxes({ say, redraw: () => void redraw() });
+  // The owner's name as the players see it is in Settings › Account (ADR
+  // 0117 D2, revised 2026-11-05: one place, the account's): said here.
+  const ownerName = { el: h("p", "ls-help", w.ownerNameMoved) };
+  // Invitations (ADR 0117 D3 item 2).
+  const invites = invitations(say);
+  // The people invited: a new password, sessions, remove (ADR 0117 D9).
+  const players = playersBlock(say);
+  // Other people's desktop apps, read links, passkeys (ADR 0117 D9).
+  const accounts = accountsBlock(say);
   const unsupported = h("p", "ls-warn", w.unsupported);
   unsupported.hidden = true;
 
@@ -143,7 +234,7 @@ export function localServerBody(_item: Item): HTMLElement {
   const foldersLead = h("p", "ls-help", w.foldersLead);
   const served = servedFolders({
     heading: foldersHead,
-    syncsWith: w.syncsWith,
+    receivedFrom: w.receivedFrom,
     locked: w.foldersLocked,
     none: w.noFolders,
     tick: async (key, ticked) => {
@@ -230,6 +321,8 @@ export function localServerBody(_item: Item): HTMLElement {
   const pairHelp = h("p", "ls-help", w.pairNeedsOn);
   // Phones.
   const phonesHead = h("h3", "ls-h", w.pairedTitle);
+  phonesHead.id = "ls-paired";
+  phonesHead.tabIndex = -1;
   const phones = h("ul", "ls-phones");
   const danger = h("div", "ls-danger");
   // Certificate.
@@ -355,7 +448,8 @@ export function localServerBody(_item: Item): HTMLElement {
       li.append(who, acts);
       phones.append(li);
     }
-    state.textContent = s.serving ? `${w.serving(where(s))} ${w.phones(s.phones_paired, s.phones_connected)}.` : `${w.off} ${w.phones(s.phones_paired, 0)}.`;
+    const on = s.port !== null ? w.serving(where(s)) : linkStrings().servingLinkOnly;
+    state.textContent = s.serving ? `${on} ${w.phones(s.phones_paired, s.phones_connected)}.` : `${w.off} ${w.phones(s.phones_paired, 0)}.`;
   };
 
   const drawDanger = () => {
@@ -403,9 +497,9 @@ export function localServerBody(_item: Item): HTMLElement {
     if (r.data.length === 0) list.append(h("li", "ls-help", w.logEmpty));
     for (const e of r.data.slice(0, 60)) {
       const li = h("li");
-      const what = w.actions[e.action] ?? e.action;
-      li.append(h("time", "", when(e.at)), ` · ${what}`);
-      if (e.subject) li.append(` · ${e.subject}`);
+      // In words, never its code: a newer server's event has a sentence too.
+      li.append(h("time", "", when(e.at)), ` · ${eventWords(e.action)}`);
+      if (e.subject) li.append(` · ${eventSubject(e.subject)}`);
       if (e.address) li.append(` · ${e.address}`);
       list.append(li);
     }
@@ -413,13 +507,16 @@ export function localServerBody(_item: Item): HTMLElement {
   };
 
   const redraw = async (): Promise<void> => {
+    const asked = order.ask();
     const r = await commands.localServerStatus();
     if (r.status !== "ok") return failed(r.error);
+    if (!order.take(asked)) return;
     status = r.data;
     const s = r.data;
-    void refreshMark();
+    // The mark from the answer the section draws, at once.
+    drawMark(s);
     unsupported.hidden = s.supported;
-    for (const el of [foldersHead, foldersLead, folders, run, state, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
+    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, ownerName.el, invites.el, players.el, accounts.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
     if (!s.supported) return;
     keep.checked = s.keep_on;
     most.value = String(s.max_connected);
@@ -431,15 +528,33 @@ export function localServerBody(_item: Item): HTMLElement {
       const steps = mac ? w.unreachableMac : windows ? w.unreachableWindows : w.unreachableLinux(s.port);
       blocked.replaceChildren(h("p", "", w.unreachable), h("p", "ls-help", steps));
     }
-    pair.disabled = !s.serving;
-    pairHelp.hidden = s.serving;
-    if (!s.serving && s.stopped_because) say(w.stoppedNet);
+    // A phone pairs on the network (the same Wi-Fi) and through the
+    // internet link once it has its address (ADR 0117 D5).
+    const can = pairOffered(s);
+    pair.disabled = !can;
+    pairHelp.hidden = can;
+    pairHelp.textContent = s.serving ? linkStrings().pairNeedsNetwork : w.pairNeedsOn;
+    boxes.draw(s);
+    // Why it stopped by itself, from the host's phrase (verso-server local/mod.rs).
+    if (!s.serving && s.stopped_because) say(stoppedWords(s.stopped_because, w));
+    // iOS closed the port while the device was locked, and it listens again.
+    if (s.serving && s.listened_again) say(w.listenedAgain);
     const f = await commands.localServerFolders();
     if (f.status === "ok") drawFolders(f.data, s.serving);
+    await invites.draw(s);
+    await players.draw(s);
+    await accounts.draw(s);
     await drawPhones(s);
     drawCert(s);
     drawDanger();
     await drawLog();
+    // Drawn whole, the blocks above have their height: the phones are
+    // where they stay.
+    if (toPhones && phonesHead.isConnected) {
+      toPhones = false;
+      phonesHead.scrollIntoView({ block: "start" });
+      phonesHead.focus({ preventScroll: true });
+    }
   };
   redraws.add(() => void redraw());
 
@@ -450,20 +565,36 @@ export function localServerBody(_item: Item): HTMLElement {
         const r = await commands.localServerStop();
         busy(run, false);
         if (r.status !== "ok") return failed(r.error);
-        say(w.off);
+        // The state line beside the switch says it: not twice.
+        say("");
         return redraw();
       }
-      if (!(await explainFirst())) return;
-      busy(run, true);
-      const r = await commands.localServerStart();
-      busy(run, false);
-      if (r.status !== "ok") return failed(r.error);
-      say(w.serving(where(r.data)));
-      // Chosen folders no longer on the disk were left out: said here and
-      // in the notifications, not only in the row.
-      if (r.data.dropped.length > 0) {
-        const said = w.droppedSaid(r.data.dropped.join(", "));
-        say(said);
+      // At least one box (ADR 0117 D1): the network, the link, or both.
+      const net = status?.network ?? true;
+      const link = boxes.wanted();
+      if (!net && !link) return say(linkStrings().tickOne);
+      if (net) {
+        // The system's prompts are the network's (ADR 0096 item 9).
+        if (!(await explainFirst())) return;
+        busy(run, true);
+        const r = await commands.localServerStart();
+        busy(run, false);
+        if (r.status !== "ok") return failed(r.error);
+        // "Servindo em …" is the state line's, beside the switch: said
+        // here too, it showed twice, one under the other (the walk of
+        // 2026-11-06).
+        say("");
+        // Chosen folders no longer on the disk were left out: said here and
+        // in the notifications, not only in the row.
+        if (r.data.dropped.length > 0) {
+          const said = w.droppedSaid(r.data.dropped.join(", "));
+          say(said);
+        }
+      }
+      if (link) {
+        busy(run, true);
+        await boxes.turnOn();
+        busy(run, false);
       }
       return redraw();
     })();
@@ -508,8 +639,12 @@ export function localServerBody(_item: Item): HTMLElement {
     return b;
   };
   box.append(
-    block(lead, unsupported, runRow, blocked, said, keepLabel, keepHelp),
+    block(lead, unsupported, runRow, said, boxes.el, blocked, keepLabel, keepHelp),
     block(foldersHead, foldersLead, folders),
+    block(ownerName.el),
+    block(invites.el),
+    block(players.el),
+    block(accounts.el),
     block(phonesHead, pair, pairHelp, phones, mostLabel, mostHelp),
     block(cert, danger, log),
   );
@@ -568,41 +703,6 @@ function explainFirst(): Promise<boolean> {
 /* ---------- The pairing dialog ---------- */
 
 let dialog: HTMLElement | null = null;
-
-/** The QR as an SVG built here from rows of 1 and 0: no markup comes from
- *  the host. */
-function drawQr(rows: string[], label: string): SVGSVGElement {
-  const ns = "http://www.w3.org/2000/svg";
-  const n = rows.length;
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", `0 0 ${n} ${n}`);
-  svg.setAttribute("class", "ls-qr");
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", label);
-  svg.setAttribute("shape-rendering", "crispEdges");
-  const back = document.createElementNS(ns, "rect");
-  back.setAttribute("width", String(n));
-  back.setAttribute("height", String(n));
-  back.setAttribute("fill", "#fff");
-  let d = "";
-  rows.forEach((row, y) => {
-    for (let x = 0; x < row.length; ) {
-      if (row[x] !== "1") {
-        x++;
-        continue;
-      }
-      let run = 1;
-      while (row[x + run] === "1") run++;
-      d += `M${x} ${y}h${run}v1h-${run}z`;
-      x += run;
-    }
-  });
-  const path = document.createElementNS(ns, "path");
-  path.setAttribute("d", d);
-  path.setAttribute("fill", "#000");
-  svg.append(back, path);
-  return svg;
-}
 
 /** Open the pairing dialog: a window of two minutes while it stays open;
  *  closing it ends the window. A phone that presents the token raises the
@@ -680,6 +780,8 @@ export function openPairing(): void {
     const editor = h("input");
     editor.type = "checkbox";
     editor.id = "ls-editor";
+    // An editor chosen first (ADR 0117 D5 (2)): the owner's own device.
+    editor.checked = true;
     const editorLabel = h("label", "ls-check");
     editorLabel.htmlFor = editor.id;
     editorLabel.append(editor, h("span", "", w.canEdit));
@@ -704,6 +806,8 @@ export function openPairing(): void {
     refuse.addEventListener("click", () => answer(false));
     const row = h("div", "confirm-actions");
     row.append(refuse, allow);
+    const byLink = askedByLink(a.link);
+    if (byLink) ask.append(byLink);
     ask.append(facts, editorLabel, h("p", "ls-help", w.canEditDesc), row);
     refuse.focus();
   };
@@ -760,15 +864,18 @@ export function choiceLabel(c: LocalAddressChoice): string {
   return `${c.address} — ${c.interface} (${what})`;
 }
 
-function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string) => void): void {
+function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string) => void, shown: Shown = firstShown(p)): void {
   const w = localStrings();
-  body.replaceChildren(h("p", "ls-help", w.pairSteps), drawQr(p.qr, w.qrLabel));
+  // The network's QR, or the same window's through the internet link
+  // (ADR 0117 D5): the token is the same, and so is the code.
+  const qr = shown.link && p.link ? p.link.qr : p.qr;
+  body.replaceChildren(h("p", "ls-help", w.pairSteps), drawQr(qr, w.qrLabel));
   const facts = h("dl", "ls-facts");
   const addr = h("dd", "ls-big");
-  addr.append(h("code", "", `https://${p.address}/pair`));
+  addr.append(h("code", "", typedAddress(shown.url)));
   // Which address, on which interface; the list lets the person pick
   // another (a native list: keyboard and screen reader for free).
-  if (p.choices.length > 0) {
+  if (p.choices.length > 0 && !shown.link) {
     const row = h("p", "ls-pick");
     const label = h("label", "ls-help", w.addressPick);
     label.htmlFor = "ls-address";
@@ -799,6 +906,11 @@ function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string)
   code.append(h("code", "ls-code", p.code));
   facts.append(h("dt", "", w.address), addr, h("dt", "", w.code), code);
   body.append(facts);
+  const swap = linkSwitch(p, shown, (next) => {
+    drawPairing(body, p, pick, next);
+    body.querySelector<HTMLElement>(".ls-pair-link .btn")?.focus();
+  });
+  if (swap) body.append(swap);
   // The same link the QR encodes, for a phone that cannot scan or a
   // message to oneself: it carries the same one-time token, in the part
   // after `#` that no server (nor a messenger's preview) receives.
@@ -807,13 +919,13 @@ function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string)
   const copied = h("p", "ls-help");
   copied.setAttribute("role", "status");
   copy.addEventListener("click", () => {
-    void navigator.clipboard.writeText(p.url).then(
+    void navigator.clipboard.writeText(shown.url).then(
       () => { copied.textContent = w.linkCopied; },
       () => { copied.textContent = w.linkNotCopied; },
     );
   });
   body.append(copy, copied);
-  if (p.certificate === "own") {
+  if (p.certificate === "own" && !shown.link) {
     body.append(h("p", "ls-help", w.trustOwn));
     const fp = h("p", "ls-fp");
     fp.append(h("strong", "", `${w.fingerprint}: `), h("code", "", p.fingerprint));

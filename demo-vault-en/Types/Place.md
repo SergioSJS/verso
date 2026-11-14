@@ -29,4 +29,4 @@ properties:
     label: { pt-BR: Governante, en: Ruler }
 ```
 
-`image` is an image from the folder — a `"[[photo.png]]"` link or a path, like `banner:` — or a web address, which only shows if its origin has been approved. `link` is a link in quotes, or a list of them. See [[21 - Typed Notes]].
+`image` is an image from the folder — a `"[[photo.png]]"` link or a path, like `banner:` — or a web address, which only shows if its origin has been approved. `link` is a link in quotes, or a list of them. See [[13 - Typed Notes]].

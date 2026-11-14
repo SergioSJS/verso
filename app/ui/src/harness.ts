@@ -14,6 +14,7 @@
 
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
+import { eventCall } from "./web/events";
 import { DEMO_VAULT_FILES } from "./demoVault";
 import type { Capabilities, LooseFileInfo, Mentions, Opened, PickedFiles } from "./bindings";
 import { FOLDER_CAN } from "./can";
@@ -133,7 +134,7 @@ if (params.get("loose") === "1") {
   };
   core.handlers["current_folder"] = () => null;
   core.handlers["loose_files"] = () => (handed ? [] : [info()]);
-  core.handlers["capabilities"] = (): Capabilities => ({ host: "desktop", can: ["write", "windows", "web_views", "agents", "updates", "devtools", "local_folders"], latency_ms: null });
+  core.handlers["capabilities"] = (): Capabilities => ({ host: "desktop", can: ["write", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files", "link", "discover", "serve_away"], latency_ms: null });
   core.handlers["backlinks"] = () => [];
   core.handlers["open_sibling"] = (a) => {
     const target = String(a["target"]).replace(/\.md$/, "");
@@ -166,7 +167,7 @@ if (params.get("sync") === "reader") {
 // the contract's `unreachable`, carrying the address — whatever the test
 // set its handler to; `serverDown(null)` brings it back. `?server=down`
 // starts with it down at localhost:7351.
-const TO_A_SERVER = new Set(["server_folders", "server_create_folder", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_revoke", "share_attachments", "read_link_list", "read_link_secrets", "read_link_create", "read_link_revoke", "server_prove"]);
+const TO_A_SERVER = new Set(["server_folders", "server_create_folder", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_invite", "share_revoke", "share_attachments", "read_link_list", "read_link_secrets", "read_link_create", "read_link_revoke", "server_prove"]);
 let serverDown: string | null = params.get("server") === "down" ? "localhost:7351" : null;
 const answer = core.invoke.bind(core);
 // The system's notifications (ADR 0084 item 9): the plugin's calls,
@@ -210,7 +211,16 @@ const campaign = new Campaign(core);
 // A synced folder's table and campaign are the server's while the sync's
 // link is up (ADR 0107 item 9): reached over the link the rooms play, and
 // unavailable with it down, as the host answers; the status says "none".
-const link = (): boolean | null => (core.sync.on && rooms ? rooms.up : null);
+// The window seated at its own server's table (ADR 0117 D4 Q3): the
+// tables are that server's, up while it sits.
+const link = (): boolean | null => (core.localServer.isSeated() ? true : core.sync.on && rooms ? rooms.up : null);
+core.localServer.tablesOf = () => campaign.tables.length;
+// A table's other server (ADR 0117 R9), for a test: `?moveTo=universo` (a
+// UniVerso the folder syncs with) or `?moveTo=here` (this computer).
+const moveTo = params.get("moveTo");
+core.localServer.otherHost = () =>
+  !campaign.up ? null : moveTo === "universo" ? { to: "universo", name: "notas.exemplo", url: "https://notas.exemplo", folder: "f-notas", key: null } : moveTo === "here" ? { to: "here", name: "", url: null, folder: null, key: "harness" } : null;
+core.localServer.moveTable = (root) => void core.handlers["campaign_settings"]!({ root, open: false, moved: true });
 if (table) table.linked = link;
 // The folder's tables are the campaign's (one log per table, ADR 0107 as amended 2026-10-23).
 if (table) table.roots = () => (campaign.up ? campaign.tables.map((t) => t.root) : []);
@@ -235,7 +245,20 @@ for (const cmd of ["table_join", "table_leave", "table_look", "table_history", "
 // The owner of a synced folder reaches the server's shares while its link is
 // up: the game master's rows of the menu are the owner's (ADR 0081).
 const sharesOwn = core.handlers["share_list"]!;
-core.handlers["share_list"] = (a) => (core.sync.on && core.sync.role === "owner" && rooms?.up ? [{ id: null, path: "", people: [], attachments: null, missing: false }] : sharesOwn(a));
+core.handlers["share_list"] = (a) => ((core.sync.on && core.sync.role === "owner" && rooms?.up) || core.localServer.isSeated() ? [{ id: null, path: "", people: [], attachments: null, missing: false }] : sharesOwn(a));
+// The app on an Android phone (`?host=mobile`, ADR 0118) or an iPhone or
+// iPad (`?host=ios`, ADR 0119): the host says "mobile" and leaves out what
+// the platform does not offer (src-tauri src/mobile.rs `OFF_ON_ANDROID`,
+// `OFF_ON_IOS`).
+if (params.get("host") === "mobile" || params.get("host") === "ios") {
+  const asked = core.handlers["capabilities"]!;
+  const android = ["loose_files", "terminal", "windows", "web_views", "agents", "reveal"];
+  const notOnAPhone = params.get("host") === "ios" ? [...android, "audio_share", "updates", "link", "discover", "serve_away"] : android;
+  core.handlers["capabilities"] = (a) => {
+    const c = asked(a) as { host: string; can: string[] };
+    return { ...c, host: c.host === "desktop" ? "mobile" : c.host, can: c.can.filter((x) => !notOnAPhone.includes(x)) };
+  };
+}
 const tableParam = params.get("table");
 if (tableParam === "owner" || tableParam === "player") {
   campaign.up = true;
@@ -244,7 +267,9 @@ if (tableParam === "owner" || tableParam === "player") {
 // A player at a closed table (`?closed=1`): no folder is open at the start and
 // every way to open one is refused as the server refuses it, until a test says
 // the game master opened the table (`__harness.shutOut = false`).
-if (params.get("closed") === "1") {
+// `?closed=moved`: the table moved to its other server (ADR 0117 R9).
+const shutWords = params.get("closed") === "moved" ? "a mesa está fechada: ela mudou de servidor" : "a mesa está fechada";
+if (params.get("closed") === "1" || params.get("closed") === "moved") {
   const win = window as unknown as { __harness: Record<string, unknown> };
   let shut = true;
   Object.defineProperty(win, "__harnessShutOut", { get: () => shut, set: (v: boolean) => (shut = v) });
@@ -252,7 +277,7 @@ if (params.get("closed") === "1") {
   const was = opens.map((c) => core.handlers[c]!);
   opens.forEach((c, i) => {
     core.handlers[c] = (a) => {
-      if (shut) throw { kind: "refused", message: "a mesa está fechada" };
+      if (shut) throw { kind: "refused", message: shutWords };
       return was[i]!(a);
     };
   });
@@ -269,19 +294,21 @@ mockWindows("main");
 // Answered in a task of its own, as the app's IPC answers: never within the
 // event that asked (an Enter that confirms a name must not also press the
 // button of the plan its answer opens).
-mockIPC(
-  (cmd, args) =>
-    new Promise((resolve, reject) =>
-      setTimeout(() => {
-        try {
-          resolve(core.invoke(cmd, args));
-        } catch (e) {
-          reject(e);
-        }
-      }, 0),
-    ),
-  { shouldMockEvents: true },
-);
+// The window's events are answered as the web page answers them (web/events.ts:
+// Tauri's own stand-in forgot no listener on `unlisten`), at once as before.
+mockIPC((cmd, args) => {
+  const heard = eventCall(cmd, (args ?? {}) as Record<string, unknown>);
+  if (heard.handled) return Promise.resolve(heard.value);
+  return new Promise((resolve, reject) =>
+    setTimeout(() => {
+      try {
+        resolve(core.invoke(cmd, args));
+      } catch (e) {
+        reject(e);
+      }
+    }, 0),
+  );
+});
 
 // The page's `Notification`, as the plugin's script makes it in the app.
 notifications.install((cmd, args) => (window as unknown as { __TAURI_INTERNALS__: { invoke: (c: string, a?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__.invoke(cmd, args));
@@ -418,7 +445,7 @@ const harness = {
     role = as;
     core.handlers["capabilities"] = () => ({
       host: "server",
-      can: [...(as === "reader" ? [] : ["write"]), "account", "windows", "web_views", "updates", "devtools", "local_folders", "terminal", ...FOLDER_CAN],
+      can: [...(as === "reader" ? [] : ["write"]), "account", "windows", "web_views", "updates", "devtools", "local_folders", "loose_files", "terminal", ...FOLDER_CAN],
       latency_ms: null,
     } as Capabilities);
     // This computer's shell starts in the home directory there (ADR 0115 Q4).

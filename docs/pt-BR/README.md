@@ -15,8 +15,8 @@ para preparar sessões de RPG de mesa
 ([ADR 0036](../adr/0036-tabletop-rpg-support.md)), e serve para qualquer
 conjunto de notas ligadas.
 
-O repositório fica privado enquanto o app amadurece; ele está na Fase 2 do
-[roadmap](../roadmap.md), em uso diário pelo mantenedor.
+O Verso está em beta: ele está na Fase 4 do [roadmap](../roadmap.md), a
+caminho da V1, em uso diário pelo mantenedor.
 
 ## Princípios
 
@@ -61,7 +61,7 @@ O repositório fica privado enquanto o app amadurece; ele está na Fase 2 do
   páginas da web guardadas como notas, e arquivos HTML.
 - **Encontrar.** Busca no texto, abrir pelo nome, paleta de comandos,
   localizar e substituir em todas as notas, abas (fixas e de
-  pré-visualização), painéis lado a lado, áreas, e uma pasta por janela.
+  pré-visualização), painéis lado a lado, espaços de trabalho e uma pasta por janela.
 - **Do seu jeito.** Temas, paletas, fontes, idioma e os seus próprios
   atalhos.
 - **Agentes e terminal.** O comando `verso` indexa, busca e lista
@@ -152,8 +152,9 @@ na sua máquina:
 
 | Script | Roda | Precisa |
 |---|---|---|
-| `scripts/check.sh` | todos os guardrails do job Linux do CI, de forma nativa — num Mac, esta é a checagem do macOS; e, o que o CI não roda, os testes de ponta a ponta da janela sobre o harness do navegador ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md)), no WebKit e no Chromium, os motores dos apps de macOS e Windows ([ADR 0069](../adr/0069-windows-port.md)); num Mac com um worker e sem capturas de janela, e recusados enquanto um navegador ou o app Verso está aberto (feche-os antes) | o toolchain, o Node 22, `cargo install cargo-deny --locked`; o WebKit e o Chromium do Playwright, baixados na primeira vez |
-| `scripts/check-linux.sh` | fmt, clippy, os testes e os bindings gerados num contêiner Linux, como usuário comum | Docker; o bundle da interface que o primeiro script gera |
+| `scripts/check.sh` | todos os guardrails do job Linux do CI, de forma nativa — num Mac, esta é a checagem do macOS; depois, quando o Docker roda, o `scripts/check-e2e.sh` (`--no-e2e` o deixa de fora; sem Docker a última linha diz que ele foi pulado) | o toolchain, o Node 22, `cargo install cargo-deny --locked`; com `cargo install cargo-nextest --locked` os testes rodam com um limite de tempo por teste (sem ele, `cargo test`) |
+| `scripts/check-e2e.sh` | o que o CI não roda: os testes de ponta a ponta da janela sobre o harness do navegador ([ADR 0058](../adr/0058-demo-vault-as-tutorial.md)), no WebKit e no Chromium, os motores dos apps de macOS e Windows ([ADR 0069](../adr/0069-windows-port.md)), com 3 workers (`E2E_WORKERS`), e os do servidor contra um `verso serve` de verdade, os dois ao mesmo tempo na imagem Linux do Playwright — nunca no window server do próprio Mac. Os traces de uma falha voltam para `app/ui/e2e/results` e `app/ui/e2e-server/results`; `--ui` ou `--server` roda uma suíte só, os outros argumentos vão para o Playwright | Docker |
+| `scripts/check-linux.sh` | fmt, clippy, os testes (cargo-nextest) e os bindings gerados num contêiner Linux, como usuário comum; depois a imagem do servidor, o script de backup e o instalador | Docker; o bundle da interface que o primeiro script gera. A imagem do contêiner, `verso-ci` (`scripts/ci/Dockerfile`: o toolchain, o WebKitGTK, o cargo-deny, o cargo-nextest, o Node), é gerada na primeira vez e de novo só quando esse arquivo ou o `rust-toolchain.toml` muda |
 | `scripts/check-windows.sh` | clippy e os testes numa máquina Windows por SSH; `--bundle` também gera o instalador ([ADR 0069](../adr/0069-windows-port.md)). Obrigatório quando o diff toca código de plataforma (`verso-fs`, `app/src-tauri`, caminhos de configuração, `cfg(windows)`), opcional nos outros casos | um host SSH chamado `verso-win` com o toolchain (o cabeçalho do script lista) |
 | `scripts/check-linux-vm.sh` | clippy e os testes numa máquina Linux por SSH; `--bundle` gera o `.deb`, o `.rpm` e o AppImage, `--install` abre o app no desktop dela, `--webkit` roda a suíte de ponta a ponta no WebKit do Linux num contêiner ([ADR 0071](../adr/0071-linux-port.md)). Quando fizer sentido, ou para um pacote fechado | um host SSH chamado `verso-ubuntu` (o cabeçalho do script lista); Docker para `--webkit` |
 | `scripts/install-beta.sh` | num Mac com chip Apple, este checkout instalado como "Verso Beta" sobre `/Applications/Verso Beta.app`: a janela compilada primeiro, os binários nativamente, o `ui-web` e as chaves do Info.plist no bundle, assinado ad hoc, o beta aberto fechado sem perder trabalho, e uma falha se o log não disser que subiu este commit sem ERROR ([ADR 0051](../adr/0051-development-flow-and-releases.md)). O fim de toda mudança que o usuário vê; `--dirty` instala trabalho não commitado | um Verso Beta já instalado (uma release, ou um `tauri build` com um Node arm64) |

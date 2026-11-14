@@ -15,8 +15,9 @@
 import { openFolderSwitcher } from "./panel/folderSwitcher";
 import { ready } from "./earlyClicks";
 import { watchDeskOnPhone } from "./deskOnPhone";
-import { mayShare, openShareDialog } from "./shares";
-import { campaignRootItems, hearCampaign } from "./campaign";
+import { loadShares, mayShare, openShareDialog } from "./shares";
+import { campaignRootItems, hearCampaign, loadCampaign } from "./campaign";
+import { serveMenuItems } from "./serveHere";
 import { sh } from "./shareStrings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -39,6 +40,9 @@ import { trashStrings } from "./dialogs/trash";
 import { button, el, h, ui } from "./dom";
 import { fail } from "./errors";
 import { frameMenuButton, installFrame } from "./frame";
+import { installBack } from "./screen/back";
+import { installShared } from "./screen/shared";
+import { installBars } from "./screen/bars";
 import { initZoom } from "./zoom";
 import { installStatusLive } from "./statusLive";
 import { installLongPress } from "./touch";
@@ -50,15 +54,16 @@ import { installServerTable } from "./table/join";
 import { installTableSound } from "./table/sound/run";
 import { installStatusItem } from "./table/sound/status";
 import { hearAccess, mayHere, may } from "./access";
-import { can, loadCan } from "./can";
+import { can, host, loadCan } from "./can";
 import { mayEndTerminals, pushSwitch } from "./terminal/open";
-import { copyFilesInto, newUntitled } from "./files";
+import { copyFilesInto, newUntitled, takeBackMove } from "./files";
 import { windowDrop } from "./windowDrop";
 import { focusesList, loadFocuses, selectFocus } from "./focuses";
 import { LAST_FOLDER, nameFolderButton, popout, secondary } from "./folder";
 import { hearServers, openServerFolder, parseServerKey } from "./dialogs/servers";
 import { hearLocalServer } from "./dialogs/localServer";
 import { hearSync } from "./dialogs/sync";
+import { pushBackgroundSync } from "./dialogs/syncBackground";
 import { offline } from "./web/offline/manager";
 import { icon } from "./icons";
 import { installMenuBar } from "./menuBar";
@@ -97,7 +102,7 @@ import { configureEmbeds } from "./sanitize";
 import { frameable } from "./screen/framed";
 import { searchNotes } from "./search";
 import { loadSettings, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage, pushWalkRules, saveSettings, settings } from "./settings";
-import { importDemoVault } from "./demo";
+import { importDemoVault, offerDemoIfEmpty } from "./demo";
 import { pt, t } from "./strings";
 import { installTreeKeys } from "./tree/aria";
 import { collapseAll, collapsed, listAll } from "./tree/tree";
@@ -105,7 +110,9 @@ import { UpdateController } from "./update";
 import { clearSelection, selectedPaths } from "./tree/selection";
 import { importFile } from "./theme/actions";
 import { installDropHost } from "./dropHost";
+import { installPageDownloads } from "./watabou/pageDownload";
 import { watchSuggestion } from "./theme/suggest";
+import { setTableGo } from "./tableMove";
 
 watchDeskOnPhone();
 watchSuggestion();
@@ -425,6 +432,11 @@ paintToggles();
 // No title bar on macOS and Windows: the window's corner and its drag
 // regions (ADR 0072).
 installFrame();
+// Android's Back closes what is on top (screen/back.ts).
+installBack();
+installShared();
+// The phone's status and gesture bars follow the theme (screen/bars.ts).
+installBars();
 initZoom();
 installStatusLive(ui.status);
 /** The right bar's width, kept for the next start (the left bar's is kept the same way). */
@@ -450,6 +462,8 @@ installScreen();
 // from.
 installNotify(() => settingsDialog.show("notify"));
 installDropHost();
+// What a page embedded in a note downloads goes into the folder (ADR 0120 item 6).
+installPageDownloads();
 installSources();
 installServerTable();
 installTableSound();
@@ -479,6 +493,7 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
     ...(rootNote ? [[t.openFolderNote, () => void openNote(rootNote, false), "note"] as MenuItem] : []),
     ...(mayShare() ? [[sh.shareWhole, () => openShareDialog(""), "user"] as MenuItem] : []),
     ...campaignRootItems(),
+    ...serveMenuItems(true),
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
     // The folder's trash (ADR 0080 item 4): no row in the tree, a way in here.
@@ -792,6 +807,8 @@ export function runEditCommand(command: string): void {
     );
     return;
   }
+  // The focus in the file tree or nowhere, after a move: ⌘Z takes the move back.
+  if (!field && takeBackMove(command)) return;
   // The focus on a button, a box or nothing, and a note in Editar or
   // Fonte in view: its editor takes the command. The web view's own Undo
   // knows nothing of the editor's history and rewrites its lines behind
@@ -824,12 +841,24 @@ export const started: Promise<void> = (async () => {
     // The desktop serving to a phone: its status mark, a phone asking, a
     // stop by itself (ADR 0096). Once the side has answered: a phone's window
     // starts with the desktop's set of capabilities and would ask the status.
-    if (can("local_folders")) hearLocalServer();
+    // Once the window sat at its own table, the owner's rows read the
+    // server's shares and tables before they act (localServerSeat.ts).
+    if (can("local_folders")) hearLocalServer(openFolderBy, async () => {
+      await loadShares();
+      await loadCampaign();
+    });
+    // A table moved to its other server (ADR 0117 R9): the window goes there.
+    if (can("local_folders"))
+      setTableGo((host) =>
+        host.to === "universo" ? openServerFolder(host.url ?? "", host.folder ?? "") : openFolderBy(() => commands.reopenFolder(host.key ?? "")),
+      );
     // (and a browser that keeps a server's folder offline says so the same way, ADR 0092 item 7)
     if (!popout && (can("local_folders") || offline.available)) hearSync((section) => settingsDialog.show(section));
   });
   // The host knows the terminal's switch before a restored tab asks for one.
   const terminalPushed = loadCan().then(() => pushSwitch());
+  // A phone's background sync, as the person left it (ADR 0118 item 6.3).
+  void loadCan().then(() => pushBackgroundSync());
   await Promise.all([embedOriginsPushed, walkRulesPushed, folderNoteNamePushed, terminalPushed]);
   if (popout) return void joinAsPopout();
   // A reload (a language change) finds the host's folder still open: the
@@ -838,9 +867,25 @@ export const started: Promise<void> = (async () => {
   if (open.status === "ok" && open.data) return void (await showFolder(open.data));
   // A reload of the loose-files window finds its files still open.
   if (await rejoinLoose()) return;
+  // A phone opens the folder of its own storage it showed last (one of
+  // its shared storage, ADR 0118 item 4.4); else the app's own folder.
+  if (host() === "mobile" && !secondary) {
+    let kept: string | null = null;
+    try {
+      kept = localStorage.getItem(LAST_FOLDER);
+    } catch {
+      // No storage: the app's own folder.
+    }
+    if (kept && !kept.includes("/") && !parseServerKey(kept) && (await openFolderBy(() => commands.reopenFolder(kept), true))) return;
+  }
   // `verso <folder>` (or a Markdown file, ADR 0114) on the command line
   // wins over the last folder.
-  if (await openOpened(() => commands.openInitial())) return;
+  if (await openOpened(() => commands.openInitial())) {
+    // The phone opens its own folder at every start; empty, it offers the
+    // tutorial (the Android app, Phase 0).
+    if (host() === "mobile") void offerDemoIfEmpty();
+    return;
+  }
   // A window opened later starts on the start page, to open a folder of
   // its own (ADR 0065): the last folder is the main window's.
   if (secondary) return;
@@ -862,3 +907,7 @@ export const started: Promise<void> = (async () => {
 export { armDrag } from "./layout/drag";
 export { landIn } from "./layout/pane";
 export { persistSoon, openNote } from "./layout/spaces";
+// What a server's window asks once it is up (web.ts: a link's note), through
+// the entry: an import of its own from web.ts would split the chunks and
+// run settings.ts before main.ts's first read of it.
+export { allFiles, allNotes } from "./folder";

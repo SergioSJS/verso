@@ -21,7 +21,7 @@ O **Verso** é um ambiente de anotações e gestão de conhecimento focado em si
 > [!TIP] Comece pelo tour
 > Abra o [[Tour do Verso.canvas|Tour do Verso]]: um board com as funções do Verso, parada por parada, com as notas deste cofre dentro dos cartões. Para aprender a desenhar nos boards, siga o [[Treino do Board.canvas|Treino do Board]].
 >
-> Para seguir um link: um clique no modo **Leitura**, ou `⌘` + clique no modo **Editar** — no celular, um toque no link e **Abrir** ([[22 - Verso no Celular e no Tablet]]).
+> Para seguir um link: um clique no modo **Leitura**, ou `⌘` + clique no modo **Editar** — no celular, um toque no link e **Abrir** ([[28 - Verso no Celular e no Tablet]]).
 
 ---
 
@@ -49,44 +49,78 @@ Neste vault você encontrará demonstrações práticas de todas as principais c
 
 Explore os módulos organizados abaixo para conferir cada funcionalidade em detalhes:
 
-1. [[01 - Guia de Markdown e Sintaxe]] — Títulos recolhíveis, blocos de código com botão de copiar, fórmulas matemáticas em KaTeX, tabelas com colunas redimensionáveis e listas hierárquicas.
-2. [[02 - Links, Âncoras e Notas Incorporadas]] — Wikilinks simples, links com apelidos, saltos para cabeçalhos (`[[#Título]]`), links para notas ausentes e incorporação de notas.
-3. [[03 - Propriedades e Metadados]] — Como usar o frontmatter YAML com o painel de propriedades retrátil.
-4. [[04 - Visualização de Bases e Dados]] — Como funcionam os arquivos `.base` e como incorporar exibições vivas nas suas notas.
-5. [[05 - Visualização de Grafo e Conexões]] — Como explorar a teia de relações entre suas anotações com zoom e pan intuitivos.
-6. [[06 - Documentos e Mídia]] — Visualização de PDFs com modo de 2 páginas, redimensionamento de imagens e incorporação de páginas web seguras via iframes.
-7. [[07 - Notas Diárias, Calendário e Templates]] — Registro cronológico diário, navegação mensal pelo calendário e automação de notas com templates.
-8. [[08 - Diagramas Mermaid]] — Fluxogramas, sequências e outros diagramas escritos em texto e desenhados na nota.
-9. [[09 - Board e Relações]] — Boards (`.canvas`) desenhados com o Excalidraw, com as notas da pasta como cartões, e relações tipadas no frontmatter.
-10. [[10 - Desenhando no Board]] — A cola do Excalidraw: ferramentas, grupos, setas, camadas e atalhos.
-11. [[11 - Escrevendo no Editor]] — Os modos Leitura, Editar e Fonte, a barra de formatação, o menu `/` e o salvamento.
-12. [[12 - Busca e Navegação]] — Buscar, abrir pelo nome, trocar texto em todas as notas, backlinks e favoritos.
-13. [[13 - Abas, Painéis, Espaços de Trabalho e Janelas]] — Abas fixas e de pré-visualização, painéis lado a lado, espaços de trabalho e janelas.
-14. [[14 - Arquivos e Pastas]] — Criar, renomear sem quebrar links, mover, anexar imagens e a lixeira.
-15. [[15 - Ajustes, Aparência e Atalhos]] — Tema, paleta, fontes, idioma e os seus próprios atalhos.
-16. [[16 - Páginas Web e HTML]] — Páginas da web guardadas como notas e arquivos HTML.
-17. [[17 - Terminal, CLI e Agentes]] — O comando `verso` e o cofre nos agentes de IA.
-18. [[18 - Ajuda, Atualizações e Diagnóstico]] — Atualizações, relatar um problema e o console.
-19. [[19 - Organizando com figurinhas, capas e páginas]] — Figurinhas, cores, capas com reposicionamento, páginas de pasta, ordenação manual, itens ocultos e edição de notas incorporadas.
-20. [[20 - Blocos como no Notion]] — Arrastar parágrafos e itens pela alça ⋮⋮, o + que abre o menu `/`, o menu de cada bloco e as teclas do Notion.
-21. [[21 - Notas Tipadas]] — `type:` e um schema: o formulário de um tipo, o que não cabe marcado, nada escrito sem você, e `type:` na busca.
-22. [[22 - Verso no Celular e no Tablet]] — A barra de baixo, um painel por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
-23. [[23 - Verso num Servidor]] — O `verso serve`: instalar, contas por convite, dono, editores e leitores, editar junto e o app desktop conectado.
-24. [[24 - Instalar o seu UniVerso, Passo a Passo]] — Do zero a um servidor seu, para quem nunca montou um: o compose ou o script de instalação, o primeiro admin, o HTTPS (opcional, para o offline e as notificações), o backup.
-25. [[25 - Dados e Tabelas Sorteadas]] — `dice:` numa nota rola dados, uma tabela ou lista com `^id` sorteia uma linha; nada escrito, e numa nota compartilhada todos veem.
-26. [[26 - Fichas]] — Um exemplo de cada layout de ficha `statblock`, com dados e contadores que gravam na nota, e o editor de layouts. Um exemplo completo, o Fractal, está na [[Campanha Fractal/Mundo|Campanha Fractal]].
-27. [[27 - Oráculos e Criação de Mundos]] — O oráculo que escreve a resposta no destaque; as tabelas sorteadas; o assistente de novo projeto com a árvore à vista; e a chave de cada recurso em Ajustes.
-28. [[28 - Dados Estruturados como Diagrama]] — Um arquivo JSON, YAML, TOML, XML ou CSV, ou um bloco de código desses formatos, visto como caixas e linhas para mover, recolher e buscar; só leitura.
-29. [[29 - Sincronizar com uma Nuvem]] — Uma pasta igual a uma pasta de um Nextcloud (WebDAV) ou de um bucket S3 que você já tem, sem servidor: o formulário, a chave de S3 limitada a uma pasta, a senha no chaveiro e o que esperar.
-30. [[30 - Amostras de Cor]] — Um quadradinho da cor ao lado de `#1d9e75`, `rgb()` e `hsl()`; um clique no editor abre o seletor, e o código volta no mesmo formato.
-31. [[31 - A Mesa]] — Um registro de todas as rolagens, sorteios e perguntas ao oráculo, com quem fez e de qual nota, no painel da direita; as de outras pessoas chegam com o nome delas.
-32. [[32 - Rodando uma Mesa]] — Uma pasta de campanha num UniVerso: convidar as jogadoras, notas ocultas até você liberar, links para o que ainda não apareceu com um cadeado, quem edita o quê e os limites da mesa.
-33. [[33 - Abrir um Arquivo Avulso]] — Dois cliques num `.md` abrem o arquivo sozinho, sem pasta, numa janela sem árvore nem índice e sem nada escrito ao lado; e como fazer do Verso o app padrão de `.md` em cada sistema.
-34. [[34 - UniVerso num Servidor Grátis da Oracle]] — O roteiro para quem nunca montou um servidor: uma máquina grátis da Oracle, o menu do instalador, o HTTPS com um nome grátis, o primeiro admin e o celular.
-35. [[35 - Terminal e Agentes de IA]] — Um terminal deste computador numa aba, aberto na raiz da pasta: ligar, abrir, os botões que acham o Claude Code, o Gemini CLI e as outras ferramentas de IA, as teclas e o que um programa rodado ali faz nos arquivos.
-36. [[36 - Som e Música na Mesa]] — A mestra toca um arquivo de som e todos da mesa ouvem no mesmo ponto, cada um com o seu volume; uma nota com links de som vira a mesa de som, e quem não vê o arquivo não o ouve.
-37. [[37 - Compatibilidade com o Obsidian]] — Para quem vem do Obsidian ou usa os dois: a mesma pasta, nada reescrito ao abrir, o que funciona igual, o que o Verso acrescenta, o que não existe e como experimentar.
-38. [[38 - Instalar o servidor num NAS ou VPS]] — O servidor num NAS (CasaOS, ZimaOS, outros com Docker) ou num VPS: o compose ou o instalador, o HTTPS, o endereço público, backups e os limites da lixeira.
+### I. Começando
+
+O básico de escrever no Verso: o texto, os links, as propriedades e o editor.
+
+- [[01 - Guia de Markdown e Sintaxe]] — Títulos recolhíveis, blocos de código com botão de copiar, fórmulas matemáticas em KaTeX, tabelas com colunas redimensionáveis e listas hierárquicas.
+- [[02 - Links, Âncoras e Notas Incorporadas]] — Wikilinks simples, links com apelidos, saltos para cabeçalhos (`[[#Título]]`), links para notas ausentes e incorporação de notas.
+- [[03 - Propriedades e Metadados]] — Como usar o frontmatter YAML com o painel de propriedades retrátil.
+- [[04 - Escrevendo no Editor]] — Os modos Leitura, Editar e Fonte, a barra de formatação, o menu `/` e o salvamento.
+- [[05 - Blocos como no Notion]] — Arrastar parágrafos e itens pela alça ⋮⋮, o + que abre o menu `/`, o menu de cada bloco e as teclas do Notion.
+- [[06 - Amostras de Cor]] — Um quadradinho da cor ao lado de `#1d9e75`, `rgb()` e `hsl()`; um clique no editor abre o seletor, e o código volta no mesmo formato.
+
+### II. Organizar
+
+Onde as notas moram e como achá-las: arquivos, busca, abas, figurinhas, notas diárias e tipos.
+
+- [[07 - Arquivos e Pastas]] — Criar, renomear sem quebrar links, mover, anexar imagens e a lixeira.
+- [[08 - Abrir um Arquivo Avulso]] — Dois cliques num `.md` abrem o arquivo sozinho, sem pasta, numa janela sem árvore nem índice e sem nada escrito ao lado; e como fazer do Verso o app padrão de `.md` em cada sistema.
+- [[09 - Busca e Navegação]] — Buscar, abrir pelo nome, trocar texto em todas as notas, backlinks e favoritos.
+- [[10 - Abas, Painéis, Espaços de Trabalho e Janelas]] — Abas fixas e de pré-visualização, painéis lado a lado, espaços de trabalho e janelas.
+- [[11 - Organizando com figurinhas, capas e páginas]] — Figurinhas, cores, capas com reposicionamento, páginas de pasta, ordenação manual, itens ocultos e edição de notas incorporadas.
+- [[12 - Notas Diárias, Calendário e Templates]] — Registro cronológico diário, navegação mensal pelo calendário e automação de notas com templates.
+- [[13 - Notas Tipadas]] — `type:` e um schema: o formulário de um tipo, o que não cabe marcado, nada escrito sem você, e `type:` na busca.
+
+### III. Outras formas de ver
+
+As mesmas notas vistas de outro jeito: bases, grafo, diagramas, documentos e páginas da web.
+
+- [[14 - Visualização de Bases e Dados]] — Como funcionam os arquivos `.base` e como incorporar exibições vivas nas suas notas.
+- [[15 - Visualização de Grafo e Conexões]] — Como explorar a teia de relações entre suas anotações com zoom e pan intuitivos.
+- [[16 - Dados Estruturados como Diagrama]] — Um arquivo JSON, YAML, TOML, XML ou CSV, ou um bloco de código desses formatos, visto como caixas e linhas para mover, recolher e buscar; só leitura.
+- [[17 - Diagramas Mermaid]] — Fluxogramas, sequências e outros diagramas escritos em texto e desenhados na nota.
+- [[18 - Documentos e Mídia]] — Visualização de PDFs com modo de 2 páginas, redimensionamento de imagens e incorporação de páginas web seguras via iframes.
+- [[19 - Páginas Web e HTML]] — Páginas da web guardadas como notas e arquivos HTML.
+
+### IV. Board
+
+O quadro branco do Verso, com as notas da pasta como cartões.
+
+- [[20 - Board e Relações]] — Boards (`.canvas`) desenhados com o Excalidraw, com as notas da pasta como cartões, e relações tipadas no frontmatter.
+- [[21 - Desenhando no Board]] — A cola do Excalidraw: ferramentas, grupos, setas, camadas e atalhos.
+
+### V. RPG
+
+Dados, fichas, oráculos e a mesa de jogo, sozinho ou com outras pessoas.
+
+- [[22 - Dados e Tabelas Sorteadas]] — `dice:` numa nota rola dados, uma tabela ou lista com `^id` sorteia uma linha; nada escrito, e numa nota compartilhada todos veem.
+- [[23 - Fichas]] — Um exemplo de cada layout de ficha `statblock`, com dados e contadores que gravam na nota, e o editor de layouts. Um exemplo completo, o Fractal, está na [[Campanha Fractal/Mundo|Campanha Fractal]].
+- [[24 - Oráculos e Criação de Mundos]] — O oráculo que escreve a resposta no destaque; as tabelas sorteadas; o assistente de novo projeto com a árvore à vista; os mapas dos geradores do Watabou, desenhados pelo Verso; e a chave de cada recurso em Ajustes.
+- [[25 - A Mesa]] — Um registro de todas as rolagens, sorteios e perguntas ao oráculo, com quem fez e de qual nota, no painel da direita; as de outras pessoas chegam com o nome delas.
+- [[26 - Rodando uma Mesa]] — Uma pasta de campanha num UniVerso: convidar as jogadoras, notas ocultas até você liberar, links para o que ainda não apareceu com um cadeado, quem edita o quê e os limites da mesa.
+- [[27 - Som e Música na Mesa]] — A mestra toca um arquivo de som e todos da mesa ouvem no mesmo ponto, cada um com o seu volume; uma nota com links de som vira a mesa de som, e quem não vê o arquivo não o ouve.
+
+### VI. Juntos e em outros aparelhos
+
+O Verso no celular, num servidor seu, pela internet e sincronizado com uma nuvem.
+
+- [[28 - Verso no Celular e no Tablet]] — A barra de baixo, um painel por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
+- [[29 - Mesa pela Internet]] — O Verso do seu computador vira um servidor: um link da Cloudflare (modo de teste) ou o seu próprio endereço, convites, sentar à mesa, links de leitura e quem entra como.
+- [[30 - Verso num Servidor]] — O `verso serve`: instalar, contas por convite, dono, editores e leitores, editar junto e o app desktop conectado.
+- [[31 - Instalar o seu UniVerso, Passo a Passo]] — Do zero a um servidor seu, para quem nunca montou um: o compose ou o script de instalação, o primeiro admin, o HTTPS (opcional, para o offline e as notificações), o backup.
+- [[32 - Instalar o servidor num NAS ou VPS]] — O servidor num NAS (CasaOS, ZimaOS, outros com Docker) ou num VPS: o compose ou o instalador, o HTTPS, o endereço público, backups e os limites da lixeira.
+- [[33 - UniVerso num Servidor Grátis da Oracle]] — O roteiro para quem nunca montou um servidor: uma máquina grátis da Oracle, o menu do instalador, o HTTPS com um nome grátis, o primeiro admin e o celular.
+- [[34 - Sincronizar com uma Nuvem]] — Uma pasta igual a uma pasta de um Nextcloud (WebDAV) ou de um bucket S3 que você já tem, sem servidor: o formulário, a chave de S3 limitada a uma pasta, a senha no chaveiro e o que esperar.
+
+### VII. Avançado
+
+O terminal e os agentes de IA, os ajustes, a ajuda e a convivência com o Obsidian.
+
+- [[35 - Terminal, CLI e Agentes de IA]] — Um terminal deste computador numa aba (ligar, abrir, as teclas e o que um programa rodado ali faz nos arquivos), o comando `verso` para buscar pelo terminal, o cofre nos agentes de IA pelo MCP e os botões que acham o Claude Code, o Gemini CLI e as outras ferramentas de IA.
+- [[36 - Ajustes, Aparência e Atalhos]] — Tema, paleta, fontes, idioma e os seus próprios atalhos.
+- [[37 - Ajuda, Atualizações e Diagnóstico]] — Atualizações, relatar um problema e o console.
+- [[38 - Compatibilidade com o Obsidian]] — Para quem vem do Obsidian ou usa os dois: a mesma pasta, nada reescrito ao abrir, o que funciona igual, o que o Verso acrescenta, o que não existe e como experimentar.
 
 ---
 

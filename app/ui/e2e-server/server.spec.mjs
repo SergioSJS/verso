@@ -21,6 +21,11 @@ function watch(page) {
   page.on("console", (m) => {
     if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(m.text());
   });
+  // The window's events in a tab warned "[TAURI] Couldn't find callback id"
+  // (a console warning, not an error: it slipped past; events.ts).
+  page.on("console", (m) => {
+    if (m.type() === "warning" && /\[TAURI\]/.test(m.text())) errors.push(m.text());
+  });
   page.on("pageerror", (e) => errors.push(String(e)));
   return errors;
 }
@@ -211,6 +216,10 @@ test("an invited reader reads and cannot write", async ({ page, browser }) => {
   const bare = await bareAccount(page, browser, `sem-pasta-${test.info().project.name}@verso.test`);
   await expect(bare.getByRole("heading", { name: "Escolha uma pasta deste servidor." })).toBeVisible();
   await expect(bare.getByRole("button", { name: "Escolher uma pasta" })).toBeVisible();
+  // It may make no folder and has none: nothing to create is offered — no
+  // example vault to import (ADR 0074 item 6, amended 2026-11-06).
+  await bare.waitForLoadState("networkidle");
+  await expect(bare.locator(".lesson button", { hasText: "Importar cofre de exemplo" })).toHaveCount(0);
   await expect(bare.locator(".lesson .keys")).toHaveCount(0);
   await expect(bare.locator(".web-notice", { hasText: "Você só lê" })).toHaveCount(0);
   await expect(bare.locator("#open .folder-lock")).toBeHidden();
@@ -735,9 +744,9 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   };
   // The folder's own settings hold a bookmark of its owner's: the folder's
   // layer is there — a reader's star must leave it alone.
-  const before = await folderSettings(page, "12 - Busca e Navegação.md");
+  const before = await folderSettings(page, "09 - Busca e Navegação.md");
   expect(before.exists).toBe(true);
-  expect(before.bookmarks).toContain("12 - Busca e Navegação.md");
+  expect(before.bookmarks).toContain("09 - Busca e Navegação.md");
   // A reader of the folder, invited to it.
   const email = `estrela-${test.info().project.name}@verso.test`;
   await page.goto("/admin/invitations");
@@ -760,8 +769,8 @@ test("a reader's star stays in this browser, and the folder's settings are left 
   await expect(reader.locator("html")).toHaveAttribute("data-role", "reader");
   // The window knows it only reads before anything is starred.
   await expect(reader.locator("#open .folder-lock")).toBeVisible();
-  const NOTE = "14 - Arquivos e Pastas.md";
-  const star = reader.locator(".title-row:visible", { has: reader.locator(".note-title", { hasText: /^14 - Arquivos e Pastas$/ }) }).locator("button.star");
+  const NOTE = "07 - Arquivos e Pastas.md";
+  const star = reader.locator(".title-row:visible", { has: reader.locator(".note-title", { hasText: /^07 - Arquivos e Pastas$/ }) }).locator("button.star");
   await showTree(reader);
   await reader.locator(`#notes li[data-path="${NOTE}"] > button`).click();
   await expect(star).toBeVisible();

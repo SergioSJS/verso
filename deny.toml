@@ -41,11 +41,6 @@ ignore = [
   # 2026-10-09): yrs 0.28, the latest, still uses smallstr. Revisit when yrs
   # drops it. Ratified by the maintainer on 2026-10-10.
   { id = "RUSTSEC-2026-0215", reason = "smallstr: unmaintained, via yrs; https://rustsec.org/advisories/RUSTSEC-2026-0215; expires 2026-12-31" },
-  # zip advisories for ZipArchive::extract and ZipStreamReader::extract:
-  # app/src-tauri does manual extraction with enclosed_name() and does not use extract().
-  { id = "RUSTSEC-2026-0367", reason = "zip: SUID/SGID preservation during extract(); app does not use extract(); https://rustsec.org/advisories/RUSTSEC-2026-0367; expires 2026-12-31" },
-  { id = "RUSTSEC-2026-0368", reason = "zip: ZipArchive::extract symlink traversal; app does not use extract(); https://rustsec.org/advisories/RUSTSEC-2026-0368; expires 2026-12-31" },
-  { id = "RUSTSEC-2026-0369", reason = "zip: ZipStreamReader::extract unconfined symlinks; app does not use extract(); https://rustsec.org/advisories/RUSTSEC-2026-0369; expires 2026-12-31" },
   # Three "unmaintained" notices (not vulnerabilities) published 2026-10 for
   # the zbus D-Bus family, pulled on Linux by tauri-plugin-notification
   # (notify-rust, ADR 0084) and tauri-plugin-single-instance. No safe upgrade
@@ -86,6 +81,12 @@ allow = [
   # Added when upgrading reqwest to v0.13 for the in-app update system
   # (2026-09-27). Ratified by the maintainer in the 0.3.0-beta.1 PR.
   "CDLA-Permissive-2.0",
+  # Boost Software License 1.0: permissive, OSI and FSF approved, no notice
+  # required in a binary — as permissive as MIT. First pulled by xxhash-rust
+  # (its xxh3), a required dependency of notify 9 (the poll watcher's
+  # hashes), taken for the Windows watcher fix (C5, 2026-11-03). Ratified
+  # by the maintainer on 2026-11-04 as an accepted licence.
+  "BSL-1.0",
 ]
 confidence-threshold = 0.9
 # The allowlist is written before the dependencies exist; an unused entry is
@@ -114,6 +115,11 @@ deny = [
   # The newer `crate = "name@..."` form is a package-id spec that drops the
   # comparison operator and matches one exact version (cargo-deny 0.20.2).
   { name = "pulldown-cmark", version = ">=0.13.5", reason = "release 0.13.5 or later: confirm the two regression tests pass and the std feature exists, then drop the patch, the allow-git entry and this ban (ADR 0037)" },
+  # tao is built from an upstream revision (workspace Cargo.toml,
+  # [patch.crates-io]; ADR 0119, the release .ipa). When Tauri asks for a
+  # tao from 0.36 on, this ban fails the build: drop the patch, the
+  # allow-git entry and this ban together.
+  { name = "tao", version = ">=0.36.0", reason = "Tauri on tao 0.36 or later, which carries tauri-apps/tao#1245: drop the tao patch, its allow-git entry and this ban (ADR 0119)" },
 ]
 
 [sources]
@@ -124,4 +130,14 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # 0.13.4 (workspace Cargo.toml, [patch.crates-io]; ADR 0037, Consequences).
 # Maintainer's decision of 2026-09-21; expires 2026-12-31. Remove together
 # with the patch and the ban above.
-allow-git = ["https://github.com/pulldown-cmark/pulldown-cmark"]
+# tao is built from an upstream revision with tauri-apps/tao#1245 (the iOS
+# scene configuration released before UIKit retains it: a release build
+# crashes at launch) until Tauri moves to a tao that carries it (workspace
+# Cargo.toml, [patch.crates-io]; ADR 0119). Maintainer's decision of
+# 2026-11-12 ("vamos de recomendado"); expires 2026-12-31. Remove together
+# with the patch and the ban above.
+# https://github.com/tauri-apps/tao/pull/1245
+allow-git = [
+  "https://github.com/pulldown-cmark/pulldown-cmark",
+  "https://github.com/tauri-apps/tao",
+]

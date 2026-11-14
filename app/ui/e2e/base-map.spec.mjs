@@ -126,7 +126,7 @@ test("html() is drawn as HTML, through the sanitizer", async ({ app, page }) => 
 
 test("a base embedded in a note is edited in place: its menus write the .base file", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("04 - Visualização de Bases e Dados");
+  await app.quickOpen("14 - Visualização de Bases e Dados");
   const embed = page.locator(".embed-base").first();
   await expect(embed.locator(".base-table")).toBeVisible();
   // The view's tools are there, in the note.

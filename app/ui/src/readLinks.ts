@@ -23,6 +23,7 @@ import { failureText, unreachableAt } from "./reach";
 import { rl } from "./readLinkStrings";
 import { withServerProof } from "./serverProof";
 import { askServerProof } from "./serverProver";
+import { isSeated, seatFirst, servedHere } from "./seatState";
 
 /** The live links of the open folder, and whether the server has them on. */
 let links: ReadLinkInfo[] = [];
@@ -122,6 +123,15 @@ function askFirst(where: HTMLElement, question: string, yes: () => Promise<void>
 
 /** The dialog of the read links of the folder or the note at `path`. */
 export function openReadLinkDialog(kind: "folder" | "note", path: string): void {
+  // A folder this app serves: the window sits first (ADR 0117 D4 Q3).
+  if (servedHere()) {
+    void seatFirst().then((ok) => ok && drawReadLinkDialog(kind, path));
+    return;
+  }
+  drawReadLinkDialog(kind, path);
+}
+
+function drawReadLinkDialog(kind: "folder" | "note", path: string): void {
   const overlay = h("div", "quick share-overlay");
   const dialog = h("div", "web-dialog share-dialog read-link-dialog");
   overlay.append(dialog);
@@ -281,7 +291,8 @@ export function openReadLinkDialog(kind: "folder" | "note", path: string): void 
   void loadReadLinks().then(() => {
     if (!enabled) {
       form.hidden = true;
-      warn.textContent = rl.off;
+      // At its own server's table, the switch is in this app's Settings.
+      warn.textContent = isSeated() ? rl.offHere : rl.off;
       warn.classList.add("read-link-off");
     } else {
       void commands.readLinkSecrets(kind, path).then((r) => {

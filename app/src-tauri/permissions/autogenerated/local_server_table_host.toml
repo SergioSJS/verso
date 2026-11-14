@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-server-table-host"
+description = "Enables the local_server_table_host command without any pre-configured scope."
+commands.allow = ["local_server_table_host"]
+
+[[permission]]
+identifier = "deny-local-server-table-host"
+description = "Denies the local_server_table_host command without any pre-configured scope."
+commands.deny = ["local_server_table_host"]

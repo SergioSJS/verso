@@ -15,7 +15,7 @@ const { filterFolders, countTicked, duplicateNames } = await import("../src/dial
   return import("./.bundles/servedList.test-bundle.mjs");
 });
 
-const f = (key, name, place = "", ticked = false) => ({ key, name, place, ticked, syncs_with: null });
+const f = (key, name, place = "", ticked = false) => ({ key, name, place, ticked, received_from: null });
 
 describe("Ticked, the filter", () => {
   test("ticked ones are counted; only a repeated name is a twin", () => {

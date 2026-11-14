@@ -6,11 +6,17 @@
 //! `verso-core`'s sidecar.
 
 use tauri::Emitter;
+#[cfg(target_os = "android")]
+use tauri::Manager;
 use verso_contract::{ContractError, ErrorKind, InstallResult, UpdateInfo, UpdateProgress};
 
 use crate::version::ParsedVersion;
 
 pub(crate) fn github_token() -> Option<String> {
+    // A token goes to GitHub only (update_source.rs).
+    if !crate::update_source::SOURCE.is_github() {
+        return None;
+    }
     if let Ok(tok) = std::env::var("GITHUB_TOKEN").or_else(|_| std::env::var("GH_TOKEN")) {
         let t = tok.trim();
         if !t.is_empty() {
@@ -18,9 +24,9 @@ pub(crate) fn github_token() -> Option<String> {
         }
     }
     // An app the Dock launches inherits none of the shell's PATH, so
-    // `gh` is looked for where its installers put it too — without
-    // this, a private repository answers 404 and the check says the
-    // repository does not exist.
+    // `gh` is looked for where its installers put it too. The repository
+    // is public (2026-11-14): a token only raises GitHub's limit for
+    // questions without one.
     for gh in ["gh", "/opt/homebrew/bin/gh", "/usr/local/bin/gh"] {
         let Ok(output) = std::process::Command::new(gh)
             .args(["auth", "token"])
@@ -62,13 +68,8 @@ pub(crate) struct GhAsset {
     digest: Option<String>,
 }
 
-/// The one repository updates come from. The API URL is built from this
-/// constant and every asset URL is checked against it — the UI never
-/// chooses where an update is downloaded from.
-pub(crate) const UPDATE_REPO: &str = "SergioSJS/verso";
-
-/// Fetches the releases of `UPDATE_REPO` — the only place updates are
-/// looked for.
+/// Fetches the releases of the one place updates come from, fixed when the
+/// app is built (update_source.rs) — the UI never chooses it.
 pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
     let current_str = env!("CARGO_PKG_VERSION");
     let client = reqwest::blocking::Client::builder()
@@ -81,9 +82,7 @@ pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
         })?;
 
     let mut req = client
-        .get(format!(
-            "https://api.github.com/repos/{UPDATE_REPO}/releases"
-        ))
+        .get(crate::update_source::SOURCE.releases_url())
         .header("Accept", "application/vnd.github.v3+json");
     if let Some(token) = github_token() {
         req = req.header("Authorization", format!("Bearer {token}"));
@@ -101,11 +100,13 @@ pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
         {
             "Limite de requisições da API do GitHub atingido. Tente novamente mais tarde."
                 .to_string()
-        } else if status == reqwest::StatusCode::NOT_FOUND {
-            // A private repository answers 404 to a request without a
-            // credential; the likeliest cause is the missing token, not
-            // a repository that vanished.
-            "Sem acesso ao repositório de atualizações: entre com `gh auth login` no terminal (o repositório é privado).".to_string()
+        } else if status == reqwest::StatusCode::NOT_FOUND
+            && crate::update_source::SOURCE.is_github()
+        {
+            // The repository is public (2026-11-14): a 404 is a feed
+            // with no release, or the repository out of reach.
+            "O repositório de atualizações não tem versão publicada (o GitHub respondeu 404)."
+                .to_string()
         } else {
             format!("GitHub API returned HTTP {status}")
         };
@@ -152,6 +153,10 @@ pub(crate) fn check_for_updates_blocking() -> Result<UpdateInfo, ContractError> 
             continue;
         }
         if let Some(parsed) = ParsedVersion::parse(&rel.tag_name) {
+            // Verso Beta takes only betas, Verso only finals (version.rs).
+            if !parsed.same_channel(&current_ver) {
+                continue;
+            }
             if parsed.is_newer_than(&latest_seen_ver) {
                 latest_seen_ver = parsed.clone();
                 latest_seen_tag = rel.tag_name.trim_start_matches(['v', 'V']).to_string();
@@ -205,6 +210,8 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
     // These are resolved at compile time — no runtime overhead.
     let os_keywords: &[&str] = if cfg!(target_os = "macos") {
         &["macos", "darwin", "osx"]
+    } else if cfg!(target_os = "android") {
+        &["android"]
     } else if cfg!(target_os = "windows") {
         &["windows", "win"]
     } else {
@@ -222,6 +229,8 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
         &[".msi", ".exe", ".zip"]
     } else if cfg!(target_os = "macos") {
         &[".dmg", ".zip"]
+    } else if cfg!(target_os = "android") {
+        &[".apk"]
     } else {
         #[cfg(target_os = "linux")]
         {
@@ -233,6 +242,8 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
         }
     };
 
+    // Only this channel's app (`Verso-Beta-…` or `Verso-…`, version.rs).
+    let ours = |n: &str| ParsedVersion::parse(&rel.tag_name).is_none_or(|v| v.names_its_app(n));
     // Try to find the best asset: correct OS + arch + preferred extension
     preferred_exts.iter().find_map(|ext| {
         // 1st pass: OS + arch + extension
@@ -240,7 +251,8 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
             .iter()
             .find(|a| {
                 let n = a.name.to_lowercase();
-                n.ends_with(ext)
+                ours(&n)
+                    && n.ends_with(ext)
                     && os_keywords.iter().any(|k| n.contains(k))
                     && arch_keywords.iter().any(|k| n.contains(k))
             })
@@ -248,34 +260,25 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
             .or_else(|| {
                 rel.assets.iter().find(|a| {
                     let n = a.name.to_lowercase();
-                    n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
+                    ours(&n) && n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
                 })
             })
     })
 }
 
 /// A download URL is trusted only when it names an asset of
-/// `UPDATE_REPO`'s own releases — not merely any GitHub URL. The
+/// the release place's own files (update_source.rs) — not merely any URL. The
 /// redirect GitHub answers with is followed by the client internally;
 /// what is validated is where the download starts.
 pub(crate) fn is_trusted_update_url(url: &str) -> bool {
-    let Ok(parsed) = reqwest::Url::parse(url) else {
-        return false;
-    };
-    if parsed.scheme() != "https" {
-        return false;
-    }
-    let release_download = format!("https://github.com/{UPDATE_REPO}/releases/download/");
-    let api_asset = format!("https://api.github.com/repos/{UPDATE_REPO}/releases/assets/");
-    let s = parsed.as_str();
-    s.starts_with(&release_download) || s.starts_with(&api_asset)
+    crate::update_source::SOURCE.trusts(url)
 }
 
 /// Whether a release asset is an installer run as downloaded (Windows'
 /// NSIS `-setup.exe`, or an `.msi`) rather than an archive to extract.
 pub(crate) fn is_installer_name(name: &str) -> bool {
     let n = name.to_ascii_lowercase();
-    [".exe", ".msi", ".appimage", ".deb", ".rpm"]
+    [".exe", ".msi", ".appimage", ".deb", ".rpm", ".apk"]
         .iter()
         .any(|ext| n.ends_with(ext))
 }
@@ -382,7 +385,7 @@ pub(crate) const UPDATE_MAX_BYTES: u64 = 1024 * 1024 * 1024; // 1 GiB
 
 /// Downloads and installs an update directly from within the app.
 ///
-/// The command takes no URL: the host asks `UPDATE_REPO`'s API for the
+/// The command takes no URL: the host asks the release place for the
 /// releases again, picks the asset for this platform itself, and
 /// verifies the download against the `sha256` digest the API reports and
 /// against the release's checksums list, signed with Verso's release key,
@@ -554,7 +557,15 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
     }
 
     let total_bytes = res.content_length();
-    let temp_dir = std::env::temp_dir().join(format!("verso-update-{}", std::process::id()));
+    // A phone's temp_dir() (/data/local/tmp) is not the app's to write.
+    #[cfg(target_os = "android")]
+    let temp_root = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| crate::failed(e.to_string()))?;
+    #[cfg(not(target_os = "android"))]
+    let temp_root = std::env::temp_dir();
+    let temp_dir = temp_root.join(format!("verso-update-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(&temp_dir).map_err(|e| ContractError {
         kind: ErrorKind::Failed,
@@ -666,7 +677,7 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
     if is_installer_name(&asset.name) {
         drop(file);
         let lower = asset.name.to_ascii_lowercase();
-        let ext = ["msi", "appimage", "deb", "rpm"]
+        let ext = ["msi", "appimage", "deb", "rpm", "apk"]
             .into_iter()
             .find(|e| lower.ends_with(&format!(".{e}")))
             .unwrap_or("exe");
@@ -1041,6 +1052,30 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
         }
     }
 
+    // A sideloaded APK (ADR 0118 item 5, decided 2026-11-10): the checked
+    // package moves out of the folder the download cleans, and Android's
+    // own install prompt takes it; Android never installs silently.
+    #[cfg(target_os = "android")]
+    {
+        let _ = temp_dir;
+        let kept = app
+            .path()
+            .app_cache_dir()
+            .map_err(|e| crate::failed(e.to_string()))?
+            .join("verso-update.apk");
+        std::fs::rename(extract_dir.join("verso-setup.apk"), &kept)
+            .map_err(|e| crate::failed(e.to_string()))?;
+        crate::phone::install_apk(&kept).map_err(crate::failed)?;
+        return Ok(emit_done(
+            "O Android vai perguntar se instala a versão nova.",
+            None,
+            false,
+        ));
+    }
+    // No updater on iOS (ADR 0119 B14, `Can::Updates` absent): AltStore's
+    // source, or a store, updates the app.
+    #[cfg(target_os = "ios")]
+    let _ = (extract_dir, temp_dir, &emit_done);
     // Unreachable on supported platforms, but required for compilation
     #[allow(unreachable_code)]
     Err(ContractError {
@@ -1105,7 +1140,7 @@ pub(crate) fn find_file_by_exts(
 /// an update they could not put in place. Windows has no such fallback:
 /// its installer does the replacing (ADR 0069, item 9: the updater's
 /// Windows path is still to be exercised).
-#[cfg(not(target_os = "windows"))]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub(crate) fn get_downloads_dir() -> std::path::PathBuf {
     let home = std::env::var("HOME")
         .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().to_string());
@@ -1198,7 +1233,9 @@ pub(crate) fn link_target(path: &std::path::Path) -> Option<std::path::PathBuf> 
 
 /// Whether anything sits at `path` — a file, a directory, or a symlink,
 /// even a broken one (the `test -e` this replaces, without following).
-#[cfg(not(windows))]
+/// macOS links the command line and Linux checks its copied script
+/// (`cli_state_now`); neither phone asks.
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub(crate) fn something_at(path: &std::path::Path) -> bool {
     std::fs::symlink_metadata(path).is_ok()
 }

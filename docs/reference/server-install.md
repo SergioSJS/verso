@@ -139,8 +139,7 @@ Off by default. `schedule backup [--keep N]` writes
 backups kept, 7 by default; `backup --keep N` does the pruning, only of files
 with this script's names, never through a link); `schedule update` writes
 `universo-update.service` and `.timer` (Sundays around 04:30: a backup, then
-`update`, which checks the download as always, and needs `GITHUB_TOKEN`
-while the repository is private). They run a copy of the script in
+`update`, which checks the download as always). They run a copy of the script in
 `/usr/local/lib/universo/`. `schedule status` shows them; `schedule off`
 removes both. A backup on the same machine does not survive losing it: copy
 backups off.
@@ -169,14 +168,30 @@ missing signature — none in the release, its download failed, none beside
 `--no-signature`, which settles for the published `sha256` (proof that the
 file is the one uploaded to the release, not of who made it). A package
 from `--package FILE` is checked with the list and its `.sig` beside it,
-else with `FILE.sig`. While the repository is private, downloading
-needs a GitHub token in `GITHUB_TOKEN` (fine-grained, Contents: Read-only
-on the repository); without one the script says how to make it, or takes
-`--package`. Give it with `read -rs GITHUB_TOKEN && export GITHUB_TOKEN`
-(bash or zsh: paste, Enter), which keeps it out of the screen and of the
-shell's history, rather than `export GITHUB_TOKEN=…` on the command
-line. A machine with neither apt nor dnf is told
+else with `FILE.sig`. The repository is public, so the download
+needs no token. `GITHUB_TOKEN` is optional: set it only against GitHub's
+anonymous rate limit (60 requests an hour per address), which answers 403 or
+429; the script sends it only when set. A 404 means the release or version
+asked for does not exist. Give the token with
+`read -rs GITHUB_TOKEN && export GITHUB_TOKEN` (bash or zsh: paste, Enter),
+which keeps it out of the screen and of the shell's history, rather than
+`export GITHUB_TOKEN=…` on the command line. A machine with neither apt nor dnf is told
 to use the archive (section 6). Sections 5 and 6 stay the manual paths.
+
+### A link on the internet: `link`
+
+`sh universo.sh link [quick | own | off] [--hostname NAME] [--token-file FILE]`
+turns on the server's own link through Cloudflare (section 8, *The
+server's own Cloudflare link*) for a machine with no domain and no port
+open to the internet: with no argument it asks which. `quick` writes
+`VERSO_TUNNEL=quick`; `own` asks the hostname and the tunnel's token
+(hidden as it is typed, or from `--token-file`), keeps the token in
+`/etc/universo/tunnel-token` (`0640`, root and the `universo` group) and
+writes `VERSO_TUNNEL=own`, `VERSO_TUNNEL_HOSTNAME` and
+`VERSO_TUNNEL_TOKEN_FILE`; `off` writes `VERSO_TUNNEL=off`. Each restarts
+the service and waits up to three minutes for the log to say the link is
+on (the first start downloads `cloudflared`). The address is never written
+in the log: the admin console shows it (`/admin/server`).
 
 A walk-through on a free cloud machine, from creating it to the app
 connected: [UniVerso on Oracle Cloud's Always Free tier](universo-on-oracle-free.md).
@@ -335,8 +350,7 @@ come from `id` on the host). The server writes only to `/data` and
 `/folders`, so any user that can write both will do (decided by the
 maintainer on 2026-10-10).
 
-Then (while the repository is private, sign in to the registry first,
-section 11):
+Then (if the pull is refused, section 11):
 
 ```sh
 docker run -d --name universo --restart unless-stopped \
@@ -448,7 +462,7 @@ the server's log (60 lines a minute at most, F21 of the
 would grow for as long as a member keeps writing.
 
 The image is pulled from GitHub's registry,
-which needs a `docker login` while the repository is private (section 11):
+which needs no sign-in while the package is public (section 11):
 on CasaOS and ZimaOS, in the system's terminal, once.
 
 **Found by the desktop app.** With the server listening beyond the
@@ -615,7 +629,7 @@ value counts as not set.
 | `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` | none | Verso serves TLS itself with this certificate and key (PEM); both or neither |
 | `VERSO_ANNOUNCE` | on | `off` stops the server announcing itself on the home network by mDNS (ADR 0097); it is never announced when it listens on loopback only |
 | `VERSO_UPDATE_CHECK` | on | `off` stops the check for a new version (section 12) |
-| `VERSO_UPDATE_TOKEN` | no | a token that reads the project's releases, needed for the check while the repository is private (a GitHub token with read access to it); without one the log says so once |
+| `VERSO_UPDATE_TOKEN` | no | optional: a GitHub token for the release check, useful only against GitHub's anonymous rate limit (60 requests an hour per address); the repository is public, so without one the check works |
 | `VERSO_SMTP_URL` | no | the host's mail server (`smtps://user:password@host:465`, or `smtp://…:587?tls=required`): sign-in links, "forgot the password" and invitations sent by e-mail |
 | `VERSO_MAIL_FROM` | no | the sender of those e-mails; `Verso <verso@` the public address's host `>` by default |
 | `VERSO_FOLDER_QUOTA` | no | the quota a new folder gets: bytes, or a size such as `500MB` or `10GB`; none when unset. The console (`/admin`, Folders) changes each folder's ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
@@ -623,6 +637,10 @@ value counts as not set.
 | `VERSO_TRASH_DAYS` | 30 | how many days a folder's trash (`.trash/`) keeps deleted files, and the versions a device's write replaced; `0` keeps them forever. The console's folder page sets each folder's, and the folder's owner may shorten it from the window ([ADR 0080](../adr/0080-the-trash-with-expiry-and-restore.md)). The trash is swept at start and once a day; it is shown, not counted against a quota, and when a folder's trash alone passes its quota the oldest items expire early |
 | `VERSO_HISTORY_DAYS` | 365 | how many days a folder's version history keeps versions of its text files (notes, boards, bases, `.txt`, `.json`, `.csv`); `0` keeps them with no limit, 36500 at most. Every version is kept for a day, one an hour for 30 days, one a day after that; a file's newest version is never thinned away. The history lives in `history.sqlite` of the data directory, never in the folder; the console's folder page sets each folder's days and shows its size, which is not counted against a quota — when a folder's history alone passes its quota its oldest versions go early ([ADR 0091](../adr/0091-version-history.md)) |
 | `VERSO_AUDIT_DAYS` | 365 | how many days the audit log keeps a row (sign-ins, sessions, tokens, invitations, grants, shares, the trash's actions, with the address); `0` keeps them forever, 36500 at most. A sweep at start and once a day deletes older rows, by time alone: no page or command deletes a row. The console's overview says the retention ([ADR 0083](../adr/0083-security-hardening-of-universo.md) item 10) |
+| `VERSO_TUNNEL` | `off` | the server's own link through Cloudflare (section 8, *The server's own Cloudflare link*; [ADR 0117](../adr/0117-this-app-is-a-universo-server.md) D4 item 2): `quick` (a random `https://….trycloudflare.com`, new at each start, 12 hours with *Extend* in the console) or `own` (an own address by a tunnel's token); the console turns it on and off as well, for the run |
+| `VERSO_TUNNEL_HOSTNAME` | none | the own address's hostname, the *Public Hostname* Cloudflare's dashboard routes to the tunnel; needed by `VERSO_TUNNEL=own` |
+| `VERSO_TUNNEL_TOKEN` or `VERSO_TUNNEL_TOKEN_FILE` | none | the tunnel's token made in Cloudflare's dashboard (the word after `--token`); handed to `cloudflared` in its environment, never on a command line, never logged, shown in the console as set or not; needed by `VERSO_TUNNEL=own` |
+| `VERSO_TUNNEL_PORT` | 7341 | the loopback port the own address's tunnel reaches: the dashboard's service is `http://localhost:<port>`. A quick link takes a port the system picks |
 
 Without `VERSO_SMTP_URL` nothing is sent: the admin copies the invitation and reset links by hand.
 
@@ -795,6 +813,56 @@ ways:
   them, Caddy forwards Cloudflare's address as the client's, and the
   server sees every visitor as a few of Cloudflare's addresses.
 
+### The server's own Cloudflare link
+
+With no domain, no certificate and no port open, the server can still be
+reached from the internet through a Cloudflare Tunnel it runs itself
+([ADR 0117](../adr/0117-this-app-is-a-universo-server.md) D4 item 2, the
+same code as the desktop app's link): `VERSO_TUNNEL=quick` or `own`, the
+installer's `link`, or the console's *Server* page (*Turn on a quick link*,
+*Turn on my own address*, *Extend 12 hours*, *Turn off*; turning it on or
+extending it asks the admin to prove it is them, as the console's other
+sensitive acts do).
+
+- **What runs.** On first use the server downloads Cloudflare's
+  `cloudflared` 2026.10.3 from its GitHub releases — the only place, pinned
+  per system and checked against its SHA-256 — into
+  `VERSO_DATA_DIR/tunnel/` (the image's `/data/tunnel`, the package's
+  `/var/lib/universo/data/tunnel`), never the `PATH`, and runs it as its
+  child: stopped on *Turn off*, at a quick link's twelve hours, when the
+  server stops, and by a watcher when the server's process is gone. No
+  network access is needed beyond `github.com` (the download) and
+  Cloudflare's edge ([ADR 0050](../adr/0050-outbound-network-access.md)).
+- **What it serves.** `cloudflared` reaches one more listener of the
+  server, on `127.0.0.1` in plain HTTP; that listener answers the link's
+  name and no other, its `Origin` is the link's, and the client's address
+  is the rightmost of `X-Forwarded-For`, which a client cannot forge — every
+  limit counts it. The server's own listener keeps its rules. The address
+  is set while the server runs, the moment the tunnel has it, with no
+  restart; the links the server hands out (invitations, mail) name it while
+  it is on, unless `VERSO_PUBLIC_URL` is set, which still wins.
+- **A quick link** is Cloudflare's testing mode: a random name that changes
+  at each start, 200 requests at once, an answer cut at about 100 seconds.
+  Passkeys and the offline copy are bound to its name and end with it.
+- **An own address** needs a free Cloudflare account and a domain whose
+  nameservers are at Cloudflare. In the dashboard (*Zero Trust › Networks ›
+  Tunnels*): make a tunnel (*Cloudflared*), copy the token after `--token`
+  in its install line, and under *Public Hostname* route your hostname to
+  the service `http://localhost:7341` (`VERSO_TUNNEL_PORT`). Nothing else
+  is installed: the server runs `cloudflared tunnel run` with the token.
+  `cloudflared tunnel login` and its account-wide `cert.pem` are not used
+  on a server. A token pasted in the console holds for that run only; for
+  every start, set `VERSO_TUNNEL=own` with the hostname and the token (as
+  a file or a Docker secret).
+- **Docker.** Nothing to add by design: the image's `/data` is writable and
+  `cloudflared` runs inside the container, as the server's user, against
+  the container's own loopback. Give the token as a secret
+  (`VERSO_TUNNEL_TOKEN_FILE: /run/secrets/universo-tunnel`). Not yet tried
+  in the image as the compose file runs it (`read_only: true`, `cap_drop:
+  ALL`), nor under the package's systemd hardening
+  (`MemoryDenyWriteExecute`, `SystemCallFilter`): a manual check
+  ([manual-checks.md](manual-checks.md)).
+
 ### Verso's own certificate
 
 `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` name a certificate and its
@@ -863,18 +931,23 @@ audit log (ADR 0083 item 4). A member's password is reset by the admin,
 in the administration console (`/admin`); using that link revokes the
 member's tokens too.
 
-## 11. The registry while the repository is private
+## 11. The registry: when a pull is refused
 
-The image is a private package of GitHub's registry while the repository
-is private (0075, Consequences). A host signs in once, with a personal
-access token (classic) that has `read:packages`:
+The image `ghcr.io/sergiosjs/universo` is a public package of GitHub's
+registry: it is pulled with no sign-in. If `docker pull` or
+`docker compose up` answers `denied` or `unauthorized`, the package is not
+public yet (its visibility is set apart from the repository's). Until it is,
+sign in once, with a personal access token (classic) that has `read:packages`
+(`repo` alone is not enough):
 
 ```sh
 echo "$TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
 ```
 
-When the repository opens, the package is made public once in its settings
-and is pulled with no sign-in.
+`Login Succeeded` does not prove the token works: the registry checks it
+only at the pull. Docker stores the token unencrypted in
+`~/.docker/config.json` (`/root/.docker/config.json` under `sudo`);
+`docker logout ghcr.io` removes it.
 
 ## 12. Updates
 

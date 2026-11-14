@@ -10,6 +10,7 @@
 // conflito atual, se preciso fazer algo".
 
 import { commands, type SyncLogEntry, type SyncRefused, type SyncStatus } from "../bindings";
+import { onPhone } from "../screen/phoneWords";
 import { ask, promptText } from "../dialog";
 import { diffNode } from "../diff";
 import { h } from "../dom";
@@ -263,7 +264,7 @@ export type Words = typeof pt;
 let cloudMode = false;
 
 function words(): Words {
-  const base = document.documentElement.lang.startsWith("pt") ? pt : en;
+  const base = onPhone(document.documentElement.lang.startsWith("pt") ? pt : en);
   return cloudMode ? cloudWords(base) : base;
 }
 

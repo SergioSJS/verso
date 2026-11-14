@@ -1,5 +1,6 @@
 //! A release's version, as its tag spells it (`v0.5.0`, `v0.5.0-beta.1`),
-//! and which of two is the newer: what the update check compares. No IO.
+//! which of two is the newer, and whether two are of the same channel:
+//! what the update check compares. No IO.
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct ParsedVersion {
@@ -89,5 +90,57 @@ impl ParsedVersion {
                 }
             }
         }
+    }
+}
+
+impl ParsedVersion {
+    /// Whether `other` is of this version's channel (the maintainer,
+    /// 2026-11-14): a test version's app, *Verso Beta*, updates only to
+    /// test versions, and a final's app, *Verso*, only to finals — each is
+    /// its own app, with its own identifier, beside the other.
+    pub(crate) fn same_channel(&self, other: &Self) -> bool {
+        self.prerelease.is_some() == other.prerelease.is_some()
+    }
+
+    /// Whether the release file `name` is this channel's app: a test
+    /// release names its files `Verso-Beta-…`, a final `Verso-…`
+    /// (`scripts/release-page.mjs`, `releaseFiles`).
+    pub(crate) fn names_its_app(&self, name: &str) -> bool {
+        let n = name.to_ascii_lowercase();
+        if self.prerelease.is_some() {
+            n.starts_with("verso-beta-")
+        } else {
+            // `Verso-` then the version's number: not `verso-cli-`.
+            n.strip_prefix("verso-")
+                .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ParsedVersion;
+
+    fn v(s: &str) -> ParsedVersion {
+        ParsedVersion::parse(s).unwrap_or_else(|| panic!("{s} parses"))
+    }
+
+    #[test]
+    fn a_beta_updates_only_to_betas_and_a_final_only_to_finals() {
+        assert!(v("0.9.0-beta.1").same_channel(&v("v0.9.1-beta.1")));
+        assert!(!v("0.9.0-beta.1").same_channel(&v("v0.9.0")));
+        assert!(v("0.9.0").same_channel(&v("v0.9.1")));
+        assert!(!v("0.9.0").same_channel(&v("v0.9.1-beta.1")));
+    }
+
+    #[test]
+    fn each_channel_takes_only_its_own_apps_file() {
+        let beta = v("0.9.0-beta.1");
+        assert!(beta.names_its_app("Verso-Beta-0.9.0-beta.1-macos-arm64.zip"));
+        assert!(!beta.names_its_app("Verso-0.9.0-macos-arm64.zip"));
+        let release = v("0.9.0");
+        assert!(release.names_its_app("Verso-0.9.0-macos-arm64.zip"));
+        assert!(!release.names_its_app("Verso-Beta-0.9.0-beta.1-macos-arm64.zip"));
+        assert!(!release.names_its_app("verso-cli-0.9.0-macos-arm64.tar.gz"));
     }
 }

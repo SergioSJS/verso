@@ -9,6 +9,7 @@ import { frameable, framedPage, frameVerdicts, isAppOrigin } from "../screen/fra
 import { overlayOpen } from "../layout/drag";
 import { embedPlace, webPlace, type Rect } from "./embedClip";
 import type { NoteLeaf } from "./note";
+import { COVERED, dropPage, pageStep } from "./webSnapshot";
 
 /* The web views of open web notes follow their hosts only while
  * something can move them: a window resized, a tab shown or hidden, a
@@ -76,6 +77,9 @@ function frameableNow(url: string): boolean | undefined {
  *    asks for a window. The desktop host denies every new window (its
  *    view has no handler), so they only matter where a browser shows the
  *    frame; they are the flags of the browser's frame as well.
+ *  - allow-downloads: what the page saves (a generator's "Export") goes
+ *    into the folder, beside the note, in the desktop app; into the
+ *    browser's Downloads in a browser (ADR 0120 item 6, revising ADR 0056).
  *  No allow-top-navigation: the page cannot steer the window. No `allow`
  *  attribute: no camera, microphone, location or other feature is lent to
  *  it. No referrer is sent. */
@@ -85,7 +89,7 @@ export function embedFrame(url: string): HTMLIFrameElement {
   frame.title = url;
   frame.referrerPolicy = "no-referrer";
   frame.setAttribute("loading", "lazy");
-  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox");
+  frame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads");
   return frame;
 }
 
@@ -123,6 +127,7 @@ export function tickEmbedViews(): void {
     if (!el.isConnected || !el.hasAttribute("data-embed-web")) {
       embedViews.delete(el);
       boxWatch?.unobserve(el);
+      dropPage(el);
       if (v.label) void commands.webClose(v.label);
     }
   }
@@ -171,9 +176,10 @@ export function tickEmbedViews(): void {
     const slot = el.getBoundingClientRect();
     const place = embedPlace(slot, clips, avoid, { width: window.innerWidth, height: window.innerHeight });
     const where = webPlace(slot, place);
-    const visible = el.isConnected && el.offsetParent !== null && place.visible && !overlayOpen();
+    const shown = el.isConnected && el.offsetParent !== null && place.visible;
+    const over = shown && overlayOpen();
     if (!v.label) {
-      if (visible && !v.opening && url) {
+      if (shown && !over && !v.opening && url) {
         v.opening = true;
         const want = v;
         void commands.webOpen(url, where).then((res) => {
@@ -195,17 +201,17 @@ export function tickEmbedViews(): void {
     } else {
       // The screen's scale too: the host places the page in device
       // pixels, and a window moved to another screen keeps its CSS size.
-      const key = visible ? [where.slot, where.visible].map((b) => `${Math.round(b.x ?? 0)}|${Math.round(b.y ?? 0)}|${Math.round(b.w ?? 0)}|${Math.round(b.h ?? 0)}`).join("|") + `|${window.devicePixelRatio}` : "0";
+      // While an overlay is open the page is covered by its picture
+      // (webSnapshot.ts).
+      const key = !shown ? "0" : over ? COVERED : [where.slot, where.visible].map((b) => `${Math.round(b.x ?? 0)}|${Math.round(b.y ?? 0)}|${Math.round(b.w ?? 0)}|${Math.round(b.h ?? 0)}`).join("|") + `|${window.devicePixelRatio}`;
       if (key !== v.last) {
+        const was = v.last;
         v.last = key;
         v.still = 0;
+        // The page keeps its own scroll: the note's scroll moves the
+        // slot, never the page inside it, as with an iframe.
         const label = v.label;
-        if (visible) {
-          // The page keeps its own scroll: the note's scroll moves the
-          // slot, never the page inside it, as with an iframe.
-          void commands.webBounds(label, where).then(() => commands.webVisible(label, true));
-        }
-        else void commands.webVisible(label, false);
+        pageStep(el, label, was, key, () => commands.webBounds(label, where));
       } else v.still++;
       if (v.still < 10) busy = true;
     }

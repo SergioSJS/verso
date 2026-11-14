@@ -16,6 +16,7 @@ import {
 } from "@codemirror/search";
 import { icon } from "./icons";
 import { LOCALE } from "./strings";
+import { focusOnOpen } from "./screen/openFocus";
 
 export interface SearchStrings {
   find: string;
@@ -401,8 +402,7 @@ export class CustomSearchPanel implements Panel {
   }
 
   mount(): void {
-    this.searchInput.focus();
-    this.searchInput.select();
+    focusOnOpen(this.searchInput, { select: true });
     this.updateCount();
   }
 }
@@ -510,8 +510,7 @@ export class ReadingSearch {
     if (initialQuery !== undefined) {
       this.searchInput.value = initialQuery;
     }
-    this.searchInput.focus();
-    this.searchInput.select();
+    focusOnOpen(this.searchInput, { select: true });
     this.find();
   }
 

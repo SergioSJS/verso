@@ -72,6 +72,18 @@ impl Workspace {
             .map_err(CoreError::Read)
     }
 
+    /// `relative`, a file or folder that is there, spelled as the disk keeps
+    /// its names ([`verso_fs::Root::spelled`]): where names fold, a write
+    /// through another case reaches the file kept under its own. Asked of
+    /// the disk, not the listing, which is as of the last walk.
+    #[must_use]
+    pub fn spelled_on_disk(&self, relative: &str) -> Option<String> {
+        let key = self.entry_key(relative).ok()?;
+        self.root
+            .spelled(Path::new(&key))
+            .map(|p| p.to_string_lossy().into_owned())
+    }
+
     /// The SHA-256 of the file `relative` names, read a piece at a time,
     /// with the revision it was read at: what sync compares and sends,
     /// for a file of any size, never whole in memory.

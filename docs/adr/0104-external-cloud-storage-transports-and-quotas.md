@@ -140,6 +140,7 @@ creates the developer accounts later.
 1. **In V1, five providers.** `[DECIDED 2026-10-21]` (0104.1 B, 0104.3):
    WebDAV, S3 (and S3-compatible), Dropbox, OneDrive, Google Drive — for
    **the desktop app's sync of a local folder**.
+   *2026-11-08 — "phone" in this ADR (item 5) is the window served to a phone's browser; the native Android app of [0118](0118-a-native-android-app-from-the-same-core-and-ui.md) has the desktop app's role: it syncs, and may host.*
 
 2. **What this revises.** `[DECIDED 2026-10-21]` (C.12) The maintainer's 0104.1 B
    moves part of the roadmap's `[DECIDED 2026-10-14]` line "after V1 a
@@ -200,7 +201,7 @@ creates the developer accounts later.
 6. **Each provider's narrowest place.** `[DECIDED 2026-10-21]`
    - **WebDAV**: an address and a folder the person gives, with user and
      password (or an app password); HTTPS only, except an address on the
-     local network the person confirms (as [0096](0096-this-app-is-a-server.md)
+     local network the person confirms (as [0096](archive/0096-this-app-is-a-server.md)
      does for plain HTTP) *(this sub-rule: accepted with the ADR, not asked)*.
    - **S3**: endpoint, bucket, prefix, access key and secret; the how-to in
      the demo vault tells the person to scope the key to that bucket and

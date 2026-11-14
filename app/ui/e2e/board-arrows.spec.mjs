@@ -121,7 +121,7 @@ test("the arrow tool says how to draw a free arrow, and that Setas soltas is on"
   await openBoard(app, page);
   await expect(page.getByTestId("board-arrow-hint")).toHaveCount(0);
   await page.keyboard.press("a");
-  await expect(page.getByTestId("board-arrow-hint")).toHaveText(/segure ⌘ ao desenhar, ou Inserir › Setas soltas/);
+  await expect(page.getByTestId("board-arrow-hint")).toHaveText(/segure (⌘|Ctrl) ao desenhar, ou Inserir › Setas soltas/);
   await page.getByTestId("board-tool-insert").click();
   await page.getByTestId("board-tool-loose").click();
   await page.keyboard.press("a");

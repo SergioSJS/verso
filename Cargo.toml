@@ -12,7 +12,7 @@ members = ["crates/*", "app/src-tauri"]
 exclude = ["crates/verso-dialect/fuzz", "crates/verso-server/fuzz"]
 
 [workspace.package]
-version = "0.8.4-beta.1"
+version = "0.9.0-beta.1"
 edition = "2024"
 rust-version = "1.98"
 license = "MPL-2.0"
@@ -43,6 +43,19 @@ disallowed_methods = "forbid"
 # release by then, reconsider (ADR 0029, exception policy).
 [patch.crates-io]
 pulldown-cmark = { git = "https://github.com/pulldown-cmark/pulldown-cmark", rev = "c51a2a4cd8ed07a4b1467cc546edcc51eff40703" }
+# tao 0.35.3 returns a UISceneConfiguration it has just released when iOS
+# connects a scene: a release build of the iOS app crashes at launch
+# (SIGSEGV in objc_retain; ADR 0119 Phase 0, the maintainer's iPad,
+# 2026-11-12). Fixed upstream in this revision (tauri-apps/tao#1245,
+# "use autorelease_ptr to fix UISceneConfiguration crash"), still 0.35.3,
+# in no release of the 0.35 line Tauri 2.11 pins. It also carries the ten
+# upstream commits between 0.35.3 and the fix (Windows input and window
+# subclassing, Linux synchronisation and Wayland decorations, iPadOS 26's
+# window controls). The maintainer's decision of 2026-11-12 ("vamos de
+# recomendado"). Remove it, the allow-git entry and the ban in deny.toml
+# together once Tauri moves to a tao that carries the fix (0.36 or later).
+# Expires 2026-12-31: if no such Tauri by then, reconsider (ADR 0029).
+tao = { git = "https://github.com/tauri-apps/tao", rev = "f2163508104413ef0609178dcebdd5803b496211" }
 
 # The password hash compiled with optimisations in debug builds too: Argon2 is
 # slow on purpose through its parameters (memory and passes), which stay the
@@ -53,3 +66,21 @@ pulldown-cmark = { git = "https://github.com/pulldown-cmark/pulldown-cmark", rev
 opt-level = 3
 [profile.dev.package.blake2]
 opt-level = 3
+
+# The iOS release archive: the Swift halves of Tauri and of its plugins
+# (`register_plugin`, `init_plugin_*`, `log_stdout`, `on_webview_created`)
+# are built by swift-rs in the configuration Cargo's `DEBUG` names, and in
+# Swift's release configuration (Xcode 27's toolchain) their `@_cdecl`
+# symbols come out local, so the app's binary cannot link them (ADR 0119,
+# the first release `.ipa`, 2026-11-12). Line tables only in these four
+# crates turn `DEBUG` on for their build scripts: their Swift is built as in
+# a debug build, exported; the Rust stays optimised. Elsewhere the four
+# crates' release builds only carry line tables.
+[profile.release.package.tauri]
+debug = "line-tables-only"
+[profile.release.package.tauri-plugin-dialog]
+debug = "line-tables-only"
+[profile.release.package.tauri-plugin-notification]
+debug = "line-tables-only"
+[profile.release.package.tauri-plugin-opener]
+debug = "line-tables-only"

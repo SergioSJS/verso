@@ -252,7 +252,10 @@ impl Db {
     pub fn table_images(&self, folder: &str) -> R<Vec<String>> {
         let conn = self.reader();
         let mut st = conn
-            .prepare("SELECT body FROM table_log WHERE folder = ?1 AND kind IN ('image', 'file')")
+            .prepare(
+                "SELECT body FROM table_log WHERE folder = ?1 AND kind IN ('image', 'file')
+                   AND NOT (tbl = '.trash' OR substr(tbl, 1, 7) = '.trash/')",
+            )
             .map_err(e)?;
         let bodies = st
             .query_map([folder], |r| r.get::<_, String>(0))

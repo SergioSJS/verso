@@ -262,10 +262,16 @@ impl std::error::Error for CoreError {}
 /// sidecar, the log — is this machine's (ADR 0070), so it goes in the
 /// local profile, not in `%APPDATA%`, the roaming one a company network
 /// copies between machines; `HOME` is usually unset there.
+///
+/// A host whose system names no such place in the environment — an Android
+/// app, whose private storage only the system's API tells — names it once
+/// with [`set_host_config_dir`]; `$VERSO_CONFIG_DIR` still wins.
 pub fn config_dir() -> Result<PathBuf, CoreError> {
     let get = |name: &str| std::env::var_os(name).filter(|v| !v.is_empty());
+    let verso = get("VERSO_CONFIG_DIR")
+        .or_else(|| HOST_CONFIG_DIR.get().map(|d| d.clone().into_os_string()));
     config_dir_from(
-        get("VERSO_CONFIG_DIR").as_deref(),
+        verso.as_deref(),
         get("XDG_CONFIG_HOME").as_deref(),
         if cfg!(windows) {
             get("LOCALAPPDATA")
@@ -277,6 +283,40 @@ pub fn config_dir() -> Result<PathBuf, CoreError> {
         cfg!(target_os = "macos"),
     )
     .ok_or(CoreError::NoConfigDir)
+}
+
+/// The host's own configuration directory, when it named one.
+static HOST_CONFIG_DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// Name the configuration directory for a host the environment says
+/// nothing of (the Android app's private storage), before anything reads
+/// it. Once: `false` when one was named already, which stays.
+pub fn set_host_config_dir(dir: PathBuf) -> bool {
+    HOST_CONFIG_DIR.set(dir).is_ok()
+}
+
+/// Where every install of an iOS app keeps its container, and this
+/// install's: the folders opened before under the first and not under the
+/// second were at an earlier install's path (iOS moves the container, the
+/// data with it, at each install; ADR 0119 Phase 0), and are not offered.
+static INSTALLS: std::sync::OnceLock<(PathBuf, PathBuf)> = std::sync::OnceLock::new();
+
+/// Name the directory every install's container is made in and this
+/// install's container (the iOS app, at its start). Once.
+pub fn set_installs(all: PathBuf, this: PathBuf) -> bool {
+    INSTALLS.set((all, this)).is_ok()
+}
+
+/// Whether `folder` lay in an earlier install's container ([`set_installs`]).
+fn of_an_earlier_install(folder: &Path) -> bool {
+    INSTALLS
+        .get()
+        .is_some_and(|(all, this)| of_an_earlier_install_in(folder, all, this))
+}
+
+/// [`of_an_earlier_install`] as a pure function, for tests.
+fn of_an_earlier_install_in(folder: &Path, all: &Path, this: &Path) -> bool {
+    folder.starts_with(all) && !folder.starts_with(this)
 }
 
 /// [`config_dir`] as a pure function of its inputs, for tests. `None`
@@ -553,6 +593,11 @@ pub struct FileEntry {
     pub len: u64,
     /// Seconds since the Unix epoch; 0 when the file system gave none.
     pub modified: i64,
+    /// The same time in nanoseconds since the Unix epoch, as finely as the
+    /// file system keeps it (whole seconds where it keeps no finer); 0 when
+    /// it gave none. What tells two writes of one length in one second
+    /// apart: sync's quick key.
+    pub modified_nanos: u128,
     /// Creation, in seconds since the Unix epoch; 0 when the file system
     /// gave none.
     pub created: i64,
@@ -764,6 +809,10 @@ fn well_formed_key(key: &str) -> bool {
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
+fn nanos_since_epoch(t: std::time::SystemTime) -> u128 {
+    t.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_nanos())
+}
+
 fn seconds_since_epoch(t: std::time::SystemTime) -> i64 {
     t.duration_since(UNIX_EPOCH)
         .map(|d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
@@ -824,6 +873,9 @@ pub fn recent_folders(config: Option<&Path>) -> Vec<PathBuf> {
         },
     };
     sidecar::known_folders(&dir.join("index"))
+        .into_iter()
+        .filter(|f| !of_an_earlier_install(f))
+        .collect()
 }
 
 /// The folders inside `folder`, relative and `/`-joined, without opening
@@ -1198,4 +1250,34 @@ pub fn root_note_candidates(configured: &str, root_name: &str) -> Vec<String> {
         out.push(format!("{root_name}.md"));
     }
     out
+}
+
+#[cfg(test)]
+mod install_tests {
+    use super::of_an_earlier_install_in;
+    use std::path::Path;
+
+    /// An iOS install moves the app's container: a folder at an earlier
+    /// install's path is not offered among the recent folders; one in this
+    /// install's container, or outside every container, is (ADR 0119).
+    #[test]
+    fn a_folder_of_an_earlier_install_is_told_apart() {
+        let all = Path::new("/var/mobile/Containers/Data/Application");
+        let this = all.join("NEW");
+        assert!(of_an_earlier_install_in(
+            &all.join("OLD/Library/Verso"),
+            all,
+            &this
+        ));
+        assert!(!of_an_earlier_install_in(
+            &this.join("Library/Verso"),
+            all,
+            &this
+        ));
+        assert!(!of_an_earlier_install_in(
+            Path::new("/Users/ana/Notas"),
+            all,
+            &this
+        ));
+    }
 }

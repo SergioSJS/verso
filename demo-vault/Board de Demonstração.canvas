@@ -4,7 +4,7 @@
 		{"id":"n-alpha","type":"file","file":"projetos/Projeto Alpha.md","x":-420,"y":-240,"width":400,"height":420},
 		{"id":"n-beta","type":"file","file":"projetos/Projeto Beta.md","x":60,"y":-240,"width":400,"height":420},
 		{"id":"n-pesquisa","type":"file","file":"projetos/Pesquisa e Descobertas.md","x":600,"y":-240,"width":400,"height":300},
-		{"id":"t-bemvindo","type":"text","text":"## Board do Verso\n\nArraste os cartões, ligue notas com setas e desenhe por cima.\n\n**Duplo clique** num cartão de nota entra nele, e mais um clique edita; o ↗ abre a nota numa aba. Veja [[09 - Board e Relações]].","x":-460,"y":280,"width":420,"height":200,"color":"4"},
+		{"id":"t-bemvindo","type":"text","text":"## Board do Verso\n\nArraste os cartões, ligue notas com setas e desenhe por cima.\n\n**Duplo clique** num cartão de nota entra nele, e mais um clique edita; o ↗ abre a nota numa aba. Veja [[20 - Board e Relações]].","x":-460,"y":280,"width":420,"height":200,"color":"4"},
 		{"id":"n-diagrama","type":"file","file":"assets/diagrama.svg","x":20,"y":280,"width":300,"height":200},
 		{"id":"l-jsoncanvas","type":"link","url":"https://jsoncanvas.org","x":600,"y":120,"width":400,"height":120}
 	],

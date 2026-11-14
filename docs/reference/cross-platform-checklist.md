@@ -6,8 +6,9 @@
   Consequences). The first Windows build, on 2026-10-07 and 08, needed every
   fix below; each was a habit that works on macOS and fails on Windows. This
   is what to do instead, so the next change does not repeat them.
-- How to check: `scripts/check.sh` runs the end-to-end tests in Chromium
-  (WebView2's engine) beside WebKit; `scripts/check-windows.sh` runs clippy
+- How to check: `scripts/check-e2e.sh` (in Docker; `scripts/check.sh`
+  calls it) runs the end-to-end tests in Chromium (WebView2's engine)
+  beside WebKit; `scripts/check-windows.sh` runs clippy
   and the tests on a Windows machine. A change that touches files, paths,
   processes, configuration or the window's focus and keys reads this first.
 
@@ -122,3 +123,9 @@
 - Windows: the only source is the pages open in Verso (ADR 0116 amendment of 2026-11-01): process loopback (build 20348 and later) of the **pages environment's browser process tree**, found with `ICoreWebView2::BrowserProcessId`. Windows 10 has no process loopback and gets no share (device loopback would carry other programs and the dice). Loopback gives no packet while nothing plays: the capture sends 100 ms of silence on a quiet wait. COM is per thread: the capture thread initialises and releases its own; WebView2 is asked on the main thread through `with_webview`, so the commands that do it are async.
 - Linux: the only source is the pages open in Verso (ADR 0116 amendment of 2026-11-01, note of 2026-11-02): PipeWire or PulseAudio through `pactl`, `parec` and `pacat` (`pulseaudio-utils`, recommended by the .deb and .rpm). A playback stream is taken only if its process is a `WebKitWebProcess` descendant of Verso holding a `pages-profile` path, never a whole-sink monitor; the window's own sounds leave through `pacat`. Video and iframes inside notes are not shared; the naming of playing pages is not built yet (Windows only).
 - The pages' own profile (`web.rs`, `pages_profile`): a data directory (Windows, Linux) or a named data store (macOS 14+) so that embedded pages never share the window's engine processes. A new web view created for a page must go through it.
+
+## 9. Media in Linux's web view (WebKitGTK)
+
+| Habit | What happened | Instead |
+|---|---|---|
+| an `<audio>` or `<video>` given an address on the app's own scheme (`verso://`, `tauri://`), as on macOS and Windows | WebKitGTK's media engine (GStreamer) opens only `http(s)`, `blob` and its own internal addresses: every such element failed with MediaError 4 at once, though `fetch` read the same address (2.52.6, VM 104, 2026-11-04; `GST_DEBUG=webkit*:5` logs `isProtocolAllowed … (allowed: no)`, and with `WEBKIT_GST_ALLOWED_URI_PROTOCOLS` set, `No URI handler implemented`). Range answers do not change it | give the element its file through `app/ui/src/audio/source.ts` (`setSource`): on Linux a blob fetched from the address (`media-src blob:` in the desktop CSP), elsewhere the address itself; Web Audio from `fetch` (the dice) works everywhere |

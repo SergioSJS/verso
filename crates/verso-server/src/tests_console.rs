@@ -351,3 +351,83 @@ fn an_admin_ends_another_accounts_sessions_and_tokens() {
         assert_eq!(log["rows"][0]["about"]["email"], "bia@casa.lan", "{log}");
     });
 }
+
+/// A new password's link ends the account's sessions and revokes its
+/// tokens when it is made, as `verso serve admin reset` does on the
+/// machine and the app's section does (decided 2026-11-04): a lost or
+/// taken password is cut off at once, not when the link is used. The
+/// device's open connection is told `gone: session`; the old password
+/// still signs in until the new one is set; an earlier link opens nothing.
+#[test]
+fn a_new_password_link_ends_the_accounts_sessions_and_tokens_at_once() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let bia = r
+            .server
+            .db
+            .create_account("bia@casa.lan", "Bia", "pt", Some("a senha da bia"), false)
+            .unwrap();
+        let browser = sign_in(&r, "bia@casa.lan", "a senha da bia").await;
+        let (device, _) = r
+            .server
+            .db
+            .create_session(&bia.id, "device", "Verso · Celular", "127.0.0.1")
+            .unwrap();
+        let (secret, token) = r
+            .server
+            .db
+            .create_token(&bia.id, "script", false, None, &[])
+            .unwrap();
+        let mut on_device = connect(&r, None, None, Some(&device)).await.unwrap();
+        next(&mut on_device).await;
+        let reset = format!("/api/admin/accounts/{}/reset", bia.id);
+        let (status, first) = post(&r, &reset, json!({}), Some(&admin)).await;
+        assert_eq!(status, 200, "{first}");
+        let (status, made) = post(&r, &reset, json!({}), Some(&admin)).await;
+        assert_eq!(status, 200, "{made}");
+        // Told at once; nothing of Bia's opens anything now.
+        assert_eq!(next(&mut on_device).await["gone"], "session");
+        assert!(r.server.db.sessions_of(&bia.id).unwrap().is_empty());
+        assert!(r.server.db.tokens_of(&bia.id).unwrap().is_empty());
+        assert_eq!(get(&r, "/api/me", Some(&browser)).await.0, 401);
+        assert_eq!(
+            connect(&r, None, None, Some(&secret)).await.err(),
+            Some(401)
+        );
+        // Each revoked token is in the log, and the link about Bia.
+        let (_, log) = get(&r, "/api/admin/audit?action=token_revoked", Some(&admin)).await;
+        assert_eq!(log["rows"][0]["subject"], token.id, "{log}");
+        let (_, log) = get(&r, "/api/admin/audit?action=reset_link", Some(&admin)).await;
+        assert_eq!(log["rows"][0]["subject"], bia.id, "{log}");
+        // The earlier link opens nothing; the old password still signs in
+        // until the new one is set.
+        let token_of = |v: &Value| {
+            v["link"]
+                .as_str()
+                .unwrap()
+                .rsplit('/')
+                .next()
+                .unwrap()
+                .to_owned()
+        };
+        assert_eq!(
+            get(&r, &format!("/api/reset/{}", token_of(&first)), None)
+                .await
+                .0,
+            404
+        );
+        sign_in(&r, "bia@casa.lan", "a senha da bia").await;
+        let (status, _) = post(
+            &r,
+            &format!("/api/reset/{}", token_of(&made)),
+            json!({ "password": "uma senha nova da bia" }),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        sign_in(&r, "bia@casa.lan", "uma senha nova da bia").await;
+        // The admin's own session stays.
+        assert_eq!(get(&r, "/api/me", Some(&admin)).await.0, 200);
+    });
+}

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { seededText } from "./watabou/seeded";
 import { sharedUnder } from "./shares";
 import { sh } from "./shareStrings";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -29,7 +30,7 @@ import { propVal } from "./leaves/folderView";
 import { NoteLeaf } from "./leaves/note";
 import { redraw } from "./live";
 import { panel, plan } from "./main";
-import { opening } from "./opening";
+import { fetchAll, fetchLinkers, opening } from "./opening";
 import { folderNoteOf } from "./organize/folderNotes";
 import { setFrontmatterProp, withProperty } from "./organize/frontmatter";
 import { dirOf, ext, Kind, kindOf, name } from "./paths";
@@ -215,17 +216,20 @@ export function unportable(typed: string): boolean {
   return true;
 }
 /** `quietTaken`: a name already taken is answered "exists", unsaid, for
- *  the caller to try another. */
-export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false, quietTaken = false): Promise<"exists" | void> {
+ *  the caller to try another. `from`: the note whose link is followed to
+ *  make this one — a region imported from Watabou's Perilous Shores gives a
+ *  town or a danger its first text (ADR 0120 item 4). */
+export async function createNote(folder: string, nameTyped: string, pane?: Pane, renameNow = false, quietTaken = false, from?: string): Promise<"exists" | void> {
   const clean = nameTyped.trim().replace(/\.md$/i, "");
   // A note's file name ends in `.md`: a dot before it is kept by Windows.
   if (!clean || unlinkable(clean) || unportable(`${clean}.md`)) return;
   const path = folder ? `${folder}/${clean}` : clean;
-  let initialText = `# ${clean.split("/").pop() ?? clean}\n\n`;
+  const seeded = from ? await seededText(from, clean) : null;
+  let initialText = seeded ?? `# ${clean.split("/").pop() ?? clean}\n\n`;
   // The folder's template, when it names one; else the note offers the
   // templates folder's under its title (ADR 0068).
-  let fromFolder = false;
-  const fn = folder ? folderNoteOf(folder) : null;
+  let fromFolder = seeded !== null;
+  const fn = folder && !seeded ? folderNoteOf(folder) : null;
   if (fn) {
     try {
       const read = await opening.readNote(fn);
@@ -331,6 +335,7 @@ export async function deleteEntry(path: string, kind: Kind): Promise<void> {
   // What goes to the bin goes with its last words: saved first, or not moved.
   const unsaved = await flushed(leavesUnder(path));
   if (unsaved.length > 0) return stopped(unsaved);
+  if (!(await fetchAll([path]))) return;
   const r = await commands.deleteEntry(path);
   if (r.status !== "ok") return fail(r.error);
   pathsRemoved(path);
@@ -373,6 +378,8 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
   }
   // The links to rewrite are read from disk: every tab saves first.
   await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
+  if (!(await fetchAll([from]))) return false;
+  await fetchLinkers([from]);
   const r = await commands.renameEntry(from, to);
   if (r.status !== "ok") {
     if (r.error.kind === "exists") nameTaken(t.exists);
@@ -380,6 +387,7 @@ export async function renameTo(from: string, to: string, done = ""): Promise<boo
     return false;
   }
   followMoved([{ from, to: r.data.path }], r.data.also);
+  remember([{ from, to: r.data.path }]);
   if (fromTree) {
     setTreeLandOn(`${allFolders.includes(from) ? "folder" : "file"}:${r.data.path}`);
     const parts = r.data.path.split("/");
@@ -412,6 +420,66 @@ export function followMoved(moved: { from: string; to: string }[], alsoMoved: { 
   }
   for (const [a, b] of also) for (const l of leavesUnder(a)) if (l.path === a) l.moved(b);
 }
+/* ⌘Z after a move (backlog, the maintainer, 2026-11-02: "Ctrl/⌘+Z does
+ * not undo a file move"): the window's last move or rename is taken back,
+ * and ⌘⇧Z does it again, while the focus is in the file tree or nowhere —
+ * once an editor or a box has had the focus, ⌘Z is theirs again. The move
+ * back is a move like any other: saved first, its links planned. */
+type Moved = { from: string; to: string }[];
+let lastMove: Moved | null = null;
+let undoneMove: Moved | null = null;
+let replaying = false;
+function remember(moved: Moved): void {
+  if (replaying || moved.length === 0) return;
+  lastMove = moved;
+  undoneMove = null;
+}
+/** Another folder in the window: its paths are not the moves'. */
+export function forgetMoves(): void {
+  lastMove = undoneMove = null;
+}
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLElement) || ui.notes.contains(el)) return;
+  if (el.isContentEditable || el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.closest(".cm-editor, .excalidraw")) forgetMoves();
+});
+/** ⌘Z or ⌘⇧Z on the window's last move, when it is the move's to take:
+ *  answers whether it took it. */
+export function takeBackMove(command: string): boolean {
+  const a = document.activeElement;
+  const here = !a || a === document.body || ui.notes.contains(a);
+  if (!here) return false;
+  // One move back at a time: a ⌘Z pressed while one runs waits for nothing.
+  if (replaying) return command === "undo" || command === "redo";
+  const undo = command === "undo";
+  const step = undo ? lastMove : command === "redo" ? undoneMove : null;
+  if (!step) return false;
+  // Taken now, not when the move ends: a quick second ⌘Z finds it gone
+  // (the C2 run, 2026-11-04: a third ⌘Z moved the files again).
+  [lastMove, undoneMove] = undo ? [null, step] : [step, null];
+  void replay(undo ? step.map(({ from, to }) => ({ from: to, to: from })) : step, undo).then((ok) => {
+    if (!ok) [lastMove, undoneMove] = undo ? [step, null] : [null, step];
+  });
+  return true;
+}
+async function replay(moves: Moved, undo: boolean): Promise<boolean> {
+  replaying = true;
+  let ok = true;
+  try {
+    // One call per folder they go to: a rename on its own, a move of
+    // several together, as they were moved.
+    const into = new Map<string, Moved>();
+    for (const m of moves) into.set(dirOf(m.to), [...(into.get(dirOf(m.to)) ?? []), m]);
+    for (const [folder, group] of into) {
+      const renamed = group.length === 1 && name(group[0]!.from) !== name(group[0]!.to);
+      ok = (renamed ? await renameTo(group[0]!.from, group[0]!.to) : await moveEntries(group.map((m) => m.from), folder)) && ok;
+    }
+  } finally {
+    replaying = false;
+  }
+  if (ok) ui.status.textContent = undo ? t.moveUndone : t.moveRedone;
+  return ok;
+}
 /** Several entries into `folder` at once — the tree's selection (ADR 0048,
  *  revised 2026-10-07): saved first, moved by the core in one call, and
  *  one plan of link rewrites for all of them. One the disk refuses is
@@ -423,12 +491,15 @@ export async function moveEntries(paths: string[], folder: string): Promise<bool
     return false;
   }
   await flushed(spaces.flatMap((sp) => sp.layout.panes().flatMap((p) => p.leaves)));
+  if (!(await fetchAll(paths))) return false;
+  await fetchLinkers(paths);
   const r = await commands.moveEntries(paths, folder);
   if (r.status !== "ok") {
     fail(r.error);
     return false;
   }
   followMoved(r.data.moved, r.data.also);
+  remember(r.data.moved);
   if (folder) openFolders.add(folder);
   await afterFileChange();
   const why = { unavailable: t.skipUnavailable, not_text: t.skipNotText, failed: t.skipFailed };
@@ -445,6 +516,7 @@ export async function deleteEntries(paths: string[]): Promise<void> {
   if (!(await ask([t.selection.confirmDelete(paths.length), binWarning(paths)].filter(Boolean).join(" "), { yes: t.deleteEntry, no: t.cancel }))) return;
   // Inside a folder also given: it goes with the folder.
   const top = paths.filter((p) => !paths.some((q) => q !== p && p.startsWith(`${q}/`)));
+  if (!(await fetchAll(top))) return;
   let gone = 0;
   for (const path of top) {
     const unsaved = await flushed(leavesUnder(path));

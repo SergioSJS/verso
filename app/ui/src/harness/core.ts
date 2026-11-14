@@ -197,6 +197,12 @@ export class Core {
   readonly calls: { cmd: string; args: unknown }[] = [];
   /** What the window wrote into the app's log (`log_write`). */
   readonly log: { level: string; message: string }[] = [];
+  /** What another app handed to a phone's Verso (ADR 0118 item 5), until the window takes it. */
+  /** A phone's background sync as the window last told it (ADR 0118 item 6.3). */
+  background: { on: boolean; wifiOnly: boolean; chargingOnly: boolean } | null = null;
+  readonly shared: { name: string; text: string | null; problem: string | null }[] = [];
+  /** A phone's shared storage (ADR 0118 item 4.4): whether All files access is on, and its folders by path. */
+  readonly storage = { access: false, folders: new Set<string>(["Documents", "Documents/Obsidian", "Download", "Music"]), opened: [] as string[] };
   private clock = 1_790_000_000;
   private revision = 1;
   private webViews = new Map<string, string>();
@@ -1045,6 +1051,8 @@ export class Core {
     },
     web_bounds: () => null,
     web_visible: () => null,
+    // A picture of the page, two blue pixels; none for an address saying "no-picture".
+    web_snapshot: (a) => (/no-picture/.test(this.webViews.get(String(a["label"])) ?? "") ? refuse("failed", "no picture") : "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGPQyp8ORAwQCgAfmgTBPNjIwQAAAABJRU5ErkJggg=="),
     // A site that refuses framing is one whose address says so.
     embed_frameable: (a) => !/frames-no/.test(String(a["url"])),
     web_close: (a) => void this.webViews.delete(String(a["label"])),
@@ -1277,6 +1285,28 @@ export class Core {
     log_read: () => this.log.map((l) => `${l.level} ${l.message}`).join("\n"),
     set_menu_language: () => null,
     set_menu_commands: () => null,
+    set_bars_dark: () => null,
+    take_shared: () => this.shared.splice(0),
+    folder_in_app: () => !this.storage.opened.length,
+    set_background_sync: (a) => {
+      this.background = { on: Boolean(a["on"]), wifiOnly: Boolean(a["wifiOnly"]), chargingOnly: Boolean(a["chargingOnly"]) };
+      return null;
+    },
+    shared_storage: (a) => {
+      const at = String(a["path"]);
+      const under = [...this.storage.folders].filter((f) => f.includes("/") ? f.slice(0, f.lastIndexOf("/")) === at : at === "");
+      return { access: this.storage.access, folders: this.storage.access ? under.map((f) => f.split("/").pop()!).sort() : [] };
+    },
+    shared_storage_access: () => {
+      this.storage.access = true;
+      return null;
+    },
+    open_shared_folder: (a) => {
+      const at = [String(a["path"]), a["make"] ? String(a["make"]) : ""].filter(Boolean).join("/");
+      this.storage.folders.add(at);
+      this.storage.opened.push(at);
+      return { ...this.folderInfo(), name: at.split("/").pop()! };
+    },
     set_menu_enabled: () => null,
     menu_sections: (a) => menuSections(String(a["language"]), a["features"] as string[]),
     quit_app: () => null,
@@ -1336,13 +1366,15 @@ export class Core {
     discover_servers_stop: () => null,
     share_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_grant: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    share_invite: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     share_attachments: () => refuse("refused", "this folder is not on a server: sync it with one first"),
-    // Read links are a server's (ADR 0105): a test answers them as one.
-    read_link_list: () => refuse("refused", "this folder is not on a server: sync it with one first"),
-    read_link_secrets: () => refuse("refused", "this folder is not on a server: sync it with one first"),
-    read_link_create: () => refuse("refused", "this folder is not on a server: sync it with one first"),
-    read_link_revoke: () => refuse("refused", "this folder is not on a server: sync it with one first"),
+    // Read links are a server's (ADR 0105): a test answers them as one; the
+    // window seated at its own table (ADR 0117 D4 Q3), as that server.
+    read_link_list: (a) => this.localServer.atTable("read_link_list", a, () => refuse("refused", "this folder is not on a server: sync it with one first")),
+    read_link_secrets: (a) => this.localServer.atTable("read_link_secrets", a, () => refuse("refused", "this folder is not on a server: sync it with one first")),
+    read_link_create: (a) => this.localServer.atTable("read_link_create", a, () => refuse("refused", "this folder is not on a server: sync it with one first")),
+    read_link_revoke: (a) => this.localServer.atTable("read_link_revoke", a, () => refuse("refused", "this folder is not on a server: sync it with one first")),
     server_prove: () => refuse("refused", "this folder is not on a server: sync it with one first"),
     // The folder switcher's "On this computer" (ADR 0081 item 5): the
     // demo vault, opened before.
@@ -1400,11 +1432,15 @@ export class Core {
     ...this.maps.handlers(),
     // The harness stands in for the desktop app (ADR 0058).
     capabilities: (): Capabilities => ({
-      host: "desktop",
-      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN, "terminal", "audio_share"],
+      // Seated, the window's side is its own server, as the host forwards it.
+      host: this.localServer.isSeated() ? "server" : "desktop",
+      can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files", "link", "discover", "serve_away", ...FOLDER_CAN, "terminal", "audio_share"],
       latency_ms: null,
       // A server's size cap for a bin (ADR 0080), set by a test.
       ...(this.trashCap === null ? {} : { trash_cap: this.trashCap }),
+      // Seated at its own server's table, the server says the owner is its
+      // game master (ADR 0113).
+      ...(this.localServer.isSeated() ? { access: this.localServer.access() } : {}),
     }),
     folder_space: (): FolderSpace => {
       let notes = 0;

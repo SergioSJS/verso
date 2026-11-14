@@ -17,6 +17,8 @@ import { asDialog, closed, opened } from "./dialogs/a11y";
 import { h, ui } from "./dom";
 import { folderName } from "./folder";
 import { name } from "./paths";
+import { moveCard } from "./tableMoveCard";
+import { tm } from "./tableMoveStrings";
 
 const MB = 1024 * 1024;
 
@@ -59,6 +61,15 @@ export function openCampaignDialog(root: string, undo = false): void {
 
   const notes = card(cp.notesTitle, "cd-notes-title", notesBlock(root));
 
+  // The other server (ADR 0117 R9): a moved table has no switch and no
+  // invitation here; its players are invited again where it went.
+  const move = moveCard(root, close, (at) => openCampaignDialog(at));
+  follow(open, () => {
+    const moved = campaign().tables.find((t) => t.root === root)?.moved === true;
+    open.hidden = moved;
+    invite.hidden = moved;
+  });
+
   // The limits, folded: a field saves when it is left or Enter is pressed,
   // and says so beside itself.
   const limits = h("details", "cd-card cd-limits");
@@ -84,7 +95,7 @@ export function openCampaignDialog(root: string, undo = false): void {
     });
     input.addEventListener("change", () => {
       void save(Number(input.value)).then((ok) => {
-        fb.say(ok ? cp.fieldSaved : `${cp.failed}: ${ui.status.textContent ?? ""}`, !ok);
+        fb.say(ok ? cp.fieldSaved : ui.status.textContent || cp.failed, !ok);
         if (!ok) draw();
       });
     });
@@ -111,7 +122,8 @@ export function openCampaignDialog(root: string, undo = false): void {
   const ask = () =>
     askFirst(
       footer,
-      cp.undoConfirm,
+      // A moved table takes its players' places with it (ADR 0117 R9).
+      campaign().tables.find((t) => t.root === root)?.moved === true ? tm.movedUndoConfirm : cp.undoConfirm,
       async () => {
         if (await undoTable(root)) close();
         else footer.replaceChildren(...footerRows());
@@ -128,7 +140,7 @@ export function openCampaignDialog(root: string, undo = false): void {
   footer.append(...footerRows());
 
   const body = h("div", "cd-body");
-  body.append(open, invite, playersCard, notes, limits, h("p", "cd-hint cd-undo-note", cp.undoNote), footer);
+  body.append(open, move, invite, playersCard, notes, limits, h("p", "cd-hint cd-undo-note", cp.undoNote), footer);
   dialog.append(title, h("p", "cd-hint", cp.intro2), body);
   document.body.append(overlay);
   opened(overlay);

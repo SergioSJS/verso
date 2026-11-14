@@ -162,6 +162,14 @@ pub(crate) fn shown(found: &[Found]) -> Vec<FoundServer> {
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn discover_servers_start() -> Result<(), ContractError> {
+    // No mDNS on iOS in v1 (ADR 0119 A4: `Can::Discover` is absent and the
+    // window does not ask): a server is reached by its address or QR.
+    if cfg!(target_os = "ios") {
+        return Ok(());
+    }
+    // A phone hears mDNS only while a multicast lock is held.
+    #[cfg(target_os = "android")]
+    crate::phone::multicast("discover", true);
     ensure().map(|_| ())
 }
 
@@ -171,6 +179,9 @@ pub(crate) fn discover_servers_start() -> Result<(), ContractError> {
 #[tauri::command]
 #[specta::specta]
 pub(crate) fn discover_servers_list() -> Result<Vec<FoundServer>, ContractError> {
+    if cfg!(target_os = "ios") {
+        return Ok(Vec::new());
+    }
     let Ok(started) = ensure() else {
         return Ok(Vec::new());
     };
@@ -189,6 +200,8 @@ pub(crate) fn discover_servers_list() -> Result<Vec<FoundServer>, ContractError>
 #[specta::specta]
 pub(crate) fn discover_servers_stop() -> Result<(), ContractError> {
     BROWSE.release();
+    #[cfg(target_os = "android")]
+    crate::phone::multicast("discover", false);
     Ok(())
 }
 

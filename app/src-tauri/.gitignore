@@ -1,1 +1,6 @@
-gen/
+# Tauri's generated capability schemas.
+gen/schemas/
+# gen/android is the Android project (Phase 0 of the Android app): its
+# sources are kept; its own .gitignore files leave out the build outputs.
+# gen/apple is the iOS project (Phase 0 of the iOS app, ADR 0119), the
+# same way: its .gitignore leaves out Externals/, build/ and assets/.

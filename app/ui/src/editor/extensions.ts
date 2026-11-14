@@ -14,6 +14,7 @@ import { icon } from "../icons";
 import { editorKeepsInView, tooltipSpace } from "../screen/keyboard";
 import { CustomSearchPanel, searchStrings } from "../searchPanel";
 import { settings } from "../settings";
+import { evenSelection } from "./evenSelection";
 import { mentionDismissal } from "./mentionDismiss";
 import { WIKILINK_BEFORE } from "./wikilinkBefore";
 
@@ -30,6 +31,8 @@ export const baseEditorExtensions: Extension = [
     },
   }),
   drawSelection(),
+  // The selection's rectangles, even whatever line is first (evenSelection.ts).
+  evenSelection,
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
   indentUnit.of("\t"),

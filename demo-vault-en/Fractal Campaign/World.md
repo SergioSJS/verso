@@ -10,7 +10,7 @@ tags:
 
 # The Lantern Coast
 
-A sample campaign, written for the tutorial: one **world**, one **character**, three nested **Challenges** and the **journal** of one session. The field names are Fractal's; all the text is ours. The note that teaches each step is [[26 - Statblocks]].
+A sample campaign, written for the tutorial: one **world**, one **character**, three nested **Challenges** and the **journal** of one session. The field names are Fractal's; all the text is ours. The note that teaches each step is [[23 - Statblocks]].
 
 ## Realism
 

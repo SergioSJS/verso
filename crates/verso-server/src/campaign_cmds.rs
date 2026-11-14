@@ -63,6 +63,15 @@ fn failed(e: impl std::fmt::Display) -> ContractError {
     verso_service::failed(e.to_string())
 }
 
+/// An administrator's act refused, in its words; a database's failure as
+/// one.
+fn said(r: crate::admin::acts::Refused) -> ContractError {
+    match r {
+        crate::admin::acts::Refused::Failed(e) => failed(e),
+        other => refused(&other.to_string()),
+    }
+}
+
 /// The folder of a window that is its game master: the owner, on the
 /// folder itself, with a credential that writes, not a phone — the rules'
 /// `ManageTable` and `ManageAccess` (ADR 0113 section B), one condition.
@@ -164,8 +173,23 @@ pub async fn command(
         }
         "campaign_unmake" => {
             let root = root_arg(&args)?;
-            let (s, f) = (Arc::clone(server), folder.clone());
-            blocking(move || s.db.campaign_drop(&f, &root).map_err(failed)).await?;
+            let (s, f, actor) = (Arc::clone(server), folder.clone(), who.account.id.clone());
+            // A table that moved to the other host takes with it what it
+            // gave its players (ADR 0117 R9, `campaign_move`).
+            let freed = blocking(move || {
+                let moved = (s.db.campaigns_of(&f).map_err(failed)?.iter())
+                    .any(|t| t.root == root && t.moved);
+                let freed = moved
+                    .then(|| crate::campaign_move::free(&s, &f, &root, &actor))
+                    .transpose()
+                    .map_err(failed)?;
+                s.db.campaign_drop(&f, &root).map_err(failed)?;
+                Ok(freed)
+            })
+            .await?;
+            if let Some(freed) = freed {
+                crate::campaign_move::tell(server, &folder, &freed);
+            }
         }
         "campaign_settings" => settings(server, &folder, &args).await?,
         "campaign_release" | "campaign_release_all" => {
@@ -218,7 +242,7 @@ pub async fn command(
             });
             subject = Some(permission(server, &folder, &given, right).await?);
         }
-        "campaign_invite" => return invite(server, who, &folder, &args).await,
+        "campaign_invite" => return invite(server, who, client, &folder, &args).await,
         _ => return Err(refused("no such command")),
     }
     // Who made, opened, closed, released, granted: in the audit log.
@@ -339,10 +363,31 @@ async fn settings(server: &Arc<Server>, folder: &str, args: &Value) -> Result<()
             crate::db::IMAGE_MOST / (1024 * 1024)
         )));
     }
+    // Moved to the other host (ADR 0117 D8, R9): the host's own act, never
+    // the window's switch. A moved table is not opened again here.
+    let moved: Option<bool> = arg(args, "moved")?;
+    if moved == Some(false) {
+        return Err(refused("a moved table comes back only by undoing it"));
+    }
     let (s, f) = (Arc::clone(server), folder.to_owned());
     let found = blocking(move || {
-        s.db.campaign_set(&f, &root, open, log_max, image_max)
-            .map_err(failed)
+        let was_moved =
+            s.db.campaigns_of(&f)
+                .map_err(failed)?
+                .iter()
+                .any(|t| t.root == root && t.moved);
+        if was_moved && open == Some(true) {
+            return Err(refused(
+                "this table moved to the other server: undo it here to free it",
+            ));
+        }
+        let set =
+            s.db.campaign_set(&f, &root, open, log_max, image_max)
+                .map_err(failed)?;
+        if set && moved == Some(true) {
+            s.db.campaign_moved(&f, &root).map_err(failed)?;
+        }
+        Ok(set)
     })
     .await?;
     if !found {
@@ -645,6 +690,7 @@ fn table_of(t: &crate::db::Campaign) -> CampaignTable {
         board_players: Vec::new(),
         images: true,
         files: true,
+        moved: t.moved,
     }
 }
 
@@ -694,6 +740,13 @@ async fn status(
             return Err(failed("the table's state cannot be read now"));
         }
         if owner {
+            // The admin, or on a UniVerso a game master the admin lets make
+            // folders (ADR 0117 D7 (e)), by the one answer and the powers
+            // as they are now.
+            let can_invite = door
+                .clone()
+                .with_powers(&s)
+                .is_ok_and(|d| crate::admin::acts::Inviter::at(&d, Role::Reader).is_ok());
             let mut players: Vec<CampaignPlayer> = Vec::new();
             // A folder's editor edits every file they see (ADR 0113 K.1).
             let mut editors: HashSet<String> = HashSet::new();
@@ -760,7 +813,7 @@ async fn status(
                     .collect(),
                 notes,
                 players,
-                can_invite: w.account.admin,
+                can_invite,
             });
         }
         // A player: the tables, and the notes it may edit — only those. A
@@ -920,17 +973,25 @@ async fn access(
 }
 
 /// An invitation to the table: a reader's, for the folder itself or for
-/// the share at the table's folder. Only the server's admin invites a
-/// person who has no account (ADR 0081 item 4), and wants a fresh proof
-/// (ADR 0083 item 6), as the console's invitation to a folder does.
+/// the share at the table's folder, by the folder's owner. The server's
+/// admin invites a person who has no account (ADR 0081 item 4), and on a
+/// UniVerso so does an account the admin lets make folders, at most 20
+/// waiting (`acts::Inviter`, ADR 0117 D7 (e)); with a fresh proof (ADR
+/// 0083 item 6), as the console's invitation to a folder wants.
 async fn invite(
     server: &Arc<Server>,
     who: &Arc<Who>,
+    client: &str,
     folder: &str,
     args: &Value,
 ) -> Result<Value, ContractError> {
     let root = root_arg(args)?;
-    let (s, w, f) = (Arc::clone(server), Arc::clone(who), folder.to_owned());
+    let (s, w, f, c) = (
+        Arc::clone(server),
+        Arc::clone(who),
+        folder.to_owned(),
+        client.to_owned(),
+    );
     let made = blocking(move || {
         let Some(session) = w.session() else {
             return Err(refused("not with an access token"));
@@ -942,43 +1003,40 @@ async fn invite(
                 message: "prove it is you first".to_owned(),
             });
         }
-        if !w.account.admin {
-            return Err(refused(
-                "only the server's admin invites a person who has no account: ask for one, or give an account of this server a place at the table",
-            ));
-        }
+        use crate::admin::acts::{Invitee, Inviter, Refused, make_invitation_at};
+        // The powers as they are now, not as the window's connection held
+        // them when it opened (ADR 0117 D7 (e)).
+        let door = Door::of(&s, &w, &c)?.with_powers(&s).map_err(failed)?;
+        let inviter = Inviter::at(&door, Role::Reader).map_err(|r| match r {
+            Refused::NotInviter => refused(
+                "only the server's admin, or an account the admin lets make folders, invites a person who has no account: ask for one, or give an account of this server a place at the table",
+            ),
+            other => said(other),
+        })?;
         let veil = campaign::veil_of(&s, &f).ok_or_else(|| refused("not a table"))?;
         if !veil.tables.iter().any(|t| t.root == root) {
             return Err(refused("that folder is not a table"));
         }
-        let share = if root.is_empty() {
-            None
-        } else {
-            Some(s.db.make_share(&f, &root).map_err(failed)?)
+        let by = crate::admin::acts::By {
+            actor: Some(&w.account.id),
+            address: None,
         };
-        let (token, inv) = s
-            .db
-            .create_invitation(&crate::db::NewLink {
-                kind: "invite",
-                email: None,
-                account: None,
+        let (token, inv) = make_invitation_at(
+            &s.db,
+            &by,
+            Some(&w.account.id),
+            &Invitee {
                 folder: Some(&f),
                 role: Some(Role::Reader),
-                created_by: Some(&w.account.id),
-                life: crate::db::INVITE_LIFE,
-                share: share.as_ref().map(|x| x.id.as_str()),
-            })
-            .map_err(failed)?;
-        let _ = s.db.audit(&crate::db::Audit {
-            actor: Some(&w.account.id),
-            action: "invitation_created",
-            subject: Some(&inv.id),
-            folder: Some(&f),
-            address: None,
-            ok: true,
-        });
+                inviter: Some(inviter),
+                owned: true,
+                ..Invitee::default()
+            },
+            &root,
+        )
+        .map_err(said)?;
         Ok(CampaignInvite {
-            link: crate::window_link(&s.config, &format!("/invite/{token}")),
+            link: crate::window_link(&s, &format!("/invite/{token}")),
             expires: u32::try_from(inv.expires).unwrap_or(u32::MAX),
         })
     })
@@ -1004,6 +1062,24 @@ pub async fn changed(
         Ok(())
     })
     .await;
+}
+
+/// Who is at `folder` changed outside its windows — an invitation accepted
+/// (`api::accept`, `invite_join::join`): the windows open on it hear it as
+/// for a change made in them ([`changed`], no path touched), so the game
+/// master's table shows the new player at once (the maintainer's
+/// "Jogadores 0", 2026-11-04). With no window open there is no one to tell:
+/// the folder's table is read again by the next.
+pub async fn people_changed(server: &Arc<Server>, folder: &str) {
+    let client = lock(&server.clients)
+        .iter()
+        .find(|(_, c)| c.folder.as_ref().is_some_and(|(f, _)| f == folder))
+        .map(|(id, _)| id.clone());
+    let Some(key) = client.and_then(|c| server.service.folder_of(&c)) else {
+        campaign::forget(server, folder);
+        return;
+    };
+    changed(server, folder, &key, Vec::new(), None).await;
 }
 
 /// The synchronous part of [`changed`].
@@ -1132,15 +1208,50 @@ fn close_out(server: &Server, folder: &str) {
                 continue;
             }
             let root = c.scope.as_ref().map_or("", |s| s.root.as_str()).to_owned();
-            if campaign::closed_for(server, folder, &root, true) {
+            if let Some(words) = campaign::shut_for(server, folder, &root, true) {
+                // A table moved to the other host says so (ADR 0117 R9).
+                let reason = if words == campaign::MOVED {
+                    "moved"
+                } else {
+                    "closed"
+                };
                 c.folder = None;
                 c.scope = None;
-                c.tx.send(&json!({ "gone": "folder", "reason": "closed" }));
+                c.tx.send(&json!({ "gone": "folder", "reason": reason }));
                 gone.push(id.clone());
             }
         }
     }
     server.left(&gone);
+}
+
+/// A window's rename or move (`cmd`), run in the folder's session with what
+/// the table keeps of what moved carried along ([`after_write`]) before the
+/// session is let go: every read of the folder waits for the session, a
+/// player's too, so none finds a moved file under its new folder's access
+/// before its own has followed it (ADR 0113 K.2). Until 2026-11-05 the
+/// table followed only after the session was free, and a player asking
+/// then read a hidden note moved into a folder it sees (the audit's
+/// `tests_access_gaps`). Any other command runs as the service runs it.
+pub fn carrying(
+    server: &Server,
+    (service, client): (&verso_service::Service, &str),
+    folder: &str,
+    cmd: &str,
+    args: Value,
+) -> Result<Value, ContractError> {
+    if !matches!(cmd, "rename_note" | "rename_entry" | "move_entries") {
+        return service
+            .dispatch(client, cmd, args)
+            .unwrap_or_else(|| Err(refused("no such command")));
+    }
+    let asked = args.clone();
+    service.with(client, |ws| {
+        let answer = verso_service::ops::dispatch(ws, cmd, args)
+            .unwrap_or_else(|| Err(verso_service::OpError::Contract(refused("no such command"))))?;
+        crate::shares::followed(server, folder, cmd, &asked, &answer);
+        Ok(answer)
+    })
 }
 
 /// A rename, a move or a deletion made through the server carries what the
@@ -1167,7 +1278,23 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
         }
         "delete_entry" | "delete_note" => {
             if let Some(path) = args["path"].as_str() {
-                touched = server.db.campaign_deleted(folder, path).unwrap_or(0) > 0;
+                // Into the bin, what the file kept at the table goes with
+                // it, for a restore to give back (`Db::campaign_binned`).
+                if let Some(bin) = answer["path"].as_str().filter(|b| crate::trash::in_bin(b)) {
+                    touched = server.db.campaign_binned(folder, path, bin).unwrap_or(0) > 0;
+                    // One that followed its folder takes along what it
+                    // followed, as a move does (K.2): restored alone, its
+                    // folder may be gone, or another's.
+                    if let Some(set) = before.inherited_set(path) {
+                        match server.db.access_put(folder, bin, set) {
+                            Ok(()) => touched = true,
+                            Err(e) => {
+                                crate::log::warn(&format!("keeping a deleted file's access: {e}"))
+                            }
+                        }
+                    }
+                }
+                touched |= server.db.campaign_deleted(folder, path).unwrap_or(0) > 0;
             }
         }
         _ => {}
@@ -1201,6 +1328,36 @@ pub fn after_write(server: &Server, folder: &str, cmd: &str, args: &Value, answe
         if changed {
             campaign::forget(server, folder);
         }
+    }
+}
+
+/// The version of `path` a device's write replaced went into the bin at
+/// `bin` (ADR 0080 item 12): it keeps the access `path` has, its own or
+/// the one it follows, for a restore beside the file to give back — a
+/// restore is a move (item 5), and a move keeps a file's access (ADR 0113
+/// K.2). Without it the version came back as a new file of its folder.
+pub fn version_kept(server: &Server, folder: &str, path: &str, bin: &str) {
+    let Some(veil) = campaign::veil_of(server, folder) else {
+        return;
+    };
+    if !veil.in_table(path) {
+        return;
+    }
+    if let Err(e) = server.db.access_put(folder, bin, veil.effective_set(path)) {
+        crate::log::warn(&format!("keeping a replaced version's access: {e}"));
+    }
+}
+
+/// A copy of `from` made at `to` (a past version, `history_copy`): when
+/// `from` has access of its own, the copy keeps it, not the folder's a new
+/// file takes (the maintainer, 2026-11-05). Run in the copy's session.
+pub fn copy_kept(server: &Server, folder: &str, from: &str, to: &str) {
+    let Some(set) = campaign::veil_of(server, folder).and_then(|v| v.own_set(from)) else {
+        return;
+    };
+    match server.db.access_put(folder, to, set) {
+        Ok(()) => campaign::forget(server, folder),
+        Err(e) => crate::log::warn(&format!("keeping a copy's access: {e}")),
     }
 }
 
@@ -1283,9 +1440,11 @@ pub fn device_will(
     before_write(server, folder, key, cmd, &json!({ field: path }));
 }
 
-/// A device did: what the table keeps of the path follows ([`after_write`]).
+/// A device did: what the table keeps of the path follows ([`after_write`]),
+/// and its read links (`shares::followed`).
 /// `cmd` is the window's command that does the same, `field` its argument
-/// naming the path, `to` where it went (empty for a deletion).
+/// naming the path, `to` where it went (for a deletion, its place in the
+/// bin, or empty).
 pub fn device_did(
     server: &Server,
     folder: &str,
@@ -1297,5 +1456,5 @@ pub fn device_did(
     } else {
         json!({ "path": to })
     };
-    after_write(server, folder, cmd, &json!({ field: path }), &answer);
+    crate::shares::followed(server, folder, cmd, &json!({ field: path }), &answer);
 }

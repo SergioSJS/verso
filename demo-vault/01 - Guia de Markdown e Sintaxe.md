@@ -29,7 +29,7 @@ Texto detalhado de apoio para testar a hierarquia visual.
 
 ## Formatação de Texto
 
-Você pode formatar texto com a sintaxe do Markdown ou com a barra de formatação que fica acima da nota nos modos **Editar** e **Fonte** (veja [[11 - Escrevendo no Editor]]):
+Você pode formatar texto com a sintaxe do Markdown ou com a barra de formatação que fica acima da nota nos modos **Editar** e **Fonte** (veja [[04 - Escrevendo no Editor]]):
 - **Negrito** com `**texto**` (`⌘B`)
 - *Itálico* com `*texto*` (`⌘I`)
 - ~~Tachado~~ com `~~texto~~`
@@ -56,7 +56,7 @@ As listas suportam indentação inteligente via `Tab` e `Shift-Tab`, com níveis
 
 ## Blocos de Código com Botão de Copiar
 
-Passe o cursor sobre qualquer bloco de código abaixo para visualizar o botão **Copiar** no canto superior direito:
+Passe o cursor sobre qualquer bloco de código abaixo para visualizar o botão **Copiar código** (o ícone de cópia) no canto superior direito, nos modos Leitura e Editar:
 
 ### Rust
 ```rust
@@ -165,4 +165,4 @@ O arquivo continua Markdown: a cada mudança as barras `|` se alinham sozinhas, 
 
 Para alargar uma coluna, arraste a borda direita da célula de cabeçalho dela, no modo Editar ou na Leitura. O Verso guarda essa largura para a tabela e a nota — o arquivo não muda, e o Obsidian mostra a tabela como sempre.
 
-Voltar para a [[00 - Bem-vindo ao Verso|Página Inicial]] ou continuar para [[02 - Links, Âncoras e Notas Incorporadas]].
+Anterior: [[00 - Bem-vindo ao Verso]] · Próxima: [[02 - Links, Âncoras e Notas Incorporadas]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

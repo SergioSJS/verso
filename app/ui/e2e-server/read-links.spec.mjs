@@ -12,13 +12,18 @@ import { leakFixtures } from "../e2e/leaks.mjs";
 const test = base.extend(leakFixtures);
 
 const ADMIN = { email: "admin@verso.test", password: "uma senha bem longa" };
-const NOTE = "25 - Dados e Tabelas Sorteadas.md";
+const NOTE = "22 - Dados e Tabelas Sorteadas.md";
 
 /** Console errors of the page, read at the end of each test. */
 function watch(page) {
   const errors = [];
   page.on("console", (m) => {
     if (m.type() === "error" && !/Failed to load resource/.test(m.text())) errors.push(m.text());
+  });
+  // The window's events in a tab warned "[TAURI] Couldn't find callback id"
+  // (a console warning, not an error: it slipped past; events.ts).
+  page.on("console", (m) => {
+    if (m.type() === "warning" && /\[TAURI\]/.test(m.text())) errors.push(m.text());
   });
   page.on("pageerror", (e) => errors.push(String(e)));
   return errors;
@@ -149,7 +154,7 @@ test("someone with no account reads the note: no secret, a link out of it as tex
   // The note links to one that was not shared: plain text that says so.
   const plain = preview.locator(".link-outside", { hasText: "UniVerso" }).first();
   await expect(plain).toContainText("(não compartilhado)");
-  await expect(preview.locator('a.wikilink[data-target^="23 - Verso num Servidor"]')).toHaveCount(0);
+  await expect(preview.locator('a.wikilink[data-target^="30 - Verso num Servidor"]')).toHaveCount(0);
   // Only what was shared: the note, and what it embeds.
   await expect(reader.locator("#notes li[data-path]").first()).toBeVisible();
   const shown = await reader.locator("#notes li[data-path]").evaluateAll((li) => li.map((x) => x.dataset.path));
@@ -195,6 +200,8 @@ test("a link with a password asks for it, in the reader's language, and refuses 
   await reader.goto(url);
   await expect(reader.getByRole("heading", { name: "Este link pede uma senha" })).toBeVisible({ timeout: 30_000 });
   const field = reader.getByLabel("Senha", { exact: true });
+  // On a touch screen the field waits for a tap (no keyboard by itself, screen/openFocus.ts).
+  if (await reader.evaluate(() => matchMedia("(hover: none) and (pointer: coarse)").matches)) await field.tap();
   await expect(field).toBeFocused();
   // A note shown before the password: none.
   await expect(reader.locator(".preview")).toHaveCount(0);
@@ -229,5 +236,53 @@ test("revoking ends the page that is open, and the address opens nothing", async
   await en.page.goto("/r/nunca-existiu");
   await expect(en.page.getByRole("heading", { name: "This link does not open" })).toBeVisible();
   await en.context.close();
+  await context.close();
+});
+
+// The re-test of 2026-11-04 (VM 104): a WebKit visitor on a quick link a
+// minute old saw "Nenhuma pasta / Escolha uma pasta deste servidor" before
+// the note, with no error. A visitor has one folder, its link's: until its
+// connection is up it sees the folder opening, never the start page's
+// choice of a folder — not while the socket is slow, not when the first
+// one drops with the folder asked.
+test("a visitor whose connection comes late sees the folder opening, never the choice of a folder", async ({ page, browser }) => {
+  const id = await ready(page);
+  const { url } = await linkTo(page, id, { kind: "note", path: NOTE });
+  const { context, page: reader } = await stranger(browser);
+  // Anything ever shown of the start page's choice of a folder.
+  await reader.addInitScript(() => {
+    window.__chooser = false;
+    new MutationObserver(() => {
+      if ([...document.querySelectorAll(".lesson h1, .lesson button")].some((e) => /Escolha uma pasta|Escolher uma pasta/.test(e.textContent ?? ""))) window.__chooser = true;
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  // The first connection is slow, then drops when the folder is asked; the
+  // next one is the server's.
+  let first = true;
+  let asked = () => undefined;
+  const folderAsked = new Promise((resolve) => (asked = resolve));
+  await reader.routeWebSocket(/\/r\/[^/]+\/ws$/, (ws) => {
+    if (!first) {
+      ws.connectToServer();
+      return;
+    }
+    first = false;
+    const server = ws.connectToServer();
+    ws.onMessage((m) => {
+      if (String(m).includes('"open_server_folder"')) {
+        asked();
+        setTimeout(() => ws.close(), 1500);
+        return;
+      }
+      server.send(m);
+    });
+  });
+  await reader.goto(url);
+  await folderAsked;
+  expect(await reader.evaluate(() => window.__chooser), "the choice of a folder, before the folder opened").toBe(false);
+  // While it waits: the folder opening, in words.
+  await expect(reader.locator(".lesson").getByRole("status")).toHaveText(/Abrindo pasta/);
+  await expect(reader.locator(".preview:visible").getByRole("heading", { name: "Dados e Tabelas Sorteadas", level: 1 })).toBeVisible({ timeout: 30_000 });
+  expect(await reader.evaluate(() => window.__chooser), "the choice of a folder, after the drop").toBe(false);
   await context.close();
 });

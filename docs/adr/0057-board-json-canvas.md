@@ -7,7 +7,7 @@
   [`docs/reference/board-decision.md`](../reference/board-decision.md),
   section 9, and to the two questions that followed them (section 10 of the
   memo); [0024](0024-board-excalidraw.md) (Excalidraw),
-  [0040](0040-board-persistence.md) (persistence, `[OPEN]` until this ADR),
+  [0040](archive/0040-board-persistence.md) (persistence, `[OPEN]` until this ADR),
   [0030](0030-base-dialect-obsidian-compatible.md) (extend, never contradict),
   [0013](0013-degrades-to-markdown.md) (readable text),
   [0035](0035-cross-cutting-requirements.md) (the accessible view),

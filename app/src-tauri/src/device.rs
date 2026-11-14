@@ -53,6 +53,16 @@ fn described(config: Option<&Path>) -> DeviceName {
 
 /// This computer's name as the system knows it.
 fn host_name() -> String {
+    // A phone's name is the system's to say (`hostname` answers
+    // `localhost` there): the one the person gave it, else its model.
+    #[cfg(target_os = "android")]
+    if let Some(name) = crate::phone::device_name() {
+        return name;
+    }
+    #[cfg(target_os = "ios")]
+    if let Some(name) = crate::ios::device_name() {
+        return name;
+    }
     for var in ["COMPUTERNAME", "HOSTNAME"] {
         if let Ok(v) = std::env::var(var)
             && !v.trim().is_empty()

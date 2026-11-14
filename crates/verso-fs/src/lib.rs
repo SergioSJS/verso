@@ -434,6 +434,37 @@ impl Root {
         (inside != relative).then_some(inside)
     }
 
+    /// `relative`, an existing entry's, spelled as the disk keeps each of
+    /// its names: where the file system folds names (APFS, NTFS), `a.md`
+    /// reaches the file kept as `A.md`, and `Cafe\u{301}.md` the one kept
+    /// composed. `None` for a path that does not exist, one that leaves the
+    /// folder, and one reached through a symlink — its real path is another
+    /// name, not another spelling ([`Self::resolved_name`]). Asked of the
+    /// disk each time: a walk's listing does not name a file made since.
+    #[must_use]
+    pub fn spelled(&self, relative: &Path) -> Option<PathBuf> {
+        let relative = confine::confine(relative).ok()?;
+        let root = std::fs::canonicalize(&self.path).ok()?;
+        let real = std::fs::canonicalize(on_disk(&self.path, &relative)).ok()?;
+        let inside = real.strip_prefix(&root).ok()?;
+        let asked: Vec<Component<'_>> = relative.components().collect();
+        let kept: Vec<Component<'_>> = inside.components().collect();
+        if asked.len() != kept.len() {
+            return None;
+        }
+        let mut out = PathBuf::new();
+        for (a, k) in asked.iter().zip(&kept) {
+            let (Component::Normal(a), Component::Normal(k)) = (a, k) else {
+                return None;
+            };
+            if confine::folded(a) != confine::folded(k) {
+                return None;
+            }
+            out = rel_join(&out, k);
+        }
+        Some(out)
+    }
+
     /// Whether the file `relative` names has more than one name on disk (a
     /// hard link: another name, under any extension, for the same bytes).
     /// Where the file system does not say, `false`.

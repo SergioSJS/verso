@@ -60,3 +60,35 @@ test("the panel names a table by its folder's name; the folder itself by the fol
   assert.equal(m.tableLabel("Cripta", "Campanha"), "Cripta");
   assert.equal(m.tableLabel("Mundo/Cripta", "Campanha"), "Cripta");
 });
+
+// The window at its own server's table says which (the walk of 2026-11-06:
+// "Na mesa de Mesa Demo." named the folder, the table is Campanha Fractal).
+test("the window at its own table names the table it is at, not the folder", () => {
+  const roots = ["Campanhas/Campanha Fractal"];
+  assert.deepEqual(m.tableNames(m.whichTable(roots, "", null, null), "Mesa Demo"), ["Campanha Fractal"]);
+  // The folder itself a table: its name.
+  assert.deepEqual(m.tableNames(m.whichTable([""], "", null, null), "Mesa Demo"), ["Mesa Demo"]);
+  // Several: the one of the active note; none said, each of them.
+  const two = ["Cripta", "Sala"];
+  assert.deepEqual(m.tableNames(m.whichTable(two, "Sala/Mapa.md", null, null), "Mesa Demo"), ["Sala"]);
+  assert.deepEqual(m.tableNames(m.whichTable(two, "Notas.md", null, null), "Mesa Demo"), ["Cripta", "Sala"]);
+  assert.deepEqual(m.tableNames(m.whichTable([], "", null, null), "Mesa Demo"), []);
+});
+
+// The panel's header while a join is on its way (the parity run of
+// 2026-11-06: a player who landed in their folder and chose it again from
+// "Trocar de pasta" had the table's name missing until they changed note):
+// the same table asked again, with the window not yet at it, is still the
+// table the panel names.
+test("the panel names the table it is joining, not none, while the join is on its way", () => {
+  const at = m.whichTable([""], "", null, null);
+  assert.deepEqual(m.panelPick([""], at, null), { roots: [""], current: "", choosing: false });
+  assert.deepEqual(m.panelPick([""], at, ""), { roots: [""], current: "", choosing: false });
+  // The window is at the table the server gave it: that one.
+  assert.deepEqual(m.panelPick(["Cripta"], m.whichTable(["Cripta"], "", null, null), "Cripta"), { roots: ["Cripta"], current: "Cripta", choosing: false });
+  // A list to choose from names none.
+  const two = ["Cripta", "Sala"];
+  assert.deepEqual(m.panelPick(two, m.whichTable(two, "Notas.md", null, null), null), { roots: two, current: null, choosing: true });
+  // A folder with no table: none.
+  assert.deepEqual(m.panelPick([], { kind: "none" }, null), { roots: [], current: null, choosing: false });
+});

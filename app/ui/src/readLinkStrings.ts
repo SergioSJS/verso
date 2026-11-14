@@ -15,6 +15,9 @@ const pt = {
   titleWhole: (name: string) => `Link de leitura da pasta “${name}”`,
   lead: "Quem tiver o link lê, sem conta, o que ele aponta. Não escreve, não vê os blocos de segredo e não sai do que foi compartilhado.",
   off: "Os links de leitura estão desligados neste servidor. Quem administra liga em Administração › Servidor.",
+  // The window at its own server's table (ADR 0117 D9): the owner is the
+  // administrator, the section of Settings the console.
+  offHere: "Os links de leitura estão desligados neste computador. Ligue em Ajustes › Transformar em servidor › Links de leitura.",
   secrets: (n: number) => (n === 1 ? "1 nota tem segredos; leitores não a verão." : `${n} notas têm segredos; leitores não as verão.`),
   live: "Links ativos",
   none: "Nenhum link ativo.",
@@ -70,6 +73,7 @@ const en: typeof pt = {
   titleWhole: (name) => `Read link of the folder “${name}”`,
   lead: "Whoever has the link reads, with no account, what it points at. They cannot write, do not see the secret blocks, and cannot leave what was shared.",
   off: "Read links are turned off on this server. Whoever runs it turns them on in Administration › Server.",
+  offHere: "Read links are turned off on this computer. Turn them on in Settings › Turn into a server › Read links.",
   secrets: (n) => (n === 1 ? "1 note has secrets; readers will not see them." : `${n} notes have secrets; readers will not see them.`),
   live: "Live links",
   none: "No live links.",

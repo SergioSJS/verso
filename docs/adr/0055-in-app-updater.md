@@ -135,7 +135,7 @@ How the author built the install under that decision
   whole transfer. Both commands are asynchronous and do their network work in
   `spawn_blocking`, so a slow network never freezes the window.
 - **A GitHub token, when one is present.** The repository is private
-  ([0007](0007-private-repo-until-license.md)), and the API answers a private
+  ([0007](archive/0007-private-repo-until-license.md)), and the API answers a private
   repository's releases only to a request that carries a token. The app uses
   `GITHUB_TOKEN` or `GH_TOKEN` from its environment, or else asks the GitHub
   CLI (`gh auth token`), and sends that token to `api.github.com` with the

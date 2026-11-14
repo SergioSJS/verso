@@ -72,6 +72,8 @@ import * as folds from "./note/folds";
 import { unfoldFor } from "./note/folds";
 import * as live from "./note/live";
 import * as web from "./note/web";
+import { cleanCopy } from "./note/copyClean";
+import { jumpToFootnote } from "./note/footnote";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
 import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, joinGiveUp, type JoinAnswer, joinPending, lostLine, onJoinRetry, sideCan } from "../collab";
@@ -87,6 +89,7 @@ import { audioWidget } from "../audio/embed";
 import { diceBox } from "../dice/card";
 import { diagramLang, openBlockDiagram } from "../datagraph/block";
 import { dgw } from "../datagraph/words";
+import { focusOnOpen } from "../screen/openFocus";
 
 /* A note: reading, Live Preview, source; saving through the atomic write. */
 export type Mode = "preview" | "live" | "source";
@@ -392,6 +395,10 @@ export class NoteLeaf extends Leaf {
     // Focusable from code, not by Tab: a link followed from the keyboard
     // hands the keyboard to the note that opened (`focusContent`).
     this.preview.tabIndex = -1;
+    // Copying from the reader writes the clipboard without the theme's
+    // colours (copyClean.ts), so a paste into another app takes that app's
+    // colours, not Verso's.
+    this.preview.addEventListener("copy", (ev) => void cleanCopy(ev, this.preview));
     // A double click on the text opens it for editing, as a note app does.
     this.preview.addEventListener("dblclick", (ev) => {
       if ((ev.target as HTMLElement).closest("a, input, button, select, .embed-pdf, .embed-note, .embed-base, .math")) return;
@@ -412,16 +419,7 @@ export class NoteLeaf extends Leaf {
         return;
       }
       if (a.classList.contains("wikilink")) this.follow(a.dataset["target"] ?? "");
-      else if (a.getAttribute("href")?.startsWith("#")) {
-        // A footnote, in either direction: to the note at the bottom, back to the mark.
-        const id = decodeURIComponent(a.getAttribute("href")?.slice(1) ?? "");
-        const target = Array.from(this.preview.querySelectorAll<HTMLElement>("[id]")).find((e) => e.id === id);
-        target?.scrollIntoView({ block: "center", behavior: calm.matches ? "auto" : "smooth" });
-        if (target) {
-          target.classList.add("flash");
-          setTimeout(() => target.classList.remove("flash"), 1200);
-        }
-      }
+      else if (a.getAttribute("href")?.startsWith("#")) jumpToFootnote(this.preview, a.getAttribute("href") ?? "#");
       // A web address was already sent to the browser window (guardLink).
     });
     // Enter on a link the core writes without an address (keyLinks)
@@ -651,7 +649,8 @@ export class NoteLeaf extends Leaf {
   declare syncWeb: typeof web.syncWeb;
   declare closeWeb: typeof web.closeWeb;
   override focusContent(): void {
-    if (this.mode !== "preview") this.editor.focus();
+    // A note opened on a touch screen brings up no keyboard by itself.
+    if (this.mode !== "preview") focusOnOpen(this.editor.contentDOM);
     else this.preview.focus({ preventScroll: true });
   }
   override headings(): NoteText["headings"] {
@@ -743,7 +742,7 @@ export class NoteLeaf extends Leaf {
         return;
       }
       // Note does not exist: auto-create note like Obsidian
-      void createNote(dirOf(this.path), notePart, this.pane, false).then(() => {
+      void createNote(dirOf(this.path), notePart, this.pane, false, false, this.path).then(() => {
         if (headingPart && this.pane.active instanceof NoteLeaf) {
           jumpToHeading(this.pane.active, headingPart);
         }
@@ -770,6 +769,8 @@ export class NoteLeaf extends Leaf {
       if (commit) void renameNote(this.path, v);
     };
     input.addEventListener("keydown", (e) => {
+      // The key is the field's: the focus given back must not take it as a press (WebKit did).
+      if (e.key === "Enter" || e.key === "Escape") e.preventDefault();
       if (e.key === "Enter") finish(true, true);
       else if (e.key === "Escape") finish(false, true);
     });
@@ -1028,7 +1029,7 @@ export class NoteLeaf extends Leaf {
    *  file's text to cross (ADR 0082 item 7) and is sequenced as before. */
   private async joinsEarly(): Promise<boolean> {
     const side = await sideCan();
-    return side !== null && side.can.includes("collab") && side.host !== "desktop";
+    return side !== null && side.can.includes("collab") && side.host === "server";
   }
   /** Set while the note shows before its room is joined: what is typed
    *  then is not written to the file (the room will take it). */

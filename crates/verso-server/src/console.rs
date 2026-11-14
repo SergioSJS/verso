@@ -335,22 +335,7 @@ pub async fn invitations(ctx: Ctx, Query(list): Query<List>) -> ApiResult<Respon
     ctx.admin()?;
     let db = &ctx.server.db;
     let page = db.page_invitations(&list.page(), list.state.as_deref().unwrap_or(""))?;
-    let now = db::now();
-    let mut rows = Vec::new();
-    for i in &page.rows {
-        let used_by = match &i.used_by {
-            Some(id) => db.account(id)?.map(|a| a.email),
-            None => None,
-        };
-        let folder = match &i.folder {
-            Some(id) => db.folder(id)?.map(|f| f.dir),
-            None => None,
-        };
-        rows.push(json!({
-            "id": i.id, "state": i.state(now), "email": i.email, "folder": folder, "role": i.role,
-            "created": i.created, "expires": i.expires, "used": i.used, "usedBy": used_by,
-        }));
-    }
+    let rows = crate::admin::acts::invitation_rows(db, &page.rows, db::now())?;
     Ok(ok(
         json!({ "rows": rows, "total": page.total, "next": page.next }),
     ))
@@ -705,6 +690,21 @@ pub async fn config(ctx: Ctx) -> ApiResult<Response> {
             false,
         ),
         ("VERSO_AUDIT_DAYS", Some(c.audit_days.to_string()), false),
+        (
+            "VERSO_TUNNEL",
+            Some(
+                match c.tunnel.at_start {
+                    crate::config::TunnelAtStart::Off => "off",
+                    crate::config::TunnelAtStart::Quick => "quick",
+                    crate::config::TunnelAtStart::Own => "own",
+                }
+                .to_owned(),
+            ),
+            false,
+        ),
+        ("VERSO_TUNNEL_HOSTNAME", c.tunnel.hostname.clone(), false),
+        ("VERSO_TUNNEL_TOKEN", c.tunnel.token.clone(), true),
+        ("VERSO_TUNNEL_PORT", Some(c.tunnel.port.to_string()), false),
     ]
     .into_iter()
     .map(|(name, value, secret)| {
@@ -717,4 +717,99 @@ pub async fn config(ctx: Ctx) -> ApiResult<Response> {
     })
     .collect();
     Ok(ok(rows))
+}
+
+/// The UniVerso's own Cloudflare link (ADR 0117 D4 item 2, R5; revises
+/// ADR 0077 item 6): where it stands — state, address while on, a quick
+/// link's end, the own address's hostname and port, what the environment
+/// set (the token as set or not). Admins only.
+pub async fn link(ctx: Ctx) -> ApiResult<Response> {
+    ctx.admin()?;
+    let server = std::sync::Arc::clone(&ctx.server);
+    let link = crate::tunnel::of(&server).ok_or_else(ApiError::not_found)?;
+    Ok(ok(crate::tunnel::json(
+        &server,
+        &link.view(),
+        link.hostname(),
+    )))
+}
+
+/// What *Turn on* asks for.
+#[derive(Deserialize)]
+pub struct LinkOn {
+    /// `quick` or `own`.
+    mode: String,
+    /// The own address's hostname; the environment's when left out.
+    hostname: Option<String>,
+    /// The tunnel's token pasted from Cloudflare's dashboard; the
+    /// environment's when left out. Kept for this run only, never written
+    /// down, never shown again.
+    token: Option<String>,
+}
+
+/// *Turn on* — a quick link, or the own address by its token: a fresh
+/// proof first (ADR 0083 item 6: the server is put on the internet), then
+/// the link starts on a thread of its own and the answer says it is
+/// starting; the page reads it again. In the audit log.
+pub async fn link_on(ctx: Ctx, Json(body): Json<LinkOn>) -> ApiResult<Response> {
+    ctx.changes()?;
+    ctx.admin()?;
+    ctx.proved()?;
+    let ask = match body.mode.as_str() {
+        "quick" => crate::tunnel::Ask::Quick,
+        "own" => crate::tunnel::Ask::Own {
+            hostname: body.hostname,
+            token: body.token,
+        },
+        _ => return Err(ApiError::bad("link_mode", "quick or own")),
+    };
+    let server = std::sync::Arc::clone(&ctx.server);
+    let link = crate::tunnel::of(&server).ok_or_else(ApiError::not_found)?;
+    let what = if ask == crate::tunnel::Ask::Quick {
+        "quick"
+    } else {
+        "own"
+    };
+    let started = {
+        let link = std::sync::Arc::clone(&link);
+        tokio::task::spawn_blocking(move || link.turn_on_soon(&ask))
+            .await
+            .map_err(|e| e.to_string())?
+    };
+    ctx.audit("link_on", Some(what), None, started.is_ok());
+    let view = started.map_err(|why| ApiError::bad("link", why))?;
+    Ok(ok(crate::tunnel::json(&server, &view, link.hostname())))
+}
+
+/// *Extend*: a quick link's twelve hours from now again, the same link; a
+/// fresh proof first, as for turning it on. In the audit log.
+pub async fn link_extend(ctx: Ctx) -> ApiResult<Response> {
+    ctx.changes()?;
+    ctx.admin()?;
+    ctx.proved()?;
+    let server = std::sync::Arc::clone(&ctx.server);
+    let link = crate::tunnel::of(&server).ok_or_else(ApiError::not_found)?;
+    let extended = link.extend();
+    ctx.audit("link_extend", None, None, extended.is_ok());
+    let view = extended.map_err(|why| ApiError::bad("link", why))?;
+    Ok(ok(crate::tunnel::json(&server, &view, link.hostname())))
+}
+
+/// *Turn off*: the address forgotten, `cloudflared` stopped, the link's
+/// listener closed before the answer. An admin's act with no fresh proof:
+/// taking the server off the internet is never made harder than being its
+/// admin (the build's choice, ADR 0117 R5). In the audit log.
+pub async fn link_off(ctx: Ctx) -> ApiResult<Response> {
+    ctx.changes()?;
+    ctx.admin()?;
+    let server = std::sync::Arc::clone(&ctx.server);
+    let link = crate::tunnel::of(&server).ok_or_else(ApiError::not_found)?;
+    let view = {
+        let link = std::sync::Arc::clone(&link);
+        tokio::task::spawn_blocking(move || link.turn_off(verso_tunnel::LinkEnd::Stopped))
+            .await
+            .map_err(|e| e.to_string())?
+    };
+    ctx.audit("link_off", None, None, true);
+    Ok(ok(crate::tunnel::json(&server, &view, link.hostname())))
 }

@@ -426,11 +426,22 @@ fn a_window_link_is_relative_without_a_public_address_and_whole_with_one() {
     let mut c = crate::tests::config(data.path(), folders.path());
     c.listen = "0.0.0.0:7340".parse().unwrap();
     c.public_url = None;
+    let server = |c: &crate::config::Config| {
+        crate::state::Server::new(
+            c.clone(),
+            crate::db::Db::memory().unwrap(),
+            crate::contract_version(),
+            "t".into(),
+        )
+    };
     // Never `localhost`: the wildcard bind does not say how a window reaches it.
-    assert_eq!(crate::window_link(&c, "/invite/abc"), "/invite/abc");
+    assert_eq!(
+        crate::window_link(&server(&c), "/invite/abc"),
+        "/invite/abc"
+    );
     c.public_url = Some("https://mesa.casa/".into());
     assert_eq!(
-        crate::window_link(&c, "/invite/abc"),
+        crate::window_link(&server(&c), "/invite/abc"),
         "https://mesa.casa/invite/abc"
     );
 }

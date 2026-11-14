@@ -419,6 +419,7 @@ impl Workspace {
                 },
                 len: e.len,
                 modified: e.modified.map_or(0, seconds_since_epoch),
+                modified_nanos: e.modified.map_or(0, nanos_since_epoch),
                 created: e.created.map_or(0, seconds_since_epoch),
             })
             .collect();

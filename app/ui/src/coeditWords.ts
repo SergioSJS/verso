@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { onPhone } from "./screen/phoneWords";
+
 // What a person is told of a synced folder's live note (ADR 0082 item 14),
 // in words — never a colour alone — in pt-BR and English: the state in the
 // tab and the status bar, and the sentences a screen reader hears.
@@ -110,7 +112,7 @@ const en: typeof pt = {
 
 /** The words in the language `lang` names ("pt…" or anything else). */
 export function liveWords(lang: string): typeof pt {
-  return lang.startsWith("pt") ? pt : en;
+  return onPhone(lang.startsWith("pt") ? pt : en);
 }
 
 /** The notice of a folder whose live editing is off, and its control's label. */

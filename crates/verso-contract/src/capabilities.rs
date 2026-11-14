@@ -12,12 +12,14 @@ use specta::Type;
 use crate::FolderAccess;
 
 /// Which side the window talks to (ADR 0027, ADR 0073 item 2): the app on
-/// this computer, or a server.
+/// this computer, a server, or the app on a phone (ADR 0118: the window
+/// reads what the host is from here, never from the user agent).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum Host {
     Desktop,
     Server,
+    Mobile,
 }
 
 /// What the side the window talks to can do (ADR 0027; ADR 0076 item 11):
@@ -43,6 +45,9 @@ pub enum Can {
     Devtools,
     /// Open folders from this computer's disk.
     LocalFolders,
+    /// Open a file of this computer's disk without its folder (ADR 0114):
+    /// the desktop's *Open file…*; not a phone's yet (decided 2026-11-10).
+    LooseFiles,
     /// An account signed in on a server: the account's page.
     Account,
     /// The account is the server's admin: the admin page.
@@ -85,6 +90,22 @@ pub enum Can {
     /// files never list it, and where it is absent *Share audio…* is not
     /// drawn.
     AudioShare,
+    /// This app, as a server, reaches people anywhere through an internet
+    /// link (`cloudflared`, ADR 0117): the desktop and Android list it;
+    /// the iOS app does not (ADR 0119 A3 and A13, decided 2026-11-12), and
+    /// the window hides the link's box there.
+    Link,
+    /// This app finds servers announced on the network and is found while
+    /// a phone pairs (mDNS, ADR 0097, ADR 0096 item 8): the desktop and
+    /// Android list it; the iOS app does not (ADR 0119 A4 and A13), and
+    /// the window hides *Found on this network*.
+    Discover,
+    /// This app keeps serving while it is not on the screen (Android's
+    /// foreground service, a desktop's window in the background): absent
+    /// on iOS, which suspends an app that leaves the screen (ADR 0119 A2
+    /// and A13); the window then says the server runs only while Verso is
+    /// open.
+    ServeAway,
 }
 
 impl Can {
@@ -104,6 +125,13 @@ impl Can {
         Can::Table,
         Can::Board,
     ];
+
+    /// What this app does as a server beyond serving on the network (ADR
+    /// 0119 A13, decided 2026-11-12): each host lists those its platform
+    /// has — the desktop and Android all three, iOS none — and a server
+    /// never lists them. Added after version 1's words: a side that does
+    /// not know them never receives them (a server's answer has none).
+    pub const APP_SERVER: &[Can] = &[Can::Link, Can::Discover, Can::ServeAway];
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
@@ -141,5 +169,18 @@ mod tests {
             Some("\"terminal\"")
         );
         assert!(!Can::FOLDER.contains(&Can::Terminal));
+    }
+
+    /// The app server's three abilities cross as their own words and are
+    /// none of a folder's, which a server adds to every answer (ADR 0119
+    /// A13).
+    #[test]
+    fn the_app_servers_abilities_are_their_own_words() {
+        let words: Vec<String> = Can::APP_SERVER
+            .iter()
+            .filter_map(|c| serde_json::to_string(c).ok())
+            .collect();
+        assert_eq!(words, ["\"link\"", "\"discover\"", "\"serve_away\""]);
+        assert!(Can::APP_SERVER.iter().all(|c| !Can::FOLDER.contains(c)));
     }
 }

@@ -76,6 +76,7 @@ import { relationKeyOk } from "./relation";
 import { InsertMenu, TopRightTools } from "./tools";
 import { BoardHandle, BoardHost, type BoardPane } from "./types";
 import { ext } from "../paths";
+import { prettyKeys } from "../keyNames";
 import { MAC } from "../platform";
 import { fold } from "../text";
 import { fit, margined, randomId } from "./util";
@@ -1278,7 +1279,7 @@ function Board({
               </Footer>
             )}
             <MainMenu>
-              <MainMenu.Item onSelect={() => setExporting(true)} shortcut="⌘⇧E">
+              <MainMenu.Item onSelect={() => setExporting(true)} shortcut={prettyKeys("Mod-Shift-e")}>
                 {s.exportImage}
               </MainMenu.Item>
               <MainMenu.DefaultItems.ChangeCanvasBackground />

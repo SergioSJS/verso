@@ -13,7 +13,7 @@
 // - during a run, it reads the system's IOSurface count every few seconds
 //   and stops the run, as Ctrl-C would, long before the limit.
 //
-// Run as a script (`node e2e/preflight.mjs`: scripts/check.sh and the npm
+// Run as a script (`node e2e/preflight.mjs`: the npm
 // scripts `e2e` and `e2e:server`) and as the two Playwright configs'
 // globalSetup, so a bare `npx playwright test` is guarded too. Off macOS it
 // does nothing. Dependency-free.

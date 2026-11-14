@@ -12,6 +12,7 @@ import { dirOf, iconFor, kindOf, name } from "../paths";
 import { settings } from "../settings";
 import { t } from "../strings";
 import { asCombobox, asDialog, closed, opened } from "./a11y";
+import { focusOnOpen } from "../screen/openFocus";
 
 /* ---------- `[[` completes to a note or a file; `[[Note#` to its headings ---------- */
 export function score(label: string, path: string, typed: string): number {
@@ -79,9 +80,8 @@ export class QuickSwitcher {
     this.el.hidden = false;
     this.input.value = query;
     this.update();
-    this.input.focus();
     // A name filled in is selected: typing replaces it.
-    if (query) this.input.select();
+    focusOnOpen(this.input, { select: query !== "" });
   }
   hide(restore = true): void {
     this.el.hidden = true;

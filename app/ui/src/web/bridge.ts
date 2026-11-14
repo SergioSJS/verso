@@ -23,12 +23,21 @@ import { notice } from "./notice";
 import { pickFiles } from "./pickFiles";
 import { readLinkCall } from "./readLinkOwner";
 import { FULL_RETRY, phonesFullMost } from "./phonesFull";
+import { saidOnClose } from "./openingRefused";
+import { bridgeReady } from "./localTable";
+import { eventCall } from "./events";
 import { w } from "./strings";
+import { linkNotePath, soleFolder, type Listed } from "./landing";
 import { sortMessage } from "../table/sound/frameHeader";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: unknown) => void };
 
 const params = new URLSearchParams(location.search);
+/** The folder and the note a link names (`/?folder=…&note=…`): the note is
+ *  opened in that folder's window, as a tab, once the folder is shown and
+ *  only if the person sees it (web.ts); never a window of its own here. */
+const linkFolder = params.get("folder");
+const linkNote = linkNotePath(params.get("note"));
 let socket: WebSocket | null = null;
 let open = false;
 let nextId = 1;
@@ -51,6 +60,9 @@ const verdicts: ((v: "up" | "down") => void)[] = [];
 let folderId: string | null = params.get("folder");
 let role: string | null = null;
 let openedOnce = false;
+/** Whether a connection ever came up in this tab: a refusal before it is
+ *  said at each try (web/openingRefused.ts). */
+let everUp = false;
 let retry = 0;
 /** Connections in a row that the other end closed within [`LIVED`] of opening: the wait grows with them, so a server that accepts and closes at once is not asked once a second. */
 let quick = 0;
@@ -70,8 +82,18 @@ let visitor: string | null = null;
  *  left closed, not tried again. */
 let onLinkEnded: (() => void) | null = null;
 let linkEnded = false;
+/** Who waits for the connection to come up again: a read link's folder
+ *  asked when the one before dropped. */
+const backUp: (() => void)[] = [];
 /** Where a live share's frames go (`audio_share_hear`, the desktop host's channel answered here). */
 let audioFrames: { onmessage: (bytes: ArrayBuffer) => void } | null = null;
+
+/** The note a link names, to open as a tab once its folder is shown: only
+ *  when the folder open is the link's own (a link to a folder the person is
+ *  not in opens theirs, without the note), and a path inside it. */
+export function linkedNote(): string | null {
+  return linkNote && linkFolder && folderId === linkFolder ? linkNote : null;
+}
 
 /** The folder the tab shows, for the pages around the window. */
 export function currentFolderId(): string | null {
@@ -248,8 +270,9 @@ function onMessage(data: string): void {
   if (m.gone === "folder") {
     const reason = typeof m.reason === "string" ? m.reason : null;
     // The game master closed the table: the folder is remembered, and the
-    // window that follows says the table is closed and waits for it to open.
-    const shut = reason === "closed";
+    // window that follows says the table is closed and waits for it to open;
+    // or moved it to its other server (ADR 0117 R9), said as that.
+    const shut = reason === "closed" || reason === "moved";
     if (!shut) {
       notice(w().folderGone, "error");
       folderId = null;
@@ -257,7 +280,7 @@ function onMessage(data: string): void {
     }
     // No folder, no role in it.
     setRole(null);
-    void emit("server-gone", { url: location.origin, what: shut ? "closed" : "folder", address: null, reason: shut ? null : reason }).finally(() => location.reload());
+    void emit("server-gone", { url: location.origin, what: shut ? reason : "folder", address: null, reason: shut ? null : reason }).finally(() => location.reload());
   }
 }
 
@@ -270,11 +293,13 @@ function connect(): void {
   ws.addEventListener("open", () => {
     connecting = false;
     open = true;
+    everUp = true;
     const back = retry > 0 || routedOffline;
     openedAt = Date.now();
     retry = 0;
     gaveUp = false;
     for (const v of verdicts.splice(0)) v("up");
+    for (const b of backUp.splice(0)) b();
     if (back && folderId && openedOnce) {
       // The folder again first: a new connection shows no folder, and a
       // save queued while offline would be answered "no folder" if it went
@@ -346,7 +371,11 @@ function connect(): void {
     // Said in words, once per refusal, and tried again slowly.
     const most = phonesFullMost(ev.code, ev.reason);
     const fullSaid = most === null ? null : w().phonesFull(most);
-    if (fullSaid) notice(fullSaid, "error");
+    // A connection refused before it ever came up (too many from one
+    // address, the server not there yet) is said at each try: the window
+    // that would say a drop is not there yet.
+    const said = saidOnClose({ everUp, full: fullSaid, offline: w().offline });
+    if (said) notice(said, "error");
     open = false;
     reopening = false;
     // What was asked and not answered may or may not have happened: it is
@@ -415,15 +444,27 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
       return done(await openFolder(id));
     }
     case "open_initial": {
-      if (!folderId || openedOnce) return done(null);
-      const info = await openFolder(folderId).catch(() => {
-        // A folder of the address one may no longer enter: the start page,
-        // with no role.
-        folderId = null;
-        remember(null);
-        setRole(null);
-        return null;
-      });
+      if (openedOnce) return done(null);
+      // A read link's window has one folder: it is never left for the start
+      // page's choice of a folder (the re-test of 2026-11-04).
+      if (visitor) return done(folderId ? { kind: "folder", info: await visitorFolder() } : null);
+      let info = folderId
+        ? await openFolder(folderId).catch(() => {
+            // A folder of the address one may no longer enter: the start
+            // page, with no role.
+            folderId = null;
+            remember(null);
+            setRole(null);
+            return null;
+          })
+        : null;
+      // A player with one folder, landing on the start page, is taken into
+      // it (ADR 0074 item 6, decided 2026-11-06); a new window (ADR 0065)
+      // still starts on the start page.
+      if (!info && !params.get("window")) {
+        const sole = await api<Listed>("GET", "/api/folders").then(soleFolder, () => null);
+        if (sole) info = await openFolder(sole).catch(() => null);
+      }
       // The contract's answer names what was opened (ADR 0114): in a
       // browser it is always a folder of the server, never a loose file.
       return done(info ? { kind: "folder", info } : null);
@@ -434,8 +475,10 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     case "new_window":
       window.open(a.sameFolder && folderId ? `/?folder=${encodeURIComponent(folderId)}&window=1` : "/?window=1", "_blank");
       return done(null);
+    // A tab of the browser is never a note's window of its own: a link's
+    // note opens as a tab of the folder's window (`linkedNote`).
     case "popout_target":
-      return done(params.get("note"));
+      return done(null);
     case "return_to_main":
       location.href = `/?folder=${encodeURIComponent(folderId ?? "")}`;
       return done(null);
@@ -469,6 +512,7 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
     // them with its token.
     case "share_list":
     case "share_grant":
+    case "share_invite":
     case "share_revoke":
     case "share_attachments":
       return done(await shareCall(cmd, a));
@@ -535,6 +579,10 @@ async function shareCall(cmd: string, a: Record<string, unknown>): Promise<unkno
       }
       case "share_grant":
         return await api<Share>("PUT", at, { path: a.path, email: a.email, role: a.role });
+      // An invitation for an e-mail no account has, carrying this folder
+      // (ADR 0081 item 4): the server's admin only, the server says.
+      case "share_invite":
+        return await api<{ link: string; expires: number }>("POST", `${at}/invite`, { path: a.path, email: a.email, role: a.role });
       case "share_revoke":
         return await api<Share>("POST", `${at}/revoke`, { path: a.path, account: a.account ?? null });
       default:
@@ -578,6 +626,21 @@ async function openFolder(id: string): Promise<unknown> {
   return info;
 }
 
+/** The folder of a read link's window: asked until the server answers.
+ *  A connection that drops before the answer is not an answer — the folder
+ *  is asked again once the next one is up, the window still opening; a
+ *  refusal of the server is said (an ended link's page comes with it). */
+async function visitorFolder(): Promise<unknown> {
+  for (;;) {
+    try {
+      return await openFolder(folderId ?? "link");
+    } catch (e) {
+      if (linkEnded || (e as { transport?: unknown } | null)?.transport !== true) throw e;
+      await new Promise<void>((resolve) => backUp.push(resolve));
+    }
+  }
+}
+
 /** What Tauri's notification plugin asks of the desktop's host, answered
  *  by the browser's Notification API (ADR 0084 item 9): the window asks
  *  the same calls on either side (ADR 0026 rule 2). */
@@ -607,7 +670,14 @@ async function notificationCall(cmd: string, a: Record<string, unknown>): Promis
  *  the start page), and how the person chooses a folder. */
 export function startBridge(choose: () => Promise<string | null>): void {
   chooser = choose;
-  const label = params.get("note") ? "note-1" : params.get("window") ? "window-1" : "main";
+  const label = params.get("window") ? "window-1" : "main";
+  // The note's name leaves the address once the window has it: a note the
+  // person may not see is named nowhere on their page.
+  if (params.has("note")) {
+    const url = new URL(location.href);
+    url.searchParams.delete("note");
+    history.replaceState(history.state, "", url);
+  }
   mockWindows(label);
   mockIPC(
     async (cmd, args) => {
@@ -615,6 +685,9 @@ export function startBridge(choose: () => Promise<string | null>): void {
       // The system's notifications (ADR 0084 item 9): what Tauri's plugin
       // asks of the desktop's host, the browser's API answers.
       if (cmd.startsWith("plugin:notification|")) return notificationCall(cmd, a);
+      // The window's events: answered here, not by Tauri's mock (events.ts).
+      const heard = eventCall(cmd, a);
+      if (heard.handled) return heard.value;
       // The window's own Tauri calls (its title, its close handler) mean
       // nothing in a tab.
       if (cmd.startsWith("plugin:")) return null;
@@ -625,11 +698,12 @@ export function startBridge(choose: () => Promise<string | null>): void {
       if (onThisDevice()) return offline.answer(folderId!, cmd, a);
       return request(cmd, a);
     },
-    { shouldMockEvents: true },
   );
   const internals = (window as unknown as { __TAURI_INTERNALS__: { convertFileSrc: (path: string, protocol?: string) => string } }).__TAURI_INTERNALS__;
   internals.convertFileSrc = (path: string) =>
     visitor ? `/r/${encodeURIComponent(visitor)}/f/${encodePath(path)}` : `/f/${encodeURIComponent(folderId ?? "-")}/${encodePath(path)}`;
+  // What asked to hear the window's events before now hears them.
+  bridgeReady();
   connect();
 }
 

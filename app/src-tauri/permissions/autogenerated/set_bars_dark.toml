@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-bars-dark"
+description = "Enables the set_bars_dark command without any pre-configured scope."
+commands.allow = ["set_bars_dark"]
+
+[[permission]]
+identifier = "deny-set-bars-dark"
+description = "Denies the set_bars_dark command without any pre-configured scope."
+commands.deny = ["set_bars_dark"]

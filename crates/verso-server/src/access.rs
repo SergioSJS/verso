@@ -16,15 +16,21 @@ use crate::state::Server;
 /// a folder one may not see is one that does not exist, to them.
 pub fn role(server: &Server, who: &Who, id: &str) -> ApiResult<(Folder, Role)> {
     let folder = server.db.folder(id)?.ok_or_else(ApiError::not_found)?;
+    // A folder this computer keeps but does not serve now is no one's
+    // (ADR 0117 D2, 2026-11-13), its owner's phones and window included.
+    if server.rests(&folder.dir) {
+        return Err(ApiError::not_found());
+    }
     let (reaches, writes) = who.reaches(id);
     if !reaches {
         return Err(ApiError::not_found());
     }
-    // A folder served in part is no phone's: only the shares of the
-    // folders chosen inside it are (ADR 0096 item 2, amended 2026-10-16).
-    // Its holder is not the phones' account, which already opens nothing
-    // here; this is the second lock, so a grant made by mistake cannot
-    // open it.
+    // A folder served in part is no phone's by its own id: only the shares
+    // of the folders chosen inside it are the owner's phones' (ADR 0096
+    // item 2, amended 2026-10-16), whatever grant was made. The folder is
+    // its owner's (ADR 0117 R1, 2026-11-05): the owner's window sits at it,
+    // and a player reaches what a share or a table gives them, as on a
+    // UniVerso — the role below says it.
     if who.phone.is_some() && server.local.as_ref().is_some_and(|p| p.hides(id)) {
         return Err(ApiError::not_found());
     }
@@ -68,7 +74,7 @@ pub use door::{
 mod rules;
 pub use rules::{
     AccessFacts, Action, Asker, Cap, Kind, Level, Made, NodeSet, Reason, Right, Seat, TableFact,
-    Target, Verdict, Why, may,
+    Target, Verdict, Why, invites_new, may,
 };
 
 #[cfg(test)]

@@ -29,4 +29,4 @@ properties:
     label: { pt-BR: Governante, en: Ruler }
 ```
 
-`image` é uma imagem da pasta — um link `"[[foto.png]]"` ou um caminho, como o `banner:` — ou um endereço da web, que só aparece se a origem foi aprovada. `link` é um link entre aspas, ou uma lista deles. Veja [[21 - Notas Tipadas]].
+`image` é uma imagem da pasta — um link `"[[foto.png]]"` ou um caminho, como o `banner:` — ou um endereço da web, que só aparece se a origem foi aprovada. `link` é um link entre aspas, ou uma lista deles. Veja [[13 - Notas Tipadas]].

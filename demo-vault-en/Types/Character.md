@@ -28,4 +28,4 @@ properties:
     label: { pt-BR: Primeira aparição, en: First appearance }
 ```
 
-Changing this block changes what the notes of the type show, and no note. See [[21 - Typed Notes]].
+Changing this block changes what the notes of the type show, and no note. See [[13 - Typed Notes]].

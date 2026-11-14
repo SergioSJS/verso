@@ -2,12 +2,13 @@
 # file (ADR 0075 item 2). docs/reference/server-install.md explains each
 # value; the image is described in packaging/server/Dockerfile.
 #
-# While the repository is private the image is a private package of
-# GitHub's registry: before the first pull the host runs
+# The repository is public and so is the image on GitHub's registry, so a
+# pull needs no login. If it answers "denied" or "unauthorized", the image is
+# not public yet: the host first runs
 #   docker login ghcr.io -u <github-user>
-# with a token that can read packages (a classic token with read:packages)
-# as the password (ADR 0075, Consequences). On CasaOS and ZimaOS that is a
-# command in the system's terminal; their panel then pulls as usual.
+# with a classic token that has read:packages as the password (ADR 0075,
+# Consequences). On CasaOS and ZimaOS that is a command in the system's
+# terminal; their panel then pulls as usual.
 #
 # `beta` is the newest test version (vX.Y.Z-beta.N), the only kind there
 # is so far; once a production version exists, `latest` names it and this
@@ -110,6 +111,18 @@ services:
       # believed without this; set it only to replace that list (addresses
       # and CIDRs separated by commas) or to `none` to believe no proxy.
       # VERSO_TRUSTED_PROXY: ""
+      # Optional. The server's own link on the internet through Cloudflare
+      # (ADR 0117), for a server with no domain or open port: `quick` (a
+      # random https://….trycloudflare.com, new at each start, 12 hours with
+      # Extend in the admin console) or `own` (your address: a tunnel made
+      # in Cloudflare's dashboard, its hostname and its token, best as a
+      # secret like the admin's password). Off when left out; the admin
+      # console (Server) turns it on and off too and shows the address.
+      # cloudflared is downloaded from GitHub on first use, pinned and
+      # checked, into /data/tunnel.
+      # VERSO_TUNNEL: "quick"
+      # VERSO_TUNNEL_HOSTNAME: "mesa.example.com"
+      # VERSO_TUNNEL_TOKEN_FILE: /run/secrets/universo-tunnel
     # secrets:
     #   - universo-admin
     x-casaos:
@@ -162,9 +175,8 @@ x-casaos:
   category: Productivity
   author: Verso
   developer: Sérgio J. Sousa
-  version: "0.8.4-beta.1"
-  # A placeholder: the repository is private, so this address answers
-  # nothing until it is public; the store submission (ADR 0075,
+  version: "0.9.0-beta.1"
+  # A placeholder: the project's app icon; the store submission (ADR 0075,
   # Consequences) brings an icon.svg of its own.
   icon: https://raw.githubusercontent.com/SergioSJS/verso/main/app/src-tauri/icons/128x128@2x.png
   title:

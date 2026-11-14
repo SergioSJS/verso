@@ -24,6 +24,7 @@ use super::*;
 use crate::{cloud, dns::SendRetrying};
 
 mod cloud_only;
+mod hold;
 pub(crate) mod live;
 mod seat;
 mod transfer;
@@ -459,7 +460,8 @@ pub(crate) fn problem_of(e: &ContractError, cloud: bool) -> &'static str {
         // Offline, because the server did not answer: the window names it.
         ErrorKind::Unreachable => "unreachable",
         ErrorKind::Refused if e.message.starts_with("not signed in") => "not_signed_in",
-        // The game master closed the table: sync waits for it to open.
+        // The game master closed the table, or moved it (ADR 0117 R9): sync waits.
+        ErrorKind::Refused if e.message.contains(verso_contract::TABLE_MOVED) => "table_moved",
         ErrorKind::Refused if e.message.contains(verso_contract::TABLE_CLOSED) => "table_closed",
         // A cloud (ADR 0104): the sign-in, the keyring, the service that
         // cannot keep a write safe.
@@ -809,13 +811,10 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
     // A room's events go to the windows as they come, never behind a pass
     // (ADR 0082 item 2).
     let heard = live::relay(Arc::clone(&s.live), Arc::clone(&ctx.told), heard);
-    if let Some(v) = remote::mismatch(&hello) {
-        let refused = remote::mismatch_refused(&v);
-        *lock(&s.versions) = Some(v);
-        return Err(refused);
-    }
-    // One contract, and a sync one side cannot follow (ADR 0079 item 5):
-    // said as a version problem, naming both versions when they differ.
+    // Only the sync's version decides (ADR 0079 item 5, revised
+    // 2026-11-02): the contract's never refuses a synced folder. A sync
+    // one side cannot follow is said as a version problem, naming both
+    // versions when they differ.
     if let Some(why) = remote::sync_refused(&hello) {
         let v = remote::versions(&hello);
         *lock(&s.versions) = (v.server_version != v.app_version).then_some(v);
@@ -922,7 +921,8 @@ pub(crate) struct Passed {
 /// One comparison and its plan carried out. An error of the connection
 /// ends the pass; one of a file is listed and the rest goes on.
 pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, ContractError> {
-    if s.paused.load(Ordering::Relaxed) {
+    // Held too while a phone's background sync waits for its conditions.
+    if s.paused.load(Ordering::Relaxed) || crate::background::held().is_some() {
         s.set(ctx, |st| {
             st.state = "paused".to_owned();
             st.deletions = None;

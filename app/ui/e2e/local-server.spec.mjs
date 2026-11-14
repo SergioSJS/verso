@@ -21,27 +21,31 @@ test("it is off, serves only the ticked folders, and says what the system will a
   await section(app);
   const body = page.locator(".settings-body");
   await expect(body.getByText("Desligado.")).toBeVisible();
-  // None comes ticked; the one that also syncs with a server cannot be.
+  // None comes ticked. A folder that syncs with a server is ticked like any
+  // other (the host's tests); one shared with this person by another
+  // account cannot be: its owner serves it.
   const vault = body.getByRole("checkbox", { name: /^Vault/ });
   await expect(vault).not.toBeChecked();
   // The others are in the shut group of recent folders.
   await body.locator("details.ls-recent summary").click();
   await expect(body.getByRole("checkbox", { name: "Compartilhada" })).toBeDisabled();
-  await expect(body.getByText("também sincroniza com notas.exemplo: abra esse endereço no celular")).toBeVisible();
+  await expect(body.getByText("compartilhada com você em notas.exemplo: só quem é dona dela pode servi-la")).toBeVisible();
   // Nothing ticked: it will not start, and says so where the button is.
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
-  await expect(body.getByText("tick at least one folder to serve")).toBeVisible();
+  await expect(body.getByText("Marque ao menos uma pasta para servir.")).toBeVisible();
   await vault.check();
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false }).first()).toBeVisible();
-  // The folders are locked while it serves, and the mark is in the status bar.
-  await expect(vault).toBeDisabled();
+  // Said once, beside the switch: not again under it (the walk of 2026-11-06).
+  await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false })).toHaveCount(1);
+  // What is served changes while it serves (ADR 0117 R4), and the mark is in the status bar.
+  await expect(vault).toBeEnabled();
   await expect(page.locator("#local-mark")).toContainText("Servindo");
   // Settings is modal: the mark's Stop is reached with it closed.
   await app.key("Escape");
   await expect(page.locator(".quick.settings")).toBeHidden();
-  await page.locator("#local-mark").getByRole("button", { name: "Parar de servir ao celular" }).click();
+  await page.locator("#local-mark").getByRole("button", { name: "Parar de servir na sua rede" }).click();
   await expect(page.locator("#local-mark")).toHaveCount(0);
   await section(app);
   await expect(page.locator(".settings-body").getByText("Desligado.").first()).toBeVisible();
@@ -67,16 +71,18 @@ test("a phone is paired only when the laptop says Allow, and can then be revoked
   await expect(dialog.getByText("Foi você quem leu este QR?")).toBeVisible();
   await expect(dialog.getByText("iPhone da Ana")).toBeVisible();
   await expect(dialog.getByText("192.168.1.77")).toBeVisible();
+  // An editor chosen first (ADR 0117 D5 (2)): the owner's own device.
+  await expect(dialog.getByRole("checkbox", { name: "Pode editar as notas" })).toBeChecked();
   await dialog.getByRole("button", { name: "Permitir" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(body.getByText("iPhone da Ana · só lê")).toBeVisible();
+  await expect(body.getByText("iPhone da Ana · edita")).toBeVisible();
   await expect(body.getByText("1 celular pareado").first()).toBeVisible();
   await body.getByRole("button", { name: "Revogar iPhone da Ana: a sessão dele termina agora" }).click();
   await expect(body.getByText("Revogado. O celular foi desconectado.")).toBeVisible();
   await expect(body.getByText("Nenhum ainda.")).toBeVisible();
   // What happened is kept and shown, without a secret in it.
   await body.getByText("O que aconteceu").click();
-  await expect(body.locator(".ls-log-list")).toContainText("Celular permitido (só lê)");
+  await expect(body.locator(".ls-log-list")).toContainText("Celular permitido (edita)");
   await expect(body.locator(".ls-log-list")).toContainText("Celular revogado");
 });
 
@@ -190,6 +196,8 @@ test("a paired phone can be let edit, or only read, without pairing again", asyn
   const dialog = page.getByRole("dialog", { name: "Parear um celular" });
   await expect(dialog.getByRole("img", { name: "QR de pareamento" })).toBeVisible();
   await page.evaluate(() => window.__harness.core.localServer.askAsPhone("Pixel do Caio"));
+  // Only reading, chosen in the question (an editor is chosen first).
+  await dialog.getByRole("checkbox", { name: "Pode editar as notas" }).uncheck();
   await dialog.getByRole("button", { name: "Permitir" }).click();
   await expect(body.getByText("Pixel do Caio · só lê")).toBeVisible();
   const toggle = body.getByRole("checkbox", { name: "Pixel do Caio: pode editar as notas" });
@@ -298,7 +306,7 @@ test("many folders are listed as in the folder switcher: the command's order, no
   await expect(body.getByText("Nenhuma pasta combina com o filtro.")).toBeVisible();
   await filter.press("Escape");
   await expect(filter).toHaveValue("");
-  // The folder that syncs with a server says why its box is off, on its row.
+  // The folder shared with this person says why its box is off, on its row.
   await expect(body.getByRole("checkbox", { name: "Compartilhada" })).toHaveAccessibleDescription(/notas\.exemplo/);
   // A phone's width: nothing runs off the side.
   await page.setViewportSize({ width: 360, height: 700 });
@@ -317,7 +325,7 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   // The open folder's tree is there at once, with no button to open it.
   await expect(body.locator(".ls-here .ls-serves")).toHaveText(", serve tudo");
   await expect(body.getByRole("button", { name: /^Escolher pastas/ })).toHaveCount(0);
-  await expect(body.getByText("Marque só o que o celular pode ver.", { exact: false })).toBeVisible();
+  await expect(body.getByText("Marque só o que os seus celulares podem ver;", { exact: false })).toBeVisible();
   await expect(body.getByText("Desmarcar a última pasta para de servir este cofre", { exact: false })).toBeVisible();
   // Nothing to go back to while all of it is served: the button is not there.
   await expect(body.getByRole("button", { name: "Servir a pasta inteira" })).toHaveCount(0);
@@ -394,7 +402,7 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   await expect(body.locator(".ls-here .ls-serves")).toHaveText(", serve tudo");
 });
 
-test("the folders chosen inside a folder are locked while serving, and a bad choice is said", async ({ app, page }) => {
+test("the folders chosen inside a folder change while serving, at once (ADR 0117 R4)", async ({ app, page }) => {
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
@@ -404,12 +412,33 @@ test("the folders chosen inside a folder are locked while serving, and a bad cho
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false }).first()).toBeVisible();
-  await expect(tree.getByRole("checkbox", { name: "Servir Anexos" })).toBeDisabled();
-  await expect(tree.getByRole("checkbox", { name: "Servir Segredo" })).toBeDisabled();
-  await expect(body.getByRole("checkbox", { name: /^Vault/ })).toBeDisabled();
-  // The tree stays readable (open and closed) while it serves.
-  await tree.getByRole("button", { name: "Mostrar as pastas dentro de Diario" }).click();
-  await expect(tree.getByRole("checkbox", { name: "Servir Diario/2026" })).toBeDisabled();
+  await expect(tree.getByRole("checkbox", { name: "Servir Segredo" })).toBeEnabled();
+  await tree.getByRole("checkbox", { name: "Servir Segredo" }).check();
+  await expect.poll(() => app.calls("local_server_parts")).toContainEqual({ key: "harness", parts: ["Anexos", "Segredo"] });
+  await expect(body.getByRole("checkbox", { name: /^Vault/ })).toBeEnabled();
+  // Still serving: nothing was stopped to change it.
+  await expect(page.locator("#local-mark")).toContainText("Servindo");
+});
+
+test("a folder is served from its page: the server turned on in the same step, and stopped from the tree (ADR 0117 R4)", async ({ app, page }) => {
+  await app.open();
+  await page.locator('#notes summary').first().locator("button.folder-page").click();
+  const card = page.locator(".table-card-serve");
+  await card.getByRole("button", { name: "Servir deste computador" }).click();
+  // Off: asked once, and both done by one answer.
+  await page.getByRole("alertdialog").getByRole("button", { name: "Ligar e servir" }).click();
+  await expect(page.locator("#status")).toContainText("é servida deste computador");
+  await expect.poll(() => app.calls("local_server_tick")).toContainEqual({ key: "harness", ticked: true });
+  await expect.poll(async () => (await app.calls("local_server_start")).length).toBe(1);
+  await expect(page.locator("#local-mark")).toContainText("Servindo");
+  // The tree's root menu stops it, after saying what is kept.
+  await page.locator("#tree-root").dispatchEvent("contextmenu", { clientX: 40, clientY: 40 });
+  await page.getByRole("menuitem", { name: "Parar de servir" }).click();
+  const asked = page.getByRole("alertdialog");
+  await expect(asked).toContainText("A mesa, o chat e as rolagens ficam guardados.");
+  await asked.getByRole("button", { name: "Parar de servir" }).click();
+  await expect.poll(() => app.calls("local_server_tick")).toContainEqual({ key: "harness", ticked: false });
+  await expect(page.locator("#status")).toContainText("não é mais servida");
 });
 
 test("a chosen folder gone from the disk is left out at the start and said, and with none left it will not start", async ({ app, page }) => {
@@ -471,3 +500,50 @@ test("the recent folders are a group that is shut by default, remembered, with t
   await expect(recent).not.toHaveAttribute("open", "");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("verso-served-recent-open"))).toBe("0");
 });
+
+/** Where a dialog's box sits in the window, and whether it scrolls inside. */
+async function placed(page, name) {
+  const box = page.getByRole("dialog", { name }).locator(".ls-dialog");
+  return box.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, vw: innerWidth, vh: innerHeight, scrolls: el.scrollHeight > el.clientHeight + 1 };
+  });
+}
+
+// The maintainer's screenshot, 2026-11-05: "Parear um celular" sat low and
+// narrow over Settings, scrolling inside although there was room. The
+// section's dialogs are centred in the window and held within it; at a
+// desktop size the pairing dialog has its QR beside the facts and does not
+// scroll; on a phone it fits the width.
+for (const [size, wide] of [[{ width: 1280, height: 800 }, true], [{ width: 390, height: 844 }, false]]) {
+  test(`the section's dialogs are centred and held within the window, ${size.width}×${size.height} @layout`, async ({ app, page }) => {
+    await page.setViewportSize(size);
+    await app.open();
+    await section(app);
+    const body = page.locator(".settings-body");
+    await body.getByRole("checkbox", { name: /^Vault/ }).check();
+    await body.getByRole("button", { name: "Ligar o servidor" }).click();
+    const first = await placed(page, "Antes de ligar");
+    for (const p of [first]) {
+      expect(Math.abs(p.left + p.right - p.vw)).toBeLessThanOrEqual(2);
+      expect(Math.abs(p.top + p.bottom - p.vh)).toBeLessThanOrEqual(2);
+      expect(p.scrolls).toBe(false);
+    }
+    await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+    await body.getByRole("button", { name: "Parear um celular" }).click();
+    await expect(page.getByRole("dialog", { name: "Parear um celular" }).getByText("BCDF-GHJK")).toBeVisible();
+    const pair = await placed(page, "Parear um celular");
+    expect(Math.abs(pair.left + pair.right - pair.vw)).toBeLessThanOrEqual(2);
+    expect(pair.top).toBeGreaterThanOrEqual(15);
+    expect(pair.bottom).toBeLessThanOrEqual(pair.vh - 15);
+    expect(pair.right - pair.left).toBeLessThanOrEqual(pair.vw - 30);
+    if (wide) {
+      expect(pair.scrolls).toBe(false);
+      expect(pair.width).toBeGreaterThan(640);
+    }
+    // Escape closes it, and the focus goes back to Settings.
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Parear um celular" })).toHaveCount(0);
+    await expect(page.locator(".settings")).toBeVisible();
+  });
+}

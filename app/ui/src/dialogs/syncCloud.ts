@@ -11,6 +11,7 @@
 // host keeps it in the system's keychain and never sends it back (ADR
 // 0026).
 
+import { onPhone } from "../screen/phoneWords";
 import { commands, type CloudCheck, type CloudSettings, type SyncStatus } from "../bindings";
 import { h } from "../dom";
 import { fail } from "../errors";
@@ -204,7 +205,7 @@ const en: typeof pt = {
 };
 
 export function cloudStrings(): typeof pt {
-  return document.documentElement.lang.startsWith("pt") ? pt : en;
+  return onPhone(document.documentElement.lang.startsWith("pt") ? pt : en);
 }
 
 /** What a folder tied to a cloud says differently from one tied to a

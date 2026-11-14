@@ -10,10 +10,10 @@ import { loadBookmarks } from "./bookmarks";
 import { flushed, recheckAll, refreshLists, setShownProblems, showProblems, stopped, tellOutcomes } from "./changes";
 import { button, h, ui } from "./dom";
 import { flash } from "./notify";
-import { isTableClosed } from "./errorKinds";
+import { isTableClosed, isTableMoved } from "./errorKinds";
 import { fail } from "./errors";
 import { showTableClosed } from "./tableClosed";
-import { forgetFiles } from "./files";
+import { forgetFiles, forgetMoves } from "./files";
 import { loadFolderLayer } from "./folderLayer";
 import { loadFocuses } from "./focuses";
 import { currentFolder, LAST_FOLDER, nameFolderButton, secondary, setCurrentFolder, setFolderName } from "./folder";
@@ -27,6 +27,10 @@ import { enterFolderTheme, page, pushWalkRules } from "./settings";
 import { t } from "./strings";
 import { listAll, showOutline } from "./tree/tree";
 import { attachFolderLayouts } from "./statblock/folderWire";
+import { focusOnOpen } from "./screen/openFocus";
+import { receiveShared } from "./screen/shared";
+import { openSharedFolderDialog } from "./dialogs/sharedFolder";
+import { host } from "./can";
 
 /** A popped-out window joins the session: the folder is open already. */
 export async function joinAsPopout(): Promise<void> {
@@ -87,7 +91,7 @@ export async function openFolderBy(
     // A closed table is a state to wait out, said where the folder would be
     // (tableClosed.ts), not a fault: no ERROR in the log.
     if (isTableClosed(r.error)) {
-      showTableClosed(() => openFolderBy(run, true, null), currentFolder !== "");
+      showTableClosed(() => openFolderBy(run, true, null), currentFolder !== "", isTableMoved(r.error));
       said?.(r.error);
       return false;
     }
@@ -121,6 +125,7 @@ function tellVolume(info: FolderInfo): void {
   flash("info", info.name, t.lateOutsideChanges(fs));
 }
 export async function showFolder(info: FolderInfo): Promise<void> {
+  forgetMoves();
   setCurrentFolder(info.key);
   enterFolderTheme();
   setFolderName(info.name);
@@ -152,7 +157,10 @@ export async function showFolder(info: FolderInfo): Promise<void> {
   } finally {
     endRestore();
   }
-  ui.search.focus();
+  focusOnOpen(ui.search);
+  // What another app handed to the phone's Verso, kept until a folder is
+  // here (ADR 0118 item 5).
+  if (host() === "mobile") void receiveShared();
 }
 /** The folder's lists, then its tabs as they were left. */
 async function showListsAndTabs(info: FolderInfo): Promise<void> {
@@ -196,6 +204,9 @@ async function showListsAndTabs(info: FolderInfo): Promise<void> {
   if (!restored) newSpace();
 }
 export async function openFolderDialog(): Promise<void> {
+  // A phone has no folder picker that answers with a folder: its shared
+  // storage is walked in the window (ADR 0118 item 4.4).
+  if (host() === "mobile") return openSharedFolderDialog();
   await openFolderBy(() => commands.pickFolder());
 }
 /** A scan rule turned on or off: the host takes the new rules, and the

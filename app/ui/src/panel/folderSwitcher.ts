@@ -150,7 +150,8 @@ export async function openFolderSwitcher(anchor: HTMLElement): Promise<void> {
   const r = anchor.getBoundingClientRect();
   box.style.left = `${Math.max(8, r.left)}px`;
   box.style.top = `${r.bottom + 4}px`;
-  const local = can("local_folders") ? group("here", sh.here) : null;
+  // A phone's own folders are "on this phone" (ADR 0118).
+  const local = can("local_folders") ? group("here", host() === "mobile" ? sh.herePhone : sh.here) : null;
   const mine = group("mine", sh.mine);
   const theirs = group("shared", sh.sharedWithMe);
   if (local) {

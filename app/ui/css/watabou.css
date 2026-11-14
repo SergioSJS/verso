@@ -1,0 +1,16 @@
+/* The Watabou import and the generated-map note's dialog (ADR 0120). */
+.quick.wb-import { padding: 16px; justify-content: center; }
+.wb-import-box { gap: .7rem; padding: 1rem; max-width: 32rem; max-height: 100%; overflow: auto; }
+.wb-import-title { margin: 0; font-size: 1.05rem; }
+.wb-import-intro, .wb-import-makes { margin: 0; font-size: .85rem; color: var(--ink-2); }
+.wb-import-drop { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .9rem; border: 1.5px dashed var(--hair); border-radius: 8px; }
+.wb-import-drop.over { border-color: var(--seal); background: var(--seal-wash); }
+.wb-import-hint { font-size: .85rem; color: var(--ink-2); }
+.wb-import-seen { margin: 0; padding-left: 1.1rem; font-size: .85rem; }
+.wb-import-seen:empty { display: none; }
+.wb-import-field { display: flex; flex-direction: column; gap: .2rem; font-size: .82rem; color: var(--ink-2); }
+.wb-import-field input, .wb-import-field select { font: inherit; padding: .35rem .5rem; border: 1px solid var(--hair); border-radius: 6px; background: var(--paper); color: var(--ink); min-width: 0; }
+.wb-import-seed { display: flex; gap: .5rem; }
+.wb-import-seed input { flex: 1; }
+.wb-import-problem { margin: 0; min-height: 1.2em; font-size: .82rem; color: var(--seal); }
+.wb-import-problem:empty { min-height: 0; }

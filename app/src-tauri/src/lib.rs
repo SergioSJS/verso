@@ -34,18 +34,22 @@ use verso_contract::{
     CollabOracle, CollabRoll, CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind,
     FileEntry, Focus, FocusesSummary, FolderBlocks, FolderChanged, FolderDataFile, FolderDataKind,
     FolderDataList, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
-    Host, IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus,
-    Mentions, MissingLink, MovedEntries, NoteText, ObsidianPeriodic, Opened, OracleAsk, OracleDraw,
-    Renamed, ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
+    IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus, Mentions,
+    MissingLink, MovedEntries, NoteText, ObsidianPeriodic, Opened, OracleAsk, OracleDraw, Renamed,
+    ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
 
+#[cfg(target_os = "android")]
+mod android;
 mod audio_share;
+mod background;
 mod boards;
 mod campaign;
 mod cli;
 mod cloud;
+mod compat;
 mod device;
 mod discover;
 mod dns;
@@ -54,12 +58,17 @@ mod focuses;
 mod folder_layer;
 mod framing;
 mod history;
+#[cfg(target_os = "ios")]
+mod ios;
 mod local_server;
 mod log;
 mod loose;
 mod menu;
 mod menu_spec;
+mod mobile;
 mod notes;
+#[cfg(target_os = "android")]
+mod phone;
 mod protocol;
 mod pty;
 mod reach;
@@ -72,7 +81,9 @@ mod remote_abilities;
 mod resolv_conf;
 mod secrets;
 mod session;
+mod shared;
 mod shares;
+mod storage;
 mod sync;
 mod sync_commands;
 mod table;
@@ -80,7 +91,9 @@ mod terminal;
 mod trash;
 #[cfg(any(target_os = "macos", windows))]
 mod tray;
+mod tunnel;
 mod update;
+mod update_source;
 mod version;
 mod web;
 mod web_clip;
@@ -349,6 +362,9 @@ async fn install<R: tauri::Runtime>(
     remote::release(app, window.label());
     let service = Arc::clone(&app.state::<App>().service);
     let (info, catch_up) = service.attach(window.label(), opened);
+    // A seat that held the folder for its sync lets it go, the window on
+    // it now (ADR 0117 D13 Q3).
+    local_server::seat::stand(app, window.label());
     // The folder it showed may be shown by no window now; the one it
     // shows syncs if it is set to (ADR 0079).
     settle(app);
@@ -385,19 +401,9 @@ async fn pick_folder<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Option<FolderInfo>, ContractError> {
     may_switch(&app, &window)?;
-    let (tx, mut rx) = tauri::async_runtime::channel(1);
-    let parent = window.clone();
-    app.dialog()
-        .file()
-        .set_parent(&parent)
-        .pick_folder(move |picked| {
-            let _ = tx.try_send(picked);
-        });
-    let picked = rx.recv().await.flatten();
-    let Some(picked) = picked else {
+    let Some(path) = mobile::pick_folder(&app, &window).await? else {
         return Ok(None);
     };
-    let path = picked.into_path().map_err(|e| failed(e.to_string()))?;
     install(&app, &window, move |config| Workspace::open(&path, config))
         .await
         .map(Some)
@@ -482,7 +488,7 @@ fn restart_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), Contra
     // The single instance let go first: a restart does not run the plugins'
     // exit, and the new process, finding the old one still holding it,
     // would hand itself over and exit — and then the old one exits too.
-    tauri_plugin_single_instance::destroy(&app);
+    mobile::release_instance(&app);
     session::quitting(&app);
     app.restart();
 }
@@ -617,31 +623,11 @@ fn capabilities<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<Capabilities, ContractError> {
     let live = live_latency(&app, window.label());
-    let mut can = vec![
-        Can::Write,
-        Can::Reveal,
-        Can::CopyPath,
-        Can::Windows,
-        Can::WebViews,
-        Can::Agents,
-        Can::Updates,
-        Can::Devtools,
-        Can::LocalFolders,
-    ];
-    if live.is_some() {
-        can.push(Can::Collab);
-    }
     // A window of files without a folder has no index, no tree, no bin, no
     // sync (ADR 0114 items 18 and 25); every other window shows a folder.
-    if app.state::<App>().service.is_loose(window.label()) {
-        can.retain(|c| !matches!(c, Can::Reveal | Can::CopyPath));
-    } else {
-        can.extend_from_slice(Can::FOLDER);
-        // A shell of this computer (ADR 0115 item 6): never in a window of
-        // files opened without their folder (ADR 0114 item 9).
-        can.push(Can::Terminal);
-        // Capture is the desktop host's alone (ADR 0116 item 27).
-        can.push(Can::AudioShare);
+    let mut can = mobile::local_can(app.state::<App>().service.is_loose(window.label()));
+    if live.is_some() {
+        can.push(Can::Collab);
     }
     // A folder of this computer alone is the person's own: no seat to tell.
     // A synced one carries the server's answer for it (ADR 0113 S8), the
@@ -650,7 +636,7 @@ fn capabilities<R: tauri::Runtime>(
         .and_then(|s| s.seat())
         .and_then(|v| serde_json::from_value(v).ok());
     Ok(Capabilities {
-        host: Host::Desktop,
+        host: mobile::HOST,
         can,
         latency_ms: live,
         access,
@@ -835,6 +821,7 @@ macro_rules! commands_for {
                 web_open::<$runtime>,
                 web_bounds::<$runtime>,
                 web_visible::<$runtime>,
+                web_snapshot::<$runtime>,
                 web_close::<$runtime>,
                 web_nav::<$runtime>,
                 web_url::<$runtime>,
@@ -872,6 +859,13 @@ macro_rules! commands_for {
                 log_read,
                 set_menu_language::<$runtime>,
                 set_menu_commands::<$runtime>,
+                mobile::set_bars_dark::<$runtime>,
+                shared::take_shared,
+                background::set_background_sync::<$runtime>,
+                storage::shared_storage,
+                storage::shared_storage_access,
+                storage::open_shared_folder::<$runtime>,
+                storage::folder_in_app::<$runtime>,
                 set_menu_enabled::<$runtime>,
                 menu_sections,
                 quit_app::<$runtime>,
@@ -941,6 +935,7 @@ macro_rules! commands_for {
                 discover_servers_stop,
                 share_list::<$runtime>,
                 share_grant::<$runtime>,
+                share_invite::<$runtime>,
                 share_revoke::<$runtime>,
                 share_attachments::<$runtime>,
                 read_link_list::<$runtime>,
@@ -948,7 +943,7 @@ macro_rules! commands_for {
                 read_link_create::<$runtime>,
                 read_link_revoke::<$runtime>,
                 server_prove::<$runtime>,
-                recent_folders,
+                recent_folders::<$runtime>,
                 local_server_status::<$runtime>,
                 local_server_folders::<$runtime>,
                 local_server_tick::<$runtime>,
@@ -968,6 +963,27 @@ macro_rules! commands_for {
                 local_server_forget::<$runtime>,
                 local_server_replace_identity::<$runtime>,
                 local_server_audit::<$runtime>,
+                local_server_sit_at_table::<$runtime>,
+                local_server_table_host::<$runtime>,
+                local_server_move_table::<$runtime>,
+                local_server_network::<$runtime>,
+                local_server_link_on::<$runtime>,
+                local_server_link_off::<$runtime>,
+                local_server_link_extend::<$runtime>,
+                local_server_link_mode::<$runtime>,
+                local_server_owner_name::<$runtime>,
+                local_server_own_address_login::<$runtime>,
+                local_server_own_address_set_up::<$runtime>,
+                local_server_own_address_remove::<$runtime>,
+                local_server_invitations::<$runtime>,
+                local_server_invitation_revoke::<$runtime>,
+                local_server_devices::<$runtime>,
+                local_server_end_device::<$runtime>,
+                local_server_read_links::<$runtime>,
+                local_server_accounts::<$runtime>,
+                local_server_account_reset::<$runtime>,
+                local_server_account_end_sessions::<$runtime>,
+                local_server_account_remove::<$runtime>,
                 folder_sync::<$runtime>,
                 folder_sync_start::<$runtime>,
                 folder_sync_stop::<$runtime>,
@@ -1037,6 +1053,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()
             .typ::<verso_contract::ServerGone>()
+            .typ::<verso_contract::LocalLink>()
             .typ::<verso_contract::ServerBack>()
             .typ::<verso_contract::FolderQuota>()
             .typ::<verso_contract::ShareGiven>()
@@ -1097,6 +1114,15 @@ impl<R: tauri::Runtime> Drop for Opening<R> {
     }
 }
 
+/// The app on a phone: Tauri's entry, no command line.
+#[cfg(mobile)]
+#[tauri::mobile_entry_point]
+pub fn run_mobile() {
+    if let Err(e) = run(None) {
+        log::write("ERROR", "host", &format!("the app stopped: {e}"));
+    }
+}
+
 /// Open the window and serve it until it closes.
 pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     // Before any TLS: the sync's WebSocket, the server calls, the updater.
@@ -1105,8 +1131,7 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     let initial_folder = initial_folder.map(|p| std::path::absolute(&p).unwrap_or(p));
     // First of the plugins, as the plugin asks: a second launch hands its
     // folder over and exits before anything else of it starts.
-    let builder =
-        tauri::Builder::default().plugin(tauri_plugin_single_instance::init(second_launch));
+    let builder = mobile::builder();
     // A web process that dies leaves the Linux window white for good: watch
     // each webview once, from its first page load (src/recover.rs).
     #[cfg(target_os = "linux")]
@@ -1201,12 +1226,17 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             }
         }
     });
+    // A phone's app learns where its storage is in `setup` (android.rs,
+    // ios.rs).
+    #[cfg(not(mobile))]
     log::open();
     // "This app is a server" says its life in the app's own log (ADR 0096
     // item 14): the server crate's lines, which go to standard error
     // where there is a terminal, come here too.
     verso_server::log::set_sink(Some(|level, message| log::write(level, "local", message)));
     log::install_panic_hook();
+    // The internet link's lines (`verso-tunnel`) in this app's log.
+    tunnel::log_to_the_app();
     log::write(
         "INFO",
         "host",
@@ -1219,6 +1249,10 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
     );
     builder
         .setup(|app| {
+            #[cfg(target_os = "android")]
+            android::setup(app);
+            #[cfg(target_os = "ios")]
+            ios::setup(app);
             // Serving to a phone is off at every start unless the person
             // asked it to keep on (ADR 0096 item 1).
             local_server::auto_start(app.handle());
@@ -1255,11 +1289,14 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             app.state::<App>()
                 .started
                 .store(true, std::sync::atomic::Ordering::SeqCst);
-            // The folder windows the last session had open (ADR 0065).
+            // The folder windows the last session had open (ADR 0065); a
+            // phone has one window, on its own folder.
+            #[cfg(desktop)]
             session::restore(app.handle());
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
+        .plugin(mobile::bars_plugin())
         // The system's notifications (ADR 0084 item 9): the window asks
         // for them, and only while it is not in front.
         .plugin(tauri_plugin_notification::init())
@@ -1287,6 +1324,9 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
 /// lost what was typed since the last autosave. A window whose text could
 /// not be saved stays open if the user keeps it.
 fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent) {
+    // The iOS app's own: its scenes (ios.rs).
+    #[cfg(target_os = "ios")]
+    ios::on_event(app, &event);
     // Why the app goes, in the log: a quit asked for, each window that
     // closes, and the exit itself — an app that vanished otherwise leaves
     // no trace of which of them it was.
@@ -1341,6 +1381,8 @@ fn on_event<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::RunEvent
             session::window_gone(app, label);
             // Its folder closes when no other window shows it (ADR 0065).
             app.state::<App>().service.release(label);
+            // And so does the one its seat held for its sync (ADR 0117 D13 Q3).
+            local_server::seat::stand(app, label);
             // Its terminals end with it; a reload keeps them (ADR 0115 Q6).
             app.state::<App>().terminals.end_of(label);
             // So does its share of audio (ADR 0116 item 17).
@@ -1417,6 +1459,12 @@ mod tests_live_table;
 #[cfg(test)]
 mod tests_local;
 #[cfg(test)]
+mod tests_local_accounts;
+#[cfg(test)]
+mod tests_local_link;
+#[cfg(test)]
+mod tests_local_seat;
+#[cfg(test)]
 mod tests_loose;
 #[cfg(test)]
 mod tests_notify;
@@ -1440,3 +1488,5 @@ mod tests_sync_data;
 mod tests_sync_rename;
 #[cfg(test)]
 mod tests_terminal;
+#[cfg(test)]
+mod tests_web;

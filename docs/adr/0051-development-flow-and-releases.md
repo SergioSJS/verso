@@ -239,3 +239,51 @@ keychain, which he creates once with one keychain command; without it the
 script says so. The release builds stay ad hoc
 ([0095](0095-mac-notarization-and-windows-code-signing.md), revised
 2026-10-15); this concerns the beta on this Mac only.
+
+**Amendment (2026-11-14): channels — beta and final, and 0.9.**
+`[DECIDED 2026-11-14]` The release cut as 0.8.5-beta.1 is released as
+**0.9.0-beta.1** (the maintainer: *"Essa nova versão deve ser a 0.9"*,
+revising the reservation of 0.9 of 2026-10-13). It is a test release. The
+repository became public the same day, before the pull request, so that
+its CI runs on a public repository's Actions.
+
+`[DECIDED 2026-11-14, built]` Each app updates only within its channel
+(the maintainer: *"Se eu tô com a versão beta instalada, ela só atualiza
+para outra versão beta. É isso?"*). *Verso Beta* (`com.versomd.app.beta`,
+files `Verso-Beta-…`) takes only test releases, *Verso* (`com.versomd.app`,
+files `Verso-<number>…`) only final ones (`app/src-tauri/src/version.rs`,
+caf29977). Until then the check took the newest release of either kind.
+`universo.sh update` likewise (acbbeb83): a server on a final version
+updates only to finals, one on a test version to the newest of either, and
+a new install takes the newest final, or the newest test release while
+there is none. The server's own check (`crates/verso-server/src/update.rs`)
+already told a final server only of finals.
+
+`[OPEN]` **How a test release becomes final, and how long it stays out
+first.** The maintainer: *"Eu não sei bem qual é a melhor regra"*; asked to
+look at what is usual, then *"Vamos lançar primeiro"*. What was found
+(2026-11-14): two apps side by side, each updating in its channel, as
+Verso has (VS Code Insiders, Chrome Canary, Firefox Nightly) — against one
+app with an "early versions" switch, which needs downgrades to leave
+(Obsidian's Catalyst, electron-builder's channels); every version passes
+through the test channel first, and the final is the last test release
+unchanged but for its number (Firefox's train: about four weeks in Beta;
+Android Jetpack: the last candidate public two weeks before stable); one
+line of code, a release branch only when a final needs a fix while main
+carries untested work, the fix made on main and cherry-picked. Proposed,
+not decided: 0.9.0-beta.N until the maintainer has used it on the Mac and a
+phone with no blocker for at least a week, then 0.9.0 from the same commit;
+then 0.9.1-beta.1 → 0.9.1 and so on; 1.0.0 is V1; `release/0.9` only when
+first needed; the site recommends the final and offers the test release.
+
+`[OPEN]` **Whether UniVerso updates by itself.** As built: the server only
+checks and tells its admin (ADR 0075 item 7, answer E of 2026-10-09); a
+package install has `universo.sh schedule update`, off by default — every
+Sunday around 04:30 a backup, then `update`, the download checked as
+always; a Docker install has no automatic update (the image's `:beta` and
+`:latest` tags exist; the compose file pins a version; ZimaOS and CasaOS
+update apps from their panel). Proposed, not decided: the install asks
+whether to update by itself every Sunday, yes by default; and the same
+`schedule update` for Docker (backup, `docker compose pull`, `up -d`) on
+the channel's tag. The maintainer: *"depois a gente decide se a gente muda
+esse fluxo"*.

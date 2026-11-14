@@ -65,11 +65,11 @@
   CasaOS; no Windows installer or service is added for the server — but
   `verso serve` runs on Windows from the `verso` command line the Windows
   release already carries, and the desktop app's "this app is a server"
-  ([0096](0096-this-app-is-a-server.md)) works there too.
+  ([0096](archive/0096-this-app-is-a-server.md)) works there too.
   2026-10-15 — **confirmed by the maintainer** (*"aceito todas
   recomendações"*): there is no server package, service or installer for
   Windows. On Windows the server runs only inside the desktop app
-  ([0096](0096-this-app-is-a-server.md)) or as `verso serve` from the
+  ([0096](archive/0096-this-app-is-a-server.md)) or as `verso serve` from the
   command line.
   2026-10-16 — item 2's "never root" and item 3's "writable by uid 1000"
   amended. On a ZimaOS box the maintainer bound `/DATA/storage1/Documents/Verso`

@@ -51,3 +51,22 @@ export function tableLabel(root: string, folder: string): string {
   const at = root.lastIndexOf("/");
   return at < 0 ? root : root.slice(at + 1);
 }
+
+/** The names of the table the window is at: the one the choice says, or
+ *  each of those to choose from; none for a folder with no table. What
+ *  the window says when it sits at its own server's table (*Na mesa de
+ *  Campanha Fractal.*, not the folder's name). */
+export function tableNames(choice: Choice, folder: string): string[] {
+  if (choice.kind === "table") return [tableLabel(choice.root, folder)];
+  if (choice.kind === "choose") return choice.roots.map((r) => tableLabel(r, folder));
+  return [];
+}
+
+/** What the panel draws for the choice it is joined by: the folder's
+ *  tables, the table it is at, whether it lists them. `joined` is the table
+ *  the window is at now, `null` while a join is on its way — the table the
+ *  choice names, then: a choice asked again before its join answers (the
+ *  same folder opened twice) must not leave the header without its name. */
+export function panelPick(roots: string[], choice: Choice, joined: string | null): { roots: string[]; current: string | null; choosing: boolean } {
+  return { roots, current: joined ?? (choice.kind === "table" ? choice.root : null), choosing: choice.kind === "choose" };
+}

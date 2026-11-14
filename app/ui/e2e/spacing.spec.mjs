@@ -230,7 +230,7 @@ test("a sample note and the tutorial's notes, in Reading and in Live Preview, fo
   await expect(page.locator(".editor.live .cm-content")).toBeVisible();
   await page.locator(LIVE).last().click();
   await shot(page, "sample-live");
-  for (const [name, key] of [["01 - Guia de Markdown", "tour01"], ["11 - Escrevendo no Editor", "tour11"]]) {
+  for (const [name, key] of [["01 - Guia de Markdown", "tour01"], ["04 - Escrevendo no Editor", "tour04"]]) {
     await app.quickOpen(name);
     await expect(page.locator(".leaf:not([hidden]) .note-sheet")).toBeVisible();
     await shot(page, `${key}-live`);

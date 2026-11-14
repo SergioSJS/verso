@@ -39,7 +39,7 @@ and be rebuildable.
 
 - A folder synced between machines does not carry its configuration along, which
   pushes shared config toward layered sync
-  ([0021](0021-sync-automerge-layered-config.md)).
+  ([0021](archive/0021-sync-automerge-layered-config.md)).
 - Moving or renaming the folder dissociates the config, since the key is the
   path. How reassociation happens, the briefing does not say.
 - Because the index is a cache, it can never be the only copy of a piece of data
@@ -165,3 +165,14 @@ Accepted. Amended by the maintainer on 2026-10-08:
   as in git: a file replaced by one of the same length with the same
   modified second (a copy that keeps times, a restore) is trusted until
   either changes.
+  *Noted on 2026-11-04 (no new decision; the same rule, applied where it
+  was missing):* a UniVerso's folder log skips a file at a walk by a quick
+  key of its length and modified time ([ADR 0079](0079-sync-a-local-folder-with-a-server.md)),
+  as the index skips a note. That key now keeps the time to the
+  nanosecond the disk gives, and follows this racy rule: it is recorded
+  only for a file modified at least 2 s before the reconciliation began to
+  read (`SETTLED` in `crates/verso-server/src/sync.rs`); a file written
+  later is read again by the next walk, which records its key then. The
+  app's sync already remembered a file it read by the same rule. Found by
+  the server's night stress test, where a key of whole seconds kept a
+  stale hash for good after two writes of one length in one second.

@@ -247,6 +247,15 @@ export const claimDraw = (path: string, d: { kind: string; roll: number }) => (e
 /** Whether `e` is news in this window: another person's, or the same account's from another device. */
 export const isNews = (e: TableEntry): boolean => !e.mine || e.elsewhere === true;
 
+/** A server's entry is numbered as it is said (`Wire.id`, the `before` of a page). */
+const NUMBERED = /^[0-9]+$/;
+
+/** Whether `a` was said after `b`: later in time, or in the same ms with a higher number when both are a server's. */
+function saidAfter(a: TableEntry, b: TableEntry): boolean {
+  if (a.at !== b.at) return a.at > b.at;
+  return NUMBERED.test(a.id) && NUMBERED.test(b.id) && BigInt(a.id) > BigInt(b.id);
+}
+
 /** The log of one folder. */
 export class TableLog {
   constructor(private readonly most = MOST_KEPT) {}
@@ -260,9 +269,11 @@ export class TableLog {
     if (this.ids.has(e.id)) return false;
     this.ids.add(e.id);
     // Kept in time order: a late arrival (the room's last rolls, told on
-    // joining) goes where it belongs, after the entries of the same ms.
+    // joining) goes where it belongs, after the entries of the same ms —
+    // but a server's entries of one ms in the order of their numbers, so a
+    // page of older ones goes before the ones it came after.
     let i = this.list.length;
-    while (i > 0 && (this.list[i - 1] as TableEntry).at > e.at) i--;
+    while (i > 0 && saidAfter(this.list[i - 1] as TableEntry, e)) i--;
     this.list.splice(i, 0, e);
     // Past the ceiling the oldest go; a pinned entry never does.
     while (this.list.length > this.most) {

@@ -4,12 +4,23 @@
 
 //! A folder served **in part** (ADR 0096 item 2, amended 2026-10-16): the
 //! person ticks a folder and chooses only some of the folders inside it.
-//! Each chosen folder reaches the phone as a folder of its own, by the
-//! confinement of a share (ADR 0081 items 1, 2 and 11): the folder is
-//! registered, because a share needs a folder to belong to, but it is
-//! held by an account that is not the phones' ([`crate::db::VAULT_HOLDER`]),
-//! so its own id opens nothing for a phone; the phone's owner account is
-//! given one share per chosen folder, and a phone opens those ids.
+//! Each chosen folder reaches **the owner's phones** as a folder of its
+//! own, by the confinement of a share (ADR 0081 items 1, 2 and 11): the
+//! owner account is given one share per chosen folder, and a phone opens
+//! those ids; the folder's own id opens nothing for a phone (the hide
+//! lock, [`super::Policy::hides`], judged in `crate::access::role`).
+//!
+//! **R1 (ADR 0117 D1, D2; built 2026-11-05).** The ticked folder itself is
+//! registered as **the owner's**, whole or in part, as a UniVerso holds a
+//! folder of its owner's: the owner's window sits at it and makes tables
+//! and shares in any folder inside it, and a player reaches a subfolder
+//! only by a share given to them or a table rooted there — no rule of the
+//! app's own. The chosen folders are the phones' alone: a share the owner
+//! account is granted in one of the owner's own folders is a phone's part
+//! (the owner needs no grant in a folder he owns), and nothing else is.
+//! (Until R1 the folder served in part was held by another account,
+//! `VAULT_HOLDER`, so its owner's window could not sit at it: the
+//! maintainer ticked *Campanha Fractal* inside his vault and got nothing.)
 //!
 //! The attachments go along as the share's attachments folder, read-only
 //! and **files only, never a note**: the one folder Obsidian's settings name
@@ -21,15 +32,13 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::RwLock;
 
-use verso_service::lock;
-
 use crate::db::{Db, Role};
 
 /// What the policy keeps of the folders served in part.
 #[derive(Default)]
 pub struct Parts {
-    /// The ids of the registered folders no phone may reach: those served
-    /// in part. A second lock on the door beside the holder's ownership.
+    /// The ids of the registered folders no phone may reach by their own
+    /// id: those served in part (their chosen folders are the phones').
     hidden: RwLock<HashSet<String>>,
     /// Each share's name as a phone lists it: the folder's own, made unique
     /// against the other folders served (`Projetos`, `Projetos (2)`).
@@ -51,7 +60,8 @@ impl Parts {
 
 impl super::Policy {
     /// Whether registered folder `id` is served in part: no phone reaches
-    /// it by its own id.
+    /// it by its own id. The owner's window and the players are not judged
+    /// by it (R1): the shares and tables say what a player reaches.
     #[must_use]
     pub fn hides(&self, id: &str) -> bool {
         self.parts
@@ -61,7 +71,8 @@ impl super::Policy {
             .contains(id)
     }
 
-    /// A share of a folder served in part, by its name on the phone.
+    /// A phones' part — a share of a folder served in part that the owner
+    /// is in — by its name on the phone.
     #[must_use]
     pub fn part_name(&self, share: &str) -> Option<String> {
         self.parts
@@ -160,23 +171,21 @@ pub fn plan(
 }
 
 /// The database's folders and shares follow what is ticked and chosen: a
-/// folder no longer served is forgotten (its shares and grants go with it),
-/// a whole one is the owner's, one in part is the holder's with a share per
-/// chosen folder given to the owner at the most a phone may have, a share
-/// no longer chosen is deleted, and every share's attachments folder is set
-/// again from the vault's settings — or cleared.
+/// folder no longer served **rests** — kept with its table, players,
+/// shares and grants, reached by no one until it is served again under the
+/// name it keeps (`super::names`; ADR 0117 D2, decided 2026-11-13; until
+/// then it was forgotten, and the cascade took its table and chat); every
+/// ticked folder is the owner's and keeps the shares the owner made
+/// (R1); one in part gives the owner a share per chosen folder at the most
+/// a phone may have — the phones' parts — and a part no longer chosen loses
+/// the owner's grant (the share goes with it when no one else is in it); a
+/// whole folder has no part left; every part's attachments folder is set
+/// again from the vault's settings, or cleared.
 pub fn reconcile(
     db: &Db,
     owner: &str,
     served: &BTreeMap<String, Served>,
 ) -> Result<Reconciled, String> {
-    for f in db.folders()? {
-        if !served.contains_key(&f.dir) {
-            db.forget_folder(&f.id)?;
-        }
-    }
-    // The holder is made only when a folder is served in part.
-    let mut holder: Option<String> = None;
     let mut hidden = HashSet::new();
     let mut names = HashMap::new();
     let mut dropped = Vec::new();
@@ -188,46 +197,37 @@ pub fn reconcile(
         .map(|(n, _)| n.clone())
         .collect();
     for (name, s) in served {
-        let want = if s.parts.is_empty() {
-            owner.to_owned()
-        } else {
-            match &holder {
-                Some(h) => h.clone(),
-                None => {
-                    let h = db.vault_holder()?.id;
-                    holder = Some(h.clone());
-                    h
-                }
-            }
-        };
         let mut folder = db.folder_by_dir(name)?;
-        // A folder that changed between whole and in part is registered
-        // again, under the owner it should have.
+        // A folder registered under another owner — before R1, one served
+        // in part was the holder's — is registered again as the owner's.
         if let Some(f) = &folder
             && !db
                 .members(&f.id)?
                 .iter()
-                .any(|(a, r)| a.id == want && *r == Role::Owner)
+                .any(|(a, r)| a.id == owner && *r == Role::Owner)
         {
             db.forget_folder(&f.id)?;
             folder = None;
         }
         let folder = match folder {
             Some(f) => f,
-            None => db.create_folder(name, &want)?,
+            None => db.create_folder(name, owner)?,
         };
-        if s.parts.is_empty() {
-            for share in db.shares_of(&folder.id)? {
-                db.delete_share(&share.id)?;
+        // The phones' parts are the shares the owner is in: a part no
+        // longer chosen (or every part, for a whole folder) loses the
+        // owner's grant, and the share goes when no player is in it either.
+        // The shares the owner made for players stay, as a UniVerso keeps
+        // them (ADR 0081; ADR 0117 D9).
+        for share in db.shares_of(&folder.id)? {
+            let part = db.share_role(&share.id, owner)?.is_some();
+            if part && !s.present.contains(&share.path) {
+                db.revoke_share(&share.id, owner)?;
             }
+        }
+        if s.parts.is_empty() {
             continue;
         }
         hidden.insert(folder.id.clone());
-        for share in db.shares_of(&folder.id)? {
-            if !s.present.contains(&share.path) {
-                db.delete_share(&share.id)?;
-            }
-        }
         for part in &s.parts {
             if !s.present.contains(part) {
                 dropped.push((s.path.to_string_lossy().into_owned(), part.clone()));
@@ -282,55 +282,63 @@ impl super::LocalServer {
     }
 
     /// Serve all of the folder at `folder` again, with nothing chosen inside
-    /// it: the explicit way to the whole folder. Only while serving is off.
+    /// it: the explicit way to the whole folder. While serving too, at once
+    /// (`live`, ADR 0117 R4).
     pub fn set_whole(&self, folder: &str) -> Result<(), String> {
-        let running = lock(&self.shared.inner);
-        if running.is_some() {
-            return Err("turn serving off to change which folders are served".to_owned());
-        }
-        let db = self.open_db()?;
-        let mut settings = super::read_settings(&db);
-        if !settings.folders.iter().any(|f| f == folder) {
-            return Err("tick the folder first".to_owned());
-        }
-        settings.parts.remove(folder);
-        let text = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
-        db.set_setting(super::SETTINGS, &text)?;
-        write_dropped(&db, &[])?;
-        drop(running);
-        Ok(())
+        self.change_served(|settings| {
+            if !settings.folders.iter().any(|f| f == folder) {
+                return Err("tick the folder first".to_owned());
+            }
+            settings.parts.remove(folder);
+            Ok(())
+        })
     }
 
     /// Choose which folders inside the served folder at `folder` (its path,
     /// as the host knows it) are served. **None chosen stops serving the
     /// folder** — it is unticked and its choice forgotten (the maintainer,
     /// 2026-10-16: "Para de servir o cofre"); the whole folder is
-    /// [`set_whole`](Self::set_whole)'s. Only
-    /// while serving is off, like ticking: what a phone may reach does not
-    /// change under it (item 1). The check and the write are made holding
-    /// the same lock.
+    /// [`set_whole`](Self::set_whole)'s. While serving too, at once (`live`,
+    /// ADR 0117 R4): a part no longer chosen is let go by its windows.
     pub fn set_parts(&self, folder: &str, chosen: &[String]) -> Result<Vec<String>, String> {
-        let running = lock(&self.shared.inner);
-        if running.is_some() {
-            return Err("turn serving off to change which folders are served".to_owned());
-        }
         let chosen = clean(chosen)?;
-        let db = self.open_db()?;
-        let mut settings = super::read_settings(&db);
-        if !settings.folders.iter().any(|f| f == folder) {
-            return Err("tick the folder first".to_owned());
-        }
-        settings.parts.remove(folder);
-        if chosen.is_empty() {
-            settings.folders.retain(|f| f != folder);
-        } else {
-            settings.parts.insert(folder.to_owned(), chosen.clone());
-        }
-        let text = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
-        db.set_setting(super::SETTINGS, &text)?;
-        write_dropped(&db, &[])?;
-        drop(running);
+        self.change_served(|settings| {
+            if !settings.folders.iter().any(|f| f == folder) {
+                return Err("tick the folder first".to_owned());
+            }
+            settings.parts.remove(folder);
+            if chosen.is_empty() {
+                settings.folders.retain(|f| f != folder);
+            } else {
+                settings.parts.insert(folder.to_owned(), chosen.clone());
+            }
+            Ok(())
+        })?;
         Ok(chosen)
+    }
+
+    /// Change what is served with `edit`, keep it, and serve it now when
+    /// serving is on — all under one lock, so that two changes at once never
+    /// write over each other. When the new choice cannot be served (a part
+    /// chosen is not on the disk) the settings go back to what they were
+    /// and the reason is the `Err`.
+    pub fn change_served(
+        &self,
+        edit: impl FnOnce(&mut super::LocalSettings) -> Result<(), String>,
+    ) -> Result<(), String> {
+        let _one = verso_service::lock(&self.shared.serving_edit);
+        let before = self.settings()?;
+        let mut settings = before.clone();
+        edit(&mut settings)?;
+        self.set_settings(&settings)?;
+        self.with_db(|db| write_dropped(db, &[]))?;
+        if let Err(why) = self.refolder() {
+            // The names given meanwhile are kept: `set_settings` never takes one back.
+            self.set_settings(&before)?;
+            let _ = self.refolder();
+            return Err(why);
+        }
+        Ok(())
     }
 }
 

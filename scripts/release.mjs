@@ -100,6 +100,21 @@ function readHere(file) {
   return readFileSync(join(root, file), "utf8");
 }
 
+const IOS_YML = "app/src-tauri/gen/apple/project.yml";
+const IOS_PLIST = "app/src-tauri/gen/apple/verso-app_iOS/Info.plist";
+
+/** The iOS bundle's two numbers for version `v` (ADR 0119 A16): the
+ *  version's numbers alone, and a build number from them that a later
+ *  version always exceeds — a test release `-beta.N` is N, the release
+ *  itself 99, so `0.8.5-beta.1` is 80501 and `0.8.5` is 80599. */
+function iosVersion(v) {
+  const m = /^(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?$/.exec(v);
+  if (!m) fail(`${v}: not a version iOS can be given`);
+  const [maj, min, pat, beta] = [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 99 : Number(m[4])];
+  if (min > 99 || pat > 99 || beta > 98 && m[4] !== undefined) fail(`${v}: too large for the iOS build number`);
+  return { short: `${maj}.${min}.${pat}`, build: String(((maj * 100 + min) * 100 + pat) * 100 + beta) };
+}
+
 /** The workspace's version, from `[workspace.package]` in Cargo.toml. */
 function workspaceVersion(text) {
   const m = /\[workspace\.package\][^[]*?\nversion = "([^"]+)"/.exec(text);
@@ -199,8 +214,24 @@ function prepare(v) {
   const newCompose = compose.replace(/(\n  version: ")[^"]+(")/, `$1${v}$2`);
   if (newCompose === compose && !compose.includes(`version: "${v}"`)) fail("packaging/server/docker-compose.yml: no x-casaos version to set");
 
+  // The iOS bundle's version (ADR 0119 A16, decided 2026-11-12): iOS takes
+  // only numbers, so `0.8.5-beta.1` is `0.8.5` with a build number that
+  // grows with every version, a test release's below the release's.
+  const ios = iosVersion(v);
+  const yml = readHere(IOS_YML);
+  const newYml = yml
+    .replace(/(\n\s+CFBundleShortVersionString: )\S+/, `$1${ios.short}`)
+    .replace(/(\n\s+CFBundleVersion: )"?[^"\n]*"?/, `$1"${ios.build}"`);
+  const plist = readHere(IOS_PLIST);
+  const newPlist = plist
+    .replace(/(<key>CFBundleShortVersionString<\/key>\s*<string>)[^<]*(<\/string>)/, `$1${ios.short}$2`)
+    .replace(/(<key>CFBundleVersion<\/key>\s*<string>)[^<]*(<\/string>)/, `$1${ios.build}$2`);
+  if (!newYml.includes(`CFBundleVersion: "${ios.build}"`) || !newPlist.includes(`<string>${ios.build}</string>`)) fail("the iOS bundle's version could not be set");
+
   const writes = [
     ["Cargo.toml", `${newCargo.trimEnd()}\n`],
+    [IOS_YML, newYml],
+    [IOS_PLIST, newPlist],
     ["packaging/server/docker-compose.yml", newCompose],
     ["app/ui/package.json", `${JSON.stringify(pkg, null, 2)}\n`],
     ["app/ui/package-lock.json", `${JSON.stringify(lock, null, 2)}\n`],
@@ -224,7 +255,7 @@ function prepare(v) {
     }
   }
 
-  run("git", ["add", "Cargo.toml", "Cargo.lock", ...FUZZ.map(([, lock]) => lock), "app/ui/package.json", "app/ui/package-lock.json", "packaging/server/docker-compose.yml", ...CHANGELOGS.map((c) => c.file)]);
+  run("git", ["add", "Cargo.toml", "Cargo.lock", IOS_YML, IOS_PLIST, ...FUZZ.map(([, lock]) => lock), "app/ui/package.json", "app/ui/package-lock.json", "packaging/server/docker-compose.yml", ...CHANGELOGS.map((c) => c.file)]);
   run("git", ["commit", "--quiet", "-s", "-m", `release: v${v}`,
     "-m", `Sets the version to ${v} and moves the changelog's unreleased\nentries under it (ADR 0051).`,
     "-m", "Merging this commit into main releases it: the release workflow\nbuilds the app, publishes the release and creates the tag."]);

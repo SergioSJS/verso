@@ -116,6 +116,11 @@ export abstract class Leaf {
   /** The file is gone from disk, deleted or moved outside the app: the
    *  name is crossed out and says so. */
   setGone(g: boolean): void {
+    // A player at a table never keeps the text of a file gone from their
+    // list: it may be one the game master just stopped sharing (a hidden
+    // last file left the list empty, and the live teardown had nothing to
+    // compare against). The tab goes neutral instead (2026-11-06).
+    if (g && !this.unshared && this.path !== "" && this.veiled({ kind: "not_found", message: "" })) return this.veil(this.path);
     this.tabGone.textContent = `, ${host() === "server" ? t.goneTabElsewhere : t.goneTab}`;
     this.tab.classList.toggle("gone", g);
     this.tabGone.hidden = !g;

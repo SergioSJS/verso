@@ -10,6 +10,7 @@
 
 import { el, field, form, lead, page } from "./form";
 import { lang, setLang } from "./strings";
+import { focusOnOpen } from "../screen/openFocus";
 
 const pt = {
   goneTitle: "Este link não abre",
@@ -92,16 +93,18 @@ function passwordPage(token: string, opened: () => void): void {
     (e) => (e instanceof Error ? e.message : s.failed),
   );
   page(s.lockedTitle, lead(s.lockedLead), f.form);
-  password.input.focus();
+  focusOnOpen(password.input);
 }
 
 /** What the window learns of a link that opens: the note it points at,
  *  when it points at one (there is nothing else to choose). */
-export type Opened = { note: string | null };
+export type Opened = { note: string | null; local: boolean };
 
-async function stateOf(token: string): Promise<{ status: number; body: { locked?: boolean; open?: string | null } | null }> {
+type Gate = { locked?: boolean; open?: string | null; local?: boolean };
+
+async function stateOf(token: string): Promise<{ status: number; body: Gate | null }> {
   const res = await fetch(`/r/${encodeURIComponent(token)}/state`, { credentials: "same-origin" });
-  return { status: res.status, body: (await res.json().catch(() => null)) as { locked?: boolean; open?: string | null } | null };
+  return { status: res.status, body: (await res.json().catch(() => null)) as Gate | null };
 }
 
 /** Ask the server about the link; show the page that fits. Resolves with
@@ -111,7 +114,7 @@ export async function readLinkGate(token: string): Promise<Opened | null> {
   setLang(undefined);
   const first = await stateOf(token);
   const v = verdict(first.status, first.body);
-  if (v === "open") return { note: first.body?.open ?? null };
+  if (v === "open") return { note: first.body?.open ?? null, local: first.body?.local === true };
   if (v === "locked") {
     return new Promise((resolve) =>
       passwordPage(token, () => {
@@ -119,7 +122,7 @@ export async function readLinkGate(token: string): Promise<Opened | null> {
         document.querySelector("main.web-page")?.remove();
         document.body.classList.remove("web-mode");
         // The note is told once the page may read: asked again.
-        void stateOf(token).then((again) => resolve({ note: again.body?.open ?? null }));
+        void stateOf(token).then((again) => resolve({ note: again.body?.open ?? null, local: again.body?.local === true }));
       }),
     );
   }

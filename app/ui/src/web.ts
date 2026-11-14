@@ -12,7 +12,7 @@
 import { setByApp, setStateFallback, state, stateWasKept } from "./web/api";
 import { offline } from "./web/offline/manager";
 import { o } from "./web/offline/strings";
-import { currentFolderId, startBridge, startVisitorBridge } from "./web/bridge";
+import { currentFolderId, linkedNote, startBridge, startVisitorBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
 import { ensureClipboard } from "./web/clipboard";
@@ -23,6 +23,9 @@ import { setProver } from "./web/proof";
 import { askProof } from "./web/proveDialog";
 import { holdClicks } from "./earlyClicks";
 import { watchDeskOnPhone } from "./deskOnPhone";
+import { localSignInNotes, watchIfLocal, watchTableOffline } from "./web/localTable";
+import { setPasskeysOffered } from "./web/passkeys";
+import { afterFailedStart } from "./web/openingRefused";
 
 // The folder button is on the page before the window's script, which this
 // one imports only after the server said who is signed in: a click on it
@@ -41,6 +44,10 @@ async function visitor(token: string): Promise<void> {
   document.documentElement.dataset.host = "server";
   document.documentElement.dataset.visitor = "link";
   startVisitorBridge(token, endedPage);
+  // At a computer that serves (the gate says so), its table can go away
+  // under the visitor too: the same offline page as a player's, asked of
+  // the link's own gate — heard once the bridge is there, as a player's.
+  watchIfLocal(gate.local, token);
   addEventListener("verso:role", (e) => (document.documentElement.dataset.role = (e as CustomEvent<string | null>).detail ?? ""));
   // A link to one note opens that note: there is nothing else to choose.
   // Heard before the window starts, which shows the folder as it does.
@@ -80,6 +87,7 @@ async function start(): Promise<void> {
   setStateFallback(() => offline.cachedState());
   const s = await state();
   setByApp(Boolean(s.local));
+  setPasskeysOffered(s.passkeys !== false);
   setLang(s.account?.lang);
   if (stateWasKept()) {
     // Offline: the folders kept open the window; nothing else is asked.
@@ -100,10 +108,22 @@ async function start(): Promise<void> {
   if (path.startsWith("/signin-link/")) return signInLinkPage(token("/signin-link/"));
   if (path === "/setup") return setupPage();
   if (path === "/device") return devicePage(s.account);
-  // "This app is a server" (ADR 0096): nobody signs in here, a phone is
-  // paired. Its page is the way in; any other address without a session
-  // is sent to it.
-  if (s.local && !s.account) return pairPage();
+  // "This app is a server" (ADR 0096, ADR 0117 D3 item 2): the owner's
+  // phone is paired (the QR's address, or a code typed at /pair) where
+  // this door pairs — on the network, and through the internet link (ADR
+  // 0117 D5); a person invited signs in, on the network as through the
+  // internet link.
+  if (s.local && !s.account) {
+    const pairing = s.pairing !== false;
+    if (path === "/pair" && pairing) return pairPage(s.link === true);
+    if (path !== "/signin") {
+      location.href = `/signin?next=${encodeURIComponent(path === "/pair" ? "/" : path + location.search)}`;
+      return;
+    }
+    signInPage(false);
+    localSignInNotes(pairing, s.passkeys !== false);
+    return;
+  }
   if (s.local && path === "/pair") {
     location.replace("/");
     return;
@@ -150,6 +170,9 @@ async function start(): Promise<void> {
   // refusal changes nothing today, when nothing is kept offline.
   void navigator.storage?.persist?.().catch(() => false);
   startBridge(chooseFolder);
+  // A computer that serves: its table can go away under the window (the
+  // computer off, asleep, the link ended), said as the table offline.
+  if (s.local) watchTableOffline();
   plainHttpNotice();
   plainHttpMark();
   // The reader's role is shown by the closed lock beside the folder's name
@@ -160,6 +183,15 @@ async function start(): Promise<void> {
   });
   const window_ = await import("./main");
   openHeld();
+  // A link's note (`/?folder=…&note=…`) opens as a tab once its folder is
+  // shown — if the person sees it. One they do not (hidden from them, not
+  // there, outside the folder) opens nothing and is named nowhere: the
+  // folder alone, as a hidden note's read answers "not found" (ADR 0113).
+  void window_.started.then(() => {
+    const note = linkedNote();
+    if (!note) return;
+    if (window_.allNotes.includes(note) || window_.allFiles.includes(note)) window_.openNote(note, false);
+  }, () => undefined);
   if (section) {
     const { loadCan } = await import("./can");
     await loadCan();
@@ -173,8 +205,31 @@ let leaving = false;
 addEventListener("pagehide", () => (leaving = true));
 addEventListener("beforeunload", () => (leaving = true));
 
+/** The tab's own reloads after a failed start (web/openingRefused.ts). */
+const RELOADS = "verso.reloadsAfterFailure";
+
 void start().catch((e: unknown) => {
   if (leaving) return;
   console.error(e);
-  notice(w().failed, "error");
+  // A file of the window that did not come (refused, cut), or anything else
+  // that stopped the start: never a blank page. Loaded again by itself a
+  // few times a minute, said; past them, the person is asked to reload.
+  let kept: unknown = null;
+  try {
+    kept = JSON.parse(sessionStorage.getItem(RELOADS) ?? "null");
+  } catch {
+    kept = null;
+  }
+  const next = afterFailedStart(Date.now(), kept);
+  try {
+    sessionStorage.setItem(RELOADS, JSON.stringify(next.recent));
+  } catch {
+    // No storage: the page still says what happened.
+  }
+  if (next.reload) {
+    notice(w().failedReloading, "error", true);
+    setTimeout(() => location.reload(), 3000);
+  } else {
+    notice(w().failedReload, "error", true);
+  }
 });

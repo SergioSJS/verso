@@ -35,17 +35,17 @@ test("⌘W closes the tab — from the keys and from the app's menu — and ⌘�
 
 test("F2 renames the open note, right after a click on its row", async ({ app }) => {
   await app.open();
-  await row(app, "18 - Ajuda, Atualizações e Diagnóstico.md").click();
-  await expect(app.page.locator(".tab", { hasText: "18 - Ajuda" })).toHaveCount(1);
+  await row(app, "37 - Ajuda, Atualizações e Diagnóstico.md").click();
+  await expect(app.page.locator(".tab", { hasText: "37 - Ajuda" })).toHaveCount(1);
   await app.page.keyboard.press("F2");
   const field = app.page.locator("input.title-input");
   await expect(field).toBeVisible();
-  await field.fill("18 - Ajuda");
+  await field.fill("37 - Ajuda");
   await field.press("Enter");
   // The notes that point to it are rewritten, after the plan is shown.
   await app.page.locator(".plan button.save").click();
-  await expect.poll(() => app.files()).toContain("18 - Ajuda.md");
-  await expect.poll(() => app.file("00 - Bem-vindo ao Verso.md")).toContain("[[18 - Ajuda]]");
+  await expect.poll(() => app.files()).toContain("37 - Ajuda.md");
+  await expect.poll(() => app.file("00 - Bem-vindo ao Verso.md")).toContain("[[37 - Ajuda]]");
 });
 
 test("after a click on a row the arrows walk the tree from it, and F2 still renames the open note", async ({ app }) => {

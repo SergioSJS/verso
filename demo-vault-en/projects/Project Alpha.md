@@ -25,4 +25,4 @@ location: "-23.5505, -46.6333"
 ## Connections
 - Main reference: [[Research and Findings]]
 - Sibling project: [[Project Beta]]
-- Core documentation: [[04 - Bases and Data Views|Data Bases]]
+- Core documentation: [[14 - Bases and Data Views|Data Bases]]

@@ -315,10 +315,14 @@ pub(super) fn put(
 
 /// The spelling the disk keeps for the file just written at `path`: where
 /// the file system folds names, a write through another case reached the
-/// file listed under its own spelling, which it kept.
+/// file kept under its own spelling, which it kept. The disk says how; the
+/// listing, as of the last walk, only where the disk cannot.
 pub(super) fn on_disk(ws: &Workspace, path: &str) -> String {
     if !verso_core::sync::FOLDS_NAMES {
         return path.to_owned();
+    }
+    if let Some(kept) = ws.spelled_on_disk(path) {
+        return kept;
     }
     let entries = ws.entries();
     if entries.iter().any(|e| e.path == path) {

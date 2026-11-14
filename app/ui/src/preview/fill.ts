@@ -83,9 +83,10 @@ export async function fillPreview(req: PreviewRequest, slot: CardSlot): Promise<
     await view.load(convertFileSrc(path, "verso"), page);
     return;
   }
-  // A hover is not an opening: a note only in iCloud is not brought down
-  // for it (ADR 0043) — `quiet`, and the card says how to have it.
-  const r = await opening.readNote(path, true);
+  // A hover is the user reaching for the note: one only in iCloud is
+  // brought down for it, as any action on a file is (the maintainer,
+  // 2026-11-11; ADR 0043's amendment of that day).
+  const r = await opening.readNote(path);
   if (!slot.current()) return;
   if (r.status !== "ok") {
     body.replaceChildren();
@@ -94,7 +95,7 @@ export async function fillPreview(req: PreviewRequest, slot: CardSlot): Promise<
   }
   const note = r.data;
   const fresh = document.createElement("div");
-  await renderReading(fresh, note.html, path, 0, true);
+  await renderReading(fresh, note.html, path, 0);
   if (!slot.current()) return;
   body.replaceChildren(...Array.from(fresh.childNodes));
   // The source stays with the links: the card's own are followed from it.

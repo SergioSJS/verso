@@ -13,6 +13,7 @@ use axum::http::HeaderMap;
 use axum::http::header::{AUTHORIZATION, COOKIE, HOST, ORIGIN};
 
 use crate::db::{Account, Role, SESSION_MAX};
+use crate::proxy::Proxies;
 use crate::state::Server;
 
 /// Where a request came from.
@@ -35,6 +36,10 @@ pub struct Peer {
     /// Never true for a forwarded address, however loopback it reads (ADR
     /// 0083 item 7).
     pub local: bool,
+    /// The request came in by the loopback listener of "this app is a
+    /// server" that the internet link reaches (ADR 0117 D3 items 3 and 4):
+    /// its proxies are that listener's, its `Host` and `Origin` the link's.
+    pub link: bool,
 }
 
 impl Peer {
@@ -110,24 +115,60 @@ fn own_tls(server: &Server) -> bool {
 /// published-port visitor arrives from the bridge gateway, so the header is
 /// the visitor's to write. A proxy the host named, though, that forwards a
 /// loopback address or none is counted under it, as before.
-pub fn is_local(server: &Server, remote: IpAddr, client: &crate::proxy::Client) -> bool {
+pub fn is_local(proxies: &Proxies, remote: IpAddr, client: &crate::proxy::Client) -> bool {
     remote.to_canonical().is_loopback()
-        && (!client.from_proxy || (server.config.trusted_proxy.is_implicit() && client.unforwarded))
+        && (!client.from_proxy || (proxies.is_implicit() && client.unforwarded))
+}
+
+/// The proxies believed for a request: the server's (`VERSO_TRUSTED_PROXY`;
+/// none for "this app is a server" on the network), or, for one that came
+/// in by the internet link's loopback listener — this computer's, or a
+/// UniVerso's own (ADR 0117 D4 item 2) — that listener's named `127.0.0.1`
+/// and `::1` alone (D11 item 4).
+fn proxies(server: &Server, link: bool) -> &Proxies {
+    if link {
+        server.link().proxies()
+    } else {
+        &server.config.trusted_proxy
+    }
+}
+
+/// The client as `proxies` walk the request's `X-Forwarded-For`.
+fn client_of(proxies: &Proxies, headers: &HeaderMap, remote: IpAddr) -> crate::proxy::Client {
+    proxies.client(
+        remote,
+        headers
+            .get_all("x-forwarded-for")
+            .iter()
+            .filter_map(|v| v.to_str().ok()),
+    )
+}
+
+/// The key a request is counted under — the client's address as the
+/// trusted proxies walk it, an IPv6 /64 as one — or `None` for a direct
+/// connection from this machine, which speaks for everyone and is not
+/// counted; a forwarded address is, even a loopback one (ADR 0083 item 7).
+pub fn client_key(
+    server: &Server,
+    headers: &HeaderMap,
+    remote: SocketAddr,
+    link: bool,
+) -> Option<String> {
+    let proxies = proxies(server, link);
+    let client = client_of(proxies, headers, remote.ip());
+    (!is_local(proxies, remote.ip(), &client)).then(|| crate::limit::address_key(client.addr))
 }
 
 /// Where a request came from: the connection's address, or, from a
 /// trusted proxy, the client `X-Forwarded-For` names, read from the right
 /// past every trusted proxy (ADR 0083 item 5, [`crate::proxy`]); the
 /// header of any other peer is ignored. A trusted proxy that forwards none
-/// is served as itself and said in the log once a minute.
-pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr) -> Peer {
-    let client = server.config.trusted_proxy.client(
-        remote.ip(),
-        headers
-            .get_all("x-forwarded-for")
-            .iter()
-            .filter_map(|v| v.to_str().ok()),
-    );
+/// is served as itself and said in the log once a minute. `link`: the
+/// request came in by the internet link's loopback listener
+/// ([`Peer::link`]).
+pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr, link: bool) -> Peer {
+    let proxies = proxies(server, link);
+    let client = client_of(proxies, headers, remote.ip());
     // A proxy on this machine that is not in the list makes every visitor
     // this machine's address, and lifts them past the pace: said once a
     // minute, with what to set (ADR 0083 item 5).
@@ -140,7 +181,7 @@ pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr) -> Peer {
     }
     // Said only of a proxy the person named: with the default list, a
     // direct connection from the home network is a "proxy" too.
-    if client.unforwarded && !server.config.trusted_proxy.is_implicit() {
+    if client.unforwarded && !proxies.is_implicit() {
         server.unforwarded.warn(
             "a request from the trusted proxy carried no X-Forwarded-For: is the proxy configured to forward it?",
         );
@@ -149,8 +190,10 @@ pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr) -> Peer {
     // Through a trusted proxy, its `X-Forwarded-Proto` alone says how the
     // visitor came; a direct connection is HTTPS only on the server's own
     // TLS. Nothing is refused over HTTP: it decides the cookie's `Secure`
-    // and what the window turns off.
-    let https = own_tls(server)
+    // and what the window turns off. The internet link's listener speaks
+    // plain HTTP: there only the tunnel's `X-Forwarded-Proto` says HTTPS
+    // (ADR 0117 D3 item 4).
+    let https = (own_tls(server) && !link)
         || (from_proxy
             && headers
                 .get("x-forwarded-proto")
@@ -160,7 +203,8 @@ pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr) -> Peer {
         addr,
         https,
         forwarded: from_proxy && !client.unforwarded,
-        local: is_local(server, remote.ip(), &client),
+        local: is_local(proxies, remote.ip(), &client),
+        link,
     }
 }
 
@@ -254,6 +298,12 @@ pub fn host_ok(server: &Server, headers: &HeaderMap, peer: &Peer) -> bool {
     let Some(host) = headers.get(HOST).and_then(|v| v.to_str().ok()) else {
         return false;
     };
+    // The internet link's listener answers to the link's name and to no
+    // other — not a loopback name, not the network's addresses — and to
+    // none while the link has no address (ADR 0117 D3 item 4).
+    if peer.link {
+        return server.link().knows(host);
+    }
     public_authority(server).is_some_and(|a| a.eq_ignore_ascii_case(host))
         || loopback_host(host)
         || server.local.as_ref().is_some_and(|l| l.knows_host(host))
@@ -262,6 +312,9 @@ pub fn host_ok(server: &Server, headers: &HeaderMap, peer: &Peer) -> bool {
 
 /// The origin pages of this server have.
 pub fn expected_origin(server: &Server, headers: &HeaderMap, peer: &Peer) -> Option<String> {
+    if peer.link {
+        return server.link().origin();
+    }
     if let Some(url) = server.config.public_url.as_deref() {
         let (scheme, rest) = url.split_once("://")?;
         let authority = rest.split('/').next().unwrap_or(rest);
@@ -327,6 +380,13 @@ pub(crate) fn cookie(headers: &HeaderMap, name: &str) -> Option<String> {
         .map(|(_, v)| v.to_owned())
 }
 
+/// Whether a request carries anything that may open an account — a bearer
+/// credential or a cookie — and is worth asking [`who`] about.
+#[must_use]
+pub fn carries_credential(headers: &HeaderMap) -> bool {
+    headers.contains_key(AUTHORIZATION) || headers.contains_key(COOKIE)
+}
+
 fn bearer(headers: &HeaderMap) -> Option<String> {
     let value = headers.get(AUTHORIZATION)?.to_str().ok()?;
     let (scheme, token) = value.split_once(' ')?;
@@ -337,38 +397,23 @@ fn bearer(headers: &HeaderMap) -> Option<String> {
 
 /// Who a request is from: a bearer token first (a program), then the
 /// session cookie (a browser); `None` when neither opens anything.
-pub fn who(server: &Server, headers: &HeaderMap, https: bool) -> Result<Option<Who>, String> {
-    // "This app is a server" has no tokens and no device sign-in: a bearer
-    // credential opens nothing (ADR 0096 items 2 and 12).
-    if server.local.is_some() && bearer(headers).is_some() {
-        return Ok(None);
-    }
+/// `by_seat`: the request came in by the door of the owner's own window
+/// ([`crate::local::seat`]), which nothing a client sends can say.
+pub fn who(
+    server: &Server,
+    headers: &HeaderMap,
+    https: bool,
+    by_seat: bool,
+) -> Result<Option<Who>, String> {
+    // "This app is a server" judges a bearer credential its own way: the
+    // owner's window's seat through its door alone (ADR 0117 D4 Q3), an
+    // invited account's devices elsewhere (D9, S11), never a phone or this
+    // computer's own accounts (`crate::local::Policy::bearer_who`).
     if let Some(secret) = bearer(headers) {
-        if secret.starts_with("verso_pat_") {
-            let Some(grant) = server.db.token(&secret)? else {
-                return Ok(None);
-            };
-            return Ok(server.db.account(&grant.account)?.map(|account| Who {
-                account,
-                via: Via::Token {
-                    id: grant.id,
-                    write: grant.write,
-                    folders: grant.folders,
-                },
-                phone: None,
-            }));
+        if let Some(local) = &server.local {
+            return local.bearer_who(server, &secret, by_seat);
         }
-        let Some(s) = server.db.session(&secret)? else {
-            return Ok(None);
-        };
-        if s.kind != "device" {
-            return Ok(None);
-        }
-        return Ok(server.db.account(&s.account)?.map(|account| Who {
-            account,
-            via: Via::Device { session: s.id },
-            phone: None,
-        }));
+        return bearer_who(server, &secret);
     }
     let Some(token) = cookie(headers, cookie_name(https)) else {
         return Ok(None);
@@ -379,23 +424,64 @@ pub fn who(server: &Server, headers: &HeaderMap, https: bool) -> Result<Option<W
     if s.kind != "browser" {
         return Ok(None);
     }
-    // A session that is no phone's opens nothing here (ADR 0096 item 12):
-    // fail closed.
+    let Some(mut account) = server.db.account(&s.account)? else {
+        return Ok(None);
+    };
+    // "This app is a server": a phone is a session of the owner with its
+    // row, a reader or an editor and never the admin the owner is (ADR 0096
+    // item 12); an account of a person signs in as on a UniVerso (ADR 0117
+    // D3 item 2); a session of this computer's own accounts that is no
+    // phone's opens nothing — fail closed.
     let phone = if server.local.is_some() {
-        match server.db.phone_role(&s.id)? {
-            Some(role) => Some(role),
-            None => return Ok(None),
+        let phone = server.db.phone_role(&s.id)?;
+        if phone.is_some() {
+            account.admin = false;
+            account.may_create = false;
+        } else if crate::db::is_this_computer(&account.email) {
+            return Ok(None);
         }
+        phone
     } else {
         None
     };
-    Ok(server.db.account(&s.account)?.map(|account| Who {
+    Ok(Some(Who {
         account,
         via: Via::Browser {
             session: s.id,
             csrf: s.csrf,
         },
         phone,
+    }))
+}
+
+/// Who a bearer `secret` is on a UniVerso: a personal access token
+/// (`verso_pat_`) or a device's session (ADR 0074 item 8); `None` for
+/// anything else, a browser's session included.
+pub(crate) fn bearer_who(server: &Server, secret: &str) -> Result<Option<Who>, String> {
+    if secret.starts_with("verso_pat_") {
+        let Some(grant) = server.db.token(secret)? else {
+            return Ok(None);
+        };
+        return Ok(server.db.account(&grant.account)?.map(|account| Who {
+            account,
+            via: Via::Token {
+                id: grant.id,
+                write: grant.write,
+                folders: grant.folders,
+            },
+            phone: None,
+        }));
+    }
+    let Some(s) = server.db.session(secret)? else {
+        return Ok(None);
+    };
+    if s.kind != "device" {
+        return Ok(None);
+    }
+    Ok(server.db.account(&s.account)?.map(|account| Who {
+        account,
+        via: Via::Device { session: s.id },
+        phone: None,
     }))
 }
 

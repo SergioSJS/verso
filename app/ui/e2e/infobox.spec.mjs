@@ -103,7 +103,7 @@ test("a picture or a link that does not fit its kind is shown as written and mar
   await expect(card.locator('.prop[data-key="aliados"] input')).toHaveValue("Barão");
 });
 
-test("the demo vault's Porto Cinzento: the tutorial's infobox (note 21)", async ({ app, page }) => {
+test("the demo vault's Porto Cinzento: the tutorial's infobox (note 13)", async ({ app, page }) => {
   await app.open();
   await app.quickOpen("Porto Cinzento");
   const card = page.getByRole("complementary", { name: "Porto Cinzento" });

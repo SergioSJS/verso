@@ -39,6 +39,34 @@
   give, the name and the scheme unchanged; and a Verso server **announces
   itself** by mDNS by default when it listens beyond loopback
   (`VERSO_ANNOUNCE=off` stops it). 2026-10-21 — revised by [0104](0104-external-cloud-storage-transports-and-quotas.md): a cloud provider the person connected is polled without a click (a new reach, like 0055's update check, 0073's server, 0096/0097's local server); the core still reaches no network — the adapters live on the desktop host's side (0104 item 3).
+  2026-11-03 — revised by [0117](0117-this-app-is-a-universo-server.md)
+  (accepted by the maintainer that day); the text below is kept as it was
+  decided. Two reaches, both only after the person ticks the internet link
+  of "this app is a server": the desktop host **downloads the pinned
+  `cloudflared`** once, from `github.com/cloudflare/cloudflared/releases`
+  (and the asset store GitHub redirects to), its SHA-256 checked against
+  the value written in Verso's source (0117 D11 item 5; D3 before 0117's rewrite of 2026-11-04); and it **runs
+  `cloudflared`**, which connects out to Cloudflare's network — a quick link
+  on `trycloudflare.com`, or, for the person's own address, their own
+  Cloudflare account, whose login page it opens in the browser (0117 D10).
+  The core still reaches no network: `verso-server` and `verso-service`
+  spawn nothing; the host owns both (`app/src-tauri/src/tunnel/`).
+  2026-11-14 — revised by [0117](0117-this-app-is-a-universo-server.md) D4
+  item 2 (decided by the maintainer on 2026-11-04 and 2026-11-13; built in
+  R5); the text below is kept as it was decided. The same two reaches,
+  for **a UniVerso** too, only when its admin turns its own link on
+  (`VERSO_TUNNEL=quick|own`, `universo.sh link`, or the console): the
+  server **downloads the pinned `cloudflared`** once, from the same
+  GitHub releases, checked against the same SHA-256, into
+  `<VERSO_DATA_DIR>/tunnel/`; and it **runs `cloudflared`**, which connects
+  out to Cloudflare's network — a quick link on `trycloudflare.com`, or an
+  own address by a tunnel's token made in Cloudflare's dashboard (no
+  login page: a server has no browser). On a UniVerso the server process
+  is the host, so it is the one that spawns `cloudflared`
+  (`verso_server::tunnel`, over the module the desktop app ran, moved into
+  `crates/verso-tunnel` for both hosts); "this app is a server" still
+  spawns nothing in `verso-server` (its host runs the tunnel). The core
+  (`verso-core`, `verso-service`) still reaches no network.
 
 ## Context
 
@@ -114,7 +142,7 @@ and [0056](0056-embedded-web-pages.md) (embedded web pages). Revised on
 2026-10-09 by [0073](0073-self-hosted-server-first.md) and
 [0075](0075-server-packaging-and-storage.md) item 7 (a server's traffic,
 and its update check). Revised on 2026-10-15 by
-[0096](0096-this-app-is-a-server.md) item 8 (a correction of scope, not a
+[0096](archive/0096-this-app-is-a-server.md) item 8 (a correction of scope, not a
 change of decision): the "mDNS on the local network" of the 2026-10-09
 revision is multicast, which is not "an address the user wrote in a
 configuration". "This app is a server" may announce itself by mDNS

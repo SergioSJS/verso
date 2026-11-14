@@ -73,7 +73,7 @@ u='sh /work/server/universo.sh'
 
 printf '\n== help names the new commands; the old ones still work\n'
 ex "$u --help" > "$work/help.txt"
-for w in 'https' 'admin' 'swap' 'schedule' 'support' 'menu' '--yes'; do
+for w in 'https' 'admin' 'swap' 'schedule' 'support' 'menu' 'link' '--yes'; do
   grep -q -- "$w" "$work/help.txt" || fail "--help does not mention $w"
 done
 ex "$u nonsense" >/dev/null 2>&1 && fail "an unknown command was accepted"

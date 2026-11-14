@@ -49,7 +49,7 @@
 /* cards: the sidebar, the work area and the right panel float as outlined
    cards on the third paper. The frame is a border of the panel itself, never
    a margin, so the work area still fills the window. Only where there is room. */
-@media (min-width: 761px) {
+@media (min-width: 761px) and (not ((pointer: coarse) and (max-height: 500px))) {
   [data-surface="cards"] body { background: var(--paper-3); }
   [data-surface="cards"] :is(aside.side, main.work, aside.right) { border: 6px solid var(--paper-3); border-radius: calc(var(--radius-l, 10px) + 6px); overflow: hidden; outline: 1px solid var(--hair); outline-offset: -7px; }
   [data-surface="cards"] body.no-side aside.side, [data-surface="cards"] body.no-right aside.right { border: 0; outline: 0; }

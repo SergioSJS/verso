@@ -135,6 +135,14 @@ the maintainer on 2026-10-01 (point 14):
     delivers them (a menu's event is sent as the host sends it), files dropped
     from Finder, the updater, a file iCloud keeps in the cloud, and where
     WKWebView differs from Playwright's WebKit.
+    *(`[REVISED 2026-11-04]` Still local, not in CI, but no longer natively on
+    the Mac: `scripts/check-e2e.sh` runs both suites, the harness's and the
+    server's, in Playwright's Linux Docker image, with 3 workers, and
+    `scripts/check.sh` calls it when Docker runs (`--no-e2e` leaves it out).
+    Playwright is never run directly on the Mac; see
+    [0069](0069-windows-port.md), item 8. The suites and what the harness
+    reaches are as above. `npm run e2e` in `app/ui` still exists, behind the
+    macOS pre-flight.)*
 
 **Decided on 2026-10-01 by the maintainer**, in session, on the critical
 review [`docs/review/board.md`](../review/board.md), section 6, items 12
@@ -143,7 +151,8 @@ and 13: "Aceito todas (Recomendado)".
 14. **Points 4 to 7 and 9 to 13 are accepted** as written above. The window's
     unit tests (`npm test` in `app/ui`) run in `scripts/check.sh` and in the
     pull request's job of CI ([0029](0029-guardrails-in-ci.md)); the
-    end-to-end tests stay on the author's machine.
+    end-to-end tests stay on the author's machine. *(`[REVISED 2026-11-04]`
+    There they run through `scripts/check-e2e.sh`, in Docker; see point 13.)*
 15. **The harness is never part of the app**: it is built outside `dist/`,
     which the app packages.
 
@@ -167,7 +176,8 @@ and 13: "Aceito todas (Recomendado)".
   unit tests' bundles go to `app/ui/test/.bundles/`, both outside what the
   app packages.
 - The CI's minutes grow by the unit tests alone, seconds; the end-to-end
-  tests run on the author's machine.
+  tests run on the author's machine. *(`[REVISED 2026-11-04]` In Docker,
+  through `scripts/check-e2e.sh`; point 13.)*
 
 ## Discarded alternatives
 

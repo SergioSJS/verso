@@ -85,6 +85,22 @@ pub(crate) fn may_navigate_framed(
         || (is_app_view(label)
             && web_only(url)
             && embed_origin_of(url).is_some_and(|o| framed.contains(&o)))
+        || (is_app_view(label) && blob_origin(url).is_some_and(|o| framed.contains(&o)))
+}
+
+/// The origin of a `blob:` address made by a page of the web
+/// (`blob:https://site/…`): a framed page's download is one (ADR 0120 item
+/// 6, revising ADR 0056) — the engine hands it to the download hook only
+/// once the guard has let it through. None for any other address.
+pub(crate) fn blob_origin(url: &tauri::Url) -> Option<String> {
+    if url.scheme() != "blob" {
+        return None;
+    }
+    let inner = tauri::Url::parse(url.path()).ok()?;
+    if !matches!(inner.scheme(), "http" | "https") {
+        return None;
+    }
+    embed_origin_of(&inner)
 }
 
 /// The navigation guard as a plugin: a plugin's `on_navigation` is asked
@@ -132,11 +148,11 @@ pub(crate) fn destroy_web_view<R: tauri::Runtime>(wv: tauri::Webview<R>) {
     crate::log::write("INFO", "host", &format!("web page closed: {}", wv.label()));
     let _ = wv.with_webview(|pw| crate::audio_share::suspend_page_media(&pw));
     let _ = wv.eval(SILENCE);
-    let _ = wv.hide();
+    let _ = crate::mobile::show_view(&wv, false);
     web_clip::release(&wv);
     std::thread::spawn(move || {
         std::thread::sleep(std::time::Duration::from_millis(UNLOAD_MS));
-        if let Err(e) = wv.close() {
+        if let Err(e) = crate::mobile::close_view(&wv) {
             crate::log::write(
                 "WARN",
                 "host",
@@ -328,19 +344,19 @@ pub(crate) async fn web_open<R: tauri::Runtime>(
     let label = next_web_label();
     // The window that asks hosts the page: the main one, or a note's own.
     let chrome = chrome_offset(&window);
-    let wv = window
-        .add_child(
-            pages_profile(
-                tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url)),
-                &window,
-            )
-            .user_agent(WEB_USER_AGENT)
-            .on_navigation(web_only)
-            .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
-            tauri::LogicalPosition::new(visible.x, visible.y + chrome),
-            tauri::LogicalSize::new(visible.w.max(1.0), visible.h.max(1.0)),
+    let wv = crate::mobile::add_view(
+        &window,
+        pages_profile(
+            tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url)),
+            &window,
         )
-        .map_err(|e| failed(e.to_string()))?;
+        .user_agent(WEB_USER_AGENT)
+        .on_navigation(web_only)
+        .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny),
+        tauri::LogicalPosition::new(visible.x, visible.y + chrome),
+        tauri::LogicalSize::new(visible.w.max(1.0), visible.h.max(1.0)),
+    )
+    .map_err(|e| failed(e.to_string()))?;
     lock(&state.web_views).insert(label.clone(), window.label().to_owned());
     crate::log::write(
         "INFO",
@@ -424,7 +440,47 @@ pub(crate) fn web_visible<R: tauri::Runtime>(
 ) -> Result<(), ContractError> {
     let wv = own_web_view(&window, &state, &label)?;
     web_clip::show(&wv, visible);
-    (if visible { wv.show() } else { wv.hide() }).map_err(|e| failed(e.to_string()))
+    crate::mobile::show_view(&wv, visible).map_err(|e| failed(e.to_string()))
+}
+
+/// The pages whose picture failed, said once each in the log.
+static NO_PICTURE: Mutex<std::collections::BTreeSet<String>> =
+    Mutex::new(std::collections::BTreeSet::new());
+
+/// A picture of a web page's view as it shows now, as a `data:` address
+/// (`image/jpeg`, or `image/png` where the system writes no JPEG): the
+/// window shows it in the page's place while an overlay is open, so the
+/// page seems to stay behind it instead of vanishing (ADR 0056, revision of
+/// 2026-11-12). A platform that cannot draw one answers an error, and the
+/// window hides the page as before; that is said once a page in the log.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn web_snapshot<R: tauri::Runtime>(
+    window: tauri::Window<R>,
+    state: State<'_, App>,
+    label: String,
+) -> Result<String, ContractError> {
+    use base64::Engine as _;
+    let wv = own_web_view(&window, &state, &label)?;
+    match web_clip::snapshot(&wv).await {
+        Ok(picture) => Ok(format!(
+            "data:{};base64,{}",
+            picture.mime,
+            base64::engine::general_purpose::STANDARD.encode(&picture.bytes)
+        )),
+        Err(why) => {
+            if lock(&NO_PICTURE).insert(label.clone()) {
+                crate::log::write(
+                    "WARN",
+                    "web",
+                    &format!(
+                        "{label}: no picture of the page ({why}); it hides while an overlay is open"
+                    ),
+                );
+            }
+            Err(failed(why))
+        }
+    }
 }
 
 /// Close a web page's view (its tab closed).
@@ -445,6 +501,7 @@ pub(crate) fn web_close<R: tauri::Runtime>(
         );
     })?;
     lock(&state.web_views).remove(&label);
+    lock(&NO_PICTURE).remove(&label);
     destroy_web_view(wv);
     Ok(())
 }

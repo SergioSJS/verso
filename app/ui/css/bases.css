@@ -396,9 +396,11 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
 /* A narrow screen: each column keeps room for a word, and the table
    scrolls sideways in its wrap instead of breaking words letter by letter.
    A wide window keeps the table at its pane's width, as before. */
-@media (max-width: 760px) {
-  .base-table { min-width: calc(var(--cols, 1) * 7rem); }
-  .base-table td { overflow-wrap: break-word; }
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
+  /* 9rem: "em_andamento" broke in two in 7rem on the maintainer's phone (2026-11-10). A word
+     is never cut inside on a phone: one longer than its column is clipped at the column's edge. */
+  .base-table { min-width: calc(var(--cols, 1) * 9rem); }
+  .base-table td { overflow-wrap: normal; word-break: normal; }
 }
 
 /* `html()` drawn as HTML in a cell (ADR 0094 item 12). */

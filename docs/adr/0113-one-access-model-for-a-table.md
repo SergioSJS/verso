@@ -25,7 +25,7 @@
   sees the secret blocks), [0082](0082-live-co-editing-of-a-synced-folder.md)
   (item 12: a board's room merges by element),
   [0090](0090-maps-on-the-board.md) (secret pins),
-  [0096](0096-this-app-is-a-server.md) (a phone paired as reader or editor),
+  [0096](archive/0096-this-app-is-a-server.md) (a phone paired as reader or editor),
   [0105](0105-read-links-without-an-account.md) (read links),
   [0079](0079-sync-a-local-folder-with-a-server.md) (a synced folder),
   [0092](0092-the-phone-offline.md) (shared test vectors),
@@ -264,7 +264,7 @@ it, or when the table shows it (0110 "Chosen in the code" (5)).
 | Delete an entry, clear the table | — | yes | only their own message or file | no |
 | SendFile (chat) | — | cap Write | image: right *Images*; other: right *Files*; ∧ cap Write (K.6) | no |
 | ManageAccess, ManageTable | — | cap Write ∧ not a phone (as built) | no | no |
-| Share, Invite | owner ∧ cap Write (Invite of a person with no account: the admin, 0081 item 4) | owner | no | no |
+| Share, Invite | owner ∧ cap Write (Invite of a person with no account: the admin, 0081 item 4; *2026-11-14:* or, on a UniVerso, an owner the admin lets make folders, to read — [0117](0117-this-app-is-a-universo-server.md) D7 (e), `access::invites_new`) | owner | no | no |
 
 **Amended 2026-10-31: outside a table, only the folder's owner deletes.**
 `[DECIDED 2026-10-31, to be built]` Put to the maintainer as B8 of the list of
@@ -330,7 +330,7 @@ unchanged.
      was already asked as `Delete`: it is now the owner's too, outside a
      table. An editor still writes over one; renaming a layout (write the
      new, remove the old) leaves the old one and says why.
-  2. **A contradiction with [0096](0096-this-app-is-a-server.md) item 12**,
+  2. **A contradiction with [0096](archive/0096-this-app-is-a-server.md) item 12**,
      not settled here: a phone paired to "This app is a server" is an
      *editor*, never an owner. On a folder served whole it sits as the
      owner's session (the game master's seat) and still deletes; on a folder
@@ -654,6 +654,34 @@ choice.
    move never changes who sees it; a moved folder carries its set the same way,
    and the files that followed it keep following it. A rename inside the same
    folder changes nothing.
+   `[DECIDED 2026-11-05]` **Outside Verso** (the audit of 2026-11-05; the
+   maintainer: *"pode seguir as recomendações"*): a file renamed or deleted
+   on the server's disk, by hand or by a program, found by the watcher or the
+   walk (`crates/verso-server/src/campaign_outside.rs`). A rename the server
+   is sure of — one file gone, one new of the same bytes — carries the
+   file's access as a move does; a new file it cannot pair for sure, where a
+   file gone with it (or gone outside in the last ten minutes) was kept from
+   some players by a set of its own, is born hidden; a file deleted takes the
+   set it had of its own with it. A file the folder's log does not keep yet
+   is hidden from a player until a reconciliation has judged it. A file
+   written through Verso carried its access in its own session and is not
+   touched by these rules.
+   `[DECIDED 2026-11-06]` **A copy outside Verso takes the original's
+   access.** The maintainer: *"Cópia herda do original"* (a copy inherits
+   from the original). A new file found on the server's disk, not written
+   through Verso, with the bytes of a file still in a table, is a copy: it
+   takes the original's set of its own — who sees it and who edits it —
+   wherever it is put (born hidden only when the original is hidden). An
+   original with no set of its own leaves the copy following its folder,
+   as every new file does, unless the original's folder (or its table,
+   closed) keeps it from more players than the copy's folder would: then
+   the copy is given what the original has. The middle of a rename (both
+   names there at once, as Windows renames) is such a copy, so the renamed
+   file keeps its access once the old name goes. *Chosen in the code:* of
+   several originals of different access, the copy takes the narrowest —
+   each player, and the whole table, at the lowest level any of them gives
+   (`copy_of`). This revises the 2026-11-05 rule above, where a new file of
+   the bytes of a file still there was born hidden.
 3. **An attachment with an explicit access and a file that embeds it.** Not
    asked; *chosen in the code*, `[DECIDED 2026-10-31]`: an **explicit access on the
    attachment wins**; with none, it follows the notes and boards that embed or

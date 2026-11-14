@@ -29,10 +29,11 @@ import { LOCALE, t } from "../strings";
 import { template as tableTemplate } from "../table";
 import { focusTableCell } from "../tableEditor";
 
-/** The slash item's block: `dnd5e` is a built-in layout's id, so the card finds its template. */
 /** An inline roll with its notation ready to be typed over (the slash menu's "Dice roll"). */
 export const DICE_SNIPPET = "`dice: 1d20`";
-const STATBLOCK_SNIPPET = "```statblock\nname: \nlayout: dnd5e\nhp: 10\nac: 10\n```\n";
+/** The slash item's block: `d20-creature` is the default built-in layout's id
+ *  (`DEFAULT_LAYOUT_ID`), so the card finds its template. */
+const STATBLOCK_SNIPPET = "```statblock\nname: \nlayout: d20-creature\nhp: 10\nac: 10\n```\n";
 
 export const headingsCache = new Map<string, { level: number; text: string }[]>();
 export async function completeWikilinks(ctx: CompletionContext): Promise<CompletionResult | null> {

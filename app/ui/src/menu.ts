@@ -32,6 +32,7 @@ import { giveBack } from "./side";
 import { mayShare, openShareDialog } from "./shares";
 import { openReadLinkDialog } from "./readLinks";
 import { campaign, campaignEntryItems, accessSelectionItems } from "./campaign";
+import { serveMenuItems } from "./serveHere";
 import { rl } from "./readLinkStrings";
 import { sh } from "./shareStrings";
 import { boardText, LOCALE, t } from "./strings";
@@ -40,6 +41,9 @@ import { historyStrings } from "./dialogs/historyStrings";
 import { newFolderPrompt, newNotePrompt, newWebPagePrompt } from "./tree/prompts";
 import { hasCapability } from "./capabilities";
 import { showWorldWizard } from "./dialogs/worldWizard";
+import { showWatabouImport } from "./watabou/dialog";
+import { showNewMap } from "./watabou/newMap";
+import { ww } from "./watabou/words";
 import { listAll } from "./tree/tree";
 import { clearSelection, enterSelectMode } from "./tree/selection";
 import { openTerminal, terminalOn } from "./terminal/open";
@@ -163,6 +167,7 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
       // The table (ADR 0110): the game master makes a folder a table and
       // releases its notes.
       ...campaignEntryItems(path, kind),
+      ...(folder ? serveMenuItems(false) : []),
       [t.rename, rename, "edit"],
       [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
       ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),
@@ -224,6 +229,8 @@ export function createMenuItems(folder = ""): MenuItem[] {
       : []),
     ...(notes && boards && hasCapability("campaignBundles") ? [[t.newWorld, () => void showWorldWizard(folder), "world"] as MenuItem] : []),
     ...(notes ? [[t.newBase, () => void newBase(folder), "calendar"] as MenuItem] : []),
+    // ADR 0120: a map exported from Watabou's generators.
+    ...(notes ? [[ww.command, () => showWatabouImport(folder), "foldedMap"] as MenuItem, [ww.newMap, () => showNewMap(folder), "foldedMap"] as MenuItem] : []),
     ...(boards ? [[boardText.newBoard, () => void newBoard(folder || settings.boardFolder.trim().replace(/^\/+|\/+$/g, "")), "board"] as MenuItem] : []),
     ...(notes ? [[t.newWebPage, () => newWebPagePrompt(folder), "globe"] as MenuItem] : []),
     // Files from the system through its picker, for whoever cannot drag (A11Y.10).

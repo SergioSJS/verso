@@ -336,6 +336,15 @@ export const commands = {
 	webBounds: (label: string, place: WebPlace) => typedError<null, ContractError>(__TAURI_INVOKE("web_bounds", { label, place })),
 	/**  Show or hide a web page's view (its tab left the front, an overlay opened). */
 	webVisible: (label: string, visible: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("web_visible", { label, visible })),
+	/**
+	 *  A picture of a web page's view as it shows now, as a `data:` address
+	 *  (`image/jpeg`, or `image/png` where the system writes no JPEG): the
+	 *  window shows it in the page's place while an overlay is open, so the
+	 *  page seems to stay behind it instead of vanishing (ADR 0056, revision of
+	 *  2026-11-12). A platform that cannot draw one answers an error, and the
+	 *  window hides the page as before; that is said once a page in the log.
+	 */
+	webSnapshot: (label: string) => typedError<string, ContractError>(__TAURI_INVOKE("web_snapshot", { label })),
 	/**  Close a web page's view (its tab closed). */
 	webClose: (label: string) => typedError<null, ContractError>(__TAURI_INVOKE("web_close", { label })),
 	/**  Back, forward, reload, or go to another http(s) address. */
@@ -534,6 +543,44 @@ export const commands = {
 	 *  change of language does).
 	 */
 	setMenuCommands: (features: string[], keys: { [key in string]: string }) => typedError<null, ContractError>(__TAURI_INVOKE("set_menu_commands", { features, keys })),
+	/**
+	 *  The bars' icons for a page that is `dark`: a no-op where the system
+	 *  draws no bar over the window (the desktop).
+	 */
+	setBarsDark: (dark: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_bars_dark", { dark })),
+	/**
+	 *  What other apps handed to Verso since the window last asked, handed
+	 *  over once; nothing on a desktop (its files come by `open_initial`).
+	 */
+	takeShared: () => typedError<Shared[], ContractError>(__TAURI_INVOKE("take_shared")),
+	/**
+	 *  Background sync on or off, with its conditions (the window keeps them
+	 *  and tells them at each start). A no-op on a desktop.
+	 */
+	setBackgroundSync: (on: boolean, wifiOnly: boolean, chargingOnly: boolean) => typedError<null, ContractError>(__TAURI_INVOKE("set_background_sync", { on, wifiOnly, chargingOnly })),
+	/**
+	 *  The folders of the shared storage at `path` (relative to its top, `/`
+	 *  between names, `""` for the top).
+	 */
+	sharedStorage: (path: string) => typedError<SharedStorage, ContractError>(__TAURI_INVOKE("shared_storage", { path })),
+	/**
+	 *  Ask Android for the access: its own page for *All files access* (the
+	 *  person turns it on there and comes back), or the storage permission's
+	 *  prompt on Android 10.
+	 */
+	sharedStorageAccess: () => typedError<null, ContractError>(__TAURI_INVOKE("shared_storage_access")),
+	/**
+	 *  Open the folder at `path` of the shared storage in this window, first
+	 *  making the folder `make` inside it when one is named. The top itself is
+	 *  not a folder of notes.
+	 */
+	openSharedFolder: (path: string, make: string | null) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("open_shared_folder", { path, make })),
+	/**
+	 *  Whether this window's folder is one of the app's own storage (a
+	 *  phone's, deleted with the app), not of the shared storage (item 4.4):
+	 *  what Settings › Sync says of it. Never on a desktop.
+	 */
+	folderInApp: () => typedError<boolean, ContractError>(__TAURI_INVOKE("folder_in_app")),
 	/**
 	 *  The commands that can run just now (the palette's own list, from the
 	 *  window in focus): the other items are greyed, in place.
@@ -909,6 +956,14 @@ export const commands = {
 	 */
 	shareGrant: (path: string, email: string, role: string) => typedError<FolderShare, ContractError>(__TAURI_INVOKE("share_grant", { path, email, role })),
 	/**
+	 *  An invitation link for `email`, which no account of the server has,
+	 *  carrying the folder at `path` (`""` the whole folder) in `role` (ADR 0081
+	 *  item 4: the server's admin alone; the server refuses anyone else). The
+	 *  way a folder with no table is invited to, on a UniVerso and at this
+	 *  app's own server (ADR 0117, decided 2026-11-04).
+	 */
+	shareInvite: (path: string, email: string, role: string) => typedError<CampaignInvite, ContractError>(__TAURI_INVOKE("share_invite", { path, email, role })),
+	/**
 	 *  Take a person out of the share at `path`, or remove the share when no
 	 *  person is named (item 8).
 	 */
@@ -957,7 +1012,8 @@ export const commands = {
 	localServerFolders: () => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_folders")),
 	/**
 	 *  Tick or untick a folder (by its key). A folder that also syncs with a
-	 *  UniVerso cannot be ticked in V1 (item 11).
+	 *  UniVerso is ticked like any other; one shared with this person by
+	 *  another account is not (ADR 0081 item 4).
 	 */
 	localServerTick: (key: string, ticked: boolean) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_tick", { key, ticked })),
 	/**
@@ -1001,6 +1057,120 @@ export const commands = {
 	 */
 	localServerReplaceIdentity: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_replace_identity")),
 	localServerAudit: () => typedError<LocalAudit[], ContractError>(__TAURI_INVOKE("local_server_audit")),
+	/**
+	 *  Sit this window at the table of its folder, which this app serves (ADR
+	 *  0117 D4 Q3, *Sit at the table*): the window becomes a client of its own
+	 *  server, as the owner, and has the table, the campaign and the
+	 *  invitation as on a UniVerso. Refused for a folder this app does not
+	 *  serve, and while it serves none.
+	 */
+	localServerSitAtTable: () => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("local_server_sit_at_table")),
+	/**
+	 *  The other host the window's table may move to (ADR 0117 D8, R9): the
+	 *  UniVerso the folder syncs with, for a window at this computer's own
+	 *  table; this computer, for a window on that UniVerso's folder while it
+	 *  serves the folder too. None when there is no other.
+	 */
+	localServerTableHost: () => typedError<{
+	/**
+	 *  `universo`: the UniVerso the folder syncs with, for a window at this
+	 *  computer's own table; `here`: this computer's own server, for a
+	 *  window on that UniVerso's folder.
+	 */
+	to: string,
+	/**
+	 *  The UniVerso's address as the person reads it (no scheme); empty for
+	 *  this computer, which the window names in its own words.
+	 */
+	name: string,
+	/**
+	 *  To open the new host's folder: the UniVerso's address as signed in
+	 *  to and its folder's id there (`to` = `universo`)…
+	 */
+	url: string | null,
+	folder: string | null,
+	/**  …or the key of this computer's folder (`to` = `here`). */
+	key: string | null,
+} | null, ContractError>(__TAURI_INVOKE("local_server_table_host")),
+	/**
+	 *  Move the window's table at `root` to its other host (ADR 0117 D8, R9):
+	 *  made there, every note hidden and nobody invited; closed here to its
+	 *  players and marked moved, its chat, rolls and rights kept here until it
+	 *  is undone. Answers where it went, for the window to go there.
+	 */
+	localServerMoveTable: (root: string) => typedError<TableHost, ContractError>(__TAURI_INVOKE("local_server_move_table", { root })),
+	/**
+	 *  The box *On my network* (ADR 0117 D1, D4 Q2): kept; changed while
+	 *  serving is off.
+	 */
+	localServerNetwork: (on: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_network", { on })),
+	/**
+	 *  The box *By an internet link* ticked (ADR 0117 D3): a quick link, or the
+	 *  own address when that is the mode. Starts serving when it was off. The
+	 *  first time it downloads the pinned `cloudflared`.
+	 */
+	localServerLinkOn: () => typedError<LocalLink, ContractError>(__TAURI_INVOKE("local_server_link_on")),
+	/**  The link off: with *On my network* unticked, serving stops with it. */
+	localServerLinkOff: () => typedError<LocalLink, ContractError>(__TAURI_INVOKE("local_server_link_off")),
+	/**  *Extend*: a quick link's twelve hours from now again (D4 Q6). */
+	localServerLinkExtend: () => typedError<LocalLink, ContractError>(__TAURI_INVOKE("local_server_link_extend")),
+	/**
+	 *  A quick link (`own` false) or the own address (D10), for the next time
+	 *  the link is turned on.
+	 */
+	localServerLinkMode: (own: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_link_mode", { own })),
+	/**
+	 *  The name the players see for this computer's owner (its account's,
+	 *  as on a UniVerso), set in the section.
+	 */
+	localServerOwnerName: (name: string) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_owner_name", { name })),
+	/**
+	 *  *Use my own address*, step one: log in to Cloudflare in the browser
+	 *  (D10 item 2).
+	 */
+	localServerOwnAddressLogin: () => typedError<LocalOwnLogin, ContractError>(__TAURI_INVOKE("local_server_own_address_login")),
+	/**
+	 *  *Use my own address*, step two: the tunnel made and `hostname` routed to
+	 *  it (D10 items 3 and 4); the link uses it from now on.
+	 */
+	localServerOwnAddressSetUp: (hostname: string) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_own_address_set_up", { hostname })),
+	/**
+	 *  Forget the own address: deleted at Cloudflare, or on this computer
+	 *  alone with `here_only`.
+	 */
+	localServerOwnAddressRemove: (hereOnly: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_own_address_remove", { hereOnly })),
+	/**  Every invitation of this computer's server. */
+	localServerInvitations: () => typedError<LocalInvitation[], ContractError>(__TAURI_INVOKE("local_server_invitations")),
+	/**  End an invitation not used yet. */
+	localServerInvitationRevoke: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_invitation_revoke", { id })),
+	/**
+	 *  The desktop apps of other people signed in to this computer's server
+	 *  (ADR 0117 D9, S11), to end one; never the window at the table, never a
+	 *  phone.
+	 */
+	localServerDevices: () => typedError<LocalDevice[], ContractError>(__TAURI_INVOKE("local_server_devices")),
+	/**  *End* a desktop app's session: it syncs nothing until it signs in again. */
+	localServerEndDevice: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_end_device", { id })),
+	/**
+	 *  Read links on or off for this computer's server (ADR 0105 item 3; ADR
+	 *  0117 D9, S12): off at first; off ends every link at once.
+	 */
+	localServerReadLinks: (on: boolean) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_read_links", { on })),
+	/**
+	 *  The people invited to this computer's server (ADR 0117 D9), for
+	 *  *Pessoas convidadas*; never this computer's own accounts.
+	 */
+	localServerAccounts: () => typedError<LocalPlayer[], ContractError>(__TAURI_INVOKE("local_server_accounts")),
+	/**
+	 *  *Nova senha*: a single-use link for a day that sets a person's new
+	 *  password (ADR 0117 D9; ADR 0074 item 5), said this once; their sessions
+	 *  end now.
+	 */
+	localServerAccountReset: (id: string) => typedError<LocalReset, ContractError>(__TAURI_INVOKE("local_server_account_reset", { id })),
+	/**  *Encerrar sessões*: every session of a person ends, their tokens too. */
+	localServerAccountEndSessions: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_account_end_sessions", { id })),
+	/**  *Remover*: a person's account and everything it held. */
+	localServerAccountRemove: (id: string) => typedError<null, ContractError>(__TAURI_INVOKE("local_server_account_remove", { id })),
 	/**  The window's folder's sync: off, or its state. */
 	folderSync: () => typedError<SyncStatus, ContractError>(__TAURI_INVOKE("folder_sync")),
 	/**
@@ -1104,7 +1274,7 @@ export const commands = {
 	/**
 	 *  Downloads and installs an update directly from within the app.
 	 * 
-	 *  The command takes no URL: the host asks `UPDATE_REPO`'s API for the
+	 *  The command takes no URL: the host asks the release place for the
 	 *  releases again, picks the asset for this platform itself, and
 	 *  verifies the download against the `sha256` digest the API reports and
 	 *  against the release's checksums list, signed with Verso's release key,
@@ -1864,6 +2034,12 @@ export type CampaignTable = {
 	images?: boolean,
 	/**  Whether this account may send a file that is not an image. */
 	files?: boolean,
+	/**
+	 *  Moved to the other host (ADR 0117 D8, R9): closed to its players for
+	 *  good here, who are told it moved; its chat, rolls and rights stay
+	 *  here until it is undone. Absent from a server before R9: not moved.
+	 */
+	moved?: boolean,
 };
 
 /**
@@ -1889,6 +2065,11 @@ export type Can =
 "devtools" | 
 /**  Open folders from this computer's disk. */
 "local_folders" | 
+/**
+ *  Open a file of this computer's disk without its folder (ADR 0114):
+ *  the desktop's *Open file…*; not a phone's yet (decided 2026-11-10).
+ */
+"loose_files" | 
 /**  An account signed in on a server: the account's page. */
 "account" | 
 /**  The account is the server's admin: the admin page. */
@@ -1936,7 +2117,29 @@ export type Can =
  *  files never list it, and where it is absent *Share audio…* is not
  *  drawn.
  */
-"audio_share";
+"audio_share" | 
+/**
+ *  This app, as a server, reaches people anywhere through an internet
+ *  link (`cloudflared`, ADR 0117): the desktop and Android list it;
+ *  the iOS app does not (ADR 0119 A3 and A13, decided 2026-11-12), and
+ *  the window hides the link's box there.
+ */
+"link" | 
+/**
+ *  This app finds servers announced on the network and is found while
+ *  a phone pairs (mDNS, ADR 0097, ADR 0096 item 8): the desktop and
+ *  Android list it; the iOS app does not (ADR 0119 A4 and A13), and
+ *  the window hides *Found on this network*.
+ */
+"discover" | 
+/**
+ *  This app keeps serving while it is not on the screen (Android's
+ *  foreground service, a desktop's window in the background): absent
+ *  on iOS, which suspends an app that leaves the screen (ADR 0119 A2
+ *  and A13); the window then says the server runs only while Verso is
+ *  open.
+ */
+"serve_away";
 
 export type Capabilities = Capabilities_Serialize | Capabilities_Deserialize;
 
@@ -2883,9 +3086,10 @@ export type Hit = {
 
 /**
  *  Which side the window talks to (ADR 0027, ADR 0073 item 2): the app on
- *  this computer, or a server.
+ *  this computer, a server, or the app on a phone (ADR 0118: the window
+ *  reads what the host is from here, never from the user agent).
  */
-export type Host = "desktop" | "server";
+export type Host = "desktop" | "server" | "mobile";
 
 /**  Progress payload emitted during vault indexing. */
 export type IndexProgress = {
@@ -2997,6 +3201,11 @@ export type LocalAsked = {
 	address: string,
 	/**  When it asked, `YYYY-MM-DDTHH:MM:SSZ`. */
 	asked: string,
+	/**
+	 *  It asked through the internet link (ADR 0117 D5): the address is
+	 *  the one the tunnel forwarded, and the question says so.
+	 */
+	link: boolean,
 };
 
 /**  One line of the log of what happened, kept 365 days. */
@@ -3005,6 +3214,24 @@ export type LocalAudit = {
 	action: string,
 	subject: string | null,
 	address: string | null,
+};
+
+/**
+ *  Another person's desktop app signed in to this computer's server by an
+ *  invited account (ADR 0117 D9, S11), as the section lists it, with *End*.
+ *  Never the owner's window at the table, never a phone.
+ */
+export type LocalDevice = {
+	/**  The session's id, to end it. */
+	id: string,
+	/**  The device's own name (Settings › Servers on that computer). */
+	device: string,
+	/**  The account's name and e-mail-shaped identifier. */
+	account: string,
+	email: string,
+	/**  Seconds since the epoch. */
+	created: number,
+	last_used: number,
 };
 
 /**  A folder the person may tick to serve. */
@@ -3039,11 +3266,138 @@ export type LocalFolder = {
 	 */
 	attachments: string | null,
 	/**
-	 *  The server this folder also syncs with: such a folder cannot be
-	 *  served in V1 (item 11), and the row says to open that address on
-	 *  the phone instead.
+	 *  The UniVerso this folder was shared with this person from, when it
+	 *  syncs a folder another account owns there: such a folder is not
+	 *  served from here (ADR 0081 item 4; ADR 0117 D4). A folder of one's
+	 *  own that syncs has none and is served like any other.
 	 */
-	syncs_with: string | null,
+	received_from: string | null,
+	/**
+	 *  How many tables this computer's server holds in this folder while it
+	 *  serves it; 0 while serving is off. A window on a served folder with
+	 *  one sits at its table by itself (ADR 0117 D4 Q3, revised 2026-11-05).
+	 */
+	tables: number,
+};
+
+/**  One invitation of this computer's server, as the section lists it. */
+export type LocalInvitation = {
+	id: string,
+	/**  The served folder it carries, by the name a person is shown. */
+	folder: string | null,
+	/**  `reader` or `editor`; none with no folder. */
+	role: string | null,
+	/**  Seconds since the epoch. */
+	created: number,
+	expires: number,
+	/**  `pending`, `used`, `ended` or `expired`. */
+	state: string,
+	/**  The name of the account that used it. */
+	used_by: string | null,
+};
+
+/**
+ *  The internet link, as Settings shows it and the event
+ *  `local-server-link` says it at each change.
+ */
+export type LocalLink = {
+	state: LocalLinkState,
+	/**
+	 *  The link's origin while on (`https://…`), to copy and to show as a
+	 *  QR. Never logged.
+	 */
+	origin: string | null,
+	/**
+	 *  A quick link's ceiling, in seconds since the epoch; none for an own
+	 *  address, which has none (D10).
+	 */
+	until: number | null,
+	/**  The link is the person's own address. */
+	own: boolean,
+	/**  Why it last ended. */
+	ended: LocalLinkEnd | null,
+	/**
+	 *  How `cloudflared` reaches Cloudflare while on: `quic`, or `http2`
+	 *  when QUIC (UDP) found no way out and it tried again over TCP.
+	 */
+	protocol: string | null,
+	/**
+	 *  The origin as a QR, rows of `1` (dark) and `0`, for a phone at the
+	 *  table to scan (D3 item 6); empty while off. The window draws it.
+	 */
+	qr: string[],
+	/**
+	 *  While starting, the download of `cloudflared` under way (its first
+	 *  use): how far it got. None when nothing downloads.
+	 */
+	download: LocalLinkDownload | null,
+};
+
+/**  How far the download of `cloudflared` got. */
+export type LocalLinkDownload = {
+	/**  Bytes downloaded so far. */
+	done: number,
+	/**  Bytes in all, when GitHub said. */
+	total: number | null,
+};
+
+/**  Why the link last ended. */
+export type LocalLinkEnd = 
+/**  The person stopped it, or serving stopped. */
+"stopped" | 
+/**  A quick link's twelve hours ran out (D4 Q6). */
+"ceiling" | 
+/**  `cloudflared` ended by itself. */
+"exited" | 
+/**  It never came up; the command said why. */
+"failed" | 
+/**  The app ended. */
+"quit";
+
+/**  Where the internet link stands (ADR 0117 D3 item 6). */
+export type LocalLinkState = "off" | 
+/**  Fetching `cloudflared`, or waiting for its first connection. */
+"starting" | "on" | 
+/**
+ *  `cloudflared` ended by itself: no link until it is turned on again
+ *  (a new link, for a quick one); nothing restarts it silently.
+ */
+"offline";
+
+/**
+ *  The person's own address for the link (ADR 0117 D10 (a)): a hostname of
+ *  their domain, routed at Cloudflare to a tunnel this computer made.
+ */
+export type LocalOwnAddress = {
+	/**  `mesa.example.com`. */
+	hostname: string,
+};
+
+/**  How `cloudflared tunnel login` ended (D10 item 2). */
+export type LocalOwnLogin = {
+	/**  The person's Cloudflare credential is in place now. */
+	signed_in: boolean,
+	/**
+	 *  It was there already, from an earlier login (`cloudflared` does not
+	 *  overwrite it).
+	 */
+	already: boolean,
+	/**
+	 *  When the login did not end: Cloudflare's page to open by hand, if
+	 *  `cloudflared` gave it. It carries a one-time callback: shown, never
+	 *  logged.
+	 */
+	url: string | null,
+	/**  Why not, in `cloudflared`'s words with every address taken out. */
+	why: string | null,
+};
+
+/**  The pairing window's address through the internet link (ADR 0117 D5). */
+export type LocalPairLink = {
+	/**  `https://<link>/pair#t=<token>`: the token in the fragment. */
+	url: string,
+	/**  Its QR as rows of `1` (dark) and `0`. */
+	qr: string[],
 };
 
 /**  The dialog's state, asked while it is open. */
@@ -3078,9 +3432,17 @@ export type LocalPairing = {
 	fingerprint: string,
 	/**
 	 *  `own` or `files`: with `own`, the dialog says the limit in words
-	 *  (trust on first use, for a network the person trusts).
+	 *  (trust on first use, for a network the person trusts). `link` when
+	 *  the internet link alone serves: the QR is the link's, with no
+	 *  fingerprint.
 	 */
 	certificate: string,
+	/**
+	 *  The same window through the internet link, while the link has an
+	 *  address (ADR 0117 D5): its pairing address with the same one-time
+	 *  token in the fragment, and its QR, for the dialog to show instead.
+	 */
+	link: LocalPairLink | null,
 };
 
 /**  A phone paired with this computer. */
@@ -3093,6 +3455,42 @@ export type LocalPhone = {
 	paired: number,
 	last_seen: number,
 	address: string,
+};
+
+/**
+ *  A person invited to this computer's server, as the section *Pessoas
+ *  convidadas* lists them (ADR 0117 D9): never this computer's own
+ *  accounts (the owner, its window's seat, the holder of the parts).
+ */
+export type LocalPlayer = {
+	/**  The account's id, to act on it. */
+	id: string,
+	name: string,
+	/**  The e-mail-shaped identifier they accepted with (D4 Q5). */
+	email: string,
+	/**  Seconds since the epoch. */
+	created: number,
+	/**  The latest use of any of their sessions; none with no session. */
+	last_seen: number | null,
+	/**  The folders and shares they reach, with their role in each. */
+	reaches: LocalPlayerReach[],
+};
+
+/**  A folder (`Campanha`) or a share (`Campanha/Mapas`) a person reaches. */
+export type LocalPlayerReach = {
+	name: string,
+	/**  `reader`, `editor` or `owner`. */
+	role: string,
+};
+
+/**
+ *  A new password's link for a person (ADR 0117 D9; ADR 0074 item 5): a
+ *  single use for a day, said this once to the owner, who hands it over.
+ */
+export type LocalReset = {
+	link: string,
+	/**  Seconds since the epoch. */
+	expires: number,
 };
 
 /**  Where "this app is a server" stands. */
@@ -3151,6 +3549,46 @@ export type LocalServerStatus = {
 	 *  `folder/chosen`: the window says so.
 	 */
 	dropped: string[],
+	/**
+	 *  The box *On my network* (ADR 0117 D1, D4 Q2): serve on the private
+	 *  addresses, as ADR 0096 built. Kept; on by default.
+	 */
+	network: boolean,
+	/**
+	 *  The box *By an internet link* (ADR 0117 D3): where the link stands.
+	 *  Never kept across starts (item 6).
+	 */
+	link: LocalLink,
+	/**
+	 *  The link is turned on with the person's own address, not a quick
+	 *  link (ADR 0117 D10, `local_server_link_mode`).
+	 */
+	link_own: boolean,
+	/**  The own address, once set up (D10 (a)); none before. */
+	own_address: LocalOwnAddress | null,
+	/**
+	 *  `cloudflared tunnel login` was done on this computer: the person's
+	 *  Cloudflare credential is where `cloudflared` keeps it (D10 item 2).
+	 */
+	cloudflare_signed_in: boolean,
+	/**
+	 *  Read links are on for this computer's server (ADR 0105 item 3; ADR
+	 *  0117 D9, S12): off at first, the owner's switch in the section.
+	 */
+	read_links: boolean,
+	/**
+	 *  The name the players see for this computer's owner: its account's
+	 *  name, the system's user at first (`local_server_owner_name`).
+	 */
+	owner_name: string,
+	/**
+	 *  The server found its port closed and listens again, on the port it
+	 *  had (ADR 0119 B12/A2: iOS takes an app's listener while the device
+	 *  is locked; back on the screen it serves again). The window says so;
+	 *  false once serving is turned on or off by hand. Added after
+	 *  version 1: an answer without it reads as false.
+	 */
+	listened_again?: boolean,
 };
 
 /**  One file the loose-files window shows (ADR 0114 item 18). */
@@ -3962,7 +4400,10 @@ export type ServerGone = {
 	 *  (the connection dropped; the app tries again), `unreachable` (a
 	 *  try found the server out of reach: `address` names it) or `closed`
 	 *  (the table is closed by its game master: the app tries again and
-	 *  gets in when it opens).
+	 *  gets in when it opens), `moved` (the table moved to its other server,
+	 *  ADR 0117 R9: the player is invited again there), or `seat` (the owner's own window at the
+	 *  table of this app's server, which stopped serving: the window goes
+	 *  back to this computer's folder; ADR 0117 D4 Q3).
 	 */
 	what: string,
 	/**
@@ -4045,6 +4486,34 @@ export type SharePerson = {
 	email: string,
 	/**  `owner`, `editor` (writes) or `reader` (reads only). */
 	role: string,
+};
+
+/**  One thing handed to Verso. */
+export type Shared = {
+	/**
+	 *  Its name as the other app gave it (a file's name, a share's
+	 *  subject); empty when it gave none.
+	 */
+	name: string,
+	/**  Its text; absent when it could not be taken (`problem`). */
+	text: string | null,
+	/**  Why it could not be taken: `too_big`, `not_text` or `unreadable`. */
+	problem: string | null,
+};
+
+/**  What the shared storage holds at a place. */
+export type SharedStorage = {
+	/**
+	 *  Whether Verso may reach the shared storage (Android's *All files
+	 *  access*; the storage permission on Android 10): without it, no
+	 *  folder is listed and the window asks for it.
+	 */
+	access: boolean,
+	/**
+	 *  The folders directly at the place, by name, sorted; hidden ones are
+	 *  left out.
+	 */
+	folders: string[],
 };
 
 /**  Why a note that links to what moved got no rewrite. */
@@ -4183,7 +4652,7 @@ export type SyncStatus = {
 	message: string | null,
 	/**
 	 *  What the last error was, for the window to say in its language:
-	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `table_closed`, `failed`;
+	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `table_closed`, `table_moved`, `failed`;
 	 *  with the state `off`, `revoked`.
 	 */
 	problem: string | null,
@@ -4264,6 +4733,33 @@ export type TableEntry = {
 	draw: OracleDraw | null,
 	text: string | null,
 	image: string | null,
+};
+
+/**
+ *  The other host of the window's table (ADR 0117 D8, R9): a folder of this
+ *  computer served from here that also syncs with a UniVerso has two, and a
+ *  table lives on one. Where the table may move to, and where it went.
+ */
+export type TableHost = {
+	/**
+	 *  `universo`: the UniVerso the folder syncs with, for a window at this
+	 *  computer's own table; `here`: this computer's own server, for a
+	 *  window on that UniVerso's folder.
+	 */
+	to: string,
+	/**
+	 *  The UniVerso's address as the person reads it (no scheme); empty for
+	 *  this computer, which the window names in its own words.
+	 */
+	name: string,
+	/**
+	 *  To open the new host's folder: the UniVerso's address as signed in
+	 *  to and its folder's id there (`to` = `universo`)…
+	 */
+	url: string | null,
+	folder: string | null,
+	/**  …or the key of this computer's folder (`to` = `here`). */
+	key: string | null,
 };
 
 /**

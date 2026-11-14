@@ -296,12 +296,9 @@ pub(crate) async fn pick_files<R: tauri::Runtime>(
         .unwrap_or(false);
     let (tx, mut rx) = tauri::async_runtime::channel(1);
     let parent = window.clone();
-    app.dialog()
-        .file()
-        .set_parent(&parent)
-        .pick_files(move |picked| {
-            let _ = tx.try_send(picked);
-        });
+    crate::mobile::dialog_over(app.dialog().file(), &parent).pick_files(move |picked| {
+        let _ = tx.try_send(picked);
+    });
     let picked = rx.recv().await.flatten().unwrap_or_default();
     let paths: Vec<PathBuf> = picked
         .into_iter()

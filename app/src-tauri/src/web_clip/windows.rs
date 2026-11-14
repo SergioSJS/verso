@@ -11,6 +11,10 @@
 //! container with the slot's size, is clipped there. Coordinates are the
 //! window's physical pixels (the window's DPI scale).
 //!
+//! It also draws a picture of the page (`snapshot`, ADR 0056, revision of
+//! 2026-11-12): WebView2's `CapturePreview`, as JPEG, into a COM stream on
+//! memory read back when WebView2 says it is done.
+//!
 //! One of the two files of the workspace allowed `unsafe` (ADR 0029,
 //! revision of 2026-10-15; `scripts/check-unsafe.mjs`): every Win32 and
 //! WebView2 call is `unsafe` in the `windows` crate. Each is in a block
@@ -22,7 +26,9 @@
 
 use std::sync::OnceLock;
 
-use ::windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM};
+use ::windows::Win32::Foundation::{HGLOBAL, HINSTANCE, HWND, LPARAM, LRESULT, RECT, WPARAM};
+use ::windows::Win32::System::Com::StructuredStorage::CreateStreamOnHGlobal;
+use ::windows::Win32::System::Com::{IStream, STREAM_SEEK_END, STREAM_SEEK_SET};
 use ::windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use ::windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, GetClassNameW, GetParent, HWND_TOP,
@@ -32,9 +38,13 @@ use ::windows::Win32::UI::WindowsAndMessaging::{
 };
 use ::windows::core::{PCWSTR, w};
 use tauri::webview::PlatformWebview;
-use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller;
+use webview2_com::CapturePreviewCompletedHandler;
+use webview2_com::Microsoft::Web::WebView2::Win32::{
+    COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_JPEG, ICoreWebView2Controller,
+};
 
 use super::geometry::Frames;
+use super::{Done, Picture};
 
 /// The container is placed in the window's client area, as Tauri places
 /// a child view.
@@ -257,4 +267,77 @@ pub(super) fn release(pw: &PlatformWebview) {
     // SAFETY: `clip` is the container this module made; the page's window
     // left it just above, so destroying it destroys nothing of wry's.
     let _ = unsafe { DestroyWindow(clip) };
+}
+
+/// A picture of the page's whole view, handed to `done` when WebView2 has
+/// written it (on the main thread, after this returns).
+pub(super) fn snapshot(pw: &PlatformWebview, done: Done) {
+    if let Err((done, why)) = capture(pw, done) {
+        let _ = done.send(Err(why));
+    }
+}
+
+/// Start the capture; on a failure before WebView2 took it, the sender
+/// comes back with the reason.
+fn capture(pw: &PlatformWebview, done: Done) -> Result<(), (Done, String)> {
+    let controller = pw.controller();
+    // SAFETY: the controller is a live COM reference Tauri hands out on
+    // the main thread; this asks it for its web view, with no argument.
+    let web = match unsafe { controller.CoreWebView2() } {
+        Ok(web) => web,
+        Err(e) => return Err((done, e.to_string())),
+    };
+    // SAFETY: a null memory handle asks Windows for a new block of its own,
+    // freed with the stream (`true`); nothing of ours is passed.
+    let stream = match unsafe { CreateStreamOnHGlobal(HGLOBAL::default(), true) } {
+        Ok(stream) => stream,
+        Err(e) => return Err((done, e.to_string())),
+    };
+    let written = stream.clone();
+    let handler = CapturePreviewCompletedHandler::create(Box::new(
+        move |result: ::windows::core::Result<()>| {
+            let _ = done.send(
+                result
+                    .map_err(|e| e.to_string())
+                    .and_then(|()| read_all(&written))
+                    .map(|bytes| Picture {
+                        mime: "image/jpeg",
+                        bytes,
+                    }),
+            );
+            Ok(())
+        },
+    ));
+    // SAFETY: the web view, the stream and the handler are live COM
+    // references; WebView2 holds the stream and the handler until it calls
+    // the handler back on this thread. On a refusal the handler is dropped
+    // uncalled, and with it the sender: the waiting side reads no picture.
+    let _ = unsafe {
+        web.CapturePreview(
+            COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_JPEG,
+            &stream,
+            &handler,
+        )
+    };
+    Ok(())
+}
+
+/// Everything WebView2 wrote into `stream`.
+fn read_all(stream: &IStream) -> Result<Vec<u8>, String> {
+    let mut size = 0u64;
+    // SAFETY: moves the stream's own position to its end and writes the
+    // new position into `size`, a local that outlives the call.
+    unsafe { stream.Seek(0, STREAM_SEEK_END, Some(&raw mut size)) }.map_err(|e| e.to_string())?;
+    let len = u32::try_from(size).map_err(|_| "the picture is too large".to_owned())?;
+    // SAFETY: back to the stream's start; no memory of ours is passed.
+    unsafe { stream.Seek(0, STREAM_SEEK_SET, None) }.map_err(|e| e.to_string())?;
+    let mut bytes = vec![0u8; usize::try_from(len).unwrap_or(0)];
+    let mut read = 0u32;
+    // SAFETY: `bytes` holds `len` bytes, the most `Read` writes, and `read`
+    // is a local; both outlive the call.
+    unsafe { stream.Read(bytes.as_mut_ptr().cast(), len, Some(&raw mut read)) }
+        .ok()
+        .map_err(|e| e.to_string())?;
+    bytes.truncate(usize::try_from(read).unwrap_or(0));
+    Ok(bytes)
 }

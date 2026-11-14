@@ -36,8 +36,24 @@
 .ls-log summary, .ls-adv summary { cursor: pointer; font: 600 .9rem var(--ui); color: var(--ink); }
 .ls-log-list { font-size: .84rem; color: var(--ink-2); padding-top: .4rem; }
 .ls-log-list time { color: var(--ink-3); }
-/* The pairing dialog. */
-.ls-dialog { width: min(30rem, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+/* The dialogs of the section (Antes de ligar, Parear um celular), on the
+   page's overlay (.quick): centred in the window and held within it, the
+   overlay's own top padding (12vh, the switcher's) left out — it pushed the
+   pairing dialog down, past the window's bottom, scrolling inside (the
+   maintainer's screenshot, 2026-11-05). */
+.quick:has(> .ls-dialog) { padding: 16px; justify-content: center; }
+.ls-dialog { width: min(32rem, calc(100vw - 32px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; box-sizing: border-box; }
+/* Pairing: the QR beside what is read and chosen, where the window is wide
+   enough, so it all fits without a scrollbar. */
+.ls-dialog:has(.ls-qr) { width: min(48rem, calc(100vw - 32px)); }
+@media (min-width: 46rem) {
+  .ls-dialog .ls-pair-body { display: grid; grid-template-columns: min(15rem, 36vw) minmax(0, 1fr); column-gap: 1.4rem; row-gap: .55rem; align-items: start; text-align: start; }
+  .ls-dialog .ls-pair-body > * { grid-column: 2; }
+  .ls-dialog .ls-pair-body > :first-child { grid-column: 1 / -1; }
+  .ls-dialog .ls-pair-body > .ls-qr { grid-column: 1; grid-row: 2 / span 12; width: 100%; }
+  .ls-dialog .ls-pair-body > .btn { justify-self: start; }
+}
+.ls-pair-link { display: flex; flex-direction: column; gap: .4rem; align-items: inherit; }
 .ls-pair-body { display: flex; flex-direction: column; align-items: center; gap: .7rem; text-align: center; }
 .ls-qr { width: min(18rem, 70vw); height: auto; border: 1px solid var(--hair); border-radius: 8px; background: #fff; }
 .ls-facts { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; margin: 0; text-align: start; font-size: .9rem; width: 100%; }
@@ -134,3 +150,37 @@
 .ls-recent-sum::before { content: ""; flex: none; width: 5px; height: 5px; margin: 0 .2rem 0 .1rem; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(-45deg); transition: transform .18s var(--ease-out); }
 .ls-recent[open] > .ls-recent-sum::before { transform: rotate(45deg); }
 @media (prefers-reduced-motion: reduce) { .ls-recent-sum::before { transition: none; } }
+
+/* ADR 0117: the two boxes under the switch, the internet link's panel,
+   "Usar meu endereço", the invitations and the window's seat. A long
+   address breaks anywhere: a phone at 390 px never scrolls sideways. */
+.ls-boxes { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.ls-boxes > .ls-h { margin-top: .2rem; }
+.ls-box { align-items: baseline; min-height: 32px; }
+.ls-box-help, .ls-testing { padding-inline-start: 1.5rem; }
+.ls-link, .ls-own-body, .ls-invites, .ls-seat, .ls-accounts { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
+.ls-link { margin: .3rem 0 0 1.5rem; padding: .6rem .8rem; background: var(--paper-2); border: 1px solid var(--hair); border-radius: 10px; }
+.ls-link[hidden], .ls-inv-made[hidden] { display: none; }
+.ls-link .btn, .ls-own-body > .btn, .ls-invites .btn, .ls-seat .btn { align-self: flex-start; }
+.ls-link-url code, .ls-inv-made code { overflow-wrap: anywhere; word-break: break-all; }
+.ls-link-where { display: flex; flex-direction: column; gap: .35rem; }
+.ls-link-qr .ls-qr { margin-top: .4rem; }
+.ls-own { margin-inline-start: 1.5rem; }
+.ls-own-body { padding-top: .4rem; }
+.ls-own-remove { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ls-inv-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .4rem .8rem; }
+.ls-inv-form .ls-pick { margin: 0; width: auto; flex: 1 1 10rem; min-width: 0; }
+.ls-inv-made { display: flex; flex-direction: column; gap: .35rem; padding: .6rem .8rem; border: 1px solid var(--hair); border-radius: 10px; }
+.ls-inv-list .ls-phone-who strong { overflow-wrap: anywhere; }
+.ls-player-actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.ls-players-list .ls-phone-who strong { overflow-wrap: anywhere; }
+@media (pointer: coarse) { .ls-box { min-height: 44px; } .ls-box input { width: 22px; height: 22px; } }
+/* The table offline, over the player's window (web/localTable.ts). */
+.web-offline { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: color-mix(in srgb, var(--paper) 82%, transparent); overflow: auto; }
+.web-offline .web-card { max-width: 28rem; width: 100%; }
+.web-offline-acts { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+.web-offline-acts button { flex: 1 1 8rem; min-height: 44px; }
+/* The owner's name for the players: a field and its Save, on one row that wraps on a phone. */
+.ls-owner-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.ls-owner-row input { flex: 1 1 12rem; min-width: 0; min-height: 34px; box-sizing: border-box; padding: 0 .6rem; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--control-line); border-radius: 8px; }
+.ls-owner-row input:focus-visible { outline: 2px solid var(--seal); outline-offset: 1px; }

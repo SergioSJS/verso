@@ -19,11 +19,15 @@ verso-service = { path = "../verso-service" }
 verso-core = { path = "../verso-core" }
 verso-contract = { path = "../verso-contract" }
 verso-fs = { path = "../verso-fs" }
+# A UniVerso's own Cloudflare link (ADR 0117 D4 item 2, R5): the tunnel
+# module the desktop app runs, moved into a crate both hosts use. It adds
+# no crate to the tree (its dependencies were the app's already).
+verso-tunnel = { path = "../verso-tunnel" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # The async runtime under the HTTP server; already in the tree through
 # Tauri, rmcp and reqwest (MIT).
-tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "net", "macros", "signal", "sync", "time"] }
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "net", "macros", "signal", "sync", "time", "io-util"] }
 # HTTP and WebSocket routing (MIT), over hyper and tower, both already in
 # the tree through reqwest. Nothing of ours did this; std has no HTTP.
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "ws", "query", "json"] }
@@ -50,7 +54,7 @@ rustls-pki-types = { version = "1", features = ["std"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json"] }
 # The accounts, sessions, invitations, tokens, grants and the audit log
 # (ADR 0074 item 10): SQLite, as the index (MIT, public domain).
-rusqlite = { version = "0.40", default-features = false, features = ["bundled"] }
+rusqlite = { version = "0.41", default-features = false, features = ["bundled"] }
 # Passwords hashed with Argon2id (ADR 0074 item 3; MIT OR Apache-2.0).
 argon2 = { version = "0.5", default-features = false, features = ["alloc", "password-hash", "std"] }
 # Simultaneous editing of notes (ADR 0073 item 7; the maintainer's answer
@@ -105,6 +109,14 @@ if-addrs = "0.15"
 
 openssl = { version = "0.10", features = ["vendored"] }
 
+# The internet link's listener told the queue it asks for on Windows too
+# (`local/link.rs`, `LISTEN_BACKLOG`): tokio's `TcpSocket::listen` cannot
+# pass Windows' `SOMAXCONN_HINT`, and `unsafe` is forbidden, so no direct
+# call to `listen`. socket2 (MIT OR Apache-2.0) is already in the tree, the
+# same version, under tokio, hyper-util, lettre and mdns-sd; it adds no
+# crate.
+socket2 = "0.6"
+
 [dev-dependencies]
 tempfile = "3.27"
 # A directory made unwritable for the tests of storage.rs and tests_http.rs.
@@ -125,6 +137,11 @@ regex = "1"
 # that ships turns it on.
 [features]
 fuzzing = []
+# A player made at the computer, for the tests of this crate and of the
+# app's host (`LocalServer::invite_for_tests`): the app invites at the
+# folder's page and ships without it. The app turns it on in its
+# dev-dependencies only.
+test-support = []
 
 [lints]
 workspace = true

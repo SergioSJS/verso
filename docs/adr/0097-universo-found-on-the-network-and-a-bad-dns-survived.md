@@ -17,7 +17,7 @@
   server, plain HTTP), [0074](0074-accounts-and-access-on-the-server.md)
   item 8 (the desktop connects to a server; the device approval),
   [0083](0083-security-hardening-of-universo.md) (the device approval
-  page), [0096](0096-this-app-is-a-server.md) item 8 (the other mDNS
+  page), [0096](archive/0096-this-app-is-a-server.md) item 8 (the other mDNS
   announcement, `_verso-local._tcp`, while the pairing dialog is open),
   [0050](0050-outbound-network-access.md) (inbound and mDNS),
   [0029](0029-guardrails-in-ci.md) (the `std::fs` confinement, an exception
@@ -43,7 +43,7 @@ a browser asks the other servers of the list when an answer does not
 connect. Nothing in the message said a name had resolved to `10.0.0.1`.
 
 **What exists.** The server announces nothing on the network
-([0096](0096-this-app-is-a-server.md) item 8 announces the *laptop* serving
+([0096](archive/0096-this-app-is-a-server.md) item 8 announces the *laptop* serving
 a phone, only while a pairing dialog is open). The desktop's HTTP client
 for servers (`app/src-tauri/src/remote.rs`) and its WebSocket
 (`tokio-tungstenite`) resolved names with the system's resolver alone. The
@@ -55,7 +55,7 @@ network can make one, so nothing may be trusted or sent because of it.
 Docker's default bridge network does not carry multicast to the home
 network. `std::fs` is confined in the desktop crate
 ([0029](0029-guardrails-in-ci.md)). `mdns-sd` (MIT OR Apache-2.0) is
-already in the tree since [0096](0096-this-app-is-a-server.md).
+already in the tree since [0096](archive/0096-this-app-is-a-server.md).
 
 ## Decision
 
@@ -75,7 +75,7 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    `v` (the server's version), `https` (`0` or `1`, whether the port
    speaks TLS) and `id` (the same six digits). Addresses are the machine's
    own, followed as they change. The other service,
-   `_verso-local._tcp` ([0096](0096-this-app-is-a-server.md) item 8), is
+   `_verso-local._tcp` ([0096](archive/0096-this-app-is-a-server.md) item 8), is
    not merged with this one: it is the laptop's, short-lived and for
    pairing. A fourth key, `url`, is added **only when `VERSO_PUBLIC_URL` is
    set**: that address (`scheme://host[:port]`, at most 200 characters) is
@@ -95,7 +95,7 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    private (RFC 1918) and unique-local interfaces** of the machine — or on
    the listen address itself when one is given, if that is private —
    never on a public or link-local one, as the pairing announcement of
-   [0096](0096-this-app-is-a-server.md) is. A failure to announce is logged
+   [0096](archive/0096-this-app-is-a-server.md) is. A failure to announce is logged
    at WARN and never stops the server: it works without being found. A
    goodbye record is sent when the server stops.
 
@@ -270,7 +270,7 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
    `mdns-sd` sharing port 5353 (to confirm in the manual check).
 
 10. **Dependencies.** None new in what ships. `mdns-sd` is `verso-server`'s since
-    [0096](0096-this-app-is-a-server.md); the desktop browses through
+    [0096](archive/0096-this-app-is-a-server.md); the desktop browses through
     `verso-server::discovery`, which it already depends on. `cargo deny`
     passes. Two **dev-dependencies are new** to `verso-app` (tests only, both
     already in the tree through `verso-server` and `reqwest`, licences
@@ -325,7 +325,7 @@ already in the tree since [0096](0096-this-app-is-a-server.md).
   by the brief: an unauthenticated announcement must never start a
   connection or send a credential.
 - **Announcing only while a dialog is open**, as
-  [0096](0096-this-app-is-a-server.md) does for the laptop. Ruled out: a
+  [0096](archive/0096-this-app-is-a-server.md) does for the laptop. Ruled out: a
   server has no dialog, and "just install it" is the point.
 
 ## Status

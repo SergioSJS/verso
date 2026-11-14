@@ -193,10 +193,14 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
 
   // A blank line that only separates two blocks is a thin gap, full height
   // under the caret (ADR 0061, revised 2026-10-22); a further blank line in
-  // the same run is smaller than a line but kept.
+  // the same run is smaller than a line but kept. A selection over it keeps
+  // it thin (revised 2026-11-07): it has no mark to show, and what is typed
+  // replaces the selection, so selecting moves nothing up or down.
+  const carets = new Set<number>();
+  for (const r of view.state.selection.ranges) if (r.empty) carets.add(doc.lineAt(r.head).number);
   for (const { from, to } of view.visibleRanges) {
     for (const [n, kind] of blankGaps(doc, tree, from, to, fmEnd)) {
-      if (active.has(n)) continue;
+      if (carets.has(n)) continue;
       const at = doc.line(n).from;
       out.push({ from: at, to: at, deco: Decoration.line({ class: kind === "gap" ? "cm-lp-gap" : "cm-lp-gap-extra" }) });
     }
@@ -506,6 +510,9 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
             out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-hr-line" }) });
             hide(node.from, node.to);
           } else {
+            // Its source, in the drawn rule's own height: the caret or a
+            // selection on it moves nothing up or down.
+            out.push({ from: line.from, to: line.from, deco: Decoration.line({ class: "cm-lp-hr-src" }) });
             out.push({ from: node.from, to: node.to, deco: Decoration.mark({ class: "cm-lp-hr" }) });
           }
         }

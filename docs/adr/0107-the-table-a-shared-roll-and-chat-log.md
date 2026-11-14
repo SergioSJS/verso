@@ -24,7 +24,7 @@
   [0083](0083-security-hardening-of-universo.md) (bounds, pacing, hostile
   input), [0084](0084-notifications-in-the-window.md) (notifications per
   kind), [0087](0087-secret-blocks-hidden-from-readers.md) (what a reader is not served),
-  [0096](0096-this-app-is-a-server.md) (the desktop serving its folder),
+  [0096](archive/0096-this-app-is-a-server.md) (the desktop serving its folder),
   [0101](0101-3d-dice-physics-overlay.md) (3D dice),
   [0102](0102-creative-oracles-and-improvisation.md) (oracle draws),
   [0103](0103-feature-presets-and-capability-flags.md) (feature switches),
@@ -188,7 +188,7 @@ author's recommendation, accepted as built on 2026-10-28 (see "Status").
    browser and in the desktop app connected to it; in a synced folder
    while the server is reachable, as a note joins its room under
    [0082](0082-live-co-editing-of-a-synced-folder.md); on a desktop
-   serving its folder ([0096](0096-this-app-is-a-server.md)), the desktop
+   serving its folder ([0096](archive/0096-this-app-is-a-server.md)), the desktop
    is the server and holds the table. In a folder of the computer, alone,
    the panel shows your own rolls of this run, as Rolai's local history,
    and says it is not shared.
@@ -718,7 +718,7 @@ written.
 amendment is now *Send files*.
 
 Accepted (2026-10-28); was Proposed (2026-10-21). Items 2, 3, 5, 7, 10 and 11 decided by the
-maintainer on 2026-10-21 (`~/Projects/person/apps/verso-decisoes-0107-mesa-2026-10-21.md`,
+maintainer on 2026-10-21 (`~/Projects/person/apps/verso-archive/decisoes-2026-10/verso-decisoes-0107-mesa-2026-10-21.md`,
 outside the repository); the three questions those answers opened —
 where an image goes (item 3), where the log is saved (item 5), deleting
 one entry (item 6) — decided the same day as recommended. Items marked

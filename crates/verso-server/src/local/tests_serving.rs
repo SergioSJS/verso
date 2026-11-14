@@ -25,6 +25,7 @@ fn a_phone_is_paired_asked_about_and_then_reads_its_folder() {
         assert_eq!(state["account"], Value::Null);
         assert_eq!(state["local"], true);
         assert_eq!(state["secure"], true);
+        assert_eq!(state["pairing"], true, "the network's door pairs");
         let (status, _) = lab.get("/api/folders", None).await;
         assert_eq!(status, 401);
         let cookie = lab
@@ -189,8 +190,11 @@ fn a_host_that_is_not_ours_is_refused() {
     });
 }
 
-/// There is no sign-in, no account page, no token and no console here: a
-/// phone gets in by pairing and by nothing else.
+/// No setup, no token, no console here, and a phone has none of an
+/// account's routes: it gets in by pairing and by nothing else. (The
+/// sign-in is here since ADR 0117 D3 item 2, and the device flow since D9's
+/// S11, for a person invited; `tests_accounts.rs` and `tests_devices.rs`
+/// have their rules.)
 #[test]
 fn the_routes_of_a_server_with_accounts_are_not_here() {
     run(async {
@@ -198,7 +202,6 @@ fn the_routes_of_a_server_with_accounts_are_not_here() {
         lab.serve();
         let cookie = lab.pair("iPhone", true, Role::Editor).await.unwrap();
         for (method, path) in [
-            ("POST", "/api/signin"),
             ("POST", "/api/setup"),
             ("POST", "/api/forgot"),
             ("GET", "/api/me/tokens"),
@@ -231,8 +234,9 @@ fn the_routes_of_a_server_with_accounts_are_not_here() {
     });
 }
 
-/// A bearer token or a device session opens nothing here, whatever it is:
-/// the only credential is a paired phone's cookie.
+/// A phone's session presented as a bearer, or a token no one made, opens
+/// nothing: a phone's credential is its cookie. (An invited account's
+/// device does open its folders: `tests_devices.rs`.)
 #[test]
 fn a_bearer_credential_opens_nothing() {
     run(async {
@@ -668,7 +672,9 @@ fn a_peer_off_the_subnet_is_refused_at_the_door() {
     }
 }
 
-/// Item 13: 64 connections in all and 16 from one address on a laptop.
+/// Item 13: 64 connections in all and 16 from one address on a laptop;
+/// the network leaves the last places to the owner's window (ADR 0117 D4
+/// Q3, `listen::LOCAL_SEAT_KEPT`).
 #[test]
 fn a_laptop_holds_fewer_connections_than_a_host() {
     let events: super::Sink = std::sync::Arc::new(|_| {});
@@ -684,7 +690,10 @@ fn a_laptop_holds_fewer_connections_than_a_host() {
     let others: Vec<_> = (2..=60)
         .filter_map(|n| slots.take(format!("192.168.1.{n}").parse().unwrap()))
         .collect();
-    assert_eq!(held.len() + others.len().min(48), 64);
+    assert_eq!(
+        held.len() + others.len(),
+        crate::listen::LOCAL_CONNECTIONS - crate::listen::LOCAL_SEAT_KEPT
+    );
     drop(others);
     drop(held);
 }
@@ -1275,4 +1284,81 @@ fn a_paired_phones_role_changes_at_once() {
         );
         assert!(lab.local.set_phone_role("nobody", true).is_err());
     });
+}
+
+/// Pairing on a machine whose only served address is loopback — the
+/// tests' — announces nothing: mDNS would open its socket on every address
+/// of the machine, and the macOS firewall asked about each new test binary
+/// (2026-11-04). A computer that serves listens on a private address and
+/// announces there, as before.
+#[test]
+fn pairing_on_loopback_alone_announces_nothing_on_the_network() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        lab.local.pair_open().unwrap();
+        let running = super::lock(&lab.local.shared.inner);
+        let policy = &running.as_ref().unwrap().policy;
+        assert!(super::lock(&policy.announcer).is_none());
+    });
+}
+
+/// iOS takes an app's listening socket while the device is locked (ADR
+/// 0119 B12/A2): the app back on the screen finds its port closed and
+/// listens again, on the same port, and the section says so; serving
+/// turned off or on by hand forgets it.
+#[test]
+fn a_server_whose_port_is_gone_listens_again_on_the_same_port() {
+    let mut lab = lab();
+    lab.serve();
+    assert_eq!(lab.local.listening(), Some(true));
+    let status = lab.local.listen_again().unwrap();
+    assert!(status.serving && status.listened_again);
+    assert_eq!(status.port, Some(lab.port));
+    assert_eq!(lab.local.listening(), Some(true));
+    lab.local.stop();
+    assert_eq!(lab.local.listening(), None);
+    assert!(!lab.local.status().unwrap().listened_again);
+    assert!(!lab.local.start().unwrap().listened_again);
+}
+
+/// iOS may end the app while it serves, off the screen (ADR 0119 B12/A2;
+/// the maintainer's iPad, a lock, 2026-11-12): a start soon after resumes
+/// serving when the app is on the screen (ADR 0096 item 1 amended for
+/// iOS, "bora"); later, serving stays off and says why, once. A stop by
+/// hand forgets the wish.
+#[test]
+fn an_app_ended_while_serving_resumes_soon_after_and_says_so_later() {
+    let ten = std::time::Duration::from_secs(600);
+    let mut lab = lab();
+    lab.serve();
+    lab.local.set_wanted(true).unwrap();
+    lab.local.mark_away();
+    // The system's end: the listeners go, the wish and the time stay.
+    lab.local.stop();
+    assert_eq!(lab.local.ended_while_serving(ten), Some(true));
+    assert!(
+        lab.local.take_resume() && !lab.local.take_resume(),
+        "taken once"
+    );
+    let back = lab.local.listen_again().unwrap();
+    assert!(back.serving && back.listened_again);
+    assert_eq!(back.port, Some(lab.port));
+    // Gone too long: off, said once.
+    lab.local.mark_away();
+    lab.local.stop();
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    assert_eq!(
+        lab.local.ended_while_serving(std::time::Duration::ZERO),
+        Some(false)
+    );
+    let status = lab.local.status().unwrap();
+    assert!(!status.serving);
+    assert_eq!(
+        status.stopped_because.as_deref(),
+        Some(super::ENDED_OFF_SCREEN)
+    );
+    assert_eq!(lab.local.ended_while_serving(ten), None, "said once");
+    lab.local.set_wanted(false).unwrap();
+    assert_eq!(lab.local.ended_while_serving(ten), None);
 }

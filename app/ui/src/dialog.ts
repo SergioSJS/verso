@@ -8,6 +8,8 @@
 // promise — read as yes. Here only the yes button means yes: Escape,
 // the other button, a click outside or Enter anywhere else mean no.
 
+import { focusOnOpen } from "./screen/openFocus";
+
 export type AskOptions = {
   /** The button that means yes: what will happen. */
   yes: string;
@@ -179,7 +181,7 @@ function showPrompt(label: string, initial: string, multiline: boolean, opts: As
       }
     };
     const onFocus = (e: FocusEvent) => {
-      if (!box.contains(e.target as Node)) field.focus();
+      if (!box.contains(e.target as Node)) focusOnOpen(field);
     };
     yes.addEventListener("click", () => finish(field.value));
     no.addEventListener("click", () => finish(null));
@@ -192,7 +194,6 @@ function showPrompt(label: string, initial: string, multiline: boolean, opts: As
     document.addEventListener("keydown", onKey, true);
     document.addEventListener("focusin", onFocus, true);
     document.body.append(shade);
-    field.focus();
-    field.select();
+    focusOnOpen(field, { select: true });
   });
 }

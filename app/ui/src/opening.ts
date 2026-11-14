@@ -6,6 +6,7 @@ import { commands, type ContractError } from "./bindings";
 import { ui } from "./dom";
 import { isTransport } from "./errorKinds";
 import { fail } from "./errors";
+import { allEntries } from "./folder";
 import { name } from "./paths";
 import { t } from "./strings";
 
@@ -28,6 +29,48 @@ export async function fetchFirst(path: string): Promise<boolean> {
   }
   if (ui.status.textContent === said) ui.status.textContent = was === said ? "" : was;
   return r.data;
+}
+/** Any action the user takes on a file brings it down first (the
+ *  maintainer, 2026-11-11: "qualquer interação que um arquivo receba, ele
+ *  deveria baixar esse arquivo"): moving, renaming, deleting. Only the
+ *  entries the listing says are placeholders are asked for, so a folder
+ *  with no file in the cloud (and the web, which has none) asks nothing;
+ *  a folder itself moves whole with what is inside it (ADR 0048). Answers
+ *  false, with the status saying which, when one could not come down. */
+export async function fetchAll(paths: string[]): Promise<boolean> {
+  const cloud = paths.filter((p) => allEntries.get(p)?.kind === "placeholder");
+  if (cloud.length === 0) return true;
+  if (cloud.length === 1) {
+    const r = await commands.fetchFile(cloud[0]!);
+    if (r.status === "ok") return true;
+    if (r.error.kind === "unavailable" && !isTransport(r.error)) ui.status.textContent = t.fetchFailed(name(cloud[0]!));
+    else fail(r.error);
+    return false;
+  }
+  const said = t.fetchingMany(cloud.length);
+  const timer = window.setTimeout(() => (ui.status.textContent = said), 150);
+  const answers = await Promise.all(cloud.map(async (p) => ({ p, r: await commands.fetchFile(p) })));
+  window.clearTimeout(timer);
+  const failed = answers.filter((a) => a.r.status !== "ok").map((a) => name(a.p));
+  if (failed.length > 0) {
+    ui.status.textContent = t.fetchFailed(failed.join(", "));
+    return false;
+  }
+  if (ui.status.textContent === said) ui.status.textContent = "";
+  return true;
+}
+/** The notes that link to what moves are read by the move's link plan,
+ *  which leaves out one still in the cloud: they come down first too (the
+ *  maintainer, 2026-11-12). Asked only when the folder has a file in the
+ *  cloud at all; one that cannot come down is skipped and named by the
+ *  plan, as before, and never stops the move. */
+export async function fetchLinkers(paths: string[]): Promise<void> {
+  if (![...allEntries.values()].some((e) => e.kind === "placeholder")) return;
+  const moved = [...allEntries.keys()].filter((k) => paths.some((p) => k === p || k.startsWith(`${p}/`)));
+  const answers = await Promise.all(moved.map((p) => commands.backlinks(p)));
+  const linkers = new Set<string>();
+  for (const r of answers) if (r.status === "ok") for (const b of r.data) linkers.add(b.from);
+  if (linkers.size > 0) await fetchAll([...linkers]);
 }
 /** The paths of the tabs a workspace is bringing back, for as long as it
  *  does: a tab of one of them, not in front of its pane, reads without

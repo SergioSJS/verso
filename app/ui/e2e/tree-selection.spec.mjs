@@ -80,6 +80,65 @@ test("a selection dragged onto a folder moves together, in one call", async ({ a
   await expect.poll(() => selected(app)).toEqual(["Zona/Destino/Ma.md", "Zona/Destino/Mb.md"]);
 });
 
+const menuEdit = (app, command) => app.page.evaluate((c) => window.__harness.emit("menu-edit", [window.__TAURI_INTERNALS__?.metadata?.currentWindow?.label ?? "main", c]), command);
+
+test("⌘Z takes back the last move, ⌘⇧Z does it again (backlog 2026-11-02)", async ({ app }) => {
+  await folderOf(app, { "Zona/Destino/Fica.md": "fica\n", "Zona/Ma.md": "a\n", "Zona/Mb.md": "b\n" });
+  await folderRow(app, "Zona").evaluate((s) => {
+    const d = s.parentElement;
+    d.open = true;
+    d.dispatchEvent(new Event("toggle"));
+  });
+  await row(app, "Zona/Ma.md").scrollIntoViewIfNeeded();
+  await row(app, "Zona/Ma.md").click();
+  await row(app, "Zona/Mb.md").click({ modifiers: ["Meta"] });
+  await dragOnto(app, row(app, "Zona/Mb.md"), folderRow(app, "Zona/Destino"));
+  await expect.poll(() => app.files()).toEqual(expect.arrayContaining(["Zona/Destino/Ma.md", "Zona/Destino/Mb.md"]));
+  // Undo: both go back where they were, together.
+  await menuEdit(app, "undo");
+  await expect.poll(() => app.files()).toEqual(expect.arrayContaining(["Zona/Ma.md", "Zona/Mb.md"]));
+  expect(await app.files()).not.toContain("Zona/Destino/Ma.md");
+  await expect(app.page.locator("#status")).toContainText(/Movimento desfeito|Move undone/);
+  // Redo: they move again; a second undo takes them back again.
+  await menuEdit(app, "redo");
+  await expect.poll(() => app.files()).toEqual(expect.arrayContaining(["Zona/Destino/Ma.md", "Zona/Destino/Mb.md"]));
+  // Two ⌘Z in a row, the second before the first's move ends: one move
+  // back, never a move forward again.
+  const before = (await app.calls("move_entries")).length;
+  await menuEdit(app, "undo");
+  await menuEdit(app, "undo");
+  await expect.poll(() => app.files()).toEqual(expect.arrayContaining(["Zona/Ma.md", "Zona/Mb.md"]));
+  await app.page.waitForTimeout(300);
+  expect((await app.calls("move_entries")).length).toBe(before + 1);
+  expect(await app.files()).not.toContain("Zona/Destino/Ma.md");
+  // Nothing left to undo: a third ⌘Z moves nothing.
+  const calls = (await app.calls("move_entries")).length;
+  await menuEdit(app, "undo");
+  await app.page.waitForTimeout(200);
+  expect((await app.calls("move_entries")).length).toBe(calls);
+});
+
+test("once a note's editor has had the focus, ⌘Z is the note's, not the move's", async ({ app }) => {
+  await folderOf(app, { "Zona/Destino/Fica.md": "fica\n", "Zona/Ma.md": "a\n" });
+  await folderRow(app, "Zona").evaluate((s) => {
+    const d = s.parentElement;
+    d.open = true;
+    d.dispatchEvent(new Event("toggle"));
+  });
+  await row(app, "Zona/Ma.md").scrollIntoViewIfNeeded();
+  await row(app, "Zona/Ma.md").click();
+  await dragOnto(app, row(app, "Zona/Ma.md"), folderRow(app, "Zona/Destino"));
+  await expect.poll(() => app.files()).toContain("Zona/Destino/Ma.md");
+  // The moved note opened in Editar, the caret in it.
+  await app.quickOpen("Ma");
+  await app.key("Mod+e");
+  await app.page.locator(".editor.live .cm-content").click();
+  await expect(app.page.locator(".editor.live .cm-content")).toBeFocused();
+  await menuEdit(app, "undo");
+  await app.page.waitForTimeout(300);
+  expect(await app.files()).toContain("Zona/Destino/Ma.md");
+});
+
 test("links written by path get one rewrite for the whole selection", async ({ app }) => {
   await folderOf(app, {
     "Velha/Pa.md": "a\n",

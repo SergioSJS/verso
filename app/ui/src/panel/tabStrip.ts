@@ -261,6 +261,9 @@ export class TabStrip {
       const i = shownTabs.indexOf(b);
       const id = b.dataset["tab"] ?? "";
       const items: MenuItem[] = [];
+      // A finger's long press: the tab's name first, as no pointer hovers for
+      // its title on a phone (the tabs are icons there); choosing it opens the tab.
+      if (matchMedia("(hover: none)").matches) items.push([b.title || b.getAttribute("aria-label") || id, () => this.choose(id), b.dataset["icon"] ?? ""]);
       if (i > 0) items.push([t.tabLeft, () => this.move(b, -1), "chevronLeft"]);
       if (i >= 0 && i < shownTabs.length - 1) items.push([t.tabRight, () => this.move(b, 1), "chevronRight"]);
       items.push([w.hide, () => this.setShown(id, false), "eyeOff"]);

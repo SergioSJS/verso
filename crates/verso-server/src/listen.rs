@@ -43,6 +43,51 @@ pub const LOCAL_CONNECTIONS: usize = 64;
 /// …and 16 from one address.
 pub const LOCAL_PER_ADDRESS: u32 = 16;
 
+/// The connections the internet link's listener holds (ADR 0117 D3 item
+/// 3): places of its own, beside the 64 and never among them, so that the
+/// link, however busy, takes none of the network's or the seat's. Every one
+/// comes from `cloudflared` on this machine, which opens a connection to
+/// it per request in flight and keeps them alive: a player's window loading
+/// cold asks some 74 files, about 50 of them at once, and Cloudflare holds
+/// at most 200 requests in flight through a quick link. 256 is the most
+/// Cloudflare sends, with room for the connections `cloudflared` keeps
+/// idle. Fairness among the players is not counted here — one peer speaks
+/// for all of them — but by the address the tunnel forwards (the requests
+/// in flight, `crate::http`'s `guard`; the pace, `pace`) and by account and
+/// read link (their WebSockets, `crate::fair`). Past the 256 the next
+/// connection waits in the system's queue for one to close, and is never
+/// refused: `cloudflared` would answer a refused one with a 502 (the test
+/// of 2026-11-04). How long that queue is on each system:
+/// `crate::local::link`'s `bind`. `[OPEN]` for the maintainer: 256.
+pub const LOCAL_LINK: usize = 256;
+
+// Five players' cold loads at once, some 50 files in flight each.
+const _: () = assert!(LOCAL_LINK >= 5 * 50);
+
+/// How long a connection of the link's listener waits, idle, for its next
+/// request before it is closed — and how long a request's headers may take
+/// on it: `cloudflared` sends them whole at once. Short, so that the
+/// connections a page's load left open are given back in seconds, not
+/// after the [`HEADERS_WITHIN`] of the network's listener (30 were seen
+/// open 18 s after a load). `[OPEN]` for the maintainer: 5 s.
+#[cfg(not(test))]
+pub const LINK_IDLE: Duration = Duration::from_secs(5);
+#[cfg(test)]
+pub const LINK_IDLE: Duration = Duration::from_millis(500);
+
+/// How long a request under way on the link's listener may take to be
+/// answered once the link is turned off; past it its connection is dropped
+/// unanswered. Off is off: `LocalServer::link_close` returns once every
+/// connection of the link is closed, and waits at most this. `[OPEN]` for
+/// the maintainer: 1 s.
+pub const LINK_GRACE: Duration = Duration::from_secs(1);
+
+/// Of the 64, the places the network leaves to the owner's window at the
+/// table (the seat, ADR 0117 D4 Q3), which counts against the 64 alone:
+/// the owner still sits down with every other place taken. `[OPEN]` for
+/// the maintainer: 8.
+pub const LOCAL_SEAT_KEPT: usize = 8;
+
 /// How long a request's headers may take to arrive, the wait for the next
 /// request on a kept-alive connection included: hyper's own default, which
 /// it applies only with a timer. A client that sends a byte at a time
@@ -65,7 +110,12 @@ pub const HEAD_MOST: usize = 64 * 1024;
 /// The connections held, on the server and by address.
 pub struct Slots {
     all: Arc<Semaphore>,
-    most: usize,
+    /// What a refusal for want of one of `all` says in the log.
+    full: String,
+    /// Further bounds a connection of this listener counts against too,
+    /// each with its words for the log: on a laptop, the network's (all but
+    /// [`LOCAL_SEAT_KEPT`]). None on a server.
+    shares: Vec<Share>,
     by_address: Mutex<HashMap<String, u32>>,
     per_address: u32,
     trusted: crate::proxy::Proxies,
@@ -80,10 +130,26 @@ pub struct Slots {
 /// The test of a peer's address, answered true to let it in.
 pub type Admit = Arc<dyn Fn(IpAddr) -> bool + Send + Sync>;
 
+/// A bound beside the server's: its places, and what it is in the log.
+#[derive(Clone)]
+struct Share {
+    places: Arc<Semaphore>,
+    what: String,
+}
+
+impl Share {
+    fn new(most: usize, what: &str) -> Self {
+        Self {
+            places: Arc::new(Semaphore::new(most)),
+            what: format!("{what} hold {most} connections"),
+        }
+    }
+}
+
 /// A connection's place, given back when its socket closes — after a
 /// WebSocket's end, since it travels with the socket ([`Counted`]).
 pub struct Slot {
-    _all: OwnedSemaphorePermit,
+    _all: Vec<OwnedSemaphorePermit>,
     address: Option<(Arc<Slots>, String)>,
 }
 
@@ -112,7 +178,8 @@ impl Slots {
     pub fn bounded(trusted: crate::proxy::Proxies, most: usize, per_address: u32) -> Arc<Self> {
         Arc::new(Self {
             all: Arc::new(Semaphore::new(most)),
-            most,
+            full: format!("the server holds {most} connections"),
+            shares: Vec::new(),
             by_address: Mutex::new(HashMap::new()),
             per_address,
             trusted,
@@ -124,12 +191,17 @@ impl Slots {
     /// The bounds of a laptop that serves, and who may connect (ADR 0096
     /// items 3 and 13): 64 connections in all, 16 per address, and only
     /// the peers `admit` lets in — refused before a place is taken or a
-    /// byte is read.
+    /// byte is read. The network's listener leaves [`LOCAL_SEAT_KEPT`] to
+    /// the seat.
     #[must_use]
     pub fn for_local(admit: Admit) -> Arc<Self> {
         Arc::new(Self {
             all: Arc::new(Semaphore::new(LOCAL_CONNECTIONS)),
-            most: LOCAL_CONNECTIONS,
+            full: format!("the server holds {LOCAL_CONNECTIONS} connections"),
+            shares: vec![Share::new(
+                LOCAL_CONNECTIONS - LOCAL_SEAT_KEPT,
+                "the network's listeners",
+            )],
             by_address: Mutex::new(HashMap::new()),
             per_address: LOCAL_PER_ADDRESS,
             trusted: crate::proxy::Proxies::default(),
@@ -138,9 +210,88 @@ impl Slots {
         })
     }
 
+    /// The internet link's listener beside these (ADR 0117 D3 item 3):
+    /// `own` places of its own, none of the 64 — the link, however busy,
+    /// leaves the network and the seat theirs — with its own test of who
+    /// may connect: loopback alone, where `cloudflared` runs. Its
+    /// connections wait for a place ([`Self::place`]) rather than being
+    /// refused.
+    #[must_use]
+    pub fn beside(self: &Arc<Self>, admit: Admit, own: usize) -> Arc<Self> {
+        Arc::new(Self {
+            all: Arc::new(Semaphore::new(own)),
+            full: format!(
+                "the internet link's listener holds {own} connections; the next waits for one to close"
+            ),
+            shares: Vec::new(),
+            by_address: Mutex::new(HashMap::new()),
+            per_address: self.per_address,
+            trusted: self.trusted.clone(),
+            admit: Some(admit),
+            said: Mutex::new(None),
+        })
+    }
+
+    /// The owner's window's door beside these (ADR 0117 D4 Q3): the 64
+    /// alone, so it has the places the other listeners leave it.
+    #[must_use]
+    pub fn for_seat(self: &Arc<Self>, admit: Admit) -> Arc<Self> {
+        self.with(admit, Vec::new())
+    }
+
+    fn with(self: &Arc<Self>, admit: Admit, shares: Vec<Share>) -> Arc<Self> {
+        Arc::new(Self {
+            all: Arc::clone(&self.all),
+            full: self.full.clone(),
+            shares,
+            by_address: Mutex::new(HashMap::new()),
+            per_address: self.per_address,
+            trusted: self.trusted.clone(),
+            admit: Some(admit),
+            said: Mutex::new(None),
+        })
+    }
+
     /// A place for a connection from `ip`, or none — the connection is
     /// then closed before anything is read from it.
     pub fn take(self: &Arc<Self>, ip: IpAddr) -> Option<Slot> {
+        if !self.admits(ip) {
+            return None;
+        }
+        let Ok(first) = Arc::clone(&self.all).try_acquire_owned() else {
+            self.refused(&self.full);
+            return None;
+        };
+        self.take_with(first, ip)
+    }
+
+    /// One of this listener's own places, waited for while every one is
+    /// held: taken before a connection is accepted, so that the next waits
+    /// in the system's queue (the internet link's, [`Self::beside`]).
+    pub async fn place(self: &Arc<Self>) -> OwnedSemaphorePermit {
+        if let Ok(place) = Arc::clone(&self.all).try_acquire_owned() {
+            return place;
+        }
+        self.refused(&self.full);
+        loop {
+            if let Ok(place) = Arc::clone(&self.all).acquire_owned().await {
+                return place;
+            }
+            // Never closed; were it, nothing would be accepted again.
+            std::future::pending::<()>().await;
+        }
+    }
+
+    /// A connection from `ip` with its place among all already held
+    /// ([`Self::place`]), or none.
+    pub fn take_placed(self: &Arc<Self>, first: OwnedSemaphorePermit, ip: IpAddr) -> Option<Slot> {
+        if !self.admits(ip) {
+            return None;
+        }
+        self.take_with(first, ip)
+    }
+
+    fn admits(&self, ip: IpAddr) -> bool {
         if let Some(admit) = &self.admit
             && !admit(ip)
         {
@@ -148,12 +299,20 @@ impl Slots {
                 "{} is not on a network this computer serves",
                 crate::limit::address_key(ip)
             ));
-            return None;
+            return false;
         }
-        let Ok(all) = Arc::clone(&self.all).try_acquire_owned() else {
-            self.refused(&format!("the server holds {} connections", self.most));
-            return None;
-        };
+        true
+    }
+
+    fn take_with(self: &Arc<Self>, first: OwnedSemaphorePermit, ip: IpAddr) -> Option<Slot> {
+        let mut all = vec![first];
+        for share in &self.shares {
+            let Ok(place) = Arc::clone(&share.places).try_acquire_owned() else {
+                self.refused(&share.what);
+                return None;
+            };
+            all.push(place);
+        }
         if ip.is_loopback() || self.trusted.trusts(ip) {
             return Some(Slot {
                 _all: all,
@@ -283,18 +442,54 @@ pub trait Incoming: Send + 'static {
     type Io: AsyncRead + AsyncWrite + Unpin + Send + 'static;
     fn accept(&mut self) -> impl Future<Output = (Counted<Self::Io>, SocketAddr)> + Send;
     fn local_addr(&self) -> std::io::Result<SocketAddr>;
+    /// How long a connection waits, idle, for its next request, and a
+    /// request's headers may take: [`HEADERS_WITHIN`] but on the link's.
+    fn idle(&self) -> Duration {
+        HEADERS_WITHIN
+    }
+    /// Once serving stops, how long a request under way may take before its
+    /// connection is dropped. None, but on the link's ([`LINK_GRACE`]): a
+    /// request under way is let finish however long it takes.
+    fn grace(&self) -> Option<Duration> {
+        None
+    }
 }
 
-/// Plain TCP: a connection without a place is closed at once.
+/// Plain TCP: a connection without a place is closed at once — or, on
+/// the internet link's listener ([`Self::for_link`]), waits for one.
 pub struct Plain {
     tcp: TcpListener,
     slots: Arc<Slots>,
+    idle: Duration,
+    waits: bool,
+    grace: Option<Duration>,
 }
 
 impl Plain {
     #[must_use]
     pub fn new(tcp: TcpListener, slots: Arc<Slots>) -> Self {
-        Self { tcp, slots }
+        Self {
+            tcp,
+            slots,
+            idle: HEADERS_WITHIN,
+            waits: false,
+            grace: None,
+        }
+    }
+
+    /// The internet link's listener (ADR 0117 D3 item 3): a connection
+    /// past its places waits for one, an idle one is closed after
+    /// [`LINK_IDLE`], and once it stops a request under way has
+    /// [`LINK_GRACE`].
+    #[must_use]
+    pub fn for_link(tcp: TcpListener, slots: Arc<Slots>) -> Self {
+        Self {
+            tcp,
+            slots,
+            idle: LINK_IDLE,
+            waits: true,
+            grace: Some(LINK_GRACE),
+        }
     }
 }
 
@@ -303,9 +498,18 @@ impl Incoming for Plain {
 
     async fn accept(&mut self) -> (Counted<Self::Io>, SocketAddr) {
         loop {
+            let placed = if self.waits {
+                Some(self.slots.place().await)
+            } else {
+                None
+            };
             match self.tcp.accept().await {
                 Ok((io, addr)) => {
-                    if let Some(slot) = self.slots.take(addr.ip()) {
+                    let slot = match placed {
+                        Some(first) => self.slots.take_placed(first, addr.ip()),
+                        None => self.slots.take(addr.ip()),
+                    };
+                    if let Some(slot) = slot {
                         return (Counted { io, _slot: slot }, addr);
                     }
                 }
@@ -320,6 +524,14 @@ impl Incoming for Plain {
     fn local_addr(&self) -> std::io::Result<SocketAddr> {
         self.tcp.local_addr()
     }
+
+    fn idle(&self) -> Duration {
+        self.idle
+    }
+
+    fn grace(&self) -> Option<Duration> {
+        self.grace
+    }
 }
 
 impl<T> Counted<T> {
@@ -329,8 +541,10 @@ impl<T> Counted<T> {
     }
 }
 
-/// Serve `app` on `listener` until `stop` resolves; then the connections
-/// under way finish their requests and close.
+/// Serve `app` on `listener` until `stop` resolves; then the port closes
+/// at once, and the connections under way finish their requests (within
+/// the listener's [`Incoming::grace`], if it has one) and close, an idle
+/// one at once. Returns once every one of them is closed.
 pub async fn serve<L: Incoming>(
     mut listener: L,
     app: axum::Router,
@@ -338,6 +552,8 @@ pub async fn serve<L: Incoming>(
 ) {
     let (stopping, stopped) = watch::channel(false);
     let (open, all_closed) = watch::channel(());
+    let idle = listener.idle();
+    let grace = listener.grace();
     tokio::pin!(stop);
     loop {
         let (io, addr) = tokio::select! {
@@ -356,25 +572,38 @@ pub async fn serve<L: Incoming>(
         let mut stopped = stopped.clone();
         let closed = all_closed.clone();
         tokio::spawn(async move {
-            let mut builder = hyper::server::conn::http1::Builder::new();
-            builder
-                .timer(TokioTimer::new())
-                .header_read_timeout(HEADERS_WITHIN)
-                .max_buf_size(HEAD_MOST);
-            let conn = builder
-                .serve_connection(TokioIo::new(io), service)
-                .with_upgrades();
-            tokio::pin!(conn);
-            tokio::select! {
-                _ = conn.as_mut() => {}
-                _ = stopped.changed() => {
-                    conn.as_mut().graceful_shutdown();
-                    let _ = conn.as_mut().await;
+            // The connection, its socket with it, is dropped at the end of
+            // this block, before `closed` says so.
+            {
+                let mut builder = hyper::server::conn::http1::Builder::new();
+                builder
+                    .timer(TokioTimer::new())
+                    .header_read_timeout(idle)
+                    .max_buf_size(HEAD_MOST);
+                let conn = builder
+                    .serve_connection(TokioIo::new(io), service)
+                    .with_upgrades();
+                tokio::pin!(conn);
+                tokio::select! {
+                    _ = conn.as_mut() => {}
+                    _ = stopped.changed() => {
+                        conn.as_mut().graceful_shutdown();
+                        match grace {
+                            Some(within) => {
+                                let _ = tokio::time::timeout(within, conn.as_mut()).await;
+                            }
+                            None => {
+                                let _ = conn.as_mut().await;
+                            }
+                        }
+                    }
                 }
             }
             drop(closed);
         });
     }
+    // The port closes now, not once the connections under way have ended.
+    drop(listener);
     let _ = stopping.send(true);
     drop(all_closed);
     open.closed().await;
@@ -410,5 +639,71 @@ mod tests {
         );
         let held: Vec<_> = (0..4).filter_map(|_| trusted.take(a)).collect();
         assert_eq!(held.len(), 4, "the trusted proxy speaks for everyone");
+    }
+
+    /// On a laptop (ADR 0117 D3 item 3, D4 Q3): the link's listener, whose
+    /// connections all come from `cloudflared` on loopback, has places of
+    /// its own — a cold load's worth for several players — and with every
+    /// one held the network still has all of its, and the seat its own.
+    #[test]
+    fn the_link_has_its_own_places_and_leaves_the_network_and_the_seat_theirs() {
+        let network = Slots::for_local(Arc::new(|ip: IpAddr| !ip.is_loopback()));
+        let link = network.beside(Arc::new(|ip: IpAddr| ip.is_loopback()), LOCAL_LINK);
+        let seat = network.for_seat(Arc::new(|ip: IpAddr| ip.is_loopback()));
+        let here = IpAddr::from([127, 0, 0, 1]);
+        let by_link: Vec<_> = (0..LOCAL_LINK + 10)
+            .filter_map(|_| link.take(here))
+            .collect();
+        assert_eq!(by_link.len(), LOCAL_LINK, "the link's places, and no more");
+        assert!(
+            link.take("192.168.1.77".parse().unwrap()).is_none(),
+            "loopback alone"
+        );
+        // The link full, the network has every place it had…
+        let by_network: Vec<_> = (2..=60)
+            .flat_map(|n| {
+                let ip: IpAddr = format!("192.168.1.{n}").parse().unwrap();
+                (0..4).filter_map(|_| network.take(ip)).collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(by_network.len(), LOCAL_CONNECTIONS - LOCAL_SEAT_KEPT);
+        // …and the seat still has its places, the last of the 64.
+        let sat: Vec<_> = (0..LOCAL_CONNECTIONS)
+            .filter_map(|_| seat.take(here))
+            .collect();
+        assert_eq!(sat.len(), LOCAL_SEAT_KEPT);
+        assert!(network.take("192.168.1.99".parse().unwrap()).is_none());
+        drop(by_link);
+        assert!(
+            link.take(here).is_some(),
+            "a place given back is taken again"
+        );
+        drop((by_network, sat));
+    }
+
+    /// The link's listener waits for a place rather than refusing: the
+    /// next connection is accepted once one closes.
+    #[test]
+    fn a_link_connection_past_the_places_waits_for_one() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            let network = Slots::for_local(Arc::new(|_: IpAddr| true));
+            let link = network.beside(Arc::new(|ip: IpAddr| ip.is_loopback()), 2);
+            let here = IpAddr::from([127, 0, 0, 1]);
+            let one = link.take_placed(link.place().await, here).unwrap();
+            let _two = link.take_placed(link.place().await, here).unwrap();
+            let waiting = tokio::spawn({
+                let link = Arc::clone(&link);
+                async move { link.place().await }
+            });
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            assert!(!waiting.is_finished(), "it waits while both are held");
+            drop(one);
+            let third = tokio::time::timeout(Duration::from_secs(1), waiting).await;
+            assert!(matches!(third, Ok(Ok(_))), "taken once one closes");
+        });
     }
 }

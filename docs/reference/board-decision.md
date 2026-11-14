@@ -5,7 +5,7 @@
   answers are in section 10 and recorded in
   [ADR 0057](../adr/0057-board-json-canvas.md). Sections 1 to 9 are the memo
   as the maintainer read it, options and recommendations labelled as such
-  ([ADR 0040](../adr/0040-board-persistence.md) said to decide persistence
+  ([ADR 0040](../adr/archive/0040-board-persistence.md) said to decide persistence
   "before the board").
 - Author: Opus 5.5 — of the documents, the role
   [ADR 0032](../adr/0032-author-and-reviewer-roles.md) gives "Opus 5"; and, by
@@ -30,7 +30,7 @@ Decided texts:
 |---|---|---|
 | [ADR 0024](../adr/0024-board-excalidraw.md) | the board uses Excalidraw (MIT) as a free annotation layer; tldraw discarded for its license | Accepted |
 | ADR 0024, Consequences | nodes are notes, edges are typed relations, a free arrow can be promoted to a typed relation | `PROPOSED` |
-| [ADR 0040](../adr/0040-board-persistence.md) | persistence: none; must fit Obsidian's `.canvas` and degradation to readable Markdown; extending JSON Canvas allowed, replacing it not | `[OPEN]` |
+| [ADR 0040](../adr/archive/0040-board-persistence.md) | persistence: none; must fit Obsidian's `.canvas` and degradation to readable Markdown; extending JSON Canvas allowed, replacing it not | `[OPEN]` |
 | [ADR 0035](../adr/0035-cross-cutting-requirements.md) | the board needs an equivalent accessible view, a list or table of the same notes and relations | `PROPOSED` |
 | [ADR 0034](../adr/0034-roadmap-in-phases.md), `docs/roadmap.md`, `CLAUDE.md` §2.5 | the board is out of scope until the end of Phase 2 | Accepted |
 | [ADR 0049](../adr/0049-phase-2-scope-widened.md) §3 | Excalidraw or the Obsidian canvas: asked for and not built | Accepted |

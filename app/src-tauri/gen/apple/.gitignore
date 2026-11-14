@@ -1,0 +1,6 @@
+xcuserdata/
+build/
+Externals/
+# The resources Tauri copies at each build (ui-web/): build output, as
+# Android's jniLibs.
+assets/

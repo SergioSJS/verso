@@ -32,7 +32,7 @@
   8, the device session; roles), [0026](0026-core-ui-contract-inviolable-rules.md)
   (rule 1, the UI only through the contract; rule 2, latency and
   availability from the capabilities; rule 3, types generated from Rust),
-  [0012](0012-files-are-source-of-truth.md), [0021](0021-sync-automerge-layered-config.md)
+  [0012](0012-files-are-source-of-truth.md), [0021](archive/0021-sync-automerge-layered-config.md)
   (revised by 0073: a CRDT is the mechanism of a live session, never the
   stored form of a note), [0044](0044-verso-fs-semantics.md) (the watcher),
   [0065](0065-a-folder-per-window.md) (a folder per window),

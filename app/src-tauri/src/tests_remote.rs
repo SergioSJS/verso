@@ -495,6 +495,10 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
         // This computer's shell, in the home directory (ADR 0115 Q4).
         "terminal",
         "audio_share",
+        // This app as a server (ADR 0119 A13): the desktop has all three.
+        "link",
+        "discover",
+        "serve_away",
         // An old server never says it: a folder window by default.
         "index",
         "search",
@@ -515,7 +519,95 @@ fn a_readers_capabilities_keep_the_apps_abilities_and_no_write() {
     }
     // Asked twice, nothing is added twice.
     remote::with_app_abilities(&mut caps);
-    assert_eq!(caps["can"].as_array().unwrap().len(), 9 + 11);
+    assert_eq!(caps["can"].as_array().unwrap().len(), 9 + 3 + 11);
+}
+
+/// The words of a server folder's window, as the app of a platform with
+/// `here` completes them.
+fn completed_for(here: &[verso_contract::Can]) -> Vec<String> {
+    let mut caps = json!({ "host": "server", "can": ["account", "collab"], "latency_ms": null });
+    crate::remote_abilities::with_abilities_of(&mut caps, here);
+    caps["can"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap().to_owned())
+        .collect()
+}
+
+/// The desktop's window on a server's folder is as before: every ability
+/// of the app, the app server's three included (ADR 0119 A13).
+#[test]
+fn the_desktops_server_folder_window_keeps_every_ability_of_the_app() {
+    let desk = completed_for(&crate::mobile::can_without(false, &[]));
+    for kept in [
+        "windows",
+        "web_views",
+        "updates",
+        "devtools",
+        "local_folders",
+        "terminal",
+        "audio_share",
+        "link",
+        "discover",
+        "serve_away",
+    ] {
+        assert!(desk.iter().any(|c| c == kept), "{kept} in {desk:?}");
+    }
+    assert_eq!(desk, completed_for(&crate::mobile::local_can(false)));
+}
+
+/// A phone's window on a server's folder offers only what the phone has:
+/// no terminal, second window or page inside a note on Android (ADR 0118
+/// item 5), and on iOS no updater, capture, link, mDNS or serving off the
+/// screen either (ADR 0119 B14, A13). The folder's abilities stay.
+#[test]
+fn a_phones_server_folder_window_offers_only_what_the_phone_has() {
+    let android = completed_for(&crate::mobile::can_without(
+        false,
+        crate::mobile::OFF_ON_ANDROID,
+    ));
+    for gone in ["terminal", "windows", "web_views"] {
+        assert!(!android.iter().any(|c| c == gone), "{gone} in {android:?}");
+    }
+    for kept in [
+        "updates",
+        "audio_share",
+        "devtools",
+        "local_folders",
+        "link",
+        "discover",
+        "serve_away",
+        "index",
+    ] {
+        assert!(android.iter().any(|c| c == kept), "{kept} in {android:?}");
+    }
+    let ios = completed_for(&crate::mobile::can_without(
+        false,
+        crate::mobile::OFF_ON_IOS,
+    ));
+    for gone in [
+        "terminal",
+        "windows",
+        "web_views",
+        "updates",
+        "audio_share",
+        "link",
+        "discover",
+        "serve_away",
+    ] {
+        assert!(!ios.iter().any(|c| c == gone), "{gone} in {ios:?}");
+    }
+    for kept in [
+        "devtools",
+        "local_folders",
+        "account",
+        "collab",
+        "index",
+        "board",
+    ] {
+        assert!(ios.iter().any(|c| c == kept), "{kept} in {ios:?}");
+    }
 }
 
 /// Plain HTTP is a server's address from any machine, not only this
@@ -532,4 +624,27 @@ fn http_is_a_servers_address_from_any_machine() {
     }
     assert!(crate::remote::server_url("ftp://notas.casa").is_err());
     assert!(crate::remote::server_url("notas.casa").is_err());
+}
+
+/// A server's answer that refuses what was asked (a 4xx: "no account has
+/// that e-mail: make an invitation link for them", which the share dialog
+/// turns into its invitation) is an answer, said in the log at INFO as the
+/// window says its answers; a server's own fault (5xx) stays an ERROR (the
+/// re-test of 2026-11-04). The window still gets the same refusal.
+#[test]
+fn a_servers_answer_is_no_error_in_the_log() {
+    assert_eq!(crate::reach::level_of_answer(400), "INFO");
+    assert_eq!(crate::reach::level_of_answer(409), "INFO");
+    assert_eq!(crate::reach::level_of_answer(429), "INFO");
+    assert_eq!(crate::reach::level_of_answer(500), "ERROR");
+    assert_eq!(crate::reach::level_of_answer(503), "ERROR");
+    let said = crate::remote::error_of(
+        400,
+        &serde_json::json!({ "error": "no_account", "message": "no account has that e-mail: make an invitation link for them" }),
+    );
+    assert_eq!(said.kind, verso_contract::ErrorKind::Failed);
+    assert_eq!(
+        said.message,
+        "no account has that e-mail: make an invitation link for them"
+    );
 }

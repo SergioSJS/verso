@@ -26,6 +26,8 @@ import { isServerTable, type TableSource } from "./model";
 import { ts } from "./trayStrings";
 import { dieIcon } from "./dieIcon";
 import { SavedRolls } from "./savedPanel";
+import { focusOnOpen } from "../screen/openFocus";
+import { PHONE_MEDIA } from "../screen/phone";
 
 /** What the row needs of the message field. */
 export interface TrayHost {
@@ -377,7 +379,7 @@ export class Tray {
     box.hidden = false;
     (box === this.moreBox ? this.moreButton : this.savedButton).setAttribute("aria-expanded", "true");
     if (box === this.savedBox) this.saved.sync();
-    box.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
+    focusOnOpen(box.querySelector<HTMLElement>("button, input"), { preventScroll: true });
   }
 
   /** The menu of the two modes, hanging from the button (the app's own menu: arrows, Enter, Escape). */
@@ -426,10 +428,18 @@ export class Tray {
   }
 
   /** The row holds what fits, in a fixed order of what goes first into the dots: the other dice (always there),
-   *  then KH / KL, then the modifier. Nothing is clipped and nothing scrolls. */
+   *  then KH / KL, then the modifier. Nothing is clipped and nothing scrolls — but on a phone, whose row scrolls. */
   private fit(): void {
     const room = this.scroll.clientWidth;
     if (room === 0) return;
+    // A phone's row scrolls sideways instead (its dice are 44 px, the
+    // maintainer's answer of 2026-11-10): KH, KL and the modifier stay in it.
+    if (window.matchMedia(PHONE_MEDIA).matches) {
+      this.place(false, false);
+      this.moved = { keep: false, mod: false };
+      this.paint();
+      return;
+    }
     const active = document.activeElement;
     // Everything in the row, measured; then out, in order, until it fits.
     this.place(false, false);

@@ -147,6 +147,22 @@ impl Proxies {
         }
     }
 
+    /// `127.0.0.1` and `::1`, **named**: the proxies of the loopback
+    /// listener of "this app is a server" that the internet link reaches
+    /// (ADR 0117 D3 item 4). Named and not implicit, so that the address a
+    /// tunnel forwards keys every delay, pace and count, and a forwarded
+    /// loopback is never "this machine" (ADR 0083 items 5 and 7).
+    #[must_use]
+    pub fn loopback() -> Self {
+        Self {
+            nets: ["127.0.0.1", "::1"]
+                .iter()
+                .filter_map(|n| Net::parse(n).ok())
+                .collect(),
+            implicit: false,
+        }
+    }
+
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.nets.is_empty()

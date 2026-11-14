@@ -237,6 +237,7 @@ async fn run(
         "version": env!("CARGO_PKG_VERSION"),
         "commit": server.commit,
         "contract": server.contract,
+        "contractVersion": verso_contract::compat::VERSION,
         "sync": server.sync(),
         "account": crate::api::account_json(&who.account),
     }});
@@ -562,6 +563,23 @@ async fn handle(
             }
             _ => who,
         },
+        _ => who,
+    };
+    // The account's name as it stands now: a line said at the table, a
+    // roll, a draw carries the name of when it was said, and the person
+    // may have changed it since the connection opened — the owner of "this
+    // app is a server" in Settings, its window sitting at the table the
+    // whole time (the re-test of 2026-11-04); anyone on a UniVerso in their
+    // account. Only the name: a phone's narrower powers stay as `auth::who`
+    // made them.
+    let renamed;
+    let who = match server.db.account(&who.account.id) {
+        Ok(Some(now)) if now.name != who.account.name => {
+            let mut fresh = (**who).clone();
+            fresh.account.name = now.name;
+            renamed = Arc::new(fresh);
+            &renamed
+        }
         _ => who,
     };
     // A paired phone runs the commands on the allowlist and no other (ADR
@@ -1263,12 +1281,15 @@ pub(crate) async fn folder_run(
     let key_for_log = key.clone();
     let args_for_log = args.clone();
     // A player of a table is answered through its veil (ADR 0110): what it
-    // reads. A write the rules allowed it is a writer's.
-    let player = if veiled && access != Access::Write {
-        crate::campaign::player(server, who, client).ok().flatten()
-    } else {
-        None
-    };
+    // reads, as the table is once the answer is made. A write the rules
+    // allowed it is a writer's.
+    if veiled
+        && access != Access::Write
+        && let Some(answer) =
+            crate::campaign_serve::settled(server, who, client, folder, (name, &args)).await
+    {
+        return answer;
+    }
     // A write that would pass the folder's quota is refused before
     // anything is written (ADR 0077 item 5).
     // Its room held until the write is in the folder's record, below.
@@ -1320,28 +1341,34 @@ pub(crate) async fn folder_run(
     let n = name.to_owned();
     let folder_id = folder.to_owned();
     let by = crate::trash::by_name(who, None);
-    let answer = blocking(move || {
+    // `_moving`: a window's move kept until its reconciliation, below.
+    let (answer, _moving) = blocking(move || {
         // Nothing typed is left behind a rename or a bin.
         if moves {
             crate::collab::write_all(&s, &key)?;
             // The players who see what goes, remembered while it is there.
             crate::campaign_cmds::before_write(&s, &folder_id, &key, &n, &args);
         }
+        // A window's move, its files kept for its own reconciliation.
+        let mut kept: Option<crate::sync::Moving> = None;
         // A deletion is recorded with who made it (ADR 0080 item 2).
         let answer = if matches!(
             n.as_str(),
             "delete_note" | "delete_entry" | "remove_folder_data"
         ) {
-            crate::trash::removal(&service, &c, &n, &args).and_then(|gone| {
+            // What the table kept of it goes into the bin with it, in the
+            // deletion's session (`shares::followed`).
+            let removed = crate::trash::removal(&service, &c, (&n, &args), |gone| {
+                let into = json!({ "path": gone.path });
+                crate::shares::followed(&s, &folder_id, &n, &args, &into);
+            });
+            #[cfg(test)]
+            crate::pause::at("window-deleted", &folder_id);
+            removed.and_then(|gone| {
                 crate::trash::deleted(&s, &folder_id, &gone, &by);
                 to_value(verso_service::convert::trashed_out(gone))
             })
         } else {
-            // A player of a table: what its veil leaves (ADR 0110).
-            if let Some(p) = &player {
-                return crate::campaign_serve::answer(&service, &c, p, &n, args)
-                    .unwrap_or_else(|| Err(refused("you may only read this folder")));
-            }
             // A text past the server's bound, read or written: refused
             // before the core reads or writes it (`crate::texts`).
             service.with(&c, |ws| {
@@ -1354,9 +1381,14 @@ pub(crate) async fn folder_run(
                     .dispatch_reader(&c, &n, args)
                     .unwrap_or_else(|| Err(refused("you may only read this folder")))
             } else {
-                service
-                    .dispatch(&c, &n, args)
-                    .unwrap_or_else(|| Err(refused("no such command")))
+                // A move carries the table's state in the same session.
+                let (answer, moving) = crate::sync::moving(&s, &key, (&n, &moved_args), || {
+                    crate::campaign_cmds::carrying(&s, (&service, &c), &folder_id, &n, args)
+                });
+                kept = moving;
+                #[cfg(test)]
+                crate::pause::at("window-moved", &folder_id);
+                answer
             }
         };
         if moves && let Ok(notes) = service.with(&c, ops::list_notes) {
@@ -1365,7 +1397,7 @@ pub(crate) async fn folder_run(
         if moves && answer.is_err() {
             crate::campaign_cmds::write_failed(&s, &folder_id, &n, &moved_args);
         }
-        answer
+        answer.map(|a| (a, kept))
     })
     .await?;
     // A board's file written from outside its room — a window not in it, a
@@ -1385,18 +1417,13 @@ pub(crate) async fn folder_run(
         .await;
     }
     if access == Access::Write {
-        // A share follows its folder's rename and goes with its deletion
-        // (ADR 0081 item 13).
+        // A share followed its folder's rename or went with its deletion
+        // (ADR 0081 item 13) in the write's session: its windows are told.
         {
             let s = Arc::clone(server);
-            let (f, n, a, ans) = (
-                folder.to_owned(),
-                name.to_owned(),
-                args_for_log.clone(),
-                answer.clone(),
-            );
+            let (f, n) = (folder.to_owned(), name.to_owned());
             let _ = blocking(move || {
-                crate::shares::after_write(&s, &f, &n, &a, &ans);
+                crate::shares::after_write(&s, &f, &n);
                 Ok(())
             })
             .await;

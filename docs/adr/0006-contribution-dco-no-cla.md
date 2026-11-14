@@ -46,7 +46,7 @@ model.
   `Signed-off-by`.
 - The same holds for an external contributor who uses AI: whoever answers for it
   signs, not the tool. A `CONTRIBUTING.md` saying so in one sentence comes in
-  before the repository opens ([0007](0007-private-repo-until-license.md)).
+  before the repository opens ([0007](archive/0007-private-repo-until-license.md)).
 - The recommendation to consult someone in intellectual property before opening
   the repository ([0005](0005-license.md)) still holds; this ADR sets the
   project's policy, not the interpretation of each jurisdiction.

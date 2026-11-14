@@ -6,6 +6,7 @@ import { h } from "../dom";
 import { allCommands, Command } from "../keys";
 import { t } from "../strings";
 import { asCombobox, asDialog, closed, opened, option } from "./a11y";
+import { focusOnOpen } from "../screen/openFocus";
 
 export class Palette {
   readonly el = h("div", "quick palette");
@@ -33,7 +34,7 @@ export class Palette {
     });
     this.el.addEventListener("mousedown", (e) => { if (e.target === this.el) this.hide(); });
   }
-  show(): void { opened(this.el); this.el.hidden = false; this.input.value = ""; this.update(); this.input.focus(); }
+  show(): void { opened(this.el); this.el.hidden = false; this.input.value = ""; this.update(); focusOnOpen(this.input); }
   hide(): void { this.el.hidden = true; closed(this.el); }
   private choose(c: Command | undefined): void { if (!c) return; this.hide(); c.run(); }
   private update(): void {

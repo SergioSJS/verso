@@ -7,9 +7,9 @@
 // sessions, the folders with their members, the access tokens, and the
 // way out. Each group is drawn as the settings draw theirs.
 
-import { ApiError, api, setSignedIn, type Account } from "./api";
+import { ApiError, api, byApp, setSignedIn, type Account } from "./api";
 import { act, block, button, choice, controls, el, input, said, snippet, toggle, type Entry, type Item } from "./form";
-import { addPasskey, passkeysHere } from "./passkeys";
+import { addPasskey, passkeysHere, passkeysOffered } from "./passkeys";
 import { forgetSettings } from "./settingsSync";
 import { bytes, roleName, w, when } from "./strings";
 
@@ -137,7 +137,11 @@ function passkeys(item: Item): HTMLElement {
     await draw();
   }, explain);
   return block(async (box) => {
-    box.append(el("p", { class: "settings-hint" }, here ? s.passkeysLead : s.passkeyUnavailable), list, item(s.passkeyAdd, s.passkeyName, controls(name, add)), line);
+    // A computer that serves (ADR 0117 D9): on its network the password,
+    // through its link a passkey that lasts as long as the link's address.
+    const lead = here ? s.passkeysLead : passkeysOffered() ? s.passkeyUnavailable : s.passkeyByLinkOnly;
+    const quick = here && byApp() ? [el("p", { class: "settings-hint" }, s.passkeyQuickLink)] : [];
+    box.append(el("p", { class: "settings-hint" }, lead), ...quick, list, item(s.passkeyAdd, s.passkeyName, controls(name, add)), line);
     await draw();
   }, explain);
 }

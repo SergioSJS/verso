@@ -65,6 +65,8 @@ export async function startSignIn(
   give(r.data.code);
   const done = await copied;
   const opened = await steps.open();
-  if (opened.status !== "ok") return opened;
+  // The page did not open: said as a failure, in the host's words — not as
+  // a refused path, the sentence `refused` means everywhere else.
+  if (opened.status !== "ok") return { status: "error", error: { kind: "failed", message: opened.error.message } };
   return { status: "ok", code: r.data.code, copied: done };
 }

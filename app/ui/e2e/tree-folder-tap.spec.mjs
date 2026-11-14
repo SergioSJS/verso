@@ -77,6 +77,13 @@ test("a folder's row: a tap toggles it, a button at its end opens the page, a lo
   await button.tap();
   await expect(page.locator(".sheet")).toBeVisible();
   await expect(z).toHaveAttribute("aria-expanded", "true");
+  // On a phone the drawer goes as the page opens, as for a note (the phone
+  // pass, 2026-11-10): opened again for the rest.
+  if (page.viewportSize().width <= 760) {
+    await expect(page.locator("body.side-open")).toHaveCount(0);
+    await page.locator(".bottom-bar .bar-files").click();
+    await expect(page.locator("body.side-open")).toHaveCount(1);
+  }
   // The keyboard: Enter toggles the row, the button is a Tab stop of its own.
   await z.focus();
   await page.keyboard.press("Enter");

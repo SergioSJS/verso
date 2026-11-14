@@ -91,7 +91,7 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
 .web-settings { min-height: 100dvh; box-sizing: border-box; display: grid; place-items: center; padding: 24px 16px; }
 .web-settings .settings-box { height: min(48rem, calc(100dvh - 48px)); }
 .web-settings .web-brand { padding: .2rem .7rem .6rem; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .web-settings { padding: 0; }
   .web-settings .settings-box { height: 100dvh; }
   .web-settings .web-brand { display: none; }
@@ -136,7 +136,7 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
 
 /* ---------- The foot of the side bar, on a phone ---------- */
 .side-foot { display: none; }
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .side-foot { display: flex; gap: .3rem; padding: .5rem .6rem max(.5rem, env(safe-area-inset-bottom)); border-top: 1px solid var(--hair); }
   .side-foot-item { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: .45rem; min-height: 44px; font-size: .88rem; }
   .side-foot-item .icon { width: 16px; height: 16px; }
@@ -212,9 +212,9 @@ body.web-mode { display: block; overflow: auto; height: auto; min-height: 100dvh
 .console-bar-fill { display: block; height: 100%; background: var(--brass); }
 .console-bar.near .console-bar-fill { background: var(--seal); }
 
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .console { grid-template-columns: minmax(0, 1fr); }
-  .console-side { display: none; position: fixed; inset: 0 auto 0 0; width: min(18rem, 85vw); z-index: 20; height: 100dvh; box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
+  .console-side { display: none; position: fixed; inset: 0 auto 0 0; width: min(18rem, 85vw); z-index: 20; height: 100dvh; padding-top: max(1.1rem, env(safe-area-inset-top)); padding-bottom: max(1.1rem, env(safe-area-inset-bottom)); box-shadow: 0 20px 60px -20px oklch(0% 0 0 / .4); }
   .console.console-open .console-side { display: flex; }
   .console-menu { display: inline-flex; min-height: 44px; }
   .console-main { padding: max(.8rem, env(safe-area-inset-top)) 16px 3rem; }

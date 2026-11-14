@@ -18,6 +18,8 @@ pub mod auth;
 pub mod board_sight;
 pub mod campaign;
 pub mod campaign_cmds;
+pub mod campaign_move;
+pub mod campaign_outside;
 pub mod campaign_serve;
 pub mod campaign_sync;
 pub mod campaign_text;
@@ -82,7 +84,9 @@ pub mod texts;
 pub mod tls;
 pub mod transfers;
 pub mod trash;
+pub mod tunnel;
 pub mod twins;
+pub mod ui_files;
 pub mod update;
 pub mod visit;
 pub mod writers;
@@ -94,12 +98,14 @@ use std::sync::Arc;
 use config::Config;
 use db::{Db, NewLink};
 
-/// The generated bindings the window was built with: their hash is the
-/// contract's version, which client and server agree on before anything
-/// else (the maintainer's answer D of 2026-10-09).
+/// The generated bindings the window was built with: their hash names the
+/// build of the contract (the maintainer's answer D of 2026-10-09). A page
+/// this server served reloads when it differs; a desktop app compares
+/// [`verso_contract::compat::VERSION`] instead, and logs the hash (ADR
+/// 0073 item 2, revised 2026-11-02).
 const BINDINGS: &str = include_str!("../../../app/ui/src/bindings.ts");
 
-/// The contract's version: the first 16 hex digits of the SHA-256 of the
+/// The contract's hash: the first 16 hex digits of the SHA-256 of the
 /// generated bindings. The window's build computes the same
 /// (`app/ui/build-web.mjs`).
 #[must_use]
@@ -159,9 +165,16 @@ fn base_url(config: &Config) -> String {
 /// one, only the path — the server cannot know the name a window reaches it
 /// by (the listening address may be the wildcard, and `Host` is not trusted,
 /// ADR 0045), so the window puts its own server's address before it. A link
-/// that leaves by mail has no window and uses [`base_url`].
-pub(crate) fn window_link(config: &Config, path: &str) -> String {
-    match config.public_url.as_deref() {
+/// that leaves by mail has no window and uses [`base_url`]. "This app is a
+/// server" builds it from where a player reaches it now — the internet
+/// link's origin while it has one (ADR 0117 D3 item 4), else the network's
+/// address — the same base as the invitations of its Settings
+/// (`local::Policy::links_base`), so the two never name two places.
+pub(crate) fn window_link(server: &state::Server, path: &str) -> String {
+    // A UniVerso's own link's origin too, while it has one and no
+    // `VERSO_PUBLIC_URL` says otherwise (ADR 0117 D4 item 2, R5).
+    let link = server.local.as_ref().and_then(|l| l.links_base());
+    match server.public_origin().or(link).as_deref() {
         Some(base) => format!("{}{path}", base.trim_end_matches('/')),
         None => path.to_owned(),
     }
@@ -293,10 +306,18 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
         .enable_all()
         .build()
         .map_err(|e| e.to_string())?;
-    runtime.block_on(async move {
+    // The UniVerso's own link (ADR 0117 D4 item 2): its lines in this log,
+    // its tunnel stopped when serving ends, whatever ended it.
+    tunnel::log_to_the_server();
+    let linked = Arc::clone(&server);
+    let served = runtime.block_on(async move {
         let listener = tokio::net::TcpListener::bind(listen)
             .await
             .map_err(|e| format!("listening on {listen}: {e}"))?;
+        // `VERSO_TUNNEL`: started once the server has its runtime, on a
+        // thread of its own (the first download of `cloudflared`).
+        let _ = server.runtime.set(tokio::runtime::Handle::current());
+        tunnel::at_start(&server);
         // Found on the home network by itself (ADR 0097); held until the
         // server stops.
         let announced = discovery::announce(&server.config, acceptor.is_some());
@@ -316,7 +337,9 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
         // worker of the runtime.
         let _ = tokio::task::spawn_blocking(move || drop(announced)).await;
         served
-    })
+    });
+    tunnel::at_end(&linked);
+    served
 }
 
 /// Serve on `listener` until `stop` resolves.
@@ -401,41 +424,38 @@ pub fn admin_reset(config: &Config, email: &str) -> Result<String, String> {
     let account = db
         .account_by_email(email)?
         .ok_or_else(|| format!("no account has the e-mail {email}"))?;
-    db.end_sessions(&account.id, None)?;
-    for id in db.revoke_tokens_of(&account.id)? {
-        db.audit(&db::Audit {
-            actor: None,
-            action: "token_revoked",
-            subject: Some(&id),
-            folder: None,
-            address: Some("machine"),
-            ok: true,
-        })?;
-    }
-    db.end_links_of(&account.id, "reset")?;
-    let (token, _) = db.create_invitation(&NewLink {
-        kind: "reset",
-        account: Some(&account.id),
-        life: db::RESET_LIFE,
-        ..NewLink::default()
-    })?;
-    db.audit(&db::Audit {
+    // The console's and the app's act (`admin::acts::reset_link`), from the
+    // machine: no running server to tell (the sessions it ends are refused
+    // at their next request), no one signed in to keep.
+    let by = admin::acts::By {
         actor: None,
-        action: "reset_on_machine",
-        subject: Some(&account.id),
-        folder: None,
         address: Some("machine"),
-        ok: true,
-    })?;
+    };
+    let (token, _) = admin::acts::reset_link(
+        &db,
+        None,
+        &by,
+        None,
+        &account.id,
+        None,
+        admin::acts::RESET_ON_MACHINE,
+    )
+    .map_err(|e| e.to_string())?;
     Ok(format!("{}/reset/{token}", base_url(config)))
 }
 
+#[cfg(test)]
+mod pause;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_access_cmds;
 #[cfg(test)]
 mod tests_access_doors;
+#[cfg(test)]
+mod tests_access_gaps;
+#[cfg(test)]
+mod tests_access_outside;
 #[cfg(test)]
 mod tests_access_review;
 #[cfg(test)]
@@ -472,6 +492,8 @@ mod tests_console;
 mod tests_dice;
 #[cfg(test)]
 mod tests_folder_data;
+#[cfg(test)]
+mod tests_gm_invites;
 #[cfg(test)]
 mod tests_hashes;
 #[cfg(test)]
@@ -517,6 +539,8 @@ mod tests_secret_pins;
 #[cfg(test)]
 mod tests_secret_review;
 #[cfg(test)]
+mod tests_share_gaps;
+#[cfg(test)]
 mod tests_share_given;
 #[cfg(test)]
 mod tests_shares;
@@ -529,6 +553,8 @@ mod tests_table;
 #[cfg(test)]
 mod tests_table_images;
 #[cfg(test)]
+mod tests_table_move;
+#[cfg(test)]
 mod tests_table_share;
 #[cfg(test)]
 mod tests_table_sound;
@@ -536,5 +562,8 @@ mod tests_table_sound;
 mod tests_threats;
 #[cfg(test)]
 mod tests_trash;
+// A stand-in `cloudflared` is a shell script: Unix only (`#![cfg(unix)]`).
+#[cfg(test)]
+mod tests_tunnel;
 #[cfg(test)]
 mod tests_writers;

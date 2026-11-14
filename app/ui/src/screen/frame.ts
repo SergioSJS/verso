@@ -42,6 +42,21 @@ function item(label: string, iconName: string, cls = ""): HTMLButtonElement {
 }
 const back = item(st.barBack, "arrowLeft");
 
+/** The words under the bar's marks fit their buttons: smaller first, down
+ *  to 9 px, then the marks alone — each still named by its word, kept for
+ *  a screen reader (the maintainer, 2026-11-10: at Android's largest text
+ *  "Nova n…" and "Coman…" were cut). */
+function fitBar(): void {
+  const labels = [...bar.querySelectorAll<HTMLElement>(".bottom-bar-label")].filter((l) => l.getClientRects().length > 0 || bar.classList.contains("marks-only"));
+  bar.classList.remove("marks-only");
+  bar.style.removeProperty("--bar-label-size");
+  const over = (): boolean => labels.some((l) => l.scrollWidth > l.clientWidth + 1);
+  for (let px = 11; px >= 9 && over(); px--) bar.style.setProperty("--bar-label-size", `${px}px`);
+  if (!over()) return;
+  bar.style.removeProperty("--bar-label-size");
+  bar.classList.add("marks-only");
+}
+
 function verb(label: string, iconName: string, run: () => void, cls = ""): HTMLButtonElement {
   const b = item(label, iconName, cls);
   b.addEventListener("click", run);
@@ -68,6 +83,17 @@ function buildBar(): void {
   document.querySelector("main.work")?.append(bar);
   paintExpanded();
   paintBar();
+  // The words fit their buttons at any text size (fitBar).
+  // On a change of width only: the words leaving change the bar's height,
+  // which must not fit it again (a loop).
+  let width = -1;
+  new ResizeObserver(([e]) => {
+    const w = Math.round(e?.contentRect.width ?? 0);
+    if (w === width) return;
+    width = w;
+    fitBar();
+  }).observe(bar);
+  void document.fonts?.ready.then(() => fitBar());
   // A folder opened or closed enables the search field: the bar follows.
   new MutationObserver(paintBar).observe(ui.search, { attributes: true, attributeFilter: ["disabled"] });
   document.addEventListener("verso:nav", paintBar);

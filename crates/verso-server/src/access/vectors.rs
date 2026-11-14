@@ -73,6 +73,10 @@ struct Person {
     link: bool,
     cred: Cred,
     admin: bool,
+    /// The admin lets the account make folders, on a UniVerso (ADR 0074
+    /// item 6): a game master who invites people with no account, to read
+    /// (ADR 0117 D7 (e)). The admin always may.
+    may_create: bool,
     /// Not Ana, whose rows the sets name, but another player: she falls to
     /// the whole table's row.
     other: bool,
@@ -99,6 +103,7 @@ impl Person {
             phone: matches!(self.cred, Cred::PhoneReader | Cred::PhoneEditor),
             link: self.link,
             admin: self.admin,
+            may_create: self.may_create,
             owns_folder: self.owns,
         }
     }
@@ -123,13 +128,19 @@ impl Person {
             } else {
                 self.cred.name()
             },
-            if self.admin { "/admin" } else { "" }
+            if self.admin {
+                "/admin"
+            } else if self.may_create {
+                "/may-create"
+            } else {
+                ""
+            }
         )
     }
 
     fn all() -> Vec<Self> {
         let mut out = Vec::new();
-        for admin in [false, true] {
+        for (admin, may_create) in [(false, false), (false, true), (true, true)] {
             for role in [Role::Owner, Role::Editor, Role::Reader] {
                 for cred in Cred::ALL {
                     out.push(Self {
@@ -137,6 +148,7 @@ impl Person {
                         link: false,
                         cred,
                         admin,
+                        may_create,
                         other: false,
                         owns: false,
                     });
@@ -150,6 +162,7 @@ impl Person {
                     link: false,
                     cred,
                     admin,
+                    may_create,
                     other: false,
                     owns: true,
                 });
@@ -159,6 +172,7 @@ impl Person {
                 link: false,
                 cred: Cred::Write,
                 admin,
+                may_create,
                 other: false,
                 owns: false,
             });
@@ -167,6 +181,7 @@ impl Person {
                 link: true,
                 cred: Cred::ReadToken,
                 admin,
+                may_create,
                 other: false,
                 owns: false,
             });
@@ -175,6 +190,7 @@ impl Person {
                 link: false,
                 cred: Cred::Write,
                 admin,
+                may_create,
                 other: true,
                 owns: false,
             });
@@ -295,7 +311,7 @@ fn path_of(kind: Kind) -> &'static str {
     }
 }
 
-const ACTIONS: [Action; 30] = [
+const ACTIONS: [Action; 32] = [
     Action::See,
     Action::Edit,
     Action::Attach { image: true },
@@ -335,7 +351,9 @@ const ACTIONS: [Action; 30] = [
     Action::ManageTable,
     Action::Share,
     Action::Invite,
-    Action::InviteNew,
+    Action::InviteNew { role: Role::Reader },
+    Action::InviteNew { role: Role::Editor },
+    Action::InviteNew { role: Role::Owner },
     Action::Play,
     Action::Broadcast,
 ];
@@ -372,7 +390,7 @@ fn action_name(a: Action) -> String {
         Action::ManageTable => "manage-table",
         Action::Share => "share",
         Action::Invite => "invite",
-        Action::InviteNew => "invite-new",
+        Action::InviteNew { role } => return format!("invite-new/{}", role.as_str()),
         Action::Play => "play",
         Action::Broadcast => "broadcast",
     }
@@ -657,7 +675,12 @@ fn expected(p: Person, s: Setting, action: Action) -> bool {
         Action::ManageAccess | Action::ManageTable | Action::Share | Action::Invite => {
             p.master() && w && !p.phone()
         }
-        Action::InviteNew => p.master() && w && !p.phone() && p.admin,
+        // Someone with no account: the folder's owner who is the server's
+        // admin, at any role; or, on a UniVerso, one the admin lets make
+        // folders, to read (0081 item 4, revised by ADR 0117 D7 (e)).
+        Action::InviteNew { role } => {
+            p.master() && w && !p.phone() && (p.admin || (p.may_create && role == Role::Reader))
+        }
         // The table's music: the game master, whatever the credential
         // (ADR 0116 item 22).
         Action::Play | Action::Broadcast => p.master(),
@@ -694,7 +717,7 @@ fn every_cell_of_the_matrix_is_as_the_adr_says() {
                     | Action::ManageTable
                     | Action::Share
                     | Action::Invite
-                    | Action::InviteNew
+                    | Action::InviteNew { .. }
                     | Action::Play
                     | Action::Broadcast
             );
@@ -765,7 +788,7 @@ fn vectors() -> String {
         .iter()
         .map(|p| {
             format!(
-                "    {{\"name\": \"{}\", \"role\": {}, \"link\": {}, \"cap\": \"{}\", \"phone\": {}, \"admin\": {}, \"other\": {}, \"owns\": {}}}",
+                "    {{\"name\": \"{}\", \"role\": {}, \"link\": {}, \"cap\": \"{}\", \"phone\": {}, \"admin\": {}, \"mayCreate\": {}, \"other\": {}, \"owns\": {}}}",
                 p.name(),
                 p.role
                     .map_or_else(|| "null".to_owned(), |r| format!("\"{}\"", r.as_str())),
@@ -773,6 +796,7 @@ fn vectors() -> String {
                 if p.writes() { "write" } else { "read" },
                 p.phone(),
                 p.admin,
+                p.may_create,
                 p.other,
                 p.owns
             )
@@ -799,7 +823,7 @@ fn vectors() -> String {
                     | Action::ManageTable
                     | Action::Share
                     | Action::Invite
-                    | Action::InviteNew
+                    | Action::InviteNew { .. }
                     | Action::Play
                     | Action::Broadcast
             );

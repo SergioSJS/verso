@@ -30,9 +30,88 @@
   .divider::before { content: ""; position: absolute; inset: -10px; }
 }
 
+/* Settings by a finger (the maintainer's phone, 2026-11-09): every select,
+   button and field of a section is a target of 44px — they were 23 to 29px
+   high, the theme cards' copy a 24px icon. Checkboxes and radios keep their
+   size; their label is the target. The theme card's actions show their word
+   (Copiar) beside the icon, as no pointer hovers for the title. */
+@media (pointer: coarse) {
+  .settings-body :is(select, button, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"])) { min-height: 44px; }
+  .settings-body button.iconic, .settings-body .theme-act { min-width: 44px; justify-content: center; }
+  .settings-body summary { min-height: 44px; padding-block: .75rem; box-sizing: border-box; }
+  .theme-acts { min-height: 44px; gap: .3rem; }
+  .theme-act { display: inline-flex; align-items: center; gap: .35rem; padding: 0 .6rem; }
+}
+.theme-act-word { display: none; }
+@media (hover: none) { .theme-act-word { display: inline; font-size: .85rem; } }
+
+/* A dialog's or a sheet's close, and its icon buttons, are a finger's
+   target on a touch screen (the roller's close was 25px, the world
+   wizard's 24px, the oracle's settings 25px). */
+@media (pointer: coarse) {
+  :is([role="dialog"], .quick, .confirm, .is-sheet, .oracle-shade) button:is([class*="-close"], [aria-label="Fechar"], [aria-label="Close"], .iconic) { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+}
+
+/* Every dialog's and sheet's controls, as Settings' (the maintainer,
+   2026-11-10): the oracle's tabs were 30px, the world wizard's file list
+   18px, the asking dialogs' buttons 30px. Selects, buttons, fields and
+   fold-outs of a dialog are 44px high on a touch screen; checkboxes and
+   radios keep their size (their label is the target). */
+@media (pointer: coarse) {
+  :is([role="dialog"], [role="alertdialog"], dialog, .quick, .confirm, .is-sheet, .oracle-shade) :is(select, button, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"])) { min-height: 44px; }
+  :is([role="dialog"], [role="alertdialog"], dialog, .quick, .confirm, .is-sheet, .oracle-shade) summary { min-height: 44px; padding-block: .75rem; box-sizing: border-box; }
+}
+
+/* A pane's own toolbars by a finger (the maintainer, 2026-11-10): the
+   note's head (modes, the star, the cover, the save state, the stickers,
+   the properties' fold, remove and add), the PDF's pages, zoom, search and
+   actions, a base's views, tools and search, the graph's controls, the
+   board's tools (Excalidraw's button size) — 44px on a touch screen, as the
+   dialogs' are. Not the note's own text (a heading's fold, a tag's ×). */
+@media (pointer: coarse) {
+  .modes button, .crumbs .crumb,
+  .title-tools button, .title-row > .save, .note-sticker-btn,
+  .props-toggle, .prop-remove, .prop-new,
+  .pdf-pages button, .pdf-zoom button, .pdf-acts button, .pdf-page, .pdf-search,
+  .base-views, .base-tool, .base-search,
+  .graph-zoom button, .graph-controls-toggle { min-height: 44px; min-width: 44px; }
+  .modes button, .title-tools button, .pdf-pages button, .pdf-zoom button, .pdf-acts button, .base-tool, .graph-zoom button { display: inline-flex; align-items: center; justify-content: center; }
+  .props .prop-input, .props .prop-add { min-height: 44px; }
+  /* A slider's thumb is a finger's: its track 44px high (the dice's size, the zoom). */
+  input[type="range"] { min-height: 44px; }
+  /* The modes' box is the 44px: its buttons fill it (no inner padding). */
+  .modes { padding: 0; }
+  /* The board's own buttons (Excalidraw's stylesheet loads after ours, hence
+     !important), the phone's bottom row of tools too: nine of 44px do not
+     fit its width, so the row scrolls sideways and no tool is squeezed (the
+     maintainer's answer of 2026-11-10). */
+  .board-canvas .excalidraw :is(.ToolIcon_type_button, .ToolIcon__icon, .dropdown-menu-button) { width: 44px !important; height: 44px !important; flex: none; }
+  .board-canvas .excalidraw .mobile-toolbar { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; justify-content: flex-start !important; }
+  .board-canvas .excalidraw .mobile-toolbar > * { flex: none; }
+  /* The theme builder's fields and the folder page's views, as a dialog's (the maintainer, 2026-11-10). */
+  .builder :is(select, button, input:not([type="checkbox"], [type="radio"], [type="range"])), .folder-tools button { min-height: 44px; }
+  .builder input[type="color"], .folder-tools button { min-width: 44px; }
+  /* A base's column headers sort on a tap: a finger's target. */
+  .base-th { min-height: 44px; }
+  /* Small marks inside the text and the chips keep their size; their target
+     reaches past them by an invisible margin. */
+  .pill-x::after { width: 40px; height: 40px; }
+  .heading-fold-btn { position: relative; }
+  .heading-fold-btn::after { content: ""; position: absolute; inset: -12px; }
+}
+
+/* A menu's rows by a finger (the phone pass, 2026-11-10): the tree's, a
+   tab's, the panel's menus had rows of 30px; 44px on a touch screen, the
+   menu scrolling inside the screen when longer (chrome.css). */
+@media (pointer: coarse) {
+  .menu li > button, .menu-sub li > button { min-height: 44px; font-size: 1rem; }
+  /* The right panel's lists (the outline, the links, the tags, the bookmarks): rows of 24px were too thin for a finger (44px, as the music's tracks already were). */
+  aside.right :is(li > button, li > a) { min-height: 44px; display: flex; align-items: center; }
+}
+
 /* The phone's search field is a target of 44px, as high as the rest (the
    box itself, not only the line of text inside it). */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   .search { padding-top: 0; padding-bottom: 0; }
   .search input { min-height: 44px; }
 }
@@ -61,3 +140,19 @@ html.desk-on-phone body { grid-template-columns: var(--ribbon-w) var(--side-w) 0
 html.desk-on-phone body.no-side { grid-template-columns: var(--ribbon-w) 0 0 1fr 0 0; }
 html.desk-on-phone #right-divider { display: none; }
 html.desk-on-phone body aside.right { position: fixed; top: 0; right: 0; bottom: 0; z-index: 8; width: min(calc(56 * var(--u-vw)), 280px); box-sizing: border-box; box-shadow: 0 0 40px oklch(0% 0 0 / .25); }
+
+/* A tablet's status bar (the maintainer's iPad in landscape, 2026-11-12:
+   "a barra é mais que o dobro do que a versão normal do Verso"): the
+   desktop's row and padding, its controls 24px — WCAG 2.5.8's minimum —
+   instead of the 44px above, and only a small inset above the home
+   indicator, the bar's background reaching under it; about 35px against
+   the desktop's 31. The ⌘ hints say nothing without a keyboard. Neither a
+   phone (max-width 760px, or a short landscape screen) nor the desktop
+   (a fine pointer) is matched: test/tabletBar.test.mjs. */
+@media (pointer: coarse) and (min-width: 761px) and (min-height: 501px) {
+  .status-bar { padding-bottom: max(4px, calc(env(safe-area-inset-bottom) - 14px)); }
+  .status-bar :is(#toggle-side, #toggle-right, #report-bug, #keys-commands, .bar-toggle, .notify-bell-bar) { min-width: 24px; min-height: 24px; }
+}
+@media (pointer: coarse) and (hover: none) and (min-width: 761px) and (min-height: 501px) {
+  .status-bar .status-keys { display: none; }
+}

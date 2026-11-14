@@ -133,7 +133,27 @@ impl TrashBook for FolderBook<'_> {
     fn put(&mut self, record: &TrashRecord) -> Result<(), String> {
         self.db.put_trash_record(self.folder, record)
     }
+    /// An entry gone from the bin for good: what it kept of a table goes
+    /// too (`Db::campaign_binned`). A restore keeps it ([`Restoring`]).
     fn forget(&mut self, path: &str) -> Result<(), String> {
-        self.db.forget_trash_record(self.folder, path)
+        self.db.forget_trash_record(self.folder, path)?;
+        self.db.campaign_unbinned(self.folder, path).map(|_| ())
+    }
+}
+
+/// The book of a restore: the entry's record goes, what it kept of a table
+/// stays, for the restore to carry to where the entry landed
+/// (`Db::campaign_restored`).
+pub struct Restoring<'a>(pub FolderBook<'a>);
+
+impl TrashBook for Restoring<'_> {
+    fn records(&mut self) -> Result<Vec<TrashRecord>, String> {
+        self.0.records()
+    }
+    fn put(&mut self, record: &TrashRecord) -> Result<(), String> {
+        self.0.put(record)
+    }
+    fn forget(&mut self, path: &str) -> Result<(), String> {
+        self.0.db.forget_trash_record(self.0.folder, path)
     }
 }

@@ -171,6 +171,27 @@ pub fn purge(root: &Path, relative: &Path) -> Result<(), WriteError> {
     Ok(())
 }
 
+/// The folder of the bin at `relative` removed if it is empty now (`rmdir`),
+/// and the folders it leaves empty above it — never anything it holds. A
+/// sweep finds a folder empty by its walk; a deletion, or a version a
+/// write replaced, may have put a file in it since, and [`purge`] would
+/// remove that file with the folder (the server's sweep runs beside the
+/// window's writes: the night stress, 2026-11-04). A folder that is not
+/// empty, or no longer there, is left as it is.
+pub fn remove_empty(root: &Path, relative: &Path) -> Result<(), WriteError> {
+    let target = checked(root, relative)?;
+    if !ops::remove_empty_directory(&target)? {
+        return Ok(());
+    }
+    prune(root, relative);
+    if let Some(parent) = target.parent()
+        && parent.exists()
+    {
+        let _ = crate::os::sync_dir(parent);
+    }
+    Ok(())
+}
+
 /// Move `from` (under `.trash/`) to `to` (already confined by the root),
 /// creating `to`'s folders; refuses a `to` where something stands
 /// (`WriteError::Exists`): a restore never replaces a file (ADR 0080 item

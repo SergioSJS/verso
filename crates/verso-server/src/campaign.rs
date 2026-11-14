@@ -34,6 +34,11 @@ use crate::state::Server;
 /// What a closed table answers a player who tries to open it (MC.1 = A).
 pub const CLOSED: &str = verso_contract::TABLE_CLOSED;
 
+/// What a table moved to the other host answers its players (ADR 0117 D8,
+/// R9): it holds [`CLOSED`], so a window that knows only that one keeps the
+/// player out as before.
+pub const MOVED: &str = verso_contract::TABLE_MOVED;
+
 /// The key a path is looked up by: case folded, the separators of any
 /// system made `/`, and `.` and `..` resolved as the path reads (a `..`
 /// that would leave the folder is dropped), so that every name that
@@ -123,9 +128,16 @@ pub struct Veil {
     /// The tables could not be read: this veil serves nothing and is never
     /// written from ([`Veil::is_unreadable`]).
     unreadable: bool,
+    /// The paths the folder's log keeps, by key: those whose access a
+    /// reconciliation has judged (`campaign_outside::followed`).
+    logged: Arc<HashSet<String>>,
+    /// Whether a file of a table the log does not keep yet is hidden: the
+    /// veil a player is answered by ([`Veil::live`]).
+    live: bool,
     /// The veil as each player sees it, made on first need.
     views: Mutex<HashMap<String, Arc<Veil>>>,
     union: OnceLock<Arc<Veil>>,
+    live_view: OnceLock<Arc<Veil>>,
 }
 
 impl Veil {
@@ -227,7 +239,28 @@ impl Veil {
         )
     }
 
+    /// This veil as a player is answered by it, now: a file of a table the
+    /// folder's log does not keep yet is hidden. The index learns a file
+    /// before the reconciliation that judges its access — a hidden note
+    /// renamed outside Verso is, until then, a new file of its folder's
+    /// (2026-11-06) — and what has not been judged is not shown. Never the
+    /// veil of a step that records: what it records is not in the log yet.
+    #[must_use]
+    pub fn live(&self) -> Arc<Veil> {
+        if self.live {
+            return self.derived(self.viewer.clone(), true).into();
+        }
+        Arc::clone(
+            self.live_view
+                .get_or_init(|| Arc::new(self.derived(self.viewer.clone(), true))),
+        )
+    }
+
     fn derive(&self, viewer: Viewer) -> Veil {
+        self.derived(viewer, false)
+    }
+
+    fn derived(&self, viewer: Viewer, live: bool) -> Veil {
         Veil {
             folder: self.folder.clone(),
             tables: self.tables.clone(),
@@ -241,8 +274,11 @@ impl Veil {
             viewer,
             restricted: self.restricted,
             unreadable: self.unreadable,
+            logged: Arc::clone(&self.logged),
+            live,
             views: Mutex::new(HashMap::new()),
             union: OnceLock::new(),
+            live_view: OnceLock::new(),
         }
     }
 
@@ -271,6 +307,7 @@ impl Veil {
             phone: false,
             link: false,
             admin: false,
+            may_create: false,
             owns_folder: false,
         }
     }
@@ -285,6 +322,7 @@ impl Veil {
             phone: false,
             link: true,
             admin: false,
+            may_create: false,
             owns_folder: false,
         }
     }
@@ -406,6 +444,9 @@ impl Veil {
         if !self.in_table(path) {
             return false;
         }
+        if self.unlogged(path) {
+            return true;
+        }
         // An attachment is a file of the table too: an access of its own
         // (or its folder's) wins (ADR 0113 K.3); with none, it is served
         // only through a released note, or as an image the table shows. A
@@ -428,6 +469,13 @@ impl Veil {
                     })
             }
         }
+    }
+
+    /// Whether `path`, a file of a table, is one the folder's log does not
+    /// keep yet, to the veil a player is answered by ([`Veil::live`]).
+    #[must_use]
+    pub fn unlogged(&self, path: &str) -> bool {
+        self.live && self.in_table(path) && !self.logged.contains(&key(path))
     }
 
     /// Whether a note (by its name, not an attachment) is hidden.
@@ -453,6 +501,14 @@ impl Veil {
                 .unwrap_or_default()
                 .normalized(),
         )
+    }
+
+    /// The set `path` has of its own, inside a table; `None` when it
+    /// follows its folder or lies in no table.
+    #[must_use]
+    pub fn own_set(&self, path: &str) -> Option<NodeSet> {
+        self.table_of(path)?;
+        self.facts.sets.get(&key(path)).cloned()
     }
 
     /// The set `path` follows now: its own, else its folder's, else hidden.
@@ -616,6 +672,8 @@ pub struct Cache {
     /// The files a player is told of, by folder and account, with the log
     /// head and the generation they were told at.
     pub(crate) told_files: Mutex<HashMap<Account, Told>>,
+    /// The bytes of files kept from someone that went outside Verso.
+    pub(crate) gone_outside: crate::campaign_outside::Remembered,
 }
 
 impl Cache {
@@ -764,6 +822,7 @@ pub(crate) fn build(db: &crate::db::Db, folder: &str) -> Result<Option<Arc<Veil>
     // that no shared log may carry, and a log that is the same for everyone
     // cannot be cut afterwards without moving the numbers a device counted.
     let restricted = true;
+    let logged = db.manifest_paths(folder)?.iter().map(|p| key(p)).collect();
     Ok(Some(Arc::new(Veil {
         folder: folder.to_owned(),
         tables,
@@ -777,8 +836,11 @@ pub(crate) fn build(db: &crate::db::Db, folder: &str) -> Result<Option<Arc<Veil>
         viewer: Viewer::Public,
         restricted,
         unreadable: false,
+        logged: Arc::new(logged),
+        live: false,
         views: Mutex::new(HashMap::new()),
         union: OnceLock::new(),
+        live_view: OnceLock::new(),
     })))
 }
 
@@ -806,6 +868,7 @@ pub fn unreadable(folder: &str) -> Arc<Veil> {
             open: false,
             log_max: crate::db::LOG_DEFAULT,
             image_max: crate::db::IMAGE_DEFAULT,
+            moved: false,
         }],
         lang: "en".to_owned(),
         images: Arc::new(HashSet::new()),
@@ -814,8 +877,11 @@ pub fn unreadable(folder: &str) -> Arc<Veil> {
         viewer: Viewer::Public,
         restricted: true,
         unreadable: true,
+        logged: Arc::default(),
+        live: false,
         views: Mutex::new(HashMap::new()),
         union: OnceLock::new(),
+        live_view: OnceLock::new(),
     })
 }
 
@@ -928,6 +994,17 @@ impl Player {
     pub fn edits(&self, path: &str) -> bool {
         self.sees_secrets(path)
     }
+
+    /// The player as a command is answered, now ([`Veil::live`]).
+    #[must_use]
+    pub fn live(&self) -> Player {
+        Player {
+            veil: self.veil.live(),
+            account: self.account.clone(),
+            editor: self.editor,
+            asker: self.asker.clone(),
+        }
+    }
 }
 
 /// The player behind `client`, when it is one: a window that is not the
@@ -959,13 +1036,28 @@ pub fn player(
 /// the window reaches: the share's path, `""` for the whole folder.
 #[must_use]
 pub fn closed_for(server: &Server, folder: &str, root: &str, player: bool) -> bool {
+    shut_for(server, folder, root, player).is_some()
+}
+
+/// What [`closed_for`] answers the window, in words: [`MOVED`] when a table
+/// that shuts it out moved to the other host (ADR 0117 D8, R9), else
+/// [`CLOSED`]; `None` when nothing shuts it out.
+#[must_use]
+pub fn shut_for(server: &Server, folder: &str, root: &str, player: bool) -> Option<&'static str> {
     if !player {
-        return false;
+        return None;
     }
-    let Some(veil) = veil_of(server, folder) else {
-        return false;
-    };
-    veil.tables.iter().any(|t| !t.open && covers(&t.root, root))
+    let veil = veil_of(server, folder)?;
+    let mut shut = veil
+        .tables
+        .iter()
+        .filter(|t| !t.open && covers(&t.root, root));
+    let first = shut.next()?;
+    Some(if first.moved || shut.any(|t| t.moved) {
+        MOVED
+    } else {
+        CLOSED
+    })
 }
 
 /// Whether `account` is the owner of `folder` itself: its game master.
@@ -990,13 +1082,13 @@ pub fn guard(server: &Server, who: &crate::auth::Who, client: &str) -> Result<()
         .scope
         .as_ref()
         .map_or_else(String::new, |s| s.root.clone());
-    if closed_for(
+    if let Some(words) = shut_for(
         server,
         &door.folder,
         &root,
         door.seat() != crate::access::Seat::Master,
     ) {
-        return Err(closed_error());
+        return Err(verso_service::refused(words));
     }
     Ok(())
 }

@@ -219,3 +219,75 @@ fn guessing_links_while_signed_in_is_paced_like_the_other_link_routes() {
         assert_eq!(last, 429);
     });
 }
+
+/// A person who accepts the table's invitation is in the game master's
+/// window at once (the maintainer's "Jogadores 0", 2026-11-04: the table's
+/// dialog said no players while `campaign_status` asked again listed her).
+/// Accepting granted the folder and told no window of it, so the window kept
+/// the players it had read; now the table's windows hear `campaign-changed`
+/// and `access-changed`, as for any change of who is at the table, and ask
+/// again — for a new account, and for one that joins signed in.
+#[test]
+fn accepting_the_tables_invitation_is_told_to_the_game_masters_window() {
+    block_on(async {
+        let r = start().await;
+        let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
+        let id = folder_id(&r, &admin).await;
+        let (mut gm, _) = crate::tests_campaign::Win::open(&r, &admin, &id).await;
+        let made = gm.call("campaign_make", json!({ "root": "" })).await;
+        assert_eq!(made["ok"]["viewer"], "owner", "{made}");
+        let token = |v: &Value| {
+            v["ok"]["link"]
+                .as_str()
+                .unwrap()
+                .rsplit_once("/invite/")
+                .unwrap()
+                .1
+                .to_owned()
+        };
+        let told = |heard: &[Value]| {
+            ["campaign-changed", "access-changed"]
+                .iter()
+                .all(|e| heard.iter().any(|m| m["event"] == *e))
+        };
+        // A new account.
+        let first = token(&gm.call("campaign_invite", json!({ "root": "" })).await);
+        gm.hear(200).await;
+        let (status, joined) = post(
+            &r,
+            &format!("/api/invite/{first}"),
+            json!({ "email": "bia@casa.lan", "name": "Bia", "password": "a senha da bia aqui", "lang": "pt" }),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200, "{joined}");
+        let heard = gm.hear(3000).await;
+        assert!(told(&heard), "the window was told nothing: {heard:?}");
+        let status = gm.call("campaign_status", json!({})).await;
+        assert_eq!(status["ok"]["players"][0]["name"], "Bia", "{status}");
+        // An account already there, joining signed in.
+        r.server
+            .db
+            .create_account(
+                "caio@casa.lan",
+                "Caio",
+                "pt",
+                Some("a senha do caio aqui"),
+                false,
+            )
+            .unwrap();
+        let caio = sign_in(&r, "caio@casa.lan", "a senha do caio aqui").await;
+        let second = token(&gm.call("campaign_invite", json!({ "root": "" })).await);
+        gm.hear(200).await;
+        let (status, joined) = post(
+            &r,
+            &format!("/api/invite/{second}/join"),
+            json!({}),
+            Some(&caio),
+        )
+        .await;
+        assert_eq!(status, 200, "{joined}");
+        let heard = gm.hear(3000).await;
+        assert!(told(&heard), "the window was told nothing: {heard:?}");
+    });
+}

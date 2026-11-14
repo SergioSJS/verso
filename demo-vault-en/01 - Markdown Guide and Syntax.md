@@ -29,7 +29,7 @@ Detailed supporting text to test the visual hierarchy.
 
 ## Text Formatting
 
-You can format text with Markdown syntax or with the formatting bar above the note in **Edit** and **Source** modes (see [[11 - Writing in the Editor]]):
+You can format text with Markdown syntax or with the formatting bar above the note in **Edit** and **Source** modes (see [[04 - Writing in the Editor]]):
 - **Bold** with `**text**` (`⌘B`)
 - *Italic* with `*text*` (`⌘I`)
 - ~~Strikethrough~~ with `~~text~~`
@@ -56,7 +56,7 @@ Lists support smart indentation via `Tab` and `Shift-Tab`, with highlighted visu
 
 ## Code Blocks with a Copy Button
 
-Hover over any code block below to see the **Copy** button in the top-right corner:
+Hover over any code block below to see the **Copy code** button (the copy icon) in the top-right corner, in Reading and Edit modes:
 
 ### Rust
 ```rust
@@ -165,4 +165,4 @@ The file stays Markdown: on every change the `|` bars line themselves up, and a 
 
 To widen a column, drag the right edge of its header cell, in Edit mode or in Reading. Verso keeps that width for the table and the note — the file doesn't change, and Obsidian shows the table as usual.
 
-Back to the [[00 - Welcome to Verso|Home Page]] or continue to [[02 - Links, Anchors and Embedded Notes]].
+Previous: [[00 - Welcome to Verso]] · Next: [[02 - Links, Anchors and Embedded Notes]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

@@ -17,7 +17,7 @@ publish.workspace = true
 # at build time, so every machine and CI use one SQLite version with FTS5
 # built in; the system library would differ per platform and Linux CI has
 # none. SQLite is public domain; rusqlite and libsqlite3-sys are MIT.
-rusqlite = { version = "0.40", default-features = false, features = ["bundled", "cache"] }
+rusqlite = { version = "0.41", default-features = false, features = ["bundled", "cache"] }
 # The reports the index stores come from the parser (ADR 0028: dialect has
 # no IO; the index has no parser).
 verso-dialect = { path = "../verso-dialect" }

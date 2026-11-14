@@ -26,9 +26,25 @@ function toB64url(buf: ArrayBuffer | null): string | null {
 
 type Json = Record<string, unknown>;
 
-/** Whether this browser offers passkeys here (a secure context). */
+/** Whether the server offers a passkey at this door, as `/api/state`
+ *  says: a computer that serves does not on its network, whose own
+ *  certificate is no secure context — only through its internet link (ADR
+ *  0117 D9, S13). */
+let offered = true;
+
+export function setPasskeysOffered(on: boolean): void {
+  offered = on;
+}
+
+/** False where the server said a passkey is only its internet link's. */
+export function passkeysOffered(): boolean {
+  return offered;
+}
+
+/** Whether this browser offers passkeys here (a secure context), and the
+ *  server at this door. */
 export function passkeysHere(): boolean {
-  return typeof window.PublicKeyCredential === "function" && window.isSecureContext;
+  return offered && typeof window.PublicKeyCredential === "function" && window.isSecureContext;
 }
 
 /** Add a passkey to the signed-in account, named `name`. */

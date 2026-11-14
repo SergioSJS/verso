@@ -117,7 +117,7 @@ test("the row is one line, the toolbar of the box has the paperclip, the bookmar
 });
 
 for (const [w, h, narrow] of [[1280, 800, null], [1280, 800, 230], [390, 844, null], [320, 700, null]]) {
-  test(`at ${narrow ?? w} px nothing of the row is clipped or scrolls sideways: each control is in the row's box or in the dots${narrow ? " (a panel narrowed to it)" : ""}`, async ({ app, page }) => {
+  test(`at ${narrow ?? w} px nothing of the row is clipped: each control is in the row's box or in the dots (a phone's row scrolls)${narrow ? " (a panel narrowed to it)" : ""}`, async ({ app, page }) => {
     await page.setViewportSize({ width: w, height: h });
     const view = await setup(app, page, { server: true });
     if (narrow) await page.evaluate((n) => { document.querySelector("aside.right").style.width = `${n}px`; }, narrow);
@@ -133,6 +133,17 @@ for (const [w, h, narrow] of [[1280, 800, null], [1280, 800, 230], [390, 844, nu
     ];
     const more = view.getByRole("button", { name: "Mais dados", exact: true });
     await expect(more).toBeVisible();
+    // A phone's row (max-width 760px) scrolls sideways inside itself instead
+    // of folding (44 px dice, the maintainer's answer of 2026-11-10): every
+    // control stays in it, reached by scrolling the row, never the page.
+    if (w <= 760 && !narrow) {
+      for (const c of [...controls, more]) {
+        await c.scrollIntoViewIfNeeded();
+        expect(inside(await c.boundingBox(), rowBox), "in the row's box once the row is scrolled to it").toBe(true);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      return;
+    }
     expect(inside(await more.boundingBox(), rowBox)).toBe(true);
     const gone = [];
     for (const c of controls) {

@@ -10,21 +10,34 @@
 
 use serde_json::{Value, json};
 use verso_contract::{
-    FolderShare, ReadLinkInfo, ReadLinkMade, ReadLinks, RecentFolder, SharePerson,
+    CampaignInvite, FolderShare, ReadLinkInfo, ReadLinkMade, ReadLinks, RecentFolder, SharePerson,
 };
 use verso_core::servers::ServerLogin;
 
 use super::*;
 use crate::dns::SendRetrying;
 
+/// Where this window's requests to its server go: a server it is signed
+/// in to, by the device's token, or this computer's own server through the
+/// owner's window's seat (ADR 0117 D4 Q3) — answered in process, through
+/// the seat's door alone: its token and an address are refused anywhere
+/// else (`verso_server::local::Policy::bearer_who`).
+enum Door {
+    Login(ServerLogin),
+    Seat(Arc<verso_server::local::Seat>),
+}
+
 /// The server and its folder behind this window: the one it shows
 /// online, or the one its folder of this computer syncs with.
 fn server_folder<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     window: &tauri::Window<R>,
-) -> Result<(ServerLogin, String), ContractError> {
+) -> Result<(Door, String), ContractError> {
     let state = app.state::<App>();
     let (url, folder) = if let Some(r) = remote::of(app, window.label()) {
+        if let Some((seat, _)) = &r.seat {
+            return Ok((Door::Seat(Arc::clone(seat)), r.folder.clone()));
+        }
         (r.url.clone(), r.folder.clone())
     } else {
         let key = state
@@ -36,16 +49,21 @@ fn server_folder<R: tauri::Runtime>(
         (synced.server, synced.folder)
     };
     let login = remote::login_for(&state, &url)?;
-    Ok((login, folder))
+    Ok((Door::Login(login), folder))
 }
 
-/// One request to the server with the device's token, its answer as JSON.
+/// One request to the server, its answer as JSON: with the device's
+/// token, or through the seat's door.
 async fn ask(
-    login: ServerLogin,
+    door: Door,
     method: &'static str,
     path: String,
     body: Option<Value>,
 ) -> Result<Value, ContractError> {
+    let login = match door {
+        Door::Login(login) => login,
+        Door::Seat(seat) => return ask_seat(seat, method, path, body).await,
+    };
     tauri::async_runtime::spawn_blocking(move || {
         let client = remote::http()?;
         let url = format!("{}{path}", login.url);
@@ -66,6 +84,30 @@ async fn ask(
                 .send_retrying()
                 .map_err(|e| reach::unsent(&server, &e))?,
         )
+    })
+    .await
+    .map_err(|e| verso_service::failed(e.to_string()))?
+}
+
+/// One request of this computer's own server through the seat's door
+/// (`Seat::request` waits, so off the async threads); a refusal as a
+/// server's is said.
+async fn ask_seat(
+    seat: Arc<verso_server::local::Seat>,
+    method: &'static str,
+    path: String,
+    body: Option<Value>,
+) -> Result<Value, ContractError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let a = seat
+            .request(method, &path, body.as_ref())
+            .map_err(|e| refused(&e))?;
+        let v: Value = serde_json::from_slice(&a.body).unwrap_or(Value::Null);
+        if (200..300).contains(&a.status) {
+            Ok(v)
+        } else {
+            Err(remote::error_of(a.status, &v))
+        }
     })
     .await
     .map_err(|e| verso_service::failed(e.to_string()))?
@@ -108,8 +150,8 @@ pub(crate) async fn share_list<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
 ) -> Result<Vec<FolderShare>, ContractError> {
-    let (login, folder) = server_folder(&app, &window)?;
-    let v = ask(login, "GET", path_of(&folder), None).await?;
+    let (door, folder) = server_folder(&app, &window)?;
+    let v = ask(door, "GET", path_of(&folder), None).await?;
     let mut out = vec![share_of(&v["root"])];
     out.extend(v["shares"].as_array().into_iter().flatten().map(share_of));
     Ok(out)
@@ -126,11 +168,45 @@ pub(crate) async fn share_grant<R: tauri::Runtime>(
     email: String,
     role: String,
 ) -> Result<FolderShare, ContractError> {
-    let (login, folder) = server_folder(&app, &window)?;
+    let (door, folder) = server_folder(&app, &window)?;
+    // The window at its own server's table: the owner's click is the fresh
+    // proof sharing asks (ADR 0117 D4 Q4; ADR 0083 item 6).
+    if let Door::Seat(seat) = &door {
+        seat.acted("share_grant").map_err(|e| refused(&e))?;
+    }
     let body = json!({ "path": path, "email": email, "role": role });
     Ok(share_of(
-        &ask(login, "PUT", path_of(&folder), Some(body)).await?,
+        &ask(door, "PUT", path_of(&folder), Some(body)).await?,
     ))
+}
+
+/// An invitation link for `email`, which no account of the server has,
+/// carrying the folder at `path` (`""` the whole folder) in `role` (ADR 0081
+/// item 4: the server's admin alone; the server refuses anyone else). The
+/// way a folder with no table is invited to, on a UniVerso and at this
+/// app's own server (ADR 0117, decided 2026-11-04).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn share_invite<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    path: String,
+    email: String,
+    role: String,
+) -> Result<CampaignInvite, ContractError> {
+    let (door, folder) = server_folder(&app, &window)?;
+    // The window at its own server's table: the owner's click is the fresh
+    // proof inviting asks (ADR 0117 D4 Q4; ADR 0083 item 6).
+    if let Door::Seat(seat) = &door {
+        seat.acted("share_invite").map_err(|e| refused(&e))?;
+    }
+    let body = json!({ "path": path, "email": email, "role": role });
+    let at = format!("{}/invite", path_of(&folder));
+    let v = ask(door, "POST", at, Some(body)).await?;
+    Ok(CampaignInvite {
+        link: v["link"].as_str().unwrap_or_default().to_owned(),
+        expires: u32::try_from(v["expires"].as_i64().unwrap_or_default()).unwrap_or(u32::MAX),
+    })
 }
 
 /// Take a person out of the share at `path`, or remove the share when no
@@ -143,10 +219,10 @@ pub(crate) async fn share_revoke<R: tauri::Runtime>(
     path: String,
     account: Option<String>,
 ) -> Result<FolderShare, ContractError> {
-    let (login, folder) = server_folder(&app, &window)?;
+    let (door, folder) = server_folder(&app, &window)?;
     let body = json!({ "path": path, "account": account });
     let at = format!("{}/revoke", path_of(&folder));
-    Ok(share_of(&ask(login, "POST", at, Some(body)).await?))
+    Ok(share_of(&ask(door, "POST", at, Some(body)).await?))
 }
 
 /// Show the attachments folder with the share at `path`, read-only, or
@@ -159,10 +235,10 @@ pub(crate) async fn share_attachments<R: tauri::Runtime>(
     path: String,
     attachments: Option<String>,
 ) -> Result<FolderShare, ContractError> {
-    let (login, folder) = server_folder(&app, &window)?;
+    let (door, folder) = server_folder(&app, &window)?;
     let body = json!({ "path": path, "attachments": attachments });
     let at = format!("{}/attachments", path_of(&folder));
-    Ok(share_of(&ask(login, "PUT", at, Some(body)).await?))
+    Ok(share_of(&ask(door, "PUT", at, Some(body)).await?))
 }
 
 /// Prove to the server behind this window that it is the person (ADR 0083
@@ -180,9 +256,9 @@ pub(crate) async fn server_prove<R: tauri::Runtime>(
     window: tauri::Window<R>,
     password: String,
 ) -> Result<(), ContractError> {
-    let (login, _) = server_folder(&app, &window)?;
+    let (door, _) = server_folder(&app, &window)?;
     let body = json!({ "password": password });
-    ask(login, "POST", "/api/me/prove".to_owned(), Some(body)).await?;
+    ask(door, "POST", "/api/me/prove".to_owned(), Some(body)).await?;
     Ok(())
 }
 
@@ -221,15 +297,28 @@ pub(crate) fn place_of(folder: &Path, home: Option<&Path>) -> String {
 /// a short label of where each sits, no path.
 #[tauri::command]
 #[specta::specta]
-pub(crate) fn recent_folders(state: State<'_, App>) -> Vec<RecentFolder> {
+pub(crate) fn recent_folders<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    state: State<'_, App>,
+) -> Vec<RecentFolder> {
     let home =
         std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).map(PathBuf::from);
+    // A phone's folders in words: inside the app, or where in its storage.
+    #[cfg(target_os = "android")]
+    let place = |path: &Path| {
+        crate::storage::place_here(&app, path).unwrap_or_else(|| place_of(path, home.as_deref()))
+    };
+    #[cfg(not(target_os = "android"))]
+    let place = |path: &Path| {
+        let _ = &app;
+        place_of(path, home.as_deref())
+    };
     verso_core::recent_folders(state.service.config())
         .into_iter()
         .take(40)
         .map(|path| RecentFolder {
             key: verso_core::folder_key(&path),
-            place: place_of(&path, home.as_deref()),
+            place: place(&path),
             name: path
                 .file_name()
                 .map(|n| n.to_string_lossy().into_owned())
@@ -265,8 +354,8 @@ pub(crate) async fn read_link_list<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     window: tauri::Window<R>,
 ) -> Result<ReadLinks, ContractError> {
-    let (login, folder) = server_folder(&app, &window)?;
-    let v = ask(login, "GET", read_links_path(&folder), None).await?;
+    let (door, folder) = server_folder(&app, &window)?;
+    let v = ask(door, "GET", read_links_path(&folder), None).await?;
     Ok(ReadLinks {
         enabled: v["enabled"] == true,
         links: v["links"]
@@ -288,7 +377,7 @@ pub(crate) async fn read_link_secrets<R: tauri::Runtime>(
     kind: String,
     path: String,
 ) -> Result<u32, ContractError> {
-    let (login, folder) = server_folder(&app, &window)?;
+    let (door, folder) = server_folder(&app, &window)?;
     let encode = |s: &str| {
         s.bytes()
             .map(|b| {
@@ -306,7 +395,7 @@ pub(crate) async fn read_link_secrets<R: tauri::Runtime>(
         encode(&kind),
         encode(&path)
     );
-    let v = ask(login, "GET", at, None).await?;
+    let v = ask(door, "GET", at, None).await?;
     Ok(u32::try_from(v["notes"].as_u64().unwrap_or_default()).unwrap_or(u32::MAX))
 }
 
@@ -323,14 +412,28 @@ pub(crate) async fn read_link_create<R: tauri::Runtime>(
     expires_at: Option<f64>,
     password: Option<String>,
 ) -> Result<ReadLinkMade, ContractError> {
-    let (login, folder) = server_folder(&app, &window)?;
-    let base = login.url.trim_end_matches('/').to_owned();
+    let (door, folder) = server_folder(&app, &window)?;
+    let base = match &door {
+        Door::Login(login) => login.url.trim_end_matches('/').to_owned(),
+        // The window at its own server's table: the owner's click is the
+        // fresh proof making a link asks (ADR 0117 D4 Q4), and the address
+        // is where this server's links open now — the internet link's
+        // while it is on, else the network's.
+        Door::Seat(seat) => {
+            seat.acted("read_link_create").map_err(|e| refused(&e))?;
+            crate::local_server::server_for_link(&app)
+                .ok()
+                .and_then(|l| l.links_base())
+                .or_else(|| seat.origin().map(str::to_owned))
+                .ok_or_else(|| refused("serving stopped: turn it on to make a read link"))?
+        }
+    };
     let body = json!({
         "kind": kind, "path": path, "expiresDays": expires_days,
         // Whole seconds: a date has no fraction.
         "expiresAt": expires_at.map(|x| x.round() as i64), "password": password,
     });
-    let v = ask(login, "POST", read_links_path(&folder), Some(body)).await?;
+    let v = ask(door, "POST", read_links_path(&folder), Some(body)).await?;
     Ok(ReadLinkMade {
         url: format!("{base}{}", v["path"].as_str().unwrap_or_default()),
         link: read_link_of(&v["link"]),
@@ -345,13 +448,13 @@ pub(crate) async fn read_link_revoke<R: tauri::Runtime>(
     window: tauri::Window<R>,
     id: String,
 ) -> Result<(), ContractError> {
-    let (login, folder) = server_folder(&app, &window)?;
+    let (door, folder) = server_folder(&app, &window)?;
     let id: String = id
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
         .collect();
     ask(
-        login,
+        door,
         "DELETE",
         format!("{}/{id}", read_links_path(&folder)),
         None,

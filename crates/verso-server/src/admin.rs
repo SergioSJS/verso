@@ -8,6 +8,8 @@
 //! log, and the server's own state. The admin has no implicit access to a
 //! folder: entering one is a grant to themselves, in the log.
 
+pub mod acts;
+
 use axum::Json;
 use axum::extract::Path;
 use axum::http::StatusCode;
@@ -103,19 +105,24 @@ pub async fn set_powers(
     if id == me && !body.admin {
         return Err(ApiError::bad("last_admin", "another admin removes you"));
     }
-    ctx.server
-        .db
-        .set_powers(&id, body.admin, body.may_create || body.admin)?;
+    let may_create = body.may_create || body.admin;
+    ctx.server.db.set_powers(&id, body.admin, may_create)?;
     ctx.audit(
-        &format!(
-            "powers_admin_{}_create_{}",
-            body.admin,
-            body.may_create || body.admin
-        ),
+        &format!("powers_admin_{}_create_{may_create}", body.admin),
         Some(&id),
         None,
         true,
     );
+    // A game master's invitations waiting end with the power to make
+    // folders; whoever accepted one keeps their place (ADR 0117 D7 (e)).
+    if target.may_create && !may_create {
+        let address = ctx.address();
+        let by = acts::By {
+            actor: Some(&me),
+            address: Some(&address),
+        };
+        acts::end_invitations_of(&ctx.server.db, &by, &id)?;
+    }
     Ok(ok(json!(null)))
 }
 
@@ -126,31 +133,12 @@ pub async fn delete_account(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respo
     if id == me {
         return Err(ApiError::bad("last_admin", "another admin removes you"));
     }
-    let target = ctx
-        .server
-        .db
-        .account(&id)?
-        .ok_or_else(ApiError::not_found)?;
-    // A folder whose only owner goes would be left with no one to share
-    // it: the admin gives it another owner first.
-    for (f, role) in ctx.server.db.folders_of(&id)? {
-        if role == Role::Owner
-            && !ctx
-                .server
-                .db
-                .members(&f.id)?
-                .iter()
-                .any(|(a, r)| *r == Role::Owner && a.id != id)
-        {
-            return Err(ApiError::bad(
-                "last_owner",
-                format!("{} keeps an owner: give it another first", f.dir),
-            ));
-        }
-    }
-    ctx.server.push_account(&id, &json!({ "gone": "session" }));
-    ctx.server.db.delete_account(&id)?;
-    ctx.audit("account_deleted", Some(&target.email), None, true);
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&me),
+        address: Some(&address),
+    };
+    acts::remove_account(&ctx.server.db, Some(&ctx.server), &by, &id)?;
     Ok(ok(json!(null)))
 }
 
@@ -170,37 +158,44 @@ pub async fn end_sessions(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Respons
             "your own sessions end in your account's page",
         ));
     }
-    ctx.server
-        .db
-        .account(&id)?
-        .ok_or_else(ApiError::not_found)?;
-    let (sessions, tokens) = ctx.server.db.end_all_of(&id)?;
-    ctx.server.push_account(&id, &json!({ "gone": "session" }));
-    ctx.audit("account_sessions_ended", Some(&id), None, true);
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&me),
+        address: Some(&address),
+    };
+    let (sessions, tokens) = acts::end_sessions(&ctx.server.db, Some(&ctx.server), &by, &id)?;
     Ok(ok(json!({ "sessions": sessions, "tokens": tokens })))
 }
 
 /// A reset link for a member who lost their password (ADR 0074 item 5): it
-/// replaces any earlier one; the admin sends it however they like.
+/// replaces any earlier one; the admin sends it however they like. Making
+/// it ends the account's sessions and revokes its tokens, as `verso serve
+/// admin reset` does (decided 2026-11-04); an admin resetting their own
+/// account keeps the session asking.
 pub async fn reset_link(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
-    let admin = ctx.admin()?.account.id.clone();
+    let who = ctx.admin()?;
+    let admin = who.account.id.clone();
+    let keep = (id == admin)
+        .then(|| who.session().map(str::to_owned))
+        .flatten();
     // A fresh proof first (ADR 0083 item 6): a link that sets another
     // account's password is the way to take it over.
     ctx.proved()?;
-    ctx.server
-        .db
-        .account(&id)?
-        .ok_or_else(ApiError::not_found)?;
-    ctx.server.db.end_links_of(&id, "reset")?;
-    let (token, _) = ctx.server.db.create_invitation(&NewLink {
-        kind: "reset",
-        account: Some(&id),
-        created_by: Some(&admin),
-        life: db::RESET_LIFE,
-        ..NewLink::default()
-    })?;
-    ctx.audit("reset_link", Some(&id), None, true);
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&admin),
+        address: Some(&address),
+    };
+    let (token, _) = acts::reset_link(
+        &ctx.server.db,
+        Some(&ctx.server),
+        &by,
+        Some(&admin),
+        &id,
+        keep.as_deref(),
+        acts::RESET_LINK,
+    )?;
     let address = link(&ctx, "reset", &token);
     let mut mailed = false;
     if let (Some(mail), Some(account)) = (ctx.server.mail.get(), ctx.server.db.account(&id)?) {
@@ -232,77 +227,62 @@ pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
     if body.folder.is_some() || body.share.is_some() {
         ctx.proved()?;
     }
-    let email = body
-        .email
-        .as_deref()
-        .map(str::trim)
-        .filter(|e| !e.is_empty());
-    if let Some(e) = email {
-        if !db::is_email(e) {
-            return Err(ApiError::bad("not_email", "not an e-mail address"));
-        }
-        if ctx.server.db.account_by_email(e)?.is_some() {
-            return Err(ApiError::new(
-                StatusCode::CONFLICT,
-                "exists",
-                "an account has this e-mail",
-            ));
-        }
-    }
-    let shared = match &body.share {
-        Some(s) => Some(ctx.server.db.share(s)?.ok_or_else(ApiError::not_found)?),
-        None => None,
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&admin),
+        address: Some(&address),
     };
-    let folder = shared
-        .as_ref()
-        .map(|s| s.folder.clone())
-        .or(body.folder.clone());
-    if let Some(f) = &folder {
-        ctx.server.db.folder(f)?.ok_or_else(ApiError::not_found)?;
-    }
-    let role = folder.as_ref().map(|_| {
-        let r = body.role.unwrap_or(Role::Reader);
-        if shared.is_some() {
-            r.min(Role::Editor)
-        } else {
-            r
-        }
-    });
-    let (token, inv) = ctx.server.db.create_invitation(&NewLink {
-        kind: "invite",
-        email,
-        folder: folder.as_deref(),
-        role,
-        created_by: Some(&admin),
-        life: db::INVITE_LIFE,
-        share: shared.as_ref().map(|s| s.id.as_str()),
-        ..NewLink::default()
-    })?;
-    ctx.audit("invitation_created", Some(&inv.id), folder.as_deref(), true);
+    let (token, inv) = acts::make_invitation(
+        &ctx.server.db,
+        &by,
+        Some(&admin),
+        &acts::Invitee {
+            email: body.email.as_deref(),
+            folder: body.folder.as_deref(),
+            role: body.role,
+            share: body.share.as_deref(),
+            // The admin still, as the row is written.
+            inviter: Some(acts::Inviter::Admin),
+            owned: false,
+        },
+    )?;
     let address = link(&ctx, "invite", &token);
-    // With a mail server, the invitation goes to its address too (ADR 0074
-    // item 4); the admin has the link either way.
-    let mailed = match (ctx.server.mail.get(), email) {
-        (Some(mail), Some(to)) => {
-            let lang = ctx.admin()?.account.lang.clone();
-            let (subject, text) = crate::mail::words(&lang, "invite", &address);
-            mail.send(to, &subject, &text).await;
-            true
-        }
-        _ => false,
-    };
+    let mailed = mail_invitation(&ctx, inv.email.as_deref(), &token).await?;
     Ok(ok(
         json!({ "id": inv.id, "link": address, "expires": inv.expires, "mailed": mailed }),
     ))
 }
 
+/// With a mail server, an invitation made for an e-mail goes to it too (ADR
+/// 0074 item 4), in the admin's language, its link the console's
+/// ([`link`]); the admin has the link either way. Whether it was mailed.
+/// The console's invitation and the share dialog's (`shares::invite`) alike;
+/// "this app is a server" has no mail server, so it never mails.
+pub(crate) async fn mail_invitation(
+    ctx: &Ctx,
+    email: Option<&str>,
+    token: &str,
+) -> ApiResult<bool> {
+    let (Some(mail), Some(to)) = (ctx.server.mail.get(), email) else {
+        return Ok(false);
+    };
+    let lang = ctx.admin()?.account.lang.clone();
+    let (subject, text) = crate::mail::words(&lang, "invite", &link(ctx, "invite", token));
+    mail.send(to, &subject, &text).await;
+    Ok(true)
+}
+
 pub async fn end_invitation(ctx: Ctx, Path(id): Path<String>) -> ApiResult<Response> {
     ctx.changes()?;
-    ctx.admin()?;
-    if !ctx.server.db.end_invitation(&id)? {
+    let admin = ctx.admin()?.account.id.clone();
+    let address = ctx.address();
+    let by = acts::By {
+        actor: Some(&admin),
+        address: Some(&address),
+    };
+    if !acts::end_invitation(&ctx.server.db, &by, &id)? {
         return Err(ApiError::not_found());
     }
-    ctx.audit("invitation_ended", Some(&id), None, true);
     Ok(ok(json!(null)))
 }
 

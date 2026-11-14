@@ -14,6 +14,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { ui } from "./dom";
+import { prettyKeys } from "./keyNames";
 import { pt, t } from "./strings";
 import { clampZoom, parseZoom, selfZooming, stepZoom, wheelSteps, zoomPercent } from "./zoomCore";
 
@@ -21,9 +22,9 @@ const KEY = "verso.zoom";
 
 const words = t === pt
   ? { status: (p: number) => `Zoom ${p} %`, zoomIn: "Aumentar zoom", zoomOut: "Diminuir zoom", zoomReset: "Zoom real (100%)",
-      title: "Zoom da janela", desc: "Amplia a janela inteira (50 % a 200 %), neste computador. Atalhos: Ctrl/⌘ com + − 0, ou Ctrl com a roda.", resetBtn: "Redefinir (100%)" }
+      title: "Zoom da janela", desc: `Amplia a janela inteira (50 % a 200 %), neste computador. Atalhos: ${prettyKeys("Mod")} com + − 0, ou ${prettyKeys("Ctrl")} com a roda.`, resetBtn: "Redefinir (100%)" }
   : { status: (p: number) => `Zoom ${p} %`, zoomIn: "Zoom in", zoomOut: "Zoom out", zoomReset: "Actual size",
-      title: "Window zoom", desc: "Scales the whole window (50 % to 200 %), on this computer. Keys: Ctrl/⌘ with + − 0, or Ctrl with the wheel.", resetBtn: "Reset (100%)" };
+      title: "Window zoom", desc: `Scales the whole window (50 % to 200 %), on this computer. Keys: ${prettyKeys("Mod")} with + − 0, or ${prettyKeys("Ctrl")} with the wheel.`, resetBtn: "Reset (100%)" };
 export const zoomLabels = { in: words.zoomIn, out: words.zoomOut, reset: words.zoomReset };
 export const zoomWords = { title: words.title, desc: words.desc, resetBtn: words.resetBtn, in: words.zoomIn, out: words.zoomOut, level: (p: number) => `${p} %` };
 

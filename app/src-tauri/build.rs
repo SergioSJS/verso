@@ -60,6 +60,7 @@ fn main() {
         "web_open",
         "web_bounds",
         "web_visible",
+        "web_snapshot",
         "web_close",
         "web_nav",
         "web_url",
@@ -99,6 +100,13 @@ fn main() {
         "log_read",
         "set_menu_language",
         "set_menu_commands",
+        "set_bars_dark",
+        "take_shared",
+        "set_background_sync",
+        "shared_storage",
+        "shared_storage_access",
+        "open_shared_folder",
+        "folder_in_app",
         "set_menu_enabled",
         "menu_sections",
         "quit_app",
@@ -192,6 +200,7 @@ fn main() {
         "discover_servers_stop",
         "share_list",
         "share_grant",
+        "share_invite",
         "share_revoke",
         "share_attachments",
         "read_link_list",
@@ -219,6 +228,27 @@ fn main() {
         "local_server_forget",
         "local_server_replace_identity",
         "local_server_audit",
+        "local_server_sit_at_table",
+        "local_server_table_host",
+        "local_server_move_table",
+        "local_server_network",
+        "local_server_link_on",
+        "local_server_link_off",
+        "local_server_link_extend",
+        "local_server_link_mode",
+        "local_server_owner_name",
+        "local_server_own_address_login",
+        "local_server_own_address_set_up",
+        "local_server_own_address_remove",
+        "local_server_invitations",
+        "local_server_invitation_revoke",
+        "local_server_devices",
+        "local_server_end_device",
+        "local_server_read_links",
+        "local_server_accounts",
+        "local_server_account_reset",
+        "local_server_account_end_sessions",
+        "local_server_account_remove",
         "folder_sync",
         "folder_sync_start",
         "folder_sync_stop",
@@ -295,6 +325,15 @@ fn commit() {
                 println!("cargo:rerun-if-changed={path}");
             }
         }
+    }
+    // iOS links the static library into the Xcode project's binary; the
+    // shared library (Android's `cdylib`, built for every target) cannot
+    // link alone there: the Swift halves of Tauri's plugins
+    // (`init_plugin_*`, `log_stdout`) are the Xcode binary's. Left to be
+    // found when loaded — it never is: no one loads it on iOS — so a
+    // release archive builds (ADR 0119 Phase 0, the device).
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("ios") {
+        println!("cargo:rustc-cdylib-link-arg=-Wl,-undefined,dynamic_lookup");
     }
 }
 

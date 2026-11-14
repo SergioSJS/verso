@@ -33,6 +33,8 @@ use verso_contract::{
 };
 use verso_service::refused;
 
+#[cfg(target_os = "android")]
+mod android;
 #[cfg(any(target_os = "macos", windows, test))]
 mod convert;
 mod encode;
@@ -157,7 +159,23 @@ async fn name_playing<R: tauri::Runtime>(
     }
 }
 
-#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+/// A phone shares the sound of its other apps (ADR 0118 item 5).
+#[cfg(target_os = "android")]
+async fn platform_sources<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    _label: &str,
+) -> (Vec<AudioSource>, Option<&'static str>) {
+    let mut list = source::list();
+    list.extend(android::list());
+    (list, None)
+}
+
+#[cfg(not(any(
+    windows,
+    target_os = "macos",
+    target_os = "linux",
+    target_os = "android"
+)))]
 async fn platform_sources<R: tauri::Runtime>(
     _app: &tauri::AppHandle<R>,
     _label: &str,
@@ -196,7 +214,22 @@ async fn open_source<R: tauri::Runtime>(
     source::open(id).or_else(|| linux_source::open(id))
 }
 
-#[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
+#[cfg(target_os = "android")]
+async fn open_source<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    _label: &str,
+    id: &str,
+) -> Option<Box<dyn source::Source>> {
+    let lang = verso_service::lock(&app.state::<App>().menu_language).clone();
+    source::open(id).or_else(|| android::open(id, &lang))
+}
+
+#[cfg(not(any(
+    windows,
+    target_os = "macos",
+    target_os = "linux",
+    target_os = "android"
+)))]
 async fn open_source<R: tauri::Runtime>(
     _app: &tauri::AppHandle<R>,
     _label: &str,
@@ -285,6 +318,8 @@ pub async fn audio_share_start<R: tauri::Runtime>(
             winpages::NO_PAGES => refused(why),
             #[cfg(target_os = "linux")]
             linuxpages::NEEDS_PULSE_TOOLS | winpages::NO_PAGES => refused(why),
+            #[cfg(target_os = "android")]
+            android::NOT_ALLOWED | android::NO_MIC => refused(why),
             _ => failed(why),
         })?;
     shares.on_window_gone(window.label(), farewell(connection));

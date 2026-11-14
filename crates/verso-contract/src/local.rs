@@ -2,8 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! "This app is a server" (ADR 0096): what Settings and the pairing dialog
-//! of the desktop app read and say. These are the desktop's own commands —
+//! "This app is a server" (ADR 0096; ADR 0117, one feature with the internet
+//! link): what Settings and the pairing dialog of the desktop app read and
+//! say. These are the desktop's own commands —
 //! a phone never runs them (the allowlist refuses the `local_server_`
 //! prefix whole) — so they cross between the host and its window only.
 //! No path crosses: a folder is named by its name and an opaque key; the
@@ -53,6 +54,191 @@ pub struct LocalServerStatus {
     /// Chosen folders this start left out for not being on the disk, each as
     /// `folder/chosen`: the window says so.
     pub dropped: Vec<String>,
+    /// The box *On my network* (ADR 0117 D1, D4 Q2): serve on the private
+    /// addresses, as ADR 0096 built. Kept; on by default.
+    pub network: bool,
+    /// The box *By an internet link* (ADR 0117 D3): where the link stands.
+    /// Never kept across starts (item 6).
+    pub link: LocalLink,
+    /// The link is turned on with the person's own address, not a quick
+    /// link (ADR 0117 D10, `local_server_link_mode`).
+    pub link_own: bool,
+    /// The own address, once set up (D10 (a)); none before.
+    pub own_address: Option<LocalOwnAddress>,
+    /// `cloudflared tunnel login` was done on this computer: the person's
+    /// Cloudflare credential is where `cloudflared` keeps it (D10 item 2).
+    pub cloudflare_signed_in: bool,
+    /// Read links are on for this computer's server (ADR 0105 item 3; ADR
+    /// 0117 D9, S12): off at first, the owner's switch in the section.
+    pub read_links: bool,
+    /// The name the players see for this computer's owner: its account's
+    /// name, the system's user at first (`local_server_owner_name`).
+    pub owner_name: String,
+    /// The server found its port closed and listens again, on the port it
+    /// had (ADR 0119 B12/A2: iOS takes an app's listener while the device
+    /// is locked; back on the screen it serves again). The window says so;
+    /// false once serving is turned on or off by hand. Added after
+    /// version 1: an answer without it reads as false.
+    #[serde(default)]
+    pub listened_again: bool,
+}
+
+/// Where the internet link stands (ADR 0117 D3 item 6).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalLinkState {
+    #[default]
+    Off,
+    /// Fetching `cloudflared`, or waiting for its first connection.
+    Starting,
+    On,
+    /// `cloudflared` ended by itself: no link until it is turned on again
+    /// (a new link, for a quick one); nothing restarts it silently.
+    Offline,
+}
+
+/// Why the link last ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum LocalLinkEnd {
+    /// The person stopped it, or serving stopped.
+    Stopped,
+    /// A quick link's twelve hours ran out (D4 Q6).
+    Ceiling,
+    /// `cloudflared` ended by itself.
+    Exited,
+    /// It never came up; the command said why.
+    Failed,
+    /// The app ended.
+    Quit,
+}
+
+/// The internet link, as Settings shows it and the event
+/// `local-server-link` says it at each change.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalLink {
+    pub state: LocalLinkState,
+    /// The link's origin while on (`https://…`), to copy and to show as a
+    /// QR. Never logged.
+    pub origin: Option<String>,
+    /// A quick link's ceiling, in seconds since the epoch; none for an own
+    /// address, which has none (D10).
+    pub until: Option<u32>,
+    /// The link is the person's own address.
+    pub own: bool,
+    /// Why it last ended.
+    pub ended: Option<LocalLinkEnd>,
+    /// How `cloudflared` reaches Cloudflare while on: `quic`, or `http2`
+    /// when QUIC (UDP) found no way out and it tried again over TCP.
+    pub protocol: Option<String>,
+    /// The origin as a QR, rows of `1` (dark) and `0`, for a phone at the
+    /// table to scan (D3 item 6); empty while off. The window draws it.
+    pub qr: Vec<String>,
+    /// While starting, the download of `cloudflared` under way (its first
+    /// use): how far it got. None when nothing downloads.
+    pub download: Option<LocalLinkDownload>,
+}
+
+/// How far the download of `cloudflared` got.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalLinkDownload {
+    /// Bytes downloaded so far.
+    pub done: u32,
+    /// Bytes in all, when GitHub said.
+    pub total: Option<u32>,
+}
+
+/// The person's own address for the link (ADR 0117 D10 (a)): a hostname of
+/// their domain, routed at Cloudflare to a tunnel this computer made.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalOwnAddress {
+    /// `mesa.example.com`.
+    pub hostname: String,
+}
+
+/// How `cloudflared tunnel login` ended (D10 item 2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalOwnLogin {
+    /// The person's Cloudflare credential is in place now.
+    pub signed_in: bool,
+    /// It was there already, from an earlier login (`cloudflared` does not
+    /// overwrite it).
+    pub already: bool,
+    /// When the login did not end: Cloudflare's page to open by hand, if
+    /// `cloudflared` gave it. It carries a one-time callback: shown, never
+    /// logged.
+    pub url: Option<String>,
+    /// Why not, in `cloudflared`'s words with every address taken out.
+    pub why: Option<String>,
+}
+
+/// One invitation of this computer's server, as the section lists it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalInvitation {
+    pub id: String,
+    /// The served folder it carries, by the name a person is shown.
+    pub folder: Option<String>,
+    /// `reader` or `editor`; none with no folder.
+    pub role: Option<String>,
+    /// Seconds since the epoch.
+    pub created: u32,
+    pub expires: u32,
+    /// `pending`, `used`, `ended` or `expired`.
+    pub state: String,
+    /// The name of the account that used it.
+    pub used_by: Option<String>,
+}
+
+/// Another person's desktop app signed in to this computer's server by an
+/// invited account (ADR 0117 D9, S11), as the section lists it, with *End*.
+/// Never the owner's window at the table, never a phone.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalDevice {
+    /// The session's id, to end it.
+    pub id: String,
+    /// The device's own name (Settings › Servers on that computer).
+    pub device: String,
+    /// The account's name and e-mail-shaped identifier.
+    pub account: String,
+    pub email: String,
+    /// Seconds since the epoch.
+    pub created: u32,
+    pub last_used: u32,
+}
+
+/// A person invited to this computer's server, as the section *Pessoas
+/// convidadas* lists them (ADR 0117 D9): never this computer's own
+/// accounts (the owner, its window's seat, the holder of the parts).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalPlayer {
+    /// The account's id, to act on it.
+    pub id: String,
+    pub name: String,
+    /// The e-mail-shaped identifier they accepted with (D4 Q5).
+    pub email: String,
+    /// Seconds since the epoch.
+    pub created: u32,
+    /// The latest use of any of their sessions; none with no session.
+    pub last_seen: Option<u32>,
+    /// The folders and shares they reach, with their role in each.
+    pub reaches: Vec<LocalPlayerReach>,
+}
+
+/// A folder (`Campanha`) or a share (`Campanha/Mapas`) a person reaches.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalPlayerReach {
+    pub name: String,
+    /// `reader`, `editor` or `owner`.
+    pub role: String,
+}
+
+/// A new password's link for a person (ADR 0117 D9; ADR 0074 item 5): a
+/// single use for a day, said this once to the owner, who hands it over.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalReset {
+    pub link: String,
+    /// Seconds since the epoch.
+    pub expires: u32,
 }
 
 /// A folder the person may tick to serve.
@@ -79,10 +265,15 @@ pub struct LocalFolder {
     /// read-only and files only (Obsidian's own setting, read at each
     /// start); none when it names none, or overlaps a chosen folder.
     pub attachments: Option<String>,
-    /// The server this folder also syncs with: such a folder cannot be
-    /// served in V1 (item 11), and the row says to open that address on
-    /// the phone instead.
-    pub syncs_with: Option<String>,
+    /// The UniVerso this folder was shared with this person from, when it
+    /// syncs a folder another account owns there: such a folder is not
+    /// served from here (ADR 0081 item 4; ADR 0117 D4). A folder of one's
+    /// own that syncs has none and is served like any other.
+    pub received_from: Option<String>,
+    /// How many tables this computer's server holds in this folder while it
+    /// serves it; 0 while serving is off. A window on a served folder with
+    /// one sits at its table by itself (ADR 0117 D4 Q3, revised 2026-11-05).
+    pub tables: u32,
 }
 
 /// A phone paired with this computer.
@@ -119,8 +310,23 @@ pub struct LocalPairing {
     pub expires_in: u32,
     pub fingerprint: String,
     /// `own` or `files`: with `own`, the dialog says the limit in words
-    /// (trust on first use, for a network the person trusts).
+    /// (trust on first use, for a network the person trusts). `link` when
+    /// the internet link alone serves: the QR is the link's, with no
+    /// fingerprint.
     pub certificate: String,
+    /// The same window through the internet link, while the link has an
+    /// address (ADR 0117 D5): its pairing address with the same one-time
+    /// token in the fragment, and its QR, for the dialog to show instead.
+    pub link: Option<LocalPairLink>,
+}
+
+/// The pairing window's address through the internet link (ADR 0117 D5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalPairLink {
+    /// `https://<link>/pair#t=<token>`: the token in the fragment.
+    pub url: String,
+    /// Its QR as rows of `1` (dark) and `0`.
+    pub qr: Vec<String>,
 }
 
 /// One address the pairing dialog may show.
@@ -146,6 +352,9 @@ pub struct LocalAsked {
     pub address: String,
     /// When it asked, `YYYY-MM-DDTHH:MM:SSZ`.
     pub asked: String,
+    /// It asked through the internet link (ADR 0117 D5): the address is
+    /// the one the tunnel forwarded, and the question says so.
+    pub link: bool,
 }
 
 /// The dialog's state, asked while it is open.

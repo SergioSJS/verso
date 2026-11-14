@@ -11,7 +11,7 @@
   the three).
 - Related: [0010](0010-folder-is-the-unit-no-vault.md) (no vault),
   [0011](0011-config-outside-tree-index-as-cache.md) (config outside the
-  tree, the index a cache), [0021](0021-sync-automerge-layered-config.md)
+  tree, the index a cache), [0021](archive/0021-sync-automerge-layered-config.md)
   (layered config, Proposed), [0052](0052-typed-note.md) (schemas in the
   folder), [0062](0062-focuses.md) (focuses in `.space/waypoints.json`),
   [0069](0069-windows-port.md) (the Windows port, its separator `[OPEN]` — decided `/` on
@@ -137,7 +137,7 @@ those, the rule item 3 takes.
      (invariant 4).
    - **the person's**, which follow the user across folders (language,
      theme, keys): stay on the machine until layered sync
-     ([0021](0021-sync-automerge-layered-config.md)) gives them a home.
+     ([0021](archive/0021-sync-automerge-layered-config.md)) gives them a home.
      *(On a server, since 2026-10-09: the account is their home,
      [0073](0073-self-hosted-server-first.md) item 5.)*
 2. **The folder's layer, proposed contents** *(accepted on 2026-10-12,
@@ -180,7 +180,7 @@ those, the rule item 3 takes.
 - Two machines changing a folder setting at once leave the sync tool to
   merge the file, or to keep a conflict copy; the atomic write's check
   (invariant 11) refuses to write over a version it did not read. Merging
-  is layered sync's work ([0021](0021-sync-automerge-layered-config.md)).
+  is layered sync's work ([0021](archive/0021-sync-automerge-layered-config.md)).
 - Whether Obsidian lists a hidden directory of Verso's in its file explorer
   is to be observed before the name is chosen (ADR 0009).
   *Observed on 2026-10-12, from outside (ADR 0009), not a decision:*

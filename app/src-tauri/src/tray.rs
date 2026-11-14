@@ -3,7 +3,8 @@
 //! maintainer's word ("aceito todas recomendações"): while the app serves
 //! to a phone, nothing listens without being visible outside the window
 //! too. A tray icon with the app's mark, and a menu — how many folders it
-//! serves, *Stop*, *Open Settings*. It exists only while serving: stopping
+//! serves, the internet link while it is on (ADR 0117 D3 item 6), *Stop*
+//! (the link and serving), *Open Settings*. It exists only while serving: stopping
 //! (from the menu, from Settings, by itself when the network changes, or
 //! with the app) removes it.
 //!
@@ -44,6 +45,9 @@ const MARK_SIDE: u32 = 72;
 pub(crate) struct Words {
     /// The first, disabled, line of the menu: what is being served.
     pub(crate) serving: String,
+    /// A second disabled line while the internet link is on (ADR 0117 D3
+    /// item 6: while on, always visible).
+    pub(crate) link: Option<&'static str>,
     pub(crate) stop: &'static str,
     pub(crate) settings: &'static str,
     /// The icon's tooltip and accessible name: what it is, what it serves
@@ -51,9 +55,10 @@ pub(crate) struct Words {
     pub(crate) tooltip: String,
 }
 
-/// The tray's words for `folders` served and `phones` connected, in
-/// `lang` ("en", or anything else for pt-BR, the product's own).
-pub(crate) fn words(lang: &str, folders: usize, phones: u32) -> Words {
+/// The tray's words for `folders` served and `phones` connected, the
+/// internet `link` on or not, in `lang` ("en", or anything else for pt-BR,
+/// the product's own).
+pub(crate) fn words(lang: &str, folders: usize, phones: u32, link: bool) -> Words {
     if lang == "en" {
         let folders = match folders {
             1 => "1 folder".to_owned(),
@@ -66,9 +71,14 @@ pub(crate) fn words(lang: &str, folders: usize, phones: u32) -> Words {
         };
         Words {
             serving: format!("Serving {folders}…"),
+            link: link.then_some("Internet link on"),
             stop: "Stop",
             settings: "Open Settings",
-            tooltip: format!("Verso is serving {folders} to your phone, {phones}"),
+            tooltip: if link {
+                format!("Verso is serving {folders}, by an internet link too, {phones}")
+            } else {
+                format!("Verso is serving {folders} to your phone, {phones}")
+            },
         }
     } else {
         let folders = match folders {
@@ -82,9 +92,14 @@ pub(crate) fn words(lang: &str, folders: usize, phones: u32) -> Words {
         };
         Words {
             serving: format!("Servindo {folders}…"),
+            link: link.then_some("Link pela internet ligado"),
             stop: "Parar",
             settings: "Abrir Ajustes",
-            tooltip: format!("O Verso está servindo {folders} ao seu celular, {phones}"),
+            tooltip: if link {
+                format!("O Verso está servindo {folders}, também por um link na internet, {phones}")
+            } else {
+                format!("O Verso está servindo {folders} ao seu celular, {phones}")
+            },
         }
     }
 }
@@ -95,6 +110,7 @@ struct Serving {
     on: bool,
     folders: usize,
     phones: u32,
+    link: bool,
 }
 
 /// Make the tray agree with the server, after any change of it (`Changed`,
@@ -111,6 +127,7 @@ pub(crate) fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
             on,
             folders,
             phones,
+            link: crate::tunnel::link_up(&app),
         };
         let main = app.clone();
         let _ = app.run_on_main_thread(move || show(&main, &serving));
@@ -149,7 +166,7 @@ fn show<R: tauri::Runtime>(app: &tauri::AppHandle<R>, serving: &Serving) {
         return;
     }
     let lang = lock(&app.state::<App>().menu_language).clone();
-    let say = words(&lang, serving.folders, serving.phones);
+    let say = words(&lang, serving.folders, serving.phones, serving.link);
     let Ok(menu) = menu_of(app, &say) else {
         log::write("WARN", "host", "the tray's menu could not be made");
         return;
@@ -176,16 +193,25 @@ fn show<R: tauri::Runtime>(app: &tauri::AppHandle<R>, serving: &Serving) {
 }
 
 fn menu_of<R: tauri::Runtime>(app: &tauri::AppHandle<R>, say: &Words) -> tauri::Result<Menu<R>> {
-    Menu::with_items(
-        app,
-        &[
-            // A line of information, not a command.
-            &MenuItem::new(app, &say.serving, false, None::<&str>)?,
-            &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, STOP, say.stop, true, None::<&str>)?,
-            &MenuItem::with_id(app, SETTINGS, say.settings, true, None::<&str>)?,
-        ],
-    )
+    // Lines of information, not commands.
+    let serving = MenuItem::new(app, &say.serving, false, None::<&str>)?;
+    let link = say
+        .link
+        .map(|l| MenuItem::new(app, l, false, None::<&str>))
+        .transpose()?;
+    let separator = PredefinedMenuItem::separator(app)?;
+    let stop = MenuItem::with_id(app, STOP, say.stop, true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, SETTINGS, say.settings, true, None::<&str>)?;
+    let mut items: Vec<&dyn tauri::menu::IsMenuItem<R>> = vec![&serving];
+    if let Some(l) = &link {
+        items.push(l);
+    }
+    items.extend([
+        &separator as &dyn tauri::menu::IsMenuItem<R>,
+        &stop,
+        &settings,
+    ]);
+    Menu::with_items(app, &items)
 }
 
 /// The mark: a template on macOS, the app's own icon on Windows.
@@ -250,11 +276,11 @@ mod tests {
 
     #[test]
     fn the_tray_speaks_the_windows_language() {
-        let pt = words("pt", 2, 1);
+        let pt = words("pt", 2, 1, false);
         assert_eq!(pt.serving, "Servindo 2 pastas…");
         assert_eq!((pt.stop, pt.settings), ("Parar", "Abrir Ajustes"));
         assert!(pt.tooltip.contains("1 celular conectado"), "{}", pt.tooltip);
-        let en = words("en", 2, 0);
+        let en = words("en", 2, 0, false);
         assert_eq!(en.serving, "Serving 2 folders…");
         assert_eq!((en.stop, en.settings), ("Stop", "Open Settings"));
         assert!(en.tooltip.contains("no phone connected"), "{}", en.tooltip);
@@ -262,12 +288,23 @@ mod tests {
 
     #[test]
     fn one_folder_is_singular_and_every_name_is_there_for_a_screen_reader() {
-        assert_eq!(words("pt", 1, 0).serving, "Servindo 1 pasta…");
-        assert_eq!(words("en", 1, 3).serving, "Serving 1 folder…");
+        assert_eq!(words("pt", 1, 0, false).serving, "Servindo 1 pasta…");
+        assert_eq!(words("en", 1, 3, false).serving, "Serving 1 folder…");
         for lang in ["pt", "en"] {
-            let w = words(lang, 3, 2);
+            let w = words(lang, 3, 2, false);
             assert!(!w.tooltip.is_empty() && !w.stop.is_empty() && !w.settings.is_empty());
         }
+    }
+
+    #[test]
+    fn the_internet_link_is_said_on_its_own_line_and_in_the_tooltip() {
+        let pt = words("pt", 1, 0, true);
+        assert_eq!(pt.link, Some("Link pela internet ligado"));
+        assert!(pt.tooltip.contains("link na internet"), "{}", pt.tooltip);
+        let en = words("en", 1, 0, true);
+        assert_eq!(en.link, Some("Internet link on"));
+        assert!(en.tooltip.contains("internet link"), "{}", en.tooltip);
+        assert_eq!(words("en", 1, 0, false).link, None);
     }
 
     #[test]

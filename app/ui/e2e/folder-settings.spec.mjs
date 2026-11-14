@@ -24,7 +24,7 @@ test("a star is kept in the folder's settings", async ({ app }) => {
   await app.open();
   await app.quickOpen("Busca e Navegação");
   await app.command("Favoritar");
-  await expect.poll(async () => JSON.parse((await app.file(FILE)) ?? "{}").bookmarks).toEqual(["12 - Busca e Navegação.md"]);
+  await expect.poll(async () => JSON.parse((await app.file(FILE)) ?? "{}").bookmarks).toEqual(["09 - Busca e Navegação.md"]);
 });
 
 /** The bookmarks' line of Settings › Organização: where they are kept,
@@ -44,11 +44,11 @@ test("a reader of a synced folder stars on this computer, never in the folder's 
   // item 1): its own file holds a bookmark of someone who writes it.
   await app.open("?sync=reader");
   await expect(app.page.locator("#sync-state")).toBeVisible();
-  const theirs = '{\n  "bookmarks": [\n    "12 - Busca e Navegação.md"\n  ]\n}\n';
+  const theirs = '{\n  "bookmarks": [\n    "09 - Busca e Navegação.md"\n  ]\n}\n';
   await app.writeOutside(FILE, theirs);
   await app.folderChanged([FILE]);
   await app.quickOpen("Arquivos e Pastas");
-  const star = starOf(app, "14 - Arquivos e Pastas");
+  const star = starOf(app, "07 - Arquivos e Pastas");
   await expect(star).toBeVisible();
   await expect(star).not.toHaveClass(/\bon\b/);
   await star.click();

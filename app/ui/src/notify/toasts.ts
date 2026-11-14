@@ -17,6 +17,7 @@ import { h } from "../dom";
 import { icon } from "../icons";
 import type { ActionRef, Entry, Level } from "./core";
 import { notifyStrings } from "./strings";
+import { PHONE_MEDIA } from "../screen/phone";
 
 /** How long information and success stay, in milliseconds. */
 export const BRIEF_MS = 6000;
@@ -68,6 +69,24 @@ function build(): HTMLElement {
   document.body.append(region, top, polite, assertive);
   return region;
 }
+
+/* On a phone a toast already up when a dialog opens folds away while the
+ * dialog shows: a warning that stays (a sync without its server) covered
+ * the dialog's own buttons on the maintainer's phone (ADR 0118, 2026-11-12).
+ * A toast raised while the dialog is open — the feedback of what was done
+ * in it — still shows. The list of notifications keeps them all. */
+const phoneScreen = typeof window.matchMedia === "function" ? window.matchMedia(PHONE_MEDIA) : null;
+const modalUp = (): boolean =>
+  [...document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]')].some((d) => !d.hidden && d.getClientRects().length > 0);
+addEventListener("verso:overlay", (e) => {
+  const opening = (e as CustomEvent<boolean>).detail;
+  if (opening && phoneScreen?.matches) for (const t of shown) t.el.classList.add("under-dialog");
+  // Closing: once the dialog is gone from the page (its own code removes it
+  // after saying so), and no other is up.
+  else if (!opening) requestAnimationFrame(() => {
+    if (!modalUp()) for (const t of shown) t.el.classList.remove("under-dialog");
+  });
+});
 
 /** Say `text` to a screen reader: assertive for an error. */
 function announce(level: Level, text: string): void {
@@ -125,7 +144,7 @@ export function showToast(entry: Pick<Entry, "key" | "level" | "title" | "senten
   const s = notifyStrings();
   // Ambient news at the top on a desktop; on a phone (ADR 0084 T.6) every
   // toast is at the bottom, above the keyboard's bar.
-  const box = entry.kind === "presence" && !matchMedia("(max-width: 760px)").matches ? (build(), top!) : build();
+  const box = entry.kind === "presence" && !matchMedia(PHONE_MEDIA).matches ? (build(), top!) : build();
   dismissKey(entry.key);
   const el = h("article", "notify-toast");
   el.dataset["level"] = entry.level;

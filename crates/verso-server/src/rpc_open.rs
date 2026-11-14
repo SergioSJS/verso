@@ -94,12 +94,37 @@ pub(crate) async fn open(
             && server.local.is_some()
             && server.db.local_owner().is_ok_and(|a| a.id == account));
     let owner = scope.is_none() && owns;
-    if let Some(c) = lock(&server.clients).get_mut(client) {
-        c.folder = Some((folder.id.clone(), role));
-        c.owner = owner;
-        c.owns = owns;
-        c.scope.clone_from(&scope);
-        let _ = c.tx.send(&said);
+    // Looked at again where the window is attached, under the lock the cut
+    // of a folder that stops being served takes (`local::live`): an open
+    // that passed `access::role` while the folder was served, and finished
+    // after it rested — or after it became served in part, for a phone on
+    // the folder itself — is refused, never attached (review of
+    // 2026-11-14, B1).
+    let refused = {
+        let mut clients = lock(&server.clients);
+        let Some(c) = clients.get_mut(client) else {
+            return Err(verso_service::failed("the connection closed"));
+        };
+        let hidden = c.phone
+            && scope.is_none()
+            && server.local.as_ref().is_some_and(|p| p.hides(&folder.id));
+        if server.rests(&folder.dir) || hidden {
+            true
+        } else {
+            c.folder = Some((folder.id.clone(), role));
+            c.owner = owner;
+            c.owns = owns;
+            c.scope.clone_from(&scope);
+            let _ = c.tx.send(&said);
+            false
+        }
+    };
+    if refused {
+        server.left(&[client.to_owned()]);
+        return Err(ContractError {
+            kind: verso_contract::ErrorKind::NotFound,
+            message: "not found".to_owned(),
+        });
     }
     record_space(server, client).await;
     let info = to_value(info)?;
@@ -239,29 +264,40 @@ pub(crate) fn places(ctx: &Ctx, who: &Who) -> ApiResult<(Held, Option<u32>)> {
             )
         }
     };
-    let account = format!("account:{}", who.account.id);
+    let (per_account, per_address) = crate::fair::connections_most(&ctx.server);
+    // "This app is a server" (ADR 0117): every phone is a session of the
+    // owner's account, so each phone is bounded by its session; the
+    // owner's window in process (the seat) by the server's 64 and the
+    // UniVerso's bound.
+    let (key, what, most) = match (&ctx.server.local, who.session()) {
+        (Some(local), Some(session)) if local.is_seat(session) => (
+            format!("seat:{session}"),
+            "the owner's window".to_owned(),
+            crate::fair::PER_ACCOUNT,
+        ),
+        (Some(_), Some(session)) if who.phone.is_some() => (
+            format!("phone:{session}"),
+            "a phone".to_owned(),
+            per_account,
+        ),
+        _ => (
+            format!("account:{}", who.account.id),
+            format!("account {}", who.account.id),
+            per_account,
+        ),
+    };
     let mut held = vec![
         counts
-            .take(&account, crate::fair::PER_ACCOUNT)
-            .ok_or_else(|| {
-                too_many(
-                    &format!("account {}", who.account.id),
-                    crate::fair::PER_ACCOUNT,
-                )
-            })?,
+            .take(&key, most)
+            .ok_or_else(|| too_many(&what, most))?,
     ];
     // This machine is the proxy in front, speaking for everyone.
     if !ctx.peer.local {
         let address = format!("address:{}", ctx.peer.key());
         held.push(
             counts
-                .take(&address, crate::fair::PER_ADDRESS)
-                .ok_or_else(|| {
-                    too_many(
-                        &format!("address {}", ctx.peer.key()),
-                        crate::fair::PER_ADDRESS,
-                    )
-                })?,
+                .take(&address, per_address)
+                .ok_or_else(|| too_many(&format!("address {}", ctx.peer.key()), per_address))?,
         );
     }
     // "This app is a server": at most two phones connected at once (ADR

@@ -102,6 +102,18 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
  *  the import compares a file already in the folder with, to tell a
  *  person's untouched copy of an older tutorial from the person's own edit
  *  (ADR 0058). */
+/** Lessons merged into another: old path → the lesson that holds it now. */
+const MERGED = {
+  pt: {
+    "17 - Terminal, CLI e Agentes.md": "35 - Terminal, CLI e Agentes de IA.md",
+    "35 - Terminal e Agentes de IA.md": "35 - Terminal, CLI e Agentes de IA.md",
+  },
+  en: {
+    "17 - Terminal, CLI and Agents.md": "35 - Terminal, CLI and AI Agents.md",
+    "35 - Terminal and AI Agents.md": "35 - Terminal, CLI and AI Agents.md",
+  },
+};
+
 function historyHashes(lang, p) {
   const dir = LANGS[lang === "en" && shared(p) ? "pt" : lang].dir;
   const log = execFileSync("git", ["-c", "core.quotepath=off", "log", "--follow", "--name-only", "--format=@%H", "--", `${dir}/${p}`], { cwd: root, maxBuffer: 1 << 28 })
@@ -180,6 +192,16 @@ function embedText(lang) {
     const list = past.length === 0 ? "" : `    "past": [\n${past.map((h) => `      "${h}"`).join(",\n")}\n    ],\n`;
     return `  {\n    "path": ${JSON.stringify(p)},\n${list}    "b64": "${bytes.toString("base64")}"\n  }`;
   });
+  // Two lessons merged into one (2026-11-04: the terminal's 17 and 35):
+  // git follows neither to the new file, so the import is told here, and
+  // an older name that led to either now leads to the merged lesson.
+  for (const [was, to] of Object.entries(MERGED[lang] ?? {})) {
+    if (!files.has(to)) continue;
+    const past = new Set(retired.get(was)?.past ?? []);
+    for (const hashes of historyHashes(lang, was).values()) for (const h of hashes) past.add(h);
+    retired.set(was, { to, past: [...past] });
+    for (const [name, r] of retired) if (r.to === was) retired.set(name, { ...r, to });
+  }
   const gone = [...retired].filter(([name]) => !files.has(name)).sort(([a], [b]) => (a < b ? -1 : 1));
   if (lang === "en") return `${head}${items.join(",\n")}\n];\n`;
   const old = gone.length === 0

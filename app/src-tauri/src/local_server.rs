@@ -11,8 +11,9 @@
 //! `verso-server` builds on Windows with OpenSSL compiled in, as elsewhere).
 
 use verso_contract::{
-    LocalAddressChoice, LocalAsked, LocalAudit, LocalFolder, LocalPairState, LocalPairing,
-    LocalPhone, LocalServerStatus,
+    LocalAddressChoice, LocalAsked, LocalAudit, LocalDevice, LocalFolder, LocalInvitation,
+    LocalLink, LocalOwnLogin, LocalPairLink, LocalPairState, LocalPairing, LocalPhone, LocalPlayer,
+    LocalReset, LocalServerStatus,
 };
 
 use super::*;
@@ -21,9 +22,28 @@ use super::*;
 #[derive(Default)]
 pub(crate) struct LocalSlot {
     server: std::sync::OnceLock<verso_server::local::LocalServer>,
+    /// The internet link's `cloudflared` (ADR 0117 D3, `crate::tunnel`).
+    pub(crate) link: crate::tunnel::Slot,
 }
 
+mod accounts;
+mod link;
+mod own;
+mod owner;
+#[cfg(test)]
+pub(crate) use own::hostname_of;
+mod moving;
 mod platform;
+pub(crate) mod seat;
+
+#[cfg(test)]
+impl LocalSlot {
+    /// The mode's server made by a test (its window's files, its
+    /// directory), before the app makes its own.
+    pub(crate) fn set_for_tests(&self, server: verso_server::local::LocalServer) {
+        let _ = self.server.set(server);
+    }
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -43,7 +63,8 @@ pub(crate) async fn local_server_folders<R: tauri::Runtime>(
 }
 
 /// Tick or untick a folder (by its key). A folder that also syncs with a
-/// UniVerso cannot be ticked in V1 (item 11).
+/// UniVerso is ticked like any other; one shared with this person by
+/// another account is not (ADR 0081 item 4).
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn local_server_tick<R: tauri::Runtime>(
@@ -212,28 +233,282 @@ pub(crate) async fn local_server_audit<R: tauri::Runtime>(
     platform::audit(app).await
 }
 
+/// Sit this window at the table of its folder, which this app serves (ADR
+/// 0117 D4 Q3, *Sit at the table*): the window becomes a client of its own
+/// server, as the owner, and has the table, the campaign and the
+/// invitation as on a UniVerso. Refused for a folder this app does not
+/// serve, and while it serves none.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_sit_at_table<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<FolderInfo, ContractError> {
+    seat::sit(app, window).await
+}
+
+/// The other host the window's table may move to (ADR 0117 D8, R9): the
+/// UniVerso the folder syncs with, for a window at this computer's own
+/// table; this computer, for a window on that UniVerso's folder while it
+/// serves the folder too. None when there is no other.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn local_server_table_host<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<Option<verso_contract::TableHost>, ContractError> {
+    Ok(moving::other(&app, window.label()))
+}
+
+/// Move the window's table at `root` to its other host (ADR 0117 D8, R9):
+/// made there, every note hidden and nobody invited; closed here to its
+/// players and marked moved, its chat, rolls and rights kept here until it
+/// is undone. Answers where it went, for the window to go there.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_move_table<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    root: String,
+) -> Result<verso_contract::TableHost, ContractError> {
+    moving::move_table(app, window.label().to_owned(), root).await
+}
+
+/// The box *On my network* (ADR 0117 D1, D4 Q2): kept; changed while
+/// serving is off.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_network<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    on: bool,
+) -> Result<LocalServerStatus, ContractError> {
+    link::network(app, on).await
+}
+
+/// The box *By an internet link* ticked (ADR 0117 D3): a quick link, or the
+/// own address when that is the mode. Starts serving when it was off. The
+/// first time it downloads the pinned `cloudflared`.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_link_on<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<LocalLink, ContractError> {
+    link::link_on(app).await
+}
+
+/// The link off: with *On my network* unticked, serving stops with it.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_link_off<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<LocalLink, ContractError> {
+    link::link_off(app).await
+}
+
+/// *Extend*: a quick link's twelve hours from now again (D4 Q6).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_link_extend<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<LocalLink, ContractError> {
+    link::link_extend(app).await
+}
+
+/// The name the players see for this computer's owner (its account's,
+/// as on a UniVerso), set in the section.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_owner_name<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    name: String,
+) -> Result<LocalServerStatus, ContractError> {
+    owner::set(app, name).await
+}
+
+/// A quick link (`own` false) or the own address (D10), for the next time
+/// the link is turned on.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_link_mode<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    own: bool,
+) -> Result<LocalServerStatus, ContractError> {
+    link::link_mode(app, own).await
+}
+
+/// *Use my own address*, step one: log in to Cloudflare in the browser
+/// (D10 item 2).
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_own_address_login<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<LocalOwnLogin, ContractError> {
+    own::login(app).await
+}
+
+/// *Use my own address*, step two: the tunnel made and `hostname` routed to
+/// it (D10 items 3 and 4); the link uses it from now on.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_own_address_set_up<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    hostname: String,
+) -> Result<LocalServerStatus, ContractError> {
+    own::set_up(app, hostname).await
+}
+
+/// Forget the own address: deleted at Cloudflare, or on this computer
+/// alone with `here_only`.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_own_address_remove<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    here_only: bool,
+) -> Result<LocalServerStatus, ContractError> {
+    own::remove(app, here_only).await
+}
+
+/// Every invitation of this computer's server.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_invitations<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<LocalInvitation>, ContractError> {
+    link::invitations(app).await
+}
+
+/// End an invitation not used yet.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_invitation_revoke<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), ContractError> {
+    link::invitation_revoke(app, id).await
+}
+
+/// The desktop apps of other people signed in to this computer's server
+/// (ADR 0117 D9, S11), to end one; never the window at the table, never a
+/// phone.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_devices<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<LocalDevice>, ContractError> {
+    accounts::devices(app).await
+}
+
+/// *End* a desktop app's session: it syncs nothing until it signs in again.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_end_device<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), ContractError> {
+    accounts::end_device(app, id).await
+}
+
+/// Read links on or off for this computer's server (ADR 0105 item 3; ADR
+/// 0117 D9, S12): off at first; off ends every link at once.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_read_links<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    on: bool,
+) -> Result<LocalServerStatus, ContractError> {
+    accounts::read_links(app, on).await
+}
+
+/// The people invited to this computer's server (ADR 0117 D9), for
+/// *Pessoas convidadas*; never this computer's own accounts.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_accounts<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<Vec<LocalPlayer>, ContractError> {
+    accounts::players(app).await
+}
+
+/// *Nova senha*: a single-use link for a day that sets a person's new
+/// password (ADR 0117 D9; ADR 0074 item 5), said this once; their sessions
+/// end now.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_account_reset<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<LocalReset, ContractError> {
+    accounts::reset(app, id).await
+}
+
+/// *Encerrar sessões*: every session of a person ends, their tokens too.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_account_end_sessions<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), ContractError> {
+    accounts::end_sessions(app, id).await
+}
+
+/// *Remover*: a person's account and everything it held.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_account_remove<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    id: String,
+) -> Result<(), ContractError> {
+    accounts::remove(app, id).await
+}
+
 /// At the app's start: serve again when the person asked it to keep on
 /// (item 1), after the setup, off the main thread.
 pub(crate) fn auto_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     platform::auto_start(app);
 }
 
+/// The app back on the screen (iOS): a server whose port iOS closed while
+/// the device was locked listens again (ADR 0119 B12/A2).
+#[cfg(target_os = "ios")]
+pub(crate) fn after_resume<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    platform::after_resume(app);
+}
+
+/// The app leaves the screen (iOS): when it went, if it serves.
+#[cfg(target_os = "ios")]
+pub(crate) fn before_suspend<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    platform::before_suspend(app);
+}
+
 /// Whether it serves, how many folders and how many phones are connected
 /// now; none before the server was first used.
-#[cfg(any(target_os = "macos", windows))]
+#[cfg(any(target_os = "macos", windows, target_os = "android"))]
 pub(crate) fn serving_now<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Option<(bool, usize, u32)> {
     platform::serving_now(app)
 }
 
-/// Stop serving now, from the menu-bar mark's *Stop*.
+/// Stop serving now, from the menu-bar mark's *Stop*: the link's tunnel
+/// first.
 #[cfg(any(target_os = "macos", windows))]
 pub(crate) fn stop_now<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    crate::tunnel::stop_with(app, crate::tunnel::LinkEnd::Stopped);
     platform::stop_on_exit(app);
 }
 
-/// At the app's end: stop, so the port closes and the goodbye is sent.
+/// At the app's end: stop, so the port closes and the goodbye is sent; the
+/// link's `cloudflared` is stopped first, so it does not outlive the app
+/// (ADR 0117 D3 item 6).
 pub(crate) fn stop_on_exit<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    crate::tunnel::stop_with(app, crate::tunnel::LinkEnd::Quit);
     platform::stop_on_exit(app);
+}
+
+/// The mode's server, for the link's tunnel (`crate::tunnel`) and the
+/// address of a read link made from the window at the table (`shares.rs`).
+pub(crate) fn server_for_link<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<verso_server::local::LocalServer, String> {
+    platform::server(app).map_err(|e| e.message)
 }

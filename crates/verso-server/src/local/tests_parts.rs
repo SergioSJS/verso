@@ -68,7 +68,7 @@ pub(super) fn lab_in_part(chosen: &[&str]) -> Lab {
     lab
 }
 
-fn set_chosen(lab: &Lab, chosen: &[&str]) {
+pub(super) fn set_chosen(lab: &Lab, chosen: &[&str]) {
     let mut settings = lab.local.settings().unwrap();
     settings.parts.clear();
     if !chosen.is_empty() {
@@ -989,10 +989,11 @@ fn it_will_not_start_whole_when_nothing_chosen_is_left() {
     });
 }
 
-/// The choice is kept like the rest of the settings, is refused while
-/// serving, and a settings file from before it still loads whole.
+/// The choice is kept like the rest of the settings, changes while
+/// serving too (ADR 0117 R4), and a settings file from before it still
+/// loads whole.
 #[test]
-fn the_choice_is_a_setting_that_waits_for_serving_to_be_off() {
+fn the_choice_is_a_setting_that_changes_while_serving() {
     run(async {
         let mut lab = lab();
         let old: LocalSettings = serde_json::from_str(
@@ -1041,15 +1042,25 @@ fn the_choice_is_a_setting_that_waits_for_serving_to_be_off() {
             .unwrap();
         put(&lab, "Projetos/a.md", "# a\n");
         lab.serve();
-        let err = lab.local.set_parts(&path, &[]).unwrap_err();
-        assert!(err.contains("turn serving off"), "{err}");
-        assert!(
-            lab.local
-                .set_whole(&path)
-                .unwrap_err()
-                .contains("turn serving off")
+        // While serving the choice changes at once (ADR 0117 R4,
+        // 2026-11-13); one that cannot be served is refused and nothing
+        // changes.
+        put(&lab, "Diario/d.md", "# d\n");
+        lab.local
+            .set_parts(&path, &["Projetos".to_owned(), "Diario".to_owned()])
+            .unwrap();
+        assert!(lab.local.status().unwrap().serving);
+        let err = lab
+            .local
+            .set_parts(&path, &["Nada".to_owned()])
+            .unwrap_err();
+        assert!(err.contains("none of the folders chosen"), "{err}");
+        assert_eq!(
+            lab.local.settings().unwrap().parts[&path],
+            ["Diario", "Projetos"]
         );
-        assert_eq!(lab.local.settings().unwrap().parts[&path], ["Projetos"]);
+        lab.local.set_whole(&path).unwrap();
+        assert!(lab.local.settings().unwrap().parts.is_empty());
     });
 }
 

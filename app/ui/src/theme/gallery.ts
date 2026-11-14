@@ -176,13 +176,15 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
     if (focusKey === "" && item && root.contains(item)) focusKey = `${item.dataset["card"]}|${at instanceof HTMLElement ? (at.dataset["act"] ?? "pick") : "pick"}`;
   };
 
-  const act = (label: string, iconName: string, run: () => void, key: string): HTMLButtonElement => {
+  const act = (label: string, iconName: string, run: () => void, key: string, word = ""): HTMLButtonElement => {
     const b = h("button", "ghost iconic theme-act");
     b.type = "button";
     b.dataset["act"] = key;
     b.title = label;
     b.setAttribute("aria-label", label);
     b.append(icon(iconName));
+    // The word beside the icon, shown where no pointer hovers for the title (css/touch.css).
+    if (word) b.append(h("span", "theme-act-word", word));
     b.addEventListener("click", run);
     return b;
   };
@@ -242,7 +244,7 @@ export function themeGallery(deps: GalleryDeps): HTMLElement {
     // The credit sits under the card, not in the button: a link may not live inside one.
     if (card.theme?.inspiredBy) li.append(creditLine(card.theme.inspiredBy));
     const row = h("div", "theme-acts");
-    if (card.kind !== "folder") row.append(act(W.gallery.copyOf(card.name), "copy", () => copy(card, face), "copy"));
+    if (card.kind !== "folder") row.append(act(W.gallery.copyOf(card.name), "copy", () => copy(card, face), "copy", W.gallery.copy));
     if (card.kind === "mine" && card.profile) {
       const p = card.profile;
       row.append(

@@ -63,7 +63,7 @@ test("a drop on the tree's empty part goes to the root; a file past the limit is
 
 test("a drop on a note is taken in from its bytes, as the browser's drop was", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("11 - Escrevendo");
+  await app.quickOpen("04 - Escrevendo");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   const editor = page.locator(".cm-content").first();
   await editor.click();

@@ -9,6 +9,7 @@ import { activeFocusItem, getDisplayFocuses, isHomeActive, isHomeFocusName, sele
 import { icon } from "../icons";
 import { renderSticker } from "../labels";
 import { t } from "../strings";
+import { focusOnOpen } from "../screen/openFocus";
 
 export class FocusSwitcher {
   readonly el = h("div", "quick palette focus-switcher");
@@ -56,7 +57,7 @@ export class FocusSwitcher {
     this.el.hidden = false;
     this.input.value = "";
     this.update();
-    this.input.focus();
+    focusOnOpen(this.input);
   }
   hide(): void {
     this.el.hidden = true;

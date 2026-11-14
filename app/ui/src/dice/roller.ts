@@ -17,6 +17,7 @@ import type { DiceRoll } from "../bindings";
 import { isServerTable } from "../table/model";
 import { recordRoll, tableSource } from "../table/record";
 import { ds } from "./strings";
+import { focusOnOpen } from "../screen/openFocus";
 
 let shade: HTMLElement | null = null;
 
@@ -116,11 +117,10 @@ function showRoller(notation?: string): void {
   if (notation !== undefined) {
     made.input.value = notation;
     shade.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
-    made.input.focus();
+    focusOnOpen(made.input);
     return;
   }
-  made.input.focus();
-  made.input.select();
+  focusOnOpen(made.input, { select: true });
 }
 
 /** Open the roller, its notation field focused. */

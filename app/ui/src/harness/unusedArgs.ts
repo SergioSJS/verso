@@ -32,6 +32,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   // Sharing is a server's (ADR 0081): a folder of the harness is not on
   // one; a test stands in for the server by replacing these.
   share_grant: ["path", "email", "role"],
+  share_invite: ["path", "email", "role"],
   share_revoke: ["path", "account"],
   share_attachments: ["path", "attachments"],
   // Read links are a server's (ADR 0105): refused here whatever they carry.
@@ -54,6 +55,7 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   set_walk_rules: ["builtinIgnores", "gitignore"],
   set_menu_language: ["language"],
   set_menu_commands: ["features", "keys"],
+  set_bars_dark: ["dark"],
   set_menu_enabled: ["enabled"],
   install_cli: ["replace"],
   new_window: ["sameFolder"],

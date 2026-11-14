@@ -42,6 +42,9 @@ export class App {
   async quickOpen(name, label = "Abrir…") {
     await this.key("Mod+p");
     const field = this.page.getByRole("combobox", { name: label });
+    // On a touch screen the field waits for the person's tap (no keyboard
+    // pops up by itself, screen/openFocus.ts): the test taps it too.
+    if (await this.page.evaluate(() => matchMedia("(hover: none) and (pointer: coarse)").matches)) await field.click();
     await expect(field).toBeFocused();
     await field.fill(name);
     await expect(this.page.locator(".quick:not([hidden]) .quick-list li").first()).toContainText(name);
@@ -51,6 +54,8 @@ export class App {
   /** Run a command of the palette (⌘⇧P) by its label. */
   async command(label) {
     await this.key("Mod+Shift+p");
+    // On a touch screen the palette's field waits for a tap (screen/openFocus.ts).
+    if (await this.page.evaluate(() => matchMedia("(hover: none) and (pointer: coarse)").matches)) await this.page.locator(".quick.palette:not([hidden]) input").click();
     await this.page.keyboard.type(label);
     await this.page.keyboard.press("Enter");
   }
@@ -137,13 +142,20 @@ export class App {
 
   /** The board's view once it stops moving (a view shown from the outline
    *  or the search slides there). */
-  async settledView() {
-    let was = await this.view();
+  async settledView(from = null) {
+    // Moved off `from` first, when given: a slide that has not begun yet
+    // reads as still. Then the same view three times over 450 ms: a busy
+    // machine can hold a slide's frames back for longer than one wait.
+    if (from) await expect.poll(async () => JSON.stringify(await this.view())).not.toBe(JSON.stringify(from));
+    let was = JSON.stringify(await this.view());
+    let still = 0;
     for (;;) {
       await this.page.waitForTimeout(150);
       const now = await this.view();
-      if (JSON.stringify(now) === JSON.stringify(was)) return now;
-      was = now;
+      const same = JSON.stringify(now) === was;
+      still = same ? still + 1 : 0;
+      if (still === 3) return now;
+      was = JSON.stringify(now);
     }
   }
 

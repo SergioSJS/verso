@@ -11,6 +11,7 @@
 // server, and a browser. The owner never sees it: owners always enter.
 
 import { cp } from "./campaignStrings";
+import { tm } from "./tableMoveStrings";
 import { h, ui } from "./dom";
 import { listen } from "@tauri-apps/api/event";
 import { page } from "./settings";
@@ -40,10 +41,22 @@ addEventListener("verso:folder-shown", clearClosed);
 /** Say the table is closed in the folder's place, and call `retry` again
  *  now and then (it comes back here while the table stays closed). A window
  *  with a folder open already says it in the status line, and keeps what it
- *  shows. */
-export function showTableClosed(retry: () => Promise<boolean>, haveFolder: boolean): void {
+ *  shows. `moved`: the table moved to its other server (ADR 0117 R9) — said
+ *  as that, with the way on (a new invitation), and not tried again by
+ *  itself: it will not open here. */
+export function showTableClosed(retry: () => Promise<boolean>, haveFolder: boolean, moved = false): void {
   if (haveFolder) {
-    ui.status.textContent = cp.closedStatus;
+    ui.status.textContent = moved ? tm.playerStatus : cp.closedStatus;
+    return;
+  }
+  if (moved) {
+    window.clearTimeout(timer);
+    page?.classList.add("empty");
+    const box = h("div", "table-closed-state");
+    box.setAttribute("role", "status");
+    box.append(h("h1", "", tm.playerTitle), h("p", "", tm.playerBody));
+    ui.panes.replaceChildren(box);
+    shown = box;
     return;
   }
   window.clearTimeout(timer);

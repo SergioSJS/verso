@@ -40,6 +40,20 @@ pub(super) fn net(ip: &str) -> IfNet {
     }
 }
 
+/// A client of the network's listener, its idle connections kept half as
+/// long as the listener keeps them ([`crate::listen::HEADERS_WITHIN`], the
+/// wait for the next request included). reqwest keeps them 90 s: a request
+/// sent on one just as the listener closes it is reset (10054 on Windows),
+/// and reqwest does not send it again on a new one.
+pub(super) fn network_client(trust: Option<reqwest::Certificate>) -> reqwest::Client {
+    let mut builder =
+        reqwest::Client::builder().pool_idle_timeout(crate::listen::HEADERS_WITHIN / 2);
+    if let Some(cert) = trust {
+        builder = builder.add_root_certificate(cert);
+    }
+    builder.build().unwrap()
+}
+
 pub(super) struct Lab {
     pub local: LocalServer,
     pub table: Arc<Table>,
@@ -92,23 +106,8 @@ pub(super) fn lab_with(addresses: &[&str], loopback: bool) -> Lab {
         dir,
         notes,
         port: 0,
-        client: reqwest::Client::new(),
+        client: network_client(None),
         roots: Arc::new(tokio_rustls::rustls::RootCertStore::empty()),
-    }
-}
-
-/// On Windows the folder served is left in the temporary directory, not
-/// deleted. notify 8.2's Windows watcher closes the folder's handle before
-/// its read is cancelled: a change that completes in that moment re-arms
-/// the read on the closed handle's number, which Windows hands to the next
-/// opener — here `remove_dir_all`'s own handle on that folder — and both
-/// then wait on each other for ever (seen on GitHub's runner, 2026-11-02,
-/// every thread's stack). Fixed upstream by notify-rs/notify#1052, not in a
-/// release yet: drop this once notify is upgraded past it.
-impl Drop for Lab {
-    fn drop(&mut self) {
-        #[cfg(windows)]
-        self.notes.disable_cleanup(true);
     }
 }
 
@@ -130,10 +129,7 @@ impl Lab {
             .add(rustls_pki_types::CertificateDer::from(der.clone()))
             .unwrap();
         self.roots = Arc::new(roots);
-        self.client = reqwest::Client::builder()
-            .add_root_certificate(reqwest::Certificate::from_der(&der).unwrap())
-            .build()
-            .unwrap();
+        self.client = network_client(Some(reqwest::Certificate::from_der(&der).unwrap()));
     }
 
     pub fn origin(&self) -> String {

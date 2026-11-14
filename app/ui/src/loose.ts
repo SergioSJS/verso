@@ -16,7 +16,7 @@ import { commands, type ContractError, type FolderChanged, type LooseFileInfo, t
 import { recheckAll, tellOutcomes } from "./changes";
 import { ask } from "./dialog";
 import { button, h, ui } from "./dom";
-import { isTableClosed } from "./errorKinds";
+import { isTableClosed, isTableMoved } from "./errorKinds";
 import { fail } from "./errors";
 import { currentFolder, setCurrentFolder, setFolderName } from "./folder";
 import { icon } from "./icons";
@@ -70,7 +70,7 @@ export async function openOpened(
     // A closed table is waited out where the folder would be, as a folder
     // opened any other way (open.ts), asking again by this same way.
     if (isTableClosed(r.error)) {
-      showTableClosed(() => openOpened(run), currentFolder !== "");
+      showTableClosed(() => openOpened(run), currentFolder !== "", isTableMoved(r.error));
       return false;
     }
     fail(r.error);

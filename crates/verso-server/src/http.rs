@@ -128,10 +128,16 @@ impl FromRequestParts<Arc<Server>> for Ctx {
             .extensions
             .get::<ConnectInfo<Remote>>()
             .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
-        let peer = auth::peer(server, &parts.headers, remote);
+        let link = crate::local::link::by_link(&parts.extensions);
+        let peer = auth::peer(server, &parts.headers, remote, link);
         // Over plain HTTP the session cookie is the plain-named one
         // (ADR 0073 item 6, amended 2026-10-16).
-        let who = auth::who(server, &parts.headers, peer.https)?;
+        let seat = crate::local::seat::by_seat(&parts.extensions);
+        // Worked out already when the guard counted the request.
+        let who = match parts.extensions.get::<Known>() {
+            Some(Known(who)) => who.clone(),
+            None => auth::who(server, &parts.headers, peer.https, seat)?,
+        };
         Ok(Self {
             server: Arc::clone(server),
             peer,
@@ -257,14 +263,20 @@ const PAGE: &str = "web.html";
 /// that was; with none, a small page that asks again in two seconds, never an
 /// empty `404` that leaves a visitor on a blank screen (seen in the server
 /// e2e of 2026-10-26: `/` answered `404` with no body).
-fn page_route(path: std::path::PathBuf) -> axum::routing::MethodRouter<Arc<Server>> {
+fn page_route(
+    path: std::path::PathBuf,
+    files: Option<crate::ui_files::UiFiles>,
+) -> axum::routing::MethodRouter<Arc<Server>> {
     let last: Arc<std::sync::Mutex<Option<Arc<str>>>> = Arc::default();
     get(move || {
-        let (path, last) = (path.clone(), Arc::clone(&last));
+        let (path, last, files) = (path.clone(), Arc::clone(&last), files.clone());
         async move {
             let read = tokio::task::spawn_blocking({
                 let path = path.clone();
-                move || crate::data::read_page(&path)
+                move || match files {
+                    Some(files) => files.page(PAGE),
+                    None => crate::data::read_page(&path),
+                }
             })
             .await;
             let html = match read {
@@ -309,14 +321,23 @@ const RETRY_PAGE: &str = "<!doctype html><meta charset=\"utf-8\"><meta http-equi
 /// Every route of the server.
 pub fn router(server: Arc<Server>) -> Router {
     let ui = server.config.ui_dir.clone();
-    let static_files = tower_http::services::ServeDir::new(&ui)
-        .append_index_html_on_directories(false)
-        .fallback(tower_http::services::ServeFile::new(ui.join(PAGE)));
+    let files = server.config.ui_files.clone();
+    // From the directory, or from memory where the host carries the files
+    // (a phone's app, ui_files.rs); the same page for a path that is none.
+    let static_files = match files.clone() {
+        Some(files) => Router::new().fallback(move |uri: axum::http::Uri| {
+            let files = files.clone();
+            async move { files.serve(&uri, PAGE) }
+        }),
+        None => Router::new().fallback_service(
+            tower_http::services::ServeDir::new(&ui)
+                .append_index_html_on_directories(false)
+                .fallback(tower_http::services::ServeFile::new(ui.join(PAGE))),
+        ),
+    };
     // Revalidated each time, or kept for good when the name has a hash
     // (static_cache.rs): an upgraded server is met by its own window.
-    let static_files = Router::new()
-        .fallback_service(static_files)
-        .layer(middleware::from_fn(crate::static_cache::keep));
+    let static_files = static_files.layer(middleware::from_fn(crate::static_cache::keep));
     let router: Router<Arc<Server>> = Router::new()
         .route("/f/{folder}/{*path}", get(crate::files::file))
         .route("/api/ws", get(crate::rpc::upgrade))
@@ -386,6 +407,10 @@ pub fn router(server: Arc<Server>) -> Router {
             post(crate::shares::revoke),
         )
         .route(
+            "/api/folders/{id}/shares/invite",
+            post(crate::shares::invite),
+        )
+        .route(
             "/api/folders/{id}/shares/attachments",
             axum::routing::put(crate::shares::attachments),
         )
@@ -443,6 +468,14 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/admin/audit/actions", get(crate::console::actions))
         .route("/api/admin/overview", get(crate::console::overview))
         .route("/api/admin/config", get(crate::console::config))
+        // The UniVerso's own Cloudflare link (ADR 0117 D4 item 2, R5).
+        .route(
+            "/api/admin/link",
+            get(crate::console::link)
+                .post(crate::console::link_on)
+                .delete(crate::console::link_off),
+        )
+        .route("/api/admin/link/extend", post(crate::console::link_extend))
         .route("/api/device/start", post(crate::device::start))
         .route("/api/device/poll", post(crate::device::poll))
         .route("/api/device/describe", post(crate::device::describe_typed))
@@ -479,7 +512,7 @@ pub fn router(server: Arc<Server>) -> Router {
     // The pages — signing in, approving the desktop app, the account — are
     // served always; the notes' window in a browser only with `--web`
     // (ADR 0073 item 2), which the WebSocket enforces (rpc.rs).
-    let page = || page_route(ui.join(PAGE));
+    let page = || page_route(ui.join(PAGE), files.clone());
     let router = router
         .route("/", page())
         .route("/signin", page())
@@ -530,12 +563,25 @@ const API_BODY: usize = 1024 * 1024;
 const REQUEST_WITHIN: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// The requests one client address may have in flight at once (an IPv6
-/// /64 as one), directly or through a trusted proxy: a browser's six
-/// connections for each of a household's few devices, with room. Through
-/// a proxy, a connection counts only against the server's
-/// `crate::listen::CONNECTIONS`, and a client that trickled its bodies
-/// could hold them all from one address; past this it is answered 429.
+/// /64 as one), directly or through a trusted proxy, when they open no
+/// account: a browser's six connections for each of a household's few
+/// devices, with room. Through a proxy, a connection counts only against
+/// the server's `crate::listen::CONNECTIONS`, and a client that trickled
+/// its bodies could hold them all from one address; past this it is
+/// answered 429. The same bound holds one signed-in account's requests,
+/// wherever they come from. The window's own files are not counted
+/// ([`counted`]).
 pub const IN_FLIGHT: usize = 32;
+
+/// The requests that open an account one address may have in flight at
+/// once, each account still within [`IN_FLIGHT`] of its own: a table of
+/// players behind one address (the re-test of 2026-11-04, ten players
+/// through the internet link from one NAT address), each window opening
+/// with a handful of the API's routes and a note's pictures. Apart from
+/// the [`IN_FLIGHT`] of the requests that open none, so that neither
+/// keeps the other out. Within the 200 a quick link carries at once.
+/// `[OPEN]` for the maintainer: 128.
+pub const IN_FLIGHT_SIGNED_IN: usize = 128;
 
 /// How long a request's body may take to arrive (the review of
 /// 2026-10-13): a body here is a form, a setting, a passkey — [`API_BODY`]
@@ -671,7 +717,7 @@ const SERVICE_WORKER: &str = "/sw.js";
 /// anything else — a space, a quote, a semicolon, a wildcard, a path —
 /// would change the policy it is written into, and is left out.
 fn tile_origins(server: &Server, headers: &HeaderMap, https: bool) -> Vec<String> {
-    let Ok(Some(who)) = auth::who(server, headers, https) else {
+    let Ok(Some(who)) = auth::who(server, headers, https, false) else {
         return Vec::new();
     };
     if matches!(who.via, auth::Via::Token { .. }) {
@@ -736,20 +782,89 @@ fn client_key(server: &Server, request: &Request) -> Option<String> {
         .extensions()
         .get::<ConnectInfo<Remote>>()
         .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
-    let client = server.config.trusted_proxy.client(
-        remote.ip(),
-        request
-            .headers()
-            .get_all("x-forwarded-for")
-            .iter()
-            .filter_map(|v| v.to_str().ok()),
-    );
     // This machine speaking for itself is not counted; a forwarded
-    // address is, even a loopback one (ADR 0083 item 7).
-    if auth::is_local(server, remote.ip(), &client) {
-        return None;
+    // address is, even a loopback one (ADR 0083 item 7) — through the
+    // internet link's listener, by that listener's proxies (ADR 0117).
+    auth::client_key(
+        server,
+        request.headers(),
+        remote,
+        crate::local::link::by_link(request.extensions()),
+    )
+}
+
+/// Whether a request takes a place among its address's requests in flight
+/// (the re-test of 2026-11-04): every one but a file of the window itself —
+/// its script, its chunks, its styles, its fonts, the page — asked with no
+/// body. A window's cold load is some 77 of those, 52 at once, and a table
+/// of players behind one address asks them together; each is a file read
+/// from the server's own `ui` directory, answered as soon as it is opened,
+/// and holds nothing once its answer has started. The API, a folder's files
+/// (`/f/`) and a read link's routes are counted, and anything with a body.
+fn counted(request: &Request) -> bool {
+    let path = request.uri().path();
+    let window_file = matches!(*request.method(), Method::GET | Method::HEAD)
+        && !path.starts_with("/api/")
+        && !path.starts_with("/f/")
+        && !is_link_route(path)
+        && !request.headers().contains_key(header::TRANSFER_ENCODING)
+        && request
+            .headers()
+            .get(header::CONTENT_LENGTH)
+            .is_none_or(|v| v.as_bytes() == b"0");
+    !window_file
+}
+
+/// Who a request is from, worked out once by the guard and read again by
+/// [`Ctx`]: the account it opens decides where it is counted.
+#[derive(Clone)]
+struct Known(Option<Who>);
+
+/// The places a request takes among the requests in flight, or none when
+/// it is refused (429): one that opens an account counts under that account
+/// ([`IN_FLIGHT`]) and under its address's signed-in requests
+/// ([`IN_FLIGHT_SIGNED_IN`]); any other under its address ([`IN_FLIGHT`]).
+/// A file of the window, and a direct connection from this machine, take
+/// none.
+fn in_flight(
+    server: &Server,
+    request: &mut Request,
+    https: bool,
+) -> Option<Vec<crate::listen::Request>> {
+    if !counted(request) {
+        return Some(Vec::new());
     }
-    Some(crate::limit::address_key(client.addr))
+    let Some(address) = client_key(server, request) else {
+        return Some(Vec::new());
+    };
+    let who = if auth::carries_credential(request.headers()) {
+        let seat = crate::local::seat::by_seat(request.extensions());
+        auth::who(server, request.headers(), https, seat).ok()
+    } else {
+        Some(None)
+    };
+    let bounds = match who.as_ref() {
+        Some(Some(who)) => vec![
+            (format!("account:{}", who.account.id), IN_FLIGHT),
+            (format!("signed-in:{address}"), IN_FLIGHT_SIGNED_IN),
+        ],
+        _ => vec![(address, IN_FLIGHT)],
+    };
+    if let Some(who) = who {
+        request.extensions_mut().insert(Known(who));
+    }
+    let mut places = Vec::new();
+    for (key, most) in bounds {
+        let Some(place) = server.requests.take(&key, most) else {
+            server
+                .requests
+                .said
+                .warn(&format!("requests refused: {key} has {most} in flight"));
+            return None;
+        };
+        places.push(place);
+    }
+    Some(places)
 }
 
 /// The request's body read whole within [`BODY_WITHIN`] and [`API_BODY`],
@@ -800,7 +915,12 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         .extensions()
         .get::<ConnectInfo<Remote>>()
         .map_or_else(|| SocketAddr::from(([127, 0, 0, 1], 0)), |c| c.0.0);
-    let peer = auth::peer(&server, request.headers(), remote);
+    let peer = auth::peer(
+        &server,
+        request.headers(),
+        remote,
+        crate::local::link::by_link(request.extensions()),
+    );
     if !auth::host_ok(&server, request.headers(), &peer) {
         // A browser at the server's old address is shown a page naming the
         // right one (ADR 0073, 2026-10-31); every other client gets the
@@ -820,26 +940,18 @@ async fn guard(State(server): State<Arc<Server>>, request: Request, next: Next) 
         )
         .into_response();
     }
-    // Its place among its address's requests, held until it is answered.
-    let _place = match client_key(&server, &request) {
-        Some(key) => match server.requests.take(&key, IN_FLIGHT) {
-            Some(place) => Some(place),
-            None => {
-                server.requests.said.warn(&format!(
-                    "requests refused: {key} has {IN_FLIGHT} in flight"
-                ));
-                return ApiError {
-                    retry: Some(1),
-                    ..ApiError::new(
-                        StatusCode::TOO_MANY_REQUESTS,
-                        "too_many",
-                        "too many requests at once",
-                    )
-                }
-                .into_response();
-            }
-        },
-        None => None,
+    // Its places among the requests in flight, held until it is answered.
+    let mut request = request;
+    let Some(_places) = in_flight(&server, &mut request, peer.https) else {
+        return ApiError {
+            retry: Some(1),
+            ..ApiError::new(
+                StatusCode::TOO_MANY_REQUESTS,
+                "too_many",
+                "too many requests at once",
+            )
+        }
+        .into_response();
     };
     let request = match with_body(request).await {
         Ok(request) => request,

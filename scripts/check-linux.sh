@@ -7,11 +7,15 @@
 #
 # The sources are copied to $VERSO_LINUX_DIR (default ~/.cache/verso-linux):
 # Docker Desktop shares the home folder with its virtual machine, not every
-# path. Build output, the cargo registry and the toolchain live in named
-# volumes (verso-linux-target, verso-cargo-registry, verso-rustup), so a
+# path. The container is the verso-ci image (scripts/ci/Dockerfile, built
+# by scripts/ci/image.sh on the first run and when that file or
+# rust-toolchain.toml changes): the toolchain, WebKitGTK and the rest are in
+# it, so a run installs nothing (fix release item C2, 2026-11-02: apt-get
+# alone took about 90 s of every run). Build output and the cargo registry
+# live in named volumes (verso-linux-target, verso-cargo-registry), so a
 # second run is quick and nothing lands in this checkout's target/. Inside,
-# the checks run as an ordinary user, as on a CI runner: root ignores file
-# permissions, and some tests deny access on purpose.
+# the checks run as the image's ordinary user `ci`, as on a CI runner: root
+# ignores file permissions, and some tests deny access on purpose.
 #
 # On Apple silicon the container is linux/arm64; CI is amd64. The code paths
 # are Linux's either way, which is what this is for.
@@ -241,6 +245,13 @@ EOF
   UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; token_help' > /tmp/token-help 2>&1
   if grep -q 'export GITHUB_TOKEN=' /tmp/token-help; then fail "the token is to be typed where the shell's history keeps it"; fi
   grep -q 'read -rs GITHUB_TOKEN' /tmp/token-help || fail "no hidden way to give the token"
+  # The installer's channel (ADR 0051, 2026-11-14): scripts/check.sh runs
+  # it on the Mac; here only where jq or python3 is, as pick_asset needs.
+  if command -v jq >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
+    sh /src/scripts/check-update-channel.sh || fail "the installer's channel"
+  else
+    printf 'the installer channel check runs in scripts/check.sh (no jq or python3 in this image)\n'
+  fi
   # A package with a published checksum but no signature.
   verify_with() {
     UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh
@@ -400,25 +411,21 @@ installer_test() {
 }
 
 if [ "${1:-}" = "--inside" ]; then
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update -qq >/dev/null
-  apt-get install -y -qq libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
-    libayatana-appindicator3-dev librsvg2-dev cmake >/dev/null
-  rustup show >/dev/null
-  id ci >/dev/null 2>&1 || useradd -m -u 1000 ci
-  chown -R ci "$CARGO_TARGET_DIR" /usr/local/cargo /usr/local/rustup
-  as_ci() {
-    runuser -u ci -- env PATH="$PATH" CARGO_HOME="$CARGO_HOME" \
-      RUSTUP_HOME="$RUSTUP_HOME" CARGO_TARGET_DIR="$CARGO_TARGET_DIR" "$@"
-  }
+  # In the verso-ci image, as its user `ci` (uid 1000), never as root.
+  [ "$(id -u)" != 0 ] || { echo "--inside runs as the image's user ci, not root"; exit 1; }
   printf '\n== cargo fmt --check\n'
-  as_ci cargo fmt --all --check
+  cargo fmt --all --check
   printf '\n== cargo clippy -D warnings\n'
-  as_ci cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-  printf '\n== cargo test\n'
-  as_ci cargo test --workspace --all-features --locked --no-fail-fast
+  cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+  # As CI: each test in a process of its own, stopped at the limit of
+  # .config/nextest.toml if it hangs; the doctests, which nextest does not
+  # run, after it.
+  printf '\n== cargo nextest\n'
+  cargo nextest run --workspace --all-features --locked
+  printf '\n== doctests\n'
+  cargo test --doc --workspace --all-features --locked --no-fail-fast
   printf '\n== the committed bindings are the generated ones\n'
-  as_ci cargo run -q --locked -p verso-app -- --export-bindings /tmp/bindings.ts
+  cargo run -q --locked -p verso-app -- --export-bindings /tmp/bindings.ts
   diff -u app/ui/src/bindings.ts /tmp/bindings.ts
   printf '\nall guardrails green on Linux\n'
   exit 0
@@ -452,7 +459,13 @@ printf '\n== unsafe only in app/src-tauri/src/web_clip/{macos,windows}.rs (ADR 0
 node scripts/check-unsafe.mjs
 dir="${VERSO_LINUX_DIR:-$HOME/.cache/verso-linux}"
 mkdir -p "$dir"
-rsync -a --delete --exclude target --exclude node_modules --exclude .git ./ "$dir/src/"
+# The target volume is shared by every worktree this script runs from, and
+# cargo decides what to rebuild by modification times: copying a file's own
+# time (rsync -a) let an older file from another branch look already built,
+# and verso-app was compiled against a stale verso-contract (2026-11-04). So
+# compare by content and leave a changed file with the time of the copy.
+rsync -rlpD --checksum --delete --exclude target --exclude node_modules --exclude .git ./ "$dir/src/"
+image="$(bash scripts/ci/image.sh)"
 # No incremental cache: it outgrew the rest of the build in the target
 # volume (22 GB of 33, 2026-10-09) and filled the Docker machine's disk.
 docker run --rm \
@@ -461,8 +474,7 @@ docker run --rm \
   -e CARGO_PROFILE_DEV_DEBUG=0 -e CARGO_PROFILE_TEST_DEBUG=0 \
   -e CARGO_INCREMENTAL=0 \
   -v verso-cargo-registry:/usr/local/cargo/registry \
-  -v verso-rustup:/usr/local/rustup \
-  rust:1-bookworm bash scripts/check-linux.sh --inside
+  "$image" bash scripts/check-linux.sh --inside
 script_test
 image_test
 installer_test

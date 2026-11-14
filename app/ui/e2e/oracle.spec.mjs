@@ -1,4 +1,4 @@
-// Walkthrough, section 14 (notes 26): the oracle (ADR 0102) and the
+// Walkthrough, section 14 (note 24): the oracle (ADR 0102) and the
 // features' switches (ADR 0103). The switch for Oracles in Settings ›
 // Dados e RPG takes the button off an [!oracle] callout and puts it
 // back; the dialog writes its answer into the callout, a second answer to

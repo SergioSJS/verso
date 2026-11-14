@@ -22,7 +22,9 @@ import { sh } from "../shareStrings";
 import { foundList } from "./serversFound";
 import { copyWhenKnown, startSignIn } from "../serverSignIn";
 import { cp as cp2 } from "../campaignStrings";
+import { tm } from "../tableMoveStrings";
 import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
+import { focusOnOpen } from "../screen/openFocus";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -182,10 +184,19 @@ export function hearServers(): void {
   void listen<ServerGone>("server-gone", (e) => {
     const s = serverStrings();
     const p = e.payload;
+    // The person stopped their own server under the window at its table:
+    // the seat says that, alone (localServerSeat.ts); no server ended a
+    // session, nothing to connect again.
+    if (p.what === "seat") return;
     // The game master closed the table: said as that, in the folder's place
     // (tableClosed.ts); the host tries again by itself.
     if (p.what === "closed") {
       ui.status.textContent = cp2.closedStatus;
+      return;
+    }
+    // It moved to its other server (ADR 0117 R9): a new invitation is the way.
+    if (p.what === "moved") {
+      ui.status.textContent = tm.playerStatus;
       return;
     }
     if (p.what === "folder") {
@@ -322,14 +333,20 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
 
   // The servers announced on this network: a click fills the address the
   // row shows and goes on as typing it would (serversFound.ts, ADR 0097).
-  const found = foundList(
-    { start: commands.discoverServersStart, list: commands.discoverServersList, stop: commands.discoverServersStop },
-    (f) => {
-      url.value = f.url;
-      form.requestSubmit();
-    },
-  );
-  box.append(form, found, deviceForm(), list);
+  // Not where the app has no mDNS (iOS: `Can::Discover` absent, ADR 0119
+  // A4 and A13): the address or the QR reach a server there.
+  const found = can("discover")
+    ? [
+        foundList(
+          { start: commands.discoverServersStart, list: commands.discoverServersList, stop: commands.discoverServersStop },
+          (f) => {
+            url.value = f.url;
+            form.requestSubmit();
+          },
+        ),
+      ]
+    : [];
+  box.append(form, ...found, deviceForm(), list);
   void draw();
   return box;
 }
@@ -487,7 +504,7 @@ function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement
       });
       empty.hidden = true;
       acts.append(form);
-      name.focus();
+      focusOnOpen(name);
     });
     acts.append(empty);
   };

@@ -17,6 +17,7 @@
 // side refuses what it cannot do anyway, and the desktop app answers at
 // once.
 
+import { setPhoneHost } from "./screen/phoneWords";
 import { listen } from "@tauri-apps/api/event";
 import { commands, type Can, type Capabilities, type FolderAccess, type Host } from "./bindings";
 import { forgetCapabilities } from "./collab";
@@ -27,7 +28,7 @@ export { FOLDER_CAN };
 
 const DESKTOP: Capabilities = {
   host: "desktop",
-  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", ...FOLDER_CAN, "terminal"],
+  can: ["write", "reveal", "copy_path", "windows", "web_views", "agents", "updates", "devtools", "local_folders", "loose_files", "link", "discover", "serve_away", ...FOLDER_CAN, "terminal"],
   latency_ms: null,
 };
 
@@ -48,6 +49,7 @@ export function loadCan(): Promise<Capabilities> {
       const next = r.status === "ok" ? r.data : DESKTOP;
       const same = answered && JSON.stringify(next) === JSON.stringify(known);
       known = next;
+      setPhoneHost(next.host === "mobile");
       answered = true;
       if (!same) paintCan();
       return known;

@@ -29,11 +29,25 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
     Ok(ok(json!({
         "version": known.then_some(env!("CARGO_PKG_VERSION")),
         "contract": known.then_some(&ctx.server.contract),
+        "contractVersion": known.then_some(verso_contract::compat::VERSION),
         "secure": ctx.peer.https,
         "web": ctx.server.config.web,
-        // "This app is a server" (ADR 0096): there is no sign-in here, only
-        // pairing; the page says so instead of asking for a password.
+        // "This app is a server" (ADR 0096): a phone pairs; since ADR 0117
+        // D3 item 2 a person invited signs in there too ("accounts").
         "local": ctx.server.local.is_some(),
+        "accounts": true,
+        // Whether this door offers pairing: both of "this app is a
+        // server" do — the network's (ADR 0096) and, since ADR 0117 D5
+        // (R3), the internet link's, whose pairing answers only while the
+        // owner's *Pair a phone* is open in the app.
+        "pairing": ctx.server.local.is_some(),
+        // This page came through the internet link of "this app is a
+        // server": its pairing page says no word of the network's own
+        // certificate (ADR 0117 D5).
+        "link": ctx.server.local.is_some() && ctx.peer.link,
+        // Whether a passkey can be added and used from this page: in "this
+        // app is a server", through its internet link alone (ADR 0117 D9).
+        "passkeys": ctx.server.local.is_none() || ctx.peer.link,
         // Links by e-mail exist only with a public address to build them
         // from (see [`mail_ready`]); the sign-in page hides them otherwise.
         "mail": mail_ready(&ctx.server),
@@ -329,6 +343,15 @@ pub async fn accept(
     if !db::is_email(&email) {
         return Err(ApiError::bad("not_email", "not an e-mail address"));
     }
+    // This computer's own accounts' addresses are no person's (ADR 0117
+    // D3 item 1): the holder of the folders served in part is found by its
+    // address, which no player may take first.
+    if ctx.server.local.is_some() && db::is_this_computer(&email) {
+        return Err(ApiError::bad(
+            "not_email",
+            "that address is this computer's own: use one of yours",
+        ));
+    }
     check_password(&body.password, &email)?;
     check_name(&body.name)?;
     let hashed = hashed(&ctx, &body.password).await?;
@@ -391,6 +414,12 @@ pub async fn accept(
         link.folder.as_deref(),
         true,
     );
+    // The folder's windows — the game master's table — learn who came.
+    if opens.is_some()
+        && let Some(folder) = &link.folder
+    {
+        crate::campaign_cmds::people_changed(&ctx.server, folder).await;
+    }
     // `open`: the folder or share just joined, which the page shows next.
     signed_in(&ctx, &account, json!({ "open": opens }))
 }
@@ -589,6 +618,8 @@ pub async fn sessions(ctx: Ctx) -> ApiResult<Response> {
         .db
         .sessions_of(&who.account.id)?
         .into_iter()
+        // The owner's window's seat is listed nowhere (ADR 0117 D4 Q3).
+        .filter(|s| !ctx.server.local.as_ref().is_some_and(|l| l.is_seat(&s.id)))
         .map(|s| {
             let mine = current.as_deref() == Some(s.id.as_str());
             json!({ "session": s, "current": mine })
@@ -750,14 +781,14 @@ pub async fn signin_link(ctx: Ctx, Json(body): Json<ByMail>) -> ApiResult<Respon
 /// the victim must never carry it (a poisoned `Host` would send the reset
 /// token to the attacker; ADR 0073 item 6, amended 2026-10-16).
 pub fn mail_ready(server: &crate::state::Server) -> bool {
-    server.mail.get().is_some() && server.config.public_url.is_some()
+    server.mail.get().is_some() && server.public_origin().is_some()
 }
 
 fn mail_route_ready(ctx: &Ctx) -> ApiResult<()> {
     if ctx.server.mail.get().is_none() {
         return Err(ApiError::bad("no_mail", "this server has no mail server"));
     }
-    if ctx.server.config.public_url.is_none() {
+    if ctx.server.public_origin().is_none() {
         return Err(ApiError::bad(
             "no_mail",
             "links by mail need VERSO_PUBLIC_URL: set it to the address people use",
@@ -799,8 +830,10 @@ enum Mailed {
 /// its link and its line in the audit log follow on their own.
 fn mail_later(ctx: &Ctx, email: String, what: Mailed) {
     let server = std::sync::Arc::clone(&ctx.server);
-    // Only the configured address: never the request's own `Host`.
-    let base = ctx.server.config.public_url.clone().unwrap_or_default();
+    // Only the configured address, or the UniVerso's own link's origin
+    // the server set itself (ADR 0117 D4 item 2): never the request's own
+    // `Host`.
+    let base = ctx.server.public_origin().unwrap_or_default();
     let address = (ctx.address(), ctx.peer.key());
     tokio::spawn(async move {
         if let Err(e) = mailed(&server, &email, &base, &address, what).await {

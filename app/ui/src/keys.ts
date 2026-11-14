@@ -14,6 +14,9 @@ import { may } from "./access";
 import { can } from "./can";
 import { trashStrings } from "./dialogs/trash";
 import { showWorldWizard } from "./dialogs/worldWizard";
+import { defaultImportFolder, showWatabouImport } from "./watabou/dialog";
+import { showNewMap } from "./watabou/newMap";
+import { ww } from "./watabou/words";
 import { historyFor, openHistory } from "./dialogs/history";
 import { historyStrings } from "./dialogs/historyStrings";
 import { bookmarks, toggleBookmark } from "./bookmarks";
@@ -111,6 +114,7 @@ export async function reloadWindow(): Promise<boolean> {
 }
 export const UNSHIFT: Record<string, string> = { "{": "[", "}": "]", "|": "\\", "<": ",", ">": ".", "?": "/", ":": ";", '"': "'", "~": "`", "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8", "(": "9", ")": "0", "_": "-", "+": "=" };
 import { MAC } from "./platform";
+import { prettyKeys, withKeys } from "./keyNames";
 
 export { MAC };
 /** The combination a key event is, as `Mod-Shift-x`; empty when it is only
@@ -132,15 +136,9 @@ export function comboOf(e: KeyboardEvent): string {
   parts.push(key);
   return parts.join("-");
 }
-/** `Mod-Shift-p` shown as the keys on this machine: ⌘⇧P, Ctrl+Shift+P. */
-export function prettyKeys(combo: string): string {
-  if (!combo) return "";
-  return combo.split(/-(?=.)/).map((p) => (p === "Mod" ? (MAC ? "⌘" : "Ctrl") : p === "Ctrl" ? "⌃" : p === "Shift" ? (MAC ? "⇧" : "Shift") : p === "Alt" ? (MAC ? "⌥" : "Alt") : p === "Space" ? "␣" : p === "ArrowLeft" ? "←" : p === "ArrowRight" ? "→" : p === "ArrowUp" ? "↑" : p === "ArrowDown" ? "↓" : p.length === 1 ? p.toUpperCase() : p)).join(MAC ? "" : "+");
-}
-/** `label (⌘B)`: a tooltip with the keys as this machine writes them. */
-export function withKeys(label: string, combo: string): string {
-  return combo ? `${label} (${prettyKeys(combo)})` : label;
-}
+// How a chord is written (⌘⇧P, Ctrl+Shift+P) lives in keyNames.ts, where
+// the string catalogs can reach it too.
+export { prettyKeys, withKeys };
 /** A control named after a command: its tooltip shows the command's keys
  *  as bound now, and `paintKeyHints` keeps it so after a change. */
 export function keyHint(el: HTMLElement, label: string, id: string): void {
@@ -269,11 +267,14 @@ export function allCommands(all = false): Command[] {
     { id: "block-copy-link", label: t.blocks.copyLink, need: Boolean(live), editorOnly: true, run: () => live?.copyBlockLink() },
     { id: "open-folder", label: t.open, run: () => void openFolderDialog() },
     // One Markdown file, without its folder (ADR 0114 item 20).
-    { id: "open-file", label: t.openFile, need: can("local_folders"), run: () => void commands.pickFile().then((r) => r.status !== "ok" && fail(r.error)) },
+    { id: "open-file", label: t.openFile, need: can("loose_files"), run: () => void commands.pickFile().then((r) => r.status !== "ok" && fail(r.error)) },
     { id: "new-note", label: t.newNote, need: hasFolder, run: () => void newUntitled(pane ?? paneToOpenIn()) },
     { id: "new-note-named", label: t.newNoteName.split(" (")[0] ?? t.newNote, need: hasFolder, run: () => newNotePrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "new-folder", label: t.newFolder, need: hasFolder, run: () => newFolderPrompt(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "import-files", label: imp.command, need: hasFolder, run: () => void importFiles(leaf?.path ? dirOf(leaf.path) : "") },
+    // ADR 0120: a map exported from Watabou's generators, as a note and a board.
+    { id: "import-watabou", label: ww.command, need: hasFolder, run: () => showWatabouImport(defaultImportFolder(leaf?.path ? dirOf(leaf.path) : "")) },
+    { id: "new-generated-map", label: ww.newMap, need: hasFolder, run: () => showNewMap(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "world-wizard", label: t.newWorld, need: hasFolder && hasCapability("campaignBundles"), run: () => showWorldWizard(leaf?.path ? dirOf(leaf.path) : "") },
     { id: "open-console", label: t.openConsole, run: () => openConsole() },
     // A terminal at the folder's root (ADR 0115 item 9), where the side has one and it is on.

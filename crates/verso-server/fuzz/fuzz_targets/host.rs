@@ -51,6 +51,7 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: u8) -> Arc<S
         data_dir: PathBuf::from("/nonexistent/data"),
         folders_dir: PathBuf::from("/nonexistent/folders"),
         ui_dir: PathBuf::from("/nonexistent/ui"),
+        ui_files: None,
         web: true,
         announce: false,
         admin: None,
@@ -69,6 +70,7 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: u8) -> Arc<S
         trash_max: None,
         history_days: 90,
         audit_days: 365,
+        tunnel: verso_server::config::Tunnel::default(),
     };
     let db = Db::memory().expect("a database in memory");
     Server::new(config, db, "fuzz".to_owned(), "fuzz".to_owned())
@@ -155,7 +157,7 @@ fuzz_target!(|data: &[u8]| {
         )
     });
 
-    let p = peer(server, &headers, SocketAddr::new(remote, 50_000));
+    let p = peer(server, &headers, SocketAddr::new(remote, 50_000), false);
     // With no public address only a name a public page cannot rebind is
     // answered (an IP, one label, `.local`, `.home.arpa`), or any name when
     // a proxy the host *named* forwarded the request: the default list

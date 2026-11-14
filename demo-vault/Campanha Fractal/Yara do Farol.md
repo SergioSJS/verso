@@ -8,7 +8,7 @@ tags:
 
 # Yara do Farol
 
-Uma ficha do Fractal, escolhida com `layout: fractal-character`. As **Reservas** são contadores: clique numa caixa e o número muda **no texto do bloco** (abra **Fonte** para ver). Cada **Fato** pode ser marcado **Quebrado** — o botão risca o item e grava `quebrado: true`. O botão **Rolar (Fractal)** pergunta quantos fatos se aplicam.
+Uma ficha do Fractal, escolhida com `layout: fractal-character`. As **Reservas** são contadores: clique numa caixa e o número muda **no texto do bloco** (abra **Fonte** para ver). Cada **Fato** pode ser marcado **Quebrado** — o botão risca o item e grava `quebrado: true`. O botão **Rolagem de Risco** lê da ficha quantos fatos se aplicam (`fatos_aplicaveis`) e pergunta só se há *Vantagem?*.
 
 ```statblock
 layout: fractal-character

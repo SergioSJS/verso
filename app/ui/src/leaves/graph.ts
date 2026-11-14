@@ -27,6 +27,8 @@ const COUNT_PAUSE_MS = 1000;
  * neighbourhood of one note to a chosen depth. Force-laid in SVG,
  * zoomed and panned, filtered by name or tag, colored by folder. */
 export type GraphOpts = { filter: string; tag: string; depth: number; orphans: boolean; repel: number; distance: number; size: number; colors: boolean; labels: boolean; existingOnly: boolean };
+/** Under this zoom a phone's graph names only the centred and the tapped note (the maintainer, 2026-11-10). */
+const FAR_ZOOM = 1.2;
 export const GRAPH_DEFAULTS: GraphOpts = { filter: "", tag: "", depth: 2, orphans: true, repel: 1, distance: 1, size: 1, colors: true, labels: true, existingOnly: true };
 export type GNode = { id: string; x: number; y: number; vx: number; vy: number; degree: number; depth: number; folder: string; missing?: MissingNode };
 export class GraphLeaf extends Leaf {
@@ -52,6 +54,9 @@ export class GraphLeaf extends Leaf {
   private nodes: GNode[] = [];
   private stop: (() => void) | null = null;
   private zoom = 1;
+  /** A fit asked while the stage had no size, done once it has one. */
+  private unfit = false;
+  private readonly sized: ResizeObserver;
   private pan = { x: 0, y: 0 };
   private held: GNode | null = null;
   /** The note the arrows are on: kept across redraws, so a click that centres
@@ -75,6 +80,15 @@ export class GraphLeaf extends Leaf {
     top.append(h("span", "crumbs", t.graph));
     const stage = h("div", "graph-stage");
     this.svg.setAttribute("class", "graph");
+    // A graph drawn while its tab was hidden measured a stage of 0 px and
+    // stayed in the corner (seen on the phone, 2026-11-10): fitted again once
+    // the stage has a size, kept in place on any other resize.
+    this.sized = new ResizeObserver(() => {
+      if (this.svg.getBoundingClientRect().width === 0) return;
+      if (this.unfit) this.fit();
+      else this.applyView();
+    });
+    this.sized.observe(this.svg);
     // The drawing is a group of notes, named by the graph's title.
     this.title.id = `verso-graph-${this.tab.id}`;
     this.svg.setAttribute("role", "group");
@@ -401,6 +415,8 @@ export class GraphLeaf extends Leaf {
   private fit(): void {
     if (this.nodes.length === 0) return;
     const r = this.svg.getBoundingClientRect();
+    this.unfit = r.width === 0;
+    if (this.unfit) return;
     const xs = this.nodes.map((n) => n.x);
     const ys = this.nodes.map((n) => n.y);
     const w = Math.max(...xs) - Math.min(...xs) + 120;
@@ -412,6 +428,9 @@ export class GraphLeaf extends Leaf {
   private applyView(): void {
     const r = this.svg.getBoundingClientRect();
     this.world.setAttribute("transform", `translate(${r.width / 2 + this.pan.x} ${r.height / 2 + this.pan.y}) scale(${this.zoom})`);
+    // Seen from afar the names overlap into a knot on a phone: under this
+    // zoom only the centred and the tapped note keep theirs (css/panels.css).
+    this.svg.classList.toggle("far", this.zoom < FAR_ZOOM);
   }
   /** A note the keyboard reached, panned to the middle when it is outside
    *  the stage: a focused note must not be out of sight (WCAG 2.4.11). */
@@ -774,6 +793,7 @@ export class GraphLeaf extends Leaf {
     this.stop = () => { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; };
   }
   override destroy(): void {
+    this.sized.disconnect();
     window.clearTimeout(this.countTimer);
     this.stop?.();
   }

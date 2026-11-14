@@ -20,6 +20,131 @@ in the real app.
 
 ## Not yet checked
 
+### A UniVerso's own Cloudflare link (ADR 0117 D4 item 2, R5, feat/r5-universo-link, 2026-11-14)
+
+The Rust tests run a stand-in `cloudflared`; the spike
+(`~/.cache/verso-kit/tunnel-spike/RESULTS-R5.md`) ran the real one on VM
+107 with a quick link and a token of no tunnel: a quick link from
+`VERSO_TUNNEL`, the console's off/on/extend with no restart, `Host`,
+`Origin` and a forged `X-Forwarded-For` through Cloudflare, the stops on
+SIGTERM and `kill -9`. What it could not reach:
+
+- [ ] **An own address by a real token** `[OPEN]` (no Cloudflare account was
+  used): in Cloudflare's dashboard make a tunnel, copy its token, route a
+  Public Hostname to `http://localhost:7341`; set `VERSO_TUNNEL=own`,
+  `VERSO_TUNNEL_HOSTNAME`, `VERSO_TUNNEL_TOKEN_FILE` (or `sh universo.sh
+  link own`); the log says `the internet link is on (own address, …)`, the
+  console shows `https://<hostname>`, a browser opens it and signs in.
+  Then once more pasting the token in the console instead (*Turn on my own
+  address*), and with a wrong token: the console says Cloudflare refused it.
+  Say whether the dashboard's service or the port the server listens on
+  decided where the requests went (change `VERSO_TUNNEL_PORT` to try).
+- [ ] **The Docker image** as the compose file runs it (`read_only`,
+  `cap_drop: ALL`, `mem_limit: 768m`): `VERSO_TUNNEL=quick` downloads into
+  `/data/tunnel` and comes up; the address in the console opens from a
+  phone on mobile data.
+- [ ] **The `.deb`** under `universo.service`'s hardening
+  (`MemoryDenyWriteExecute`, `SystemCallFilter=@system-service`,
+  `ProtectSystem=strict`): `sh universo.sh link quick` restarts the service
+  and says the link is on; `journalctl -u universo` holds no address.
+- [ ] **The console's Server page**, desktop and 390×844: *Turn on a quick
+  link* asks to prove it is you when the session is older than ten
+  minutes, then says *Turning on…*, the download's progress the first
+  time, then the address with *Copy* and the time left; *Extend 12 hours*
+  moves it; *Turn off* ends it; a screen reader reads each state.
+- [ ] **ZimaOS / CasaOS**: the variable set in the app's settings reaches
+  the container and the link comes up.
+
+### A web page behind an overlay is a picture of itself (feat/web-snapshot, ADR 0056 revision of 2026-11-12)
+
+The harness draws its own picture (two blue pixels) and the host tests run
+without a web engine: no test has seen WebKit, WebView2 or WebKitGTK draw a
+page's picture. Do each item on **macOS**, on **Windows** and on **Linux**
+(X11 and Wayland), with a web note on *Show page* (`Web/jsoncanvas.org.md`)
+and a note embedding a site that refuses frames (olddragon.com.br,
+rolai.app), half scrolled out of its pane. Keep the log open: a line *no
+picture of the page* means that system fell back to hiding the page.
+
+- [ ] **The page stays behind the overlay**: open the quick switcher (⌘P /
+  Ctrl+P), the palette, a menu of the tree, a confirmation and the folder
+  switcher, one after the other: the page stays in sight behind each,
+  exactly where it was and as sharp (a Retina screen; Windows at 150 %),
+  and the overlay is drawn over it. A click on the picture does nothing.
+- [ ] **No flash**: open and close the quick switcher ten times quickly:
+  the page never goes blank, never jumps, and never shows a stale picture
+  after the overlay closed; the live page is back (scroll it, click a
+  link).
+- [ ] **The embedded page, cut by its pane**: with the embed half above
+  the pane, open the quick switcher: the picture is cut where the page
+  was cut, the tab bar and the status bar not covered; close it: the
+  live page is back at the same place.
+- [ ] **A video playing**: a page playing a video (YouTube), then an
+  overlay: the picture holds the frame of that moment; the sound goes on;
+  closed, the video plays where it is.
+- [ ] **Slow or no picture**: on a slow machine (the Windows VM), open an
+  overlay: if the picture takes longer than about 150 ms the page hides as
+  before and the picture appears when it comes. Say on which system the
+  page only hides (a *no picture of the page* line in the log).
+- [ ] **Memory**: open and close an overlay fifty times over a page:
+  the app's memory (Activity Monitor, Task Manager) does not keep
+  growing.
+
+### iOS: the notes in the Files app (ADR 0119 A5, 2026-11-13)
+
+- [ ] **On the iPad, an install from before** (A): install the new build over the old one; at the first start the log says *the notes moved to Documents/Verso*; **Files › On My iPad › Verso** lists the notes; the folder opens in Verso with every note; a note edited in another app through Files shows the change when Verso comes back to the screen. The folder switcher's old entry (if any) is said as gone, not opened empty.
+- [ ] **A fresh install** (A): Files shows *Verso* at once, with the welcome lesson.
+
+### This app is a server: the internet link, invitations and the table (ADR 0117, note 29, 2026-11-04)
+
+The harness answers the link, the own address, the invitations and the seat in memory, and the Rust tests run the real server on a loopback listener; nothing downloaded, ran or talked to `cloudflared` or Cloudflare. Per system, then one line per row of ADR 0117 D9. Follow note 29 as a layperson would.
+
+- [ ] **The download of `cloudflared` on each system** (A, macOS, Windows, Linux): with the link box ticked the first time, the panel says it is downloading (about 40 MB), the checksum passes and **Link no ar.** shows. On macOS the downloaded binary runs with no Gatekeeper prompt; on Windows no SmartScreen or firewall prompt blocks it; on Linux it runs from the data directory. Turn the link off and on again: no second download.
+- [ ] **The child dies with the app** (A, each system): with the link on, quit Verso; no `cloudflared` stays in `ps` / Activity Monitor / Task Manager. On Windows also end the app from Task Manager: the Job Object takes `cloudflared` with it. On macOS/Linux kill the app with `kill -9`: the child exits by itself once it sees the app gone.
+- [ ] **A real phone on mobile data** (A, iPhone Safari and Android Chrome, Wi-Fi off): open the quick link: the sign-in; open an invitation link made on it, make the account, sign in, and play at the Table (see the rows below).
+- [ ] **A second Verso app through the link** (A, a second computer): **Ajustes › Servidores** with the quick link's address and an invited account; it signs in through the browser, syncs the shared folder both ways, appears in **Apps Verso de outras pessoas** and **Encerrar** drops it. With the network's address instead it does not connect.
+- [ ] **Own address with `mesa.versomd.com`** (A, the maintainer's Cloudflare account): **Entrar na Cloudflare** opens the browser and finishes; **Configurar** makes the tunnel and the DNS record; the link comes up on the name with no countdown; quit and open with **Manter ligado ao abrir o app**: it comes back on the same address; a passkey made on it still works after a restart; **Remover meu endereço** deletes the tunnel at Cloudflare.
+- [ ] **The 12 hours and a lost link** (A): with the link on, the countdown ticks and **Prorrogar por 12 horas** keeps the same address; let the computer sleep a few minutes, wake it: the window and a player's page both say the table is offline, and **Tentar de novo** works once it is back. A player's page for a link that ended shows **A mesa está offline**, not Cloudflare's page.
+- [ ] **The tray and the status mark** (A, macOS and Windows): with the link on the tray shows **Link pela internet ligado** and **Parar**, in the window's language; Linux shows only the status bar's **Servindo · link na internet**.
+
+D9, one line per row (A, with the link on and a real player in a browser, unless said):
+
+- [ ] **Live co-editing in the browser**: two people in the same note see each other's cursors and names through the link; type for ten minutes, reload one side: nothing lost (WebSocket through the tunnel).
+- [ ] **Sync from another person's desktop app**: the row above; also edit the same note on both and see it live. A phone is offered no sync.
+- [ ] **Accounts, roles, invitations, shares**: an invited reader cannot edit; an editor can; an account creates no folder on the computer; ending an invitation before it is used makes its link open nothing.
+- [ ] **One access model and the hides**: a folder served in part is invisible to an invited account given nothing of it, by name and by id; a note hidden from a player stays hidden after a reload.
+- [ ] **Where the table is hosted** (2026-11-05): in the installed app, a table made in the served folder's window says *Hospedada em: este computador (https://mesa.versomd.com)* with the own address on; a table of a folder on the UniVerso at 192.168.3.150 says *Hospedada em: UniVerso 192.168.3.150:…*; the invitation link starts with the address said.
+- [ ] **The master's Account** (2026-11-05): with the server on, **Ajustes › Conta** shows the name, the language and the paired phones; a new name reaches a player's chat at the next line; with the server off *Conta* is gone.
+- [ ] **A table in a subfolder** (R1, 2026-11-05): tick the vault (e.g. *verso-rpg-test*) and choose only *Campanha Fractal* inside it; the window makes *Campanha Fractal* a table; a player invited to it sees *Campanha Fractal* alone (list, search, a note of another folder typed in the address), and the paired phone lists only the chosen folder.
+- [ ] **A synced folder at its own table keeps syncing** (2026-11-06): a folder synced with the UniVerso at 192.168.3.150, served, made a table; with the window seated, a player edits a note through the link and it reaches the UniVerso (another device or the UniVerso's window); a note edited on the UniVerso reaches the player; the seated window's status bar shows the sync's mark and a conflict made on purpose; turning sync off and on in the seated window's **Ajustes › Sincronizar** works with no other window on the folder; the log shows no sync stop while seated, and after turning the server off in **Transformar em servidor** the window comes back to the folder with its sync still on.
+- [ ] **Your phone through the link** (R3, 2026-11-13; A, a phone on mobile data, Wi-Fi off): with a quick link on, **Parear um celular**, read the link's QR; the computer asks **Foi você?** saying *pelo link*; allow; the phone opens the folders. Turn the link off and on (a new quick address): the phone's session is gone and it pairs again. With the own address, the paired phone keeps working after the link restarts.
+- [ ] **Serve from the folder's page, with a player at another table** (R4, 2026-11-13): with the link on and a player at table A (folder A served), open folder B's page, **Servir deste computador**: the player at A stays connected and the quick link keeps its address. **Parar de servir** B with a window seated at it: the window comes back to the computer's folder; serve B again: its table, chat and players come back. Unticking A in Settings tells A's player the folder is gone.
+- [ ] **Campaign folder**: with the folder served, right-click it and **Tornar esta pasta uma mesa** (no seat step), invite, release a note: the player sees it only once released. A phone is offered none of this.
+- [ ] **Chat, rolls, secret rolls, 3D dice**: a player rolls and chats; a secret roll reaches only the game master; the dice fall on both screens.
+- [ ] **Images at the table**: a player's image reaches the table through the link; an image over the tunnel's upload bound is refused in words (the measured numbers belong in the ADR's "As built").
+- [ ] **Music and shared audio**: the game master's music is heard by a player through the link; a ten-minute **Compartilhar áudio** stays in sync (binary WebSocket, no UDP).
+- [ ] **Notifications**: a system notification reaches a player through the link; on the network's certificate none is offered.
+- [ ] **The phone offline**: a player through the link can make a folder available offline; at the next quick link that copy belongs to the old origin.
+- [ ] **Trash and version history**: delete a note as an editor and restore it; the history lists the player's edit with their name.
+- [ ] **The web window on a phone**: cold load through the link on mobile data, at 390 x 844: every panel reachable, no sideways scroll, within Cloudflare's 200 requests at once.
+- [ ] **Read links**: turn **Ligar os links de leitura** on, make a link from the seated window, open it in a private window through the link with no account; turn it off and reload: it closes. A link to a folder inside the vault opens that folder alone, whole or in part.
+- [ ] **Passkeys and tokens**: on the network the password only and no passkey button; through the quick link a passkey is made and signs in, and is gone at the next link; a personal token made in the browser lists a folder and writes nothing when it reads only.
+- [ ] **Sign-in by mail and "forgot the password"**: no mail is sent; in **Pessoas convidadas**, **Nova senha** for a real player gives a link; sent by hand and opened on their phone through the link, it sets the new password once (a second open says it is used), the old password is refused after, and their open window was signed out when the link was made. **Encerrar sessões** drops their open browser and their desktop app at once; **Remover** (after the question) leaves them unable to sign in, and their desktop app and token open nothing.
+- [ ] **Out on purpose**: there is no admin console and no sign-in by mail on this server (nothing to look for; the lesson does not promise either).
+
+### Keys written the platform's way (fix/release-0.8.5, 2026-11-06)
+
+Every chord the window writes comes from `app/ui/src/keyNames.ts`; `app/ui/test/keyNames.test.mjs` builds the catalogs as a Windows and a Linux window and finds no Mac glyph. What the test does not see is the real window.
+
+- [ ] **Windows** (A, Windows): Settings › General › Developer console reads *View › Open Console (Ctrl+Alt+I)*; Settings › Appearance › Window zoom reads *Ctrl with + − 0, or Ctrl with the wheel*; a board's ☰ menu shows *Export… Ctrl+Shift+E*, its search's tooltip *(Ctrl+F)*.
+- [ ] **macOS** (A, macOS): the same rows read *(⌘⌥I)*, *⌘ with + − 0, or ⌃ with the wheel*, *⌘⇧E*, *(⌘F)*.
+
+### Sound files in the Linux app (fix/linux-audio, 2026-11-04)
+
+On Linux the table's music and a note's audio player now get their file as a blob (`app/ui/src/audio/source.ts`). VM 104 has no sound card (only PipeWire's Dummy Output): there it was seen playing (`currentTime` advancing, no error), not heard.
+
+- [ ] **Heard on a Linux machine with speakers** (A, Linux): in the installed .deb, a note with `![[Musica/taverna.mp3]]` plays when ▶ is pressed, its time runs and the length appears; seeking on the bar jumps there; the table's music (**Tocar para a mesa**) is heard, and its volume slider changes it.
+- [ ] **Nothing changed on the Mac and Windows** (A, macOS and Windows): the same note's player shows the file's length before it is played (the file's own address, no blob), and the table's music plays as before.
+
 ### The embedded terminal (ADR 0115, 2026-10-31)
 
 The harness has no pseudo-terminal (its shell is scripted); the host tests run a real shell on macOS, Linux (the container) and Windows (VM 103). What a real app, a real person's startup files, a screen reader and the AI tools themselves do is listed here, per system — macOS, Windows (VM 103), Linux (VM 104) — with Ajustes › Recursos › Terminal on:
@@ -118,6 +243,7 @@ Needs the installed desktop app on a Mac (and, for the last items, a UniVerso wi
 - [ ] **The server-drawn toast** (A): the notice of a question, a spark and a table draw reads *<name> consultou o oráculo: …* / *sorteou uma faísca* / *sorteou numa tabela*. Say whether it also shows as the system's notification when the window is in the background (ADR 0084).
 - [ ] **Credits' links** (A): *Settings › Application › Credits*: *Abrir* on a work and on the software opens the page in the system's browser, not in a window of the app; no link opens inside the app.
 - [ ] **The tabs' right edge back to normal** (A): with both side bars open and many tabs, the strip's right end shows the last tab whole and the new-tab button, as before the round's CSS changes (`panes.css`, `chrome.css`); a narrow window too.
+- [ ] **Selecting in Editar moves nothing** (A; ADR 0061 item 9, revised 2026-11-07): in the app on the Mac and on Windows, dark theme, a note with a quote, an H1, a paragraph with **bold** and a `[[link]]`, two H2 and a list, in Editar: ⌘A (Ctrl+A), then a drag from the top to the end — the Markdown shows on every line and the headings, paragraphs and list stay where they were; no box round the paragraph under the pointer. The caret clicked into a heading moves nothing. The selection is one even shade (no darker strips at the blank lines, between words or at line ends), in light and dark, and inside a code block it still shows; on an iPhone the selection's handles still appear.
 - [ ] **"Adicionar propriedade" on a note without frontmatter** (A): open a note that has no frontmatter in Leitura and Editar: the properties header shows *Adicionar propriedade*; click it: a `---` block with the property is written at the top, the rest of the note untouched; ⌘Z takes it back.
 - [ ] **The wizard on a real folder** (A): *Novo projeto a partir de modelo…* with the *Campanha de RPG (Dados Críticos)* bundle on a folder in iCloud/OneDrive: the tree is shown before anything is written; a folder unticked is not on disk afterwards; an existing name is kept, not overwritten, and the report says so.
 
@@ -187,7 +313,7 @@ Needs the installed app on a Mac, a Linux or a Windows computer, a real phone (a
 - [ ] **An unusual network** (A): a computer with Tailscale running: Settings shows the `tailscale serve` hint; with the certificate and key of `tailscale cert` filled in (*Use my own certificate*), the phone connects with no warning, over the name given.
 - [ ] **The address in the pairing dialog** (2026-10-15): on a Mac with ZeroTier or a VPN, the dialog names the Wi-Fi or cable address and its interface (for example `192.168.3.122 — en7 (local network)`), not the virtual one; the list offers the others, and picking one makes a new QR and code that the phone can still pair with when it is on that network.
 - [ ] **Typing `[[` on a phone keyboard** (2026-10-15): in a note opened on the phone, type `[[` with Gboard (Android), with the Samsung keyboard and with the iOS keyboard, once with word suggestions on and once off: the list of notes appears above the keyboard, inside the screen, and a name picked is written. Then keep typing a word, `[[por`: with Gboard the word stays underlined until the space, and the list must follow every letter (the best match first), also when the brackets and the word are one composition and with the key row's `[[` button; picking one writes it. Press Esc: the list stays closed until you type again. The browser harness covers the Android agent's composition paths (EditContext, the word composing, a stand-in keyboard) in Chromium only; the real keyboards are this check's. Type `/`, `#` and `![[` too.
-- [ ] **A phone's role** (2026-10-15): pair a phone as a reader, open a note on it; in *Paired phones* tick *Can edit* for it — without reloading, the phone can type; untick it — the phone cannot, and a note it was editing live reads again; both show in *What happened* and in `verso.log`.
+- [ ] **A phone's role** (2026-10-15): pair a phone as a reader (untick *Can edit*, which comes ticked since 2026-11-13), open a note on it; in *Paired phones* tick *Can edit* for it — without reloading, the phone can type; untick it — the phone cannot, and a note it was editing live reads again; both show in *What happened* and in `verso.log`.
 - [ ] **The log** (2026-10-15): after turning the server on, pairing, connecting, revoking and turning it off, `~/Library/Application Support/verso/logs/verso.log` has a line for each (source `local`) and no token, code, QR text or note text.
 
 - [ ] **A third device while the connected ones are at the most** (A, a real Android phone or iPhone; fix/phone-refused-said, 2026-10-16): in *Settings › This app is a server* set *Devices connected at once* to 2, pair three phones (or two phones and a desktop browser paired as a phone) and open Verso on two of them. Open it on the third: it must say, in its language, that the computer already serves 2 connected devices, the most, and what to do — not "the file is in the cloud" — and keep trying every ~15 seconds without a flood. Close Verso on one of the two (a tab counts): the third connects by itself within ~15 seconds. Raise the number to 3 with the third waiting: it connects on its next try, and nobody was disconnected. Lower it under the count: nobody is cut off, a new connection is refused. The computer's log has the refusal once a minute, and the log in Settings says *Phone refused*, naming the phone.
@@ -474,16 +600,30 @@ in a note long enough to scroll.
   Guia de Sintaxe" for half a second shows the card, its heading marked
   at the top; the pointer into the card scrolls it; away, it goes; in the
   dark theme the card reads as the note does. A note with a picture of the
-  folder in it (note 06): the picture shows in the card (the `verso:`
+  folder in it (note 18): the picture shows in the card (the `verso:`
   protocol, which the harness stands in for). `verso.log`: no ERROR.
 - [ ] **⌘ in Edit mode on the Mac, Ctrl on Windows** (A): note 02 in
   Editar, the pointer resting on a link: nothing; ⌘ pressed (Ctrl in
   WebView2 on Windows): the card; ⌘-click still follows the link and no
   card is left behind.
-- [ ] **A note only in iCloud** (A, ADR 0043): a link to a note made
-  dataless by macOS (*Remove Download* in Finder): the card says *A nota
-  só está na nuvem: abra-a para baixá-la — a prévia não baixa nada.*, and
-  the file stays dataless (`ls -lO` shows `dataless`).
+- [ ] **A note only in iCloud** (A, ADR 0043, revised 2026-11-11): a link
+  to a note made dataless by macOS (*Remove Download* in Finder): hovering
+  brings it down and the card shows it (`ls -lO` no longer shows
+  `dataless`); with the Mac offline, the card says *A nota só está no
+  iCloud e não deu para baixá-la…*.
+- [ ] **Moving files only in iCloud** (A, ADR 0043, decided 2026-11-11): in
+  an iCloud folder, *Remove Download* on two `.canvas` files and a note;
+  select the three and drag them onto another folder: the status says
+  *Baixando 3 arquivos do iCloud…* and all three move; one alone renamed
+  and one sent to the bin come down first too. Offline: nothing moves and
+  the status names the file A note in iCloud that links to a moved note comes
+  down too and appears in the link plan, not in its skipped list.
+- [ ] **A note opened with Verso closed** (A, ADR 0114 + 0065, fixed
+  2026-11-12): with a folder open, quit Verso (⌘Q); in Finder, double-click a
+  `.md` outside that folder (or `open -a "Verso Beta" nota.md`): the folder
+  of the last session comes back in its window and the note opens in a
+  window of its own; the log shows *a file handed at launch* then
+  *reopening 1 window(s)*.
 - [ ] **Download from the sync card, on real evicted files** (A, ADR 0043,
   2026-10-27): on the Mac, a folder in iCloud Drive that syncs with a server,
   some files sent back to the cloud (*Remove Download* in Finder) that sync
@@ -680,7 +820,7 @@ in a note long enough to scroll.
 
 - [ ] **Each dice hit is heard as the die hits** (A, the Mac app, ADR 0101): sound on, the Mac idle for a few minutes (headphones on, Bluetooth too), roll 4d6 from the Table's box with Enter: each hit sounds as its die touches the felt or another die, and nothing sounds after the dice rest. The log's `dice sound:` line says `late=` and `clockRate=` if it did not.
 - [ ] **A die in a note rolls and writes nothing** (A): in the installed
-  app, note 24 of the demo vault in Leitura, then in Editar: each `dice:`
+  app, note 22 of the demo vault in Leitura, then in Editar: each `dice:`
   code is a die; a click and Enter roll it, the card shows the total and
   each die, VoiceOver says *1d20+5: …* once per roll. The table's roll
   gives a row whose link opens Capitão Ruy. Close the note and look at the
@@ -701,7 +841,7 @@ in a note long enough to scroll.
 ### The rest of bases (ADR 0094, feat/bases-rest, 2026-10-14)
 
 - [ ] **The map draws in the real web views** (A): in the installed app on
-  macOS (WKWebView), Windows (WebView2) and Linux (WebKitGTK), note 04 of
+  macOS (WKWebView), Windows (WebView2) and Linux (WebKitGTK), note 14 of
   the demo vault, *Projetos.base › Mapa*: the world outline in the
   window's colours, three pins (São Paulo, Lisbon, Recife); a click on a
   pin opens its project; resting on it shows the note; the list below
@@ -728,11 +868,11 @@ in a note long enough to scroll.
   Verso's right-click menu and Obsidian opens there. The keys were taken
   from the plugin's public source (`obsidianmd/obsidian-maps` at
   `a5bf456`, `src/map-view.ts`), not yet seen on a base the plugin wrote.
-- [ ] **A regular expression in the real core** (A): note 04, the
+- [ ] **A regular expression in the real core** (A): note 14, the
   *Mês* column of *Todos os Projetos* shows `09/2026`; a formula
   `/(?<=a)b/.matches(file.name)` says *A expressão regular usa
   lookbehind…* in its cells and above the view.
-- [ ] **An embedded base edited in place** (A): note 04 in Leitura, the
+- [ ] **An embedded base edited in place** (A): note 14 in Leitura, the
   embedded *Todos os Projetos*: add a sort from its toolbar; *Projetos.base*
   on disk gains the sort and nothing else changes (`git diff`). With
   *Projetos.base* open in another tab and edited unsaved, the embed's
@@ -877,7 +1017,7 @@ in a note long enough to scroll.
   confirme que é você; nada mudou.* VoiceOver reads the dialog's title
   and line; the focus goes back to the share dialog when it closes.
 - [ ] **Mermaid diagrams after 12.2.0** (ADR 0083 item 13, 5225d6c): the
-  demo vault's "08 - Diagramas Mermaid" in the installed app and in the
+  demo vault's "17 - Diagramas Mermaid" in the installed app and in the
   browser: every diagram draws, in light and dark; a diagram with a
   syntax error shows the parser's own message under "Syntax error in
   text"; circle nodes fit their label, a mindmap's labels are centred and
@@ -1119,7 +1259,12 @@ in a note long enough to scroll.
 - [ ] **⌘Z from the menu with the focus off the text**: in a note in
   Editar, type two words a second apart, click Editar's button, press
   ⌘Z twice — each word goes in turn; ⌘⇧Z brings the last back.
-- [ ] **An SVG in Editar**: note 06 of the demo vault, Editar — the
+- [ ] **⌘Z takes back a move in the tree** (A): drag a note into another
+  folder and press ⌘Z at once (the Mac's Edit menu; Ctrl+Z on Windows and
+  Linux, with the focus still in the tree): the note goes back, the status
+  bar says *Movimento desfeito*; ⌘⇧Z (Ctrl+Shift+Z / Ctrl+Y) moves it
+  again. Then click into a note's text and ⌘Z: only the text is undone.
+- [ ] **An SVG in Editar**: note 18 of the demo vault, Editar — the
   diagram shows, and stays when selected with the text around it. Left
   of a note's title with no sticker, a faint sparkle, not a star.
 - [ ] **The version in the files' addresses** (cache after an update):
@@ -1409,7 +1554,7 @@ them; if they still happen, a step that makes them happen is enough.
   appears for the first folder's note, and none covers the table's chat in
   the first (macOS, Windows, Linux; the web has one folder per page).
 - [ ] Shared table, player in the browser, game master on the desktop app: the player's pasted, dropped and chosen images on the board reach the desktop without a reload, an animated GIF keeps animating on both, and a player who does not edit the board gets the notice (macOS, Windows, Linux).
-- [ ] The guided installer on a real Oracle Cloud Always Free machine (E2.1.Micro 1 GB, and an A1 ARM64), following note 34 of the demo vault: the menu, the swap offer, the VCN security-list steps it prints, `sh universo.sh firewall`, HTTPS with an sslip.io name (Let's Encrypt itself; the automated check only uses Caddy's internal CA), the first admin, and the address opened on a phone. Also DuckDNS with a real token and a rate-limited sslip.io (nip.io offered).
+- [ ] The guided installer on a real Oracle Cloud Always Free machine (E2.1.Micro 1 GB, and an A1 ARM64), following note 33 of the demo vault: the menu, the swap offer, the VCN security-list steps it prints, `sh universo.sh firewall`, HTTPS with an sslip.io name (Let's Encrypt itself; the automated check only uses Caddy's internal CA), the first admin, and the address opened on a phone. Also DuckDNS with a real token and a rate-limited sslip.io (nip.io offered).
 
 - [ ] The container's memory limit (B9) on a real 1 GB server: `docker stats universo` shows a limit of 768 MiB; send a note far bigger than that and see the container restart by itself while the machine and its SSH session stay up.
 - [ ] The trash's size cap (B11) on a real server: with `VERSO_TRASH_MAX=50MB`, delete a few large files from a desktop folder synced to it; the oldest leave the server's trash first, the folder's own files stay, and the console's folder page shows the trash under 50 MB.
@@ -1465,7 +1610,7 @@ On the installed beta, macOS 14.4 or later, as the game master of a UniVerso tab
 
 ## Music at the table (ADR 0116 phase 1## Music at the table (ADR 0116 phase 1, 2026-10-31)
 
-On the real engines, which the harness's stubbed `play()` does not reach; a UniVerso table with the master in the desktop app and players in browsers and phones (note 36):
+On the real engines, which the harness's stubbed `play()` does not reach; a UniVerso table with the master in the desktop app and players in browsers and phones (note 27):
 
 1. **iOS volume** (A, iPhone Safari): the player's **Seu volume** and the master's **Volume da mesa** change the loudness (the GainNode path; `HTMLMediaElement.volume` is read-only on iOS). **Silenciar** silences; the side buttons still set the phone's own volume.
 2. **Autoplay** (A, each engine: WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux, Safari iOS, Chrome Android): a window that joins while a track plays either plays at once or shows **Ouvir a mesa** focused; one tap anywhere starts it at the others' point.
@@ -1477,7 +1622,7 @@ On the real engines, which the harness's stubbed `play()` does not reach; a UniV
 
 ## Audio embeds with a player (ADR 0116 amendment, 2026-11-01)
 
-On the real engines, which the harness's stubbed `play()` does not reach (notes 06 and 36, lesson 16 of the training board):
+On the real engines, which the harness's stubbed `play()` does not reach (notes 18 and 27, lesson 16 of the training board):
 
 1. **iOS** (A, iPhone and iPad Safari, a UniVerso folder): an embed plays from a tap (no "not allowed" in the console), the player shows *Pausar* and the time moves; the phone's buttons change the loudness and **Silenciar** silences it; the screen locked, the sound stops or goes on as Safari decides — note which. The `/f/` address seeks (drag the bar to the middle: it plays from there).
 2. **Codecs on Windows and Linux** (A, WebView2 and WebKitGTK): MP3, M4A (AAC), WAV, FLAC and OGG embeds each play or say *Esta janela não toca este formato…*; on Linux note what a plain Ubuntu desktop does for `.m4a` without `gst-plugins-bad` / `gst-libav`. An OGG on macOS and iOS says it cannot play.
@@ -1499,3 +1644,42 @@ On the real engines, which the harness's stubbed `play()` does not reach (notes 
 
 1. **A real phone** (A, iPhone Safari or Android Chrome, a Mac serving one chosen folder): pair with *Pode editar as notas*, delete a note from the tree's menu: it goes, shows in the Mac's *Lixeira*, and a table's notes (if the folder has one) behave as before. A second phone paired as reader is not offered the menu item.
 2. **A synced editor's window** (A, the installed Mac app and a real UniVerso, an account that is an editor of the folder): the tree's menu, the selection bar, the palette and `Delete` offer no delete and say who may; the owner's account on the same folder is offered it.
+
+## The app on an Android phone: safe areas, Back, keyboard, icon (ADR 0118, 2026-11-08)
+
+Seen on the maintainer's POCO X3 Pro (Android 16) with the debug APK; the browser harness has no status bar, no system Back and no launcher.
+
+1. **Safe areas** (A, the app on an Android phone, edge to edge): open Settings: its search and its × sit below the status bar and the camera cut-out; tap the × once: Settings closes. Open the palette, the switcher, a sheet (a note's access, the table's): nothing under the status bar or the gesture bar.
+2. **Back** (A): with Settings open, Back closes it; with a menu, a dialog or a sheet open, Back closes that one only; with the drawer open, Back closes it; with nothing open, Back leaves the app.
+3. **No keyboard by itself** (A, the app on an Android phone and Chrome on a phone): open Settings, the palette, the switcher, a note from the tree, the demo import's first note: the on-screen keyboard stays down until you tap a field; on a desktop the field of Settings and the switcher still has the focus.
+4. **The launcher icon** (A): the app's icon in the launcher and in the recent apps is Verso's mark on its dark paper; with themed icons on (Android 13+, Wallpaper & style › Themed icons, where the launcher has it), it is the mark in the theme's colour.
+
+## The Android app, Phase 1 (ADR 0118, 2026-11-10)
+
+Built on `feat/app-server` (commits e5d74d287 to the round's last); seen over `adb` on the maintainer's POCO X3 Pro (Android 16) with the debug APK, much of it through the WebView's DevTools because the phone was locked. What only a person with the phone in hand, a real certificate or a release can try:
+
+1. **A UniVerso over https** (A, the app on the phone, a UniVerso with a real certificate such as the Zima one): **Settings › Servers**, sign in: the phone's browser opens the server's page; approve; open a folder of that server from the switcher: the notes load (this is the `wss://` the Android build could not open before), an edit made on the phone shows on another device. Over `adb` on 2026-11-12 the device sign-in and a folder synced both ways with the Zima test UniVerso (public certificate) worked; this row stays for the person's own sign-in through the browser.
+2. **The serving notification** (A): turn the server on in **Settings › Turn into a server**: the first time Android asks to allow notifications; the notification says *O Verso está servindo 1 pasta*, how many devices are connected and that it drains the battery; tapping it opens Verso; turning the server off removes it. In English with the window in English.
+3. **Serving with the screen off, for real** (A, a second device on the same Wi-Fi): pair it, lock the phone, leave it 15 minutes off the charger: the other device still reads and edits; the phone gets warm and the battery drops (say how much). The forced Doze test passed over `adb`.
+4. **Another phone or browser pairs to this phone** (A): the QR and the code from **Pair a phone**, scanned by another phone's camera: *Was it you who scanned this QR?* on this phone, *Allow*, the other phone opens the folder (the UI the phone serves comes from inside the APK).
+5. **The internet link on the phone** (A, his own phone, not the Thoughtworks laptop): **Turn into a server › By an internet link** starts; the address it gives opens the phone's folder from a computer on another network, and from the phone on mobile data. `cloudflared` is now built for Android from its pinned source (2026-11-12): over `adb` it answered its version and resolved names; the link itself was not started from here (no public tunnel opened by the agent).
+6. **A cloud's password in Android's store** (A, a Nextcloud or another WebDAV that the check accepts, or an S3 bucket): **Settings › Sync › WebDAV**, the address, the user and the password: accepted, the folder syncs; quit and reopen the app: it syncs again without asking for the password.
+7. **The update offer** (A; while the repository is private, a phone cannot download it — *Sem acesso ao repositório* — until the code is opened, ADR 0118 10.3; once a release carries `Verso-<version>-android-arm64.apk` and its line in the signed checksums list, in a place the app reaches — ADR 0118 item 10.3, the place not chosen yet): **Settings › General › Check for updates** finds it; **Download and update**: the first time Android opens *Install unknown apps* for Verso — allow it and press again —, then Android's own install prompt; after it, the app is the new version with its notes and settings.
+8. **The phone's own folder** (A): **Settings › Sync** on the phone says the folder lives inside the app and is deleted with it unless it syncs; uninstalling Verso without a sync deletes it (try with a copy synced first).
+9. **TalkBack** (A, TalkBack on): the bottom bar's six items are read by name and in order; Settings' sections, the serve section's switch and checkboxes, the pairing dialog's *Allow*/*Refuse*, the Sync section and the serving notification are reached by swiping and read; Back closes the top sheet with TalkBack on too. (2026-11-12: Chromium's accessibility tree, read over DevTools on the POCO, names every control of the main screen, the storage dialog and Settings › Sync; TalkBack itself is not installed on that phone, so its speech is this row's.)
+10. **The release APK and its key** (A): on a computer of his own (not the Thoughtworks laptop), `scripts/android/release-key.sh` makes the key and prints what goes to the password manager and the four `gh secret set` lines. A release built with the four `VERSO_ANDROID_*` variables set is signed with it (`apksigner verify --print-certs` shows his name, not *Android Debug*); without them it is signed with the debug key and the build says so. An APK signed with the release key does not install over one signed with the debug key: sync the folder, uninstall, install. The release APK is about 72 MB (152, then 100, then 72 once the window's files were in it once, 2026-11-12). A beta (`VERSO_ANDROID_BETA=1`, as the workflow builds a test release) installs beside the release as *Verso Beta*, with its own folder and settings; the release is untouched.
+11. **Share and Open with** (A, 2026-11-12): in Chrome, **Share › Verso** on a page: a note named by the page's title with its address opens in Verso; in Files (or another file manager), a `.md` → **Share › Verso**, and a `.md` → **Open with › Verso**: a note with the file's name and text, the file itself unchanged; the same file again: a note "… 2" beside the first. A photo is not offered Verso (texts only); a `.md` over 8 MiB is refused in words. With Verso closed (swiped away), the share opens it and the note is made once its folder is shown.
+12. **A folder of the shared storage** (A, 2026-11-12): **Open another folder…** in the folder switcher: Verso asks for *All files access*, **Allow access** opens Android's page, turn it on, Back: the phone's folders are listed. Open *Documents*, **New folder…** "Verso teste": it opens empty; make a note; in the Files app the note is in *Documents/Verso teste*; edit it in another editor (or Obsidian, opening that folder): Verso shows the change. Quit and reopen Verso: it opens *Verso teste*; the switcher lists it as *Celular/Documents* and the app's own folder as *dentro do app*. With the access turned off again, **Open another folder…** asks for it again. On an Android 10 phone, the storage permission's prompt instead of the page.
+13. **Background sync** (A, a folder synced with a UniVerso or a cloud): **Settings › Sync › Sync in the background** on: a notification *O Verso sincroniza em segundo plano* (1 folder); go to the home screen, edit the folder from another device: the phone has the change a few seconds later without opening Verso (check in the Files app for a shared-storage folder, or open Verso with the network off). **Wi-Fi only** on, Wi-Fi off (mobile data): the notification says *esperando o Wi-Fi* and nothing crosses until Wi-Fi is back; **Only while charging** likewise with the charger. Turned off: the notification goes (unless the phone serves). Leave it on overnight off the charger and say how much battery it took.
+14. **The phone's sound at the table** (A, the phone as game master of a table on a UniVerso or synced folder, a second device as player): **Share audio** lists *Som dos apps do celular*; the first time Android asks for the microphone (allow), then its screen-capture prompt (on Android 16, **Avançar**; the whole screen is asked, not one app); a notification *O Verso compartilha o som do celular* appears; play music in Spotify or YouTube Music: the player hears it, with the level meter moving. Decline the prompt once: the window says to allow it there. A call, or an app that forbids capture, is silent. Stop: the notification goes.
+
+## Maps from Watabou's generators (ADR 0120, 2026-11-12)
+
+Built on `feat/watabou-import`. The import, the drawing, the region and the generated note run in the browser harness (`watabou-import.spec.mjs`); the download from an embedded page reaches a real web engine only in the app, and was not seen there.
+
+1. **The generator's Export saves into the folder** (A, macOS, then Windows and Linux): **Novo mapa gerado…**, One Page Dungeon; allow `watabou.github.io` when asked; in the embedded generator, **Export as › JSON**: the file appears in the tree beside the note (not in Downloads), the status line says it was imported, and **Importar mapa do Watabou** opens with it; **Importar** makes the folder, the note and the board. Then **Save as PNG**: the picture lands beside the note too. A picture's **Baixar imagem** and the board's **Baixar** still go to Downloads.
+2. **A page's file name taken** (A): export the same JSON twice: the second is `name (2).json`, the first untouched.
+3. **In a browser** (A, a UniVerso's window): the generator's Export goes to the browser's Downloads, and nothing is written to the folder.
+4. **The drawing in the app** (A): the imported board in light and dark themes: the floor, walls and numbers readable in both; double-click the drawing, move a room: it moves; the board's outline (accessible view) lists the note card.
+5. **A house of Dwellings in the app** (A, `feat/watabou-dwellings`; the browser harness runs the import, `watabou-import.spec.mjs`): export a house with a basement and a spiral stair (Dwellings, tags `tall,spiral,basement`) as JSON and import it: one frame per floor, named *Porão (B)*, *Térreo (GF)*…; in light and dark themes the walls, windows and room names readable; drag a floor's frame: its drawing moves with it; the board's outline lists the floors' frames and the note card; on a phone (390 × 844) the board opens and the note's room list reads in full.
+6. **A town's note embeds its generator** (A): in an imported region's note, click a town: the new note shows the city or village generator inside it, after asking once for `watabou.github.io`, at the town's seed.

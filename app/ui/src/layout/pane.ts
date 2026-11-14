@@ -491,6 +491,11 @@ export class Pane {
     markCurrent();
     dispatchEvent(new CustomEvent("verso:leaf-active", { detail: leaf }));
     leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
+    // Again once its name is drawn: a tab just made is narrow until then, and
+    // on a phone the chosen tab stayed half under the row's end (2026-11-10).
+    requestAnimationFrame(() => {
+      if (leaf.tab.isConnected && leaf.tab.getAttribute("aria-selected") === "true") leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
     if (focus) leaf.focusContent();
     this.mark(leaf.path, leaf.kind);
     persistSoon();

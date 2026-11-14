@@ -14,11 +14,16 @@
 //! a window of its own, its size: the page, put at the slot's offset with
 //! the slot's size, is drawn only inside it. GTK counts in logical pixels,
 //! the window's page's own, from the top of that page.
+//!
+//! The picture of a page while an overlay is over it (`snapshot`, ADR 0056,
+//! revision of 2026-11-12): WebKitGTK's `webkit_web_view_get_snapshot` of
+//! the view's visible area, encoded as JPEG by GdkPixbuf.
 
 use gtk::prelude::*;
 use tauri::webview::PlatformWebview;
 
 use super::geometry::Frames;
+use super::{Done, Picture};
 
 /// The containers are placed from the top of the window's page (the
 /// overlay holds it), not from the window's frame.
@@ -128,5 +133,40 @@ pub(super) fn release(pw: &PlatformWebview) {
         {
             stage.remove(&clip);
         }
+    }
+}
+
+/// A picture of the page's whole view, handed to `done` when WebKit has
+/// drawn it (on the main loop, after this returns).
+pub(super) fn snapshot(pw: &PlatformWebview, done: Done) {
+    use webkit2gtk::{SnapshotOptions, SnapshotRegion, WebViewExt};
+    pw.inner().snapshot(
+        SnapshotRegion::Visible,
+        SnapshotOptions::NONE,
+        None::<&gtk::gio::Cancellable>,
+        move |drawn| {
+            let _ = done.send(drawn.map_err(|e| e.to_string()).and_then(|s| jpeg(&s)));
+        },
+    );
+}
+
+/// `surface` as a JPEG (a PNG where this GdkPixbuf has no JPEG writer).
+fn jpeg(surface: &gtk::cairo::Surface) -> Result<Picture, String> {
+    let image = gtk::cairo::ImageSurface::try_from(surface.clone())
+        .map_err(|_| "the picture is not an image".to_owned())?;
+    let pixbuf = gtk::gdk::pixbuf_get_from_surface(surface, 0, 0, image.width(), image.height())
+        .ok_or("the picture could not be read")?;
+    match pixbuf.save_to_bufferv("jpeg", &[("quality", "85")]) {
+        Ok(bytes) => Ok(Picture {
+            mime: "image/jpeg",
+            bytes,
+        }),
+        Err(_) => pixbuf
+            .save_to_bufferv("png", &[])
+            .map(|bytes| Picture {
+                mime: "image/png",
+                bytes,
+            })
+            .map_err(|e| e.to_string()),
     }
 }

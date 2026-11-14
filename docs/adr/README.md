@@ -28,7 +28,6 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0004](0004-project-name-verso.md) | Project name: Verso | Accepted; the domain `versomd.com` (2026-09-24); the package, crate and npm name `versomd`, on the availability check of 2026-10-12 |
 | [0005](0005-license.md) | Project license: MPL-2.0 in the core and app, MIT in the plugin SDK | Accepted |
 | [0006](0006-contribution-dco-no-cla.md) | Contribution through DCO, without CLA; AI-written code comes in through the same DCO, under the responsibility of whoever signs | Accepted |
-| [0007](0007-private-repo-until-license.md) | Repository private until the license is decided | Accepted |
 | [0008](0008-documentation-language.md) | Documentation language: English source, pt-BR mirror | Accepted |
 | [0009](0009-external-constraints.md) | External constraints assumed as given | Constraint; revised 2026-10-14: the public source of an open-source plugin Obsidian publishes is an admissible source |
 
@@ -78,7 +77,6 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | # | Title | Status |
 |---|---|---|
 | [0020](0020-sync-merge-in-core-transports-as-plugins.md) | Sync: merge engine in the core, transports as plugins, out of scope until Phase 2 | Accepted; revised by 0073 |
-| [0021](0021-sync-automerge-layered-config.md) | Sync: Automerge and layered config | Proposed; revised by 0073 (Yjs) |
 | [0043](0043-placeholder-guard.md) | An on-demand storage placeholder file is never a deletion | Accepted (2026-09-22) |
 
 ### Platforms and architecture
@@ -95,7 +93,7 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0050](0050-outbound-network-access.md) | Outbound network access from the window | Accepted; revised 2026-09-29; the setting's default, on, decided 2026-10-21 |
 | [0054](0054-terminal-and-agents-from-the-app.md) | The command line and agents, set up from the app | Accepted (2026-09-24) |
 | [0055](0055-in-app-updater.md) | The in-app updater | Accepted (2026-09-29); revised 2026-10-14 |
-| [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29) |
+| [0056](0056-embedded-web-pages.md) | Embedded web pages: the proxy, its origin and the local network | Accepted (2026-09-29); revised 2026-11-12 by [0120](0120-maps-from-watabous-generators.md) item 6: a page's download is saved into the folder |
 | [0057](0057-board-json-canvas.md) | The board: a JSON Canvas file, Excalidraw as its surface, typed relations in the frontmatter | Accepted (2026-09-30) |
 | [0069](0069-windows-port.md) | The Windows port: x64, an installer, tested on a Windows machine over SSH | Accepted (2026-10-12); shipped in 0.5.0-beta.1 |
 | [0070](0070-what-travels-with-the-folder.md) | What travels with the folder: three layers of settings, and names every OS can keep | Accepted (2026-10-12) |
@@ -105,11 +103,11 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0074](0074-accounts-and-access-on-the-server.md) | Accounts and access on the server: the first admin, sign-in, tokens | Accepted (2026-10-09) |
 | [0075](0075-server-packaging-and-storage.md) | The server's packaging and storage: how it is installed, where its data lives, what each folder takes | Accepted (2026-10-09) |
 | [0076](0076-the-window-on-every-screen.md) | The window on every screen: phone, tablet, a narrow pane | Accepted (2026-10-09) |
-| [0077](0077-the-server-administration-console-and-folder-quotas.md) | The server's administration console, and quotas per folder | Accepted (2026-10-10) |
+| [0077](0077-the-server-administration-console-and-folder-quotas.md) | The server's administration console, and quotas per folder | Accepted (2026-10-10); item 6 revised 2026-11-04 by 0117 D14 (c) (the UniVerso's Cloudflare link from the console) |
 | [0078](0078-universo-the-name-of-verso-as-a-server.md) | UniVerso: the name of Verso as a server | Accepted (2026-10-10) |
 | [0079](0079-sync-a-local-folder-with-a-server.md) | Sync: a desktop folder kept in step with a folder on a server | Accepted (2026-10-10) |
 | [0080](0080-the-trash-with-expiry-and-restore.md) | The trash: what was deleted is seen, restored, and expires | Accepted (2026-10-11) |
-| [0081](0081-sharing-between-people-on-one-universo.md) | Sharing between people on one UniVerso: a vault, a folder inside it, read or write | Accepted (2026-10-11) |
+| [0081](0081-sharing-between-people-on-one-universo.md) | Sharing between people on one UniVerso: a vault, a folder inside it, read or write | Accepted (2026-10-11); item 4 revised 2026-11-04 by 0117 D14 (e) (a game master who may make folders invites into their own tables) |
 | [0082](0082-live-co-editing-of-a-synced-folder.md) | Live co-editing of a synced folder: the desktop's note joins the server's room while online | Accepted (2026-10-11) |
 | [0083](0083-security-hardening-of-universo.md) | Security hardening of UniVerso: bots, brute force, the host's tools and what comes before the first outside user | Accepted (2026-10-13) |
 | [0084](0084-notifications-in-the-window.md) | Notifications in the window: a change of state said once, kept in a list, chosen per kind | Accepted (2026-10-14) |
@@ -117,7 +115,6 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0091](0091-version-history.md) | Version history: who changed a file, when, and bringing a version back | Accepted (2026-10-14) |
 | [0092](0092-the-phone-offline.md) | The phone offline: the window served by a UniVerso keeps chosen folders and syncs them | Accepted (2026-10-14) |
 | [0095](0095-mac-notarization-and-windows-code-signing.md) | Mac notarization and Windows code signing, and the Mac Intel build | Accepted (2026-10-14) |
-| [0096](0096-this-app-is-a-server.md) | This app is a server: the desktop serving its folder on the local network | Accepted (2026-10-15) |
 | [0097](0097-universo-found-on-the-network-and-a-bad-dns-survived.md) | UniVerso found on the home network, and a bad DNS survived | Accepted (2026-10-16); details decided as built 2026-10-21 |
 | [0098](0098-world-and-campaign-wizard-template-bundles.md) | The project wizard: a folder tree from a bundle, shown and edited before it is written | Accepted (2026-10-20) |
 | [0099](0099-visual-markdown-statblocks-and-cards.md) | Statblocks: a card from a `statblock` block, layouts as files of the folder, rolls by system | Accepted (2026-10-20) |
@@ -132,12 +129,16 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0108](0108-colour-swatches-for-colour-codes.md) | Colour swatches: a colour code in a note shows its colour, and a click adjusts it | Accepted (2026-10-28) |
 | [0109](0109-themes-v2-more-tokens-and-a-catalogue.md) | Themes, second step: more tokens, a richer builder, and a catalogue behind "More themes…" | Accepted (2026-10-28) |
 | [0110](0110-a-table-is-a-campaign-folder.md) | A table is a campaign folder: invited players, notes released bit by bit, a table dashboard | Accepted (2026-10-28) for phase 1; phase 2 scheduled for V1, not built; superseded in part by 0113 |
-| [0111](0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Accepted (2026-10-23) |
 | [0112](0112-confirming-it-is-you-on-a-linked-device.md) | Confirming it is you on a linked device | Accepted in part (2026-10-28): items 1–3; not built |
 | [0113](0113-one-access-model-for-a-table.md) | One access model for a table: a seat, per-path access, per-player rights | Accepted (2026-10-24); the author's readings and K.3 decided 2026-10-31; outside a table only the owner deletes (amended 2026-10-31) |
 | [0114](0114-opening-one-markdown-file-without-a-folder.md) | Opening one Markdown file: Verso as a handler for `.md`, and a window with no folder | Accepted (2026-10-30), the 13 questions as recommended; built on `feat/single-file` (As built notes in Status); amended 2026-10-31: JSON, YAML, TOML, XML and CSV open in the diagram, also from the command line and File › Open file… (item 34) |
 | [0115](0115-an-embedded-terminal-in-the-desktop-app.md) | An embedded terminal in the desktop app: the person's shell in a pane, for AI command-line tools | Accepted (2026-10-31); into V1 (Q9); Q4 decided as "the app on this computer" |
 | [0116](0116-music-and-sound-at-the-table-heard-by-everyone.md) | Music and sound at the table, heard by everyone: files as a shared playback state, and "share audio" — live capture of any application or page, relayed by the server; only the game master controls, each person their own volume | Accepted (2026-10-31); Q1–Q9 decided as recommended; not built |
+| [0117](0117-this-app-is-a-universo-server.md) | This app is a UniVerso server: a folder or a table served from this computer, on the network and by a link | Accepted (2026-11-03); **rewritten in place 2026-11-04** by the maintainer's decision (not superseded: unreleased, not concluded): the UniVerso's model of sharing a folder and a table with this app as the host, served per folder or subfolder from the folder's page, N tables, the host chosen per table with a synced folder no longer refused, a Cloudflare link on both hosts, the owner through the link (D1–D8); the lean version the same day (who sees what is the UniVerso's shares and tables, the host the window where the table is made, one function per administrator's act, D18); D14's seven questions decided as recommended 2026-11-04 (*"confirmo tudo"*); the build's remaining details (R3–R6, the table's move as R9, D14) decided as recommended 2026-11-13, all in V1; supersedes 0096 (built) and 0111 (never built); partly built on `feat/app-server` (D15) |
+| [0118](0118-a-native-android-app-from-the-same-core-and-ui.md) | A native Android app from the same core and UI | Accepted (2026-11-08) for items 1–6: start the APK now, Tauri 2 Android, the phone as a server (0117 on Android, `cloudflared` in the APK), notes in app-private storage synced or a window on a UniVerso, the desktop-only list, sync only while open; minSdk, distribution, package id, the client-only build, TalkBack and the seam `[OPEN]`; Phase 0 spike on `feat/android` |
+| [0119](0119-an-ios-and-ipados-app-through-altstore.md) | An iOS and iPadOS app from the same core and UI, first through AltStore | Accepted (2026-11-10) for items 1–3: the iOS app from 0118's build, the iPhone through AltStore PAL in Brazil, the iPad through AltStore Classic with a source JSON we host, the App Store later, tested on his iPad; item 10 answered in part on 2026-11-12 (Developer Program later, hosting beside the APKs, his Mac under his employer's policy, his iPad Pro 11" M2, `cloudflared` off and no mDNS in v1); A7 (in V1), A5 (Files shows the notes) and B11 (PAL in Brazil only) decided 2026-11-13; signing per flow, PAL on the iPad and the phases `[OPEN]`/Proposed; not built |
+| [0119](0119-an-ios-and-ipados-app-through-altstore.md) | An iOS and iPadOS app from the same core and UI, first through AltStore | Accepted (2026-11-10) for items 1–3: the iOS app from 0118's build, the iPhone through AltStore PAL in Brazil, the iPad through AltStore Classic with a source JSON we host, the App Store later, tested on his iPad; the Developer Program, hosting, signing per flow, `cloudflared` and mDNS on iOS, PAL on the iPad and the phases `[OPEN]`/Proposed; not built |
+| [0120](0120-maps-from-watabous-generators.md) | Maps from Watabou's generators: the importer, our own drawing, the generated-map note | Accepted (2026-11-12) for items 1–7: import One Page Dungeon and Perilous Shores exports, the dungeon drawn by Verso from its JSON (rooms, doors, keys), the walls kept under the board's `verso`, one region note with town notes made on click, the generated-map note with the seed, 0056 revised to save an embedded page's download into the folder; items 8–11 the same day (Q1–Q4 as recommended): a town's note embeds its generator, door numbers 0/8/9 stay open ways, Dwellings imported next (a frame per floor, the room list, the walls), the region's hex board later; the mechanism the author's |
 
 ### Dialect, engineering and roadmap
 
@@ -162,7 +163,6 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0037](0037-base-parser.md) | Base parser for `verso-dialect`: `pulldown-cmark`, `comrak` as the fallback | Accepted |
 | [0038](0038-ts-type-generation.md) | TypeScript type generation from Rust: `specta` with `tauri-specta` | Accepted |
 | [0039](0039-performance-targets.md) | Performance targets | After the first baseline |
-| [0040](0040-board-persistence.md) | Board persistence | Accepted (2026-09-30, in 0057) |
 
 ### Open questions raised in the Phase 0 review
 
@@ -173,6 +173,26 @@ Only the maintainer promotes Proposed to Accepted, or closes an `[OPEN]`.
 | [0046](0046-index-location-lifecycle-tokenizer.md) | Index: location, lifecycle and tokenizer | Accepted (2026-09-22) |
 | [0047](0047-plugin-api-open-questions.md) | Open questions on the plugin API | After V1 |
 | [0048](0048-file-operations-in-ui.md) | File operations in the UI: rename, create, delete, move | Accepted (2026-09-23) |
+
+### Archived
+
+Superseded or discontinued ADRs, moved to [`archive/`](archive/) so that a
+reader — a person or an LLM — meets only rules in force (the maintainer,
+2026-11-03: *"deve ser movido e links de índice serem atualizados, apesar de
+não fazer mais sentido ser lido por llm já que a regra mudou. Isso deveria
+ser feito com todas adrs que foram descontinuadas ou modificadas"*). Each
+keeps a pointer line to the ADR that replaced it and is not edited further;
+history cites them at their new path.
+
+| # | Title | Status |
+|---|---|---|
+| [0096](archive/0096-this-app-is-a-server.md) | This app is a server: the desktop serving its folder on the local network | Superseded by [0117](0117-this-app-is-a-universo-server.md) (2026-11-03); built, its rules carried over there |
+| [0111](archive/0111-online-mode-a-table-from-this-app-through-a-tunnel.md) | Online mode: a table from this app, through a tunnel | Superseded by [0117](0117-this-app-is-a-universo-server.md) (2026-11-03); never built |
+| [0007](archive/0007-private-repo-until-license.md) | Repository private until the license is decided | Archived 2026-11-03: condition spent ([0005](0005-license.md)); the repository stays private by the decision of 2026-10-29 |
+| [0021](archive/0021-sync-automerge-layered-config.md) | Sync: Automerge and layered config | Superseded by [0073](0073-self-hosted-server-first.md) (Yjs); archived 2026-11-03 |
+| [0040](archive/0040-board-persistence.md) | Board persistence | Superseded by [0057](0057-board-json-canvas.md); archived 2026-11-03 |
+
+Superseded **in part** and left in place — [0025](0025-own-server-and-mobile-pwa.md) (item 3 by 0073), [0020](0020-sync-merge-in-core-transports-as-plugins.md) (by 0073), [0110](0110-a-table-is-a-campaign-folder.md) and [0107](0107-the-table-a-shared-roll-and-chat-log.md) (by 0113), [0024](0024-board-excalidraw.md) (persistence by 0057), [0014](0014-primitives-catalog.md) (a catalogue across 0052, 0053, 0057, 0093) — keep their pointer lines and will each be consolidated into a new ADR when their area is next changed (the maintainer, 2026-11-03: *"Sim para todas"*).
 
 ## Open items that did not become ADRs
 
@@ -194,7 +214,7 @@ The check for the availability of the name (item 2) is recorded in
 3. Cite the source in the header (`docs/BRIEFING.md` §X, a PR, an issue, or the review that originated it).
 4. In "Discarded alternatives", record only alternatives that were actually considered. With none: write "None recorded".
 5. **Length and style:** Keep ADRs concise (< 200 lines ideally). Use direct bullet points and clear tables. Avoid pasting raw conversational session logs or minute-by-minute chat transcripts.
-6. An ADR is not edited to change one's mind. A new ADR supersedes the previous one, and the previous one gets a line pointing to the new one.
+6. An ADR is not edited to change one's mind. A new ADR supersedes the previous one; the previous one gets a line pointing to the new one at its top and is **moved to `archive/`** with `git mv`, every link to it updated and its row moved to the index's "Archived" section — so that people and LLMs read only rules in force (the maintainer, 2026-11-03: *"deve ser movido e links de índice serem atualizados ... Isso deveria ser feito com todas adrs que foram descontinuadas ou modificadas"*). The same goes for a discontinued ADR. An ADR superseded only in part stays in place with its pointer line until a new ADR carries over what still holds.
 
 ## How to change an existing ADR
 
@@ -203,7 +223,7 @@ Three cases, with different treatments:
 | Case | What to do |
 |---|---|
 | Correction or delimitation that **does not change the decision** (citation error, scope that was missing, consequence discovered later) | Edit in place and add a concise `Revisions:` line in the header (1–2 lines with date and PR/review origin) |
-| **Change** an Accepted decision | A new ADR that supersedes it; the old one gets the line pointing to the new one and is not edited beyond that |
+| **Change** an Accepted decision | A new ADR that supersedes it, carrying over what still holds so that nobody needs the old one; the old one gets the line pointing to the new one, is not edited beyond that, and is moved to `archive/` with its links and its index row updated (rule 6) |
 | **Close** an `[OPEN]` or promote a Proposed | Edit the Decision section and the Status in place, citing the commit or PR in which the maintainer decided. An `[OPEN]` has no decision to supersede; promoting a Proposed is the confirmation of the text that was already there |
 
 Only the maintainer does the second and the third case. The first can be done by

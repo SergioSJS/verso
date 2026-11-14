@@ -67,7 +67,7 @@ this ADR ([0033](0033-pr-workflow.md), revised the same day).
    note changes nothing. This is spec Q11, closed the same day. Where a schema
    lives was the maintainer's choice between two answers of the briefing:
    §5.3 — "a text file in the folder", with ADR 0014 and spec §6 after it —
-   and §8, with [0021](0021-sync-automerge-layered-config.md) after it, both
+   and §8, with [0021](archive/0021-sync-automerge-layered-config.md) after it, both
    `PROPOSED`, which put schemas in the shared layer of the configuration that
    [0011](0011-config-outside-tree-index-as-cache.md) keeps outside the tree.
    The maintainer chose §5.3's, as the memo recommends it: a schema is

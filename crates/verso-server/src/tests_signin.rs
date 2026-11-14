@@ -243,7 +243,8 @@ fn revoked_rows(r: &Running, id: &str) -> usize {
 }
 
 /// A password reset — by a link, or on the server's machine — revokes the
-/// account's tokens, each in the audit log; a change does when asked, and
+/// account's tokens, each in the audit log: the link's when it is made
+/// (decided 2026-11-04, as on the machine); a change does when asked, and
 /// otherwise says how many stay (ADR 0083 item 4).
 #[test]
 fn a_reset_takes_the_accounts_tokens_and_a_change_does_when_asked() {
@@ -288,7 +289,8 @@ fn a_reset_takes_the_accounts_tokens_and_a_change_does_when_asked() {
             401,
             "the token outlived the reset"
         );
-        assert_eq!(done["done"]["tokensRevoked"], json!(1), "{done}");
+        // Revoked when the link was made: none left when it is used.
+        assert_eq!(done["done"]["tokensRevoked"], json!(0), "{done}");
         assert_eq!(revoked_rows(&r, &id), 1);
         // A reset on the server's machine (`universo admin reset`).
         admin = sign_in(&r, "admin@casa.lan", "uma senha nova bem longa").await;

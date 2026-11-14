@@ -14,8 +14,8 @@ you only opened. It is made first for preparing tabletop RPG sessions
 ([ADR 0036](docs/adr/0036-tabletop-rpg-support.md)), and is useful for any
 body of linked notes.
 
-The repository is private while the app matures; it is in Phase 2 of
-[the roadmap](docs/roadmap.md), in daily use by the maintainer.
+Verso is in beta: it is in Phase 4 of [the roadmap](docs/roadmap.md), on the
+way to V1, in daily use by the maintainer.
 
 ## Principles
 
@@ -144,8 +144,9 @@ your machine:
 
 | Script | Runs | Needs |
 |---|---|---|
-| `scripts/check.sh` | every guardrail of CI's Linux job, natively — on a Mac, this is the macOS check; and, which CI does not run, the window's end-to-end tests over the browser harness ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)), in WebKit and in Chromium, the engines of the macOS and Windows apps ([ADR 0069](docs/adr/0069-windows-port.md)); on a Mac with one worker and no window captures, and refused while a browser or the Verso app is open (quit them first) | the toolchain, Node 22, `cargo install cargo-deny --locked`; Playwright's WebKit and Chromium, downloaded on the first run |
-| `scripts/check-linux.sh` | fmt, clippy, the tests and the generated bindings in a Linux container, as an ordinary user | Docker; the UI bundle the first script builds |
+| `scripts/check.sh` | every guardrail of CI's Linux job, natively — on a Mac, this is the macOS check; then, when Docker runs, `scripts/check-e2e.sh` (`--no-e2e` leaves it out; without Docker the last line says it was skipped) | the toolchain, Node 22, `cargo install cargo-deny --locked`; with `cargo install cargo-nextest --locked` the tests run with a time limit per test (without it, `cargo test`) |
+| `scripts/check-e2e.sh` | what CI does not run: the window's end-to-end tests over the browser harness ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md)), in WebKit and in Chromium, the engines of the macOS and Windows apps ([ADR 0069](docs/adr/0069-windows-port.md)), with 3 workers (`E2E_WORKERS`), and the server's against a real `verso serve`, both at once in Playwright's Linux image — never on a Mac's own window server. A failure's traces come back to `app/ui/e2e/results` and `app/ui/e2e-server/results`; `--ui` or `--server` runs one suite, other arguments go to Playwright | Docker |
+| `scripts/check-linux.sh` | fmt, clippy, the tests (cargo-nextest) and the generated bindings in a Linux container, as an ordinary user; then the server's image, its backup script and its installer | Docker; the UI bundle the first script builds. The container's image, `verso-ci` (`scripts/ci/Dockerfile`: the toolchain, WebKitGTK, cargo-deny, cargo-nextest, Node), is built on the first run and again only when that file or `rust-toolchain.toml` changes |
 | `scripts/check-windows.sh` | clippy and the tests on a Windows machine over SSH; `--bundle` also builds the installer ([ADR 0069](docs/adr/0069-windows-port.md)). Required when the diff touches platform code (`verso-fs`, `app/src-tauri`, configuration paths, `cfg(windows)`), optional otherwise | an SSH host named `verso-win` with the toolchain (the script's header lists it) |
 | `scripts/check-linux-vm.sh` | clippy and the tests on a Linux machine over SSH; `--bundle` builds the `.deb`, `.rpm` and AppImage, `--install` opens the app on its desktop, `--webkit` runs the end-to-end suite on Linux's WebKit in a container ([ADR 0071](docs/adr/0071-linux-port.md)). When it makes sense, or for a closed package | an SSH host named `verso-ubuntu` (the script's header lists it); Docker for `--webkit` |
 | `scripts/install-beta.sh` | on a Mac with Apple silicon, this checkout installed as "Verso Beta" over `/Applications/Verso Beta.app`: the window built first, the binaries natively, `ui-web` and the Info.plist keys in the bundle, signed ad hoc, the running beta quit without losing work, and a failure unless the log says it started this commit with no ERROR ([ADR 0051](docs/adr/0051-development-flow-and-releases.md)). The end of any change a user can see; `--dirty` installs uncommitted work | a Verso Beta already installed (a release, or one `tauri build` with an arm64 Node) |

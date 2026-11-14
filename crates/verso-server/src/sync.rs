@@ -13,7 +13,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use axum::body::Bytes;
 use base64::Engine;
@@ -49,7 +49,7 @@ mod reader;
 pub use crate::transfers::Transfers;
 use crate::transfers::{Being, IDLE, Reading, Upload, room};
 use files::{put, read};
-pub(crate) use paths::moves_of;
+pub(crate) use paths::{Moving, moves_of, moving};
 use paths::{Now, reconcile_paths};
 
 /// How often a device's question walks the folder again.
@@ -136,19 +136,29 @@ impl<'a> Author<'a> {
             ..Self::default()
         }
     }
+
+    /// Whether the change names someone: a change of nobody's is the
+    /// watcher's, from outside Verso.
+    #[must_use]
+    pub fn names_someone(&self) -> bool {
+        self.account.is_some()
+            || self.device.is_some()
+            || self.token.is_some()
+            || self.room.is_some()
+    }
 }
 
 /// The folder's files as the index lists them, and the folder's settings
 /// directory, which the walk never lists and sync carries (ADR 0070, ADR
-/// 0079 item 2): path, length, time.
-fn listed(server: &Server, key: &str) -> Result<Vec<(String, u64, i64)>, ContractError> {
+/// 0079 item 2): path, length, time in nanoseconds.
+fn listed(server: &Server, key: &str) -> Result<Vec<(String, u64, u128)>, ContractError> {
     server.service.with_key(key, |ws| {
         Ok(ws
             .entries()
             .iter()
             .chain(ws.settings_entries())
             .filter(|e| !matches!(e.kind, FileKind::Folder | FileKind::Placeholder))
-            .map(|e| (e.path.clone(), e.len, e.modified))
+            .map(|e| (e.path.clone(), e.len, e.modified_nanos))
             .collect())
     })
 }
@@ -188,7 +198,9 @@ pub fn reconcile_by(
 /// another file of the same bytes a pairing by hash meets first, nor
 /// missing because the bytes changed — and a device follows each rename
 /// as it was made (ADR 0079, decided 2026-10-31, B12). A folder's pair is
-/// every file the log knows under it.
+/// every file the log knows under it. The move ran under
+/// [`moving`], which keeps any reconciliation before this one from
+/// recording it.
 pub fn reconcile_moved(
     server: &Server,
     key: &str,
@@ -244,7 +256,75 @@ fn reconcile_held(
     paths: &[String],
     moved: &HashMap<String, String>,
 ) -> Result<i64, ContractError> {
+    #[cfg(test)]
+    crate::pause::at("reconcile-begun", folder);
+    let mut seen = found(server, folder, key, paths)?;
+    // One side of a rename outside Verso alone, of a file kept from
+    // someone, in a listing as of the index's last walk: the folder is
+    // walked again and read again, so that both sides are in this one
+    // step (`campaign_outside::look_again`).
+    if crate::campaign_outside::look_again(
+        server,
+        folder,
+        (&seen.known, &seen.gone),
+        &seen.created,
+        moved,
+    ) {
+        server.service.walk_quietly(key);
+        seen = found(server, folder, key, paths)?;
+    }
+    let Found {
+        known,
+        gone,
+        created,
+        quick_only,
+        same,
+        twins,
+        too_large,
+        read_from,
+    } = seen;
+    crate::twins::found(server, folder, twins);
+    server.transfers.large.found(server, folder, too_large);
+    let head = record_changes(
+        server,
+        (folder, key),
+        (by, paths),
+        (&known, &gone),
+        (created, moved),
+        (&quick_only, read_from),
+    )?;
+    // A window's write the watcher recorded first (C3, seen on Windows):
+    // offered to the history with its author, as `reconcile_paths` does.
+    if by.names_someone() {
+        crate::history::recorded(server, (folder, key), by, &same, false);
+    }
+    Ok(head)
+}
+
+/// What a reconciliation found, before anything is recorded.
+struct Found {
+    known: HashMap<String, crate::db::Known>,
+    gone: Vec<(String, String)>,
+    created: Vec<Created>,
+    quick_only: Vec<(String, String)>,
+    same: Vec<crate::db::Recorded>,
+    twins: Vec<crate::twins::Twin>,
+    too_large: Vec<(String, u64)>,
+    read_from: SystemTime,
+}
+
+/// The folder's files against its log, read where the listing does not
+/// vouch for them ([`reconcile_held`]).
+fn found(
+    server: &Server,
+    folder: &str,
+    key: &str,
+    paths: &[String],
+) -> Result<Found, ContractError> {
     let fail = |e: String| verso_service::failed(e);
+    // Before anything is read: what the reads find is vouched for as of
+    // this moment (`settled`).
+    let read_from = SystemTime::now();
     let known = server.db.manifest(folder).map_err(fail)?;
     let files = listed(server, key)?;
     let listed_paths: HashSet<String> = files.iter().map(|(p, _, _)| p.clone()).collect();
@@ -255,8 +335,7 @@ fn reconcile_held(
         &known,
     );
     let held: HashSet<String> = twins.iter().map(|t| t.held.clone()).collect();
-    crate::twins::found(server, folder, twins);
-    let files: Vec<(String, u64, i64)> = files
+    let files: Vec<(String, u64, u128)> = files
         .into_iter()
         .filter(|(p, _, _)| !held.contains(p))
         .collect();
@@ -270,7 +349,7 @@ fn reconcile_held(
     // be read is gone.
     let mut candidates: Vec<(String, Option<(u64, String)>)> = files
         .iter()
-        .map(|(p, len, modified)| (p.clone(), Some((*len, format!("{len}:{modified}")))))
+        .map(|(p, len, modified)| (p.clone(), Some((*len, quick_key(*len, *modified)))))
         .collect();
     // Read whatever the listing does not vouch for: a path just written,
     // and a known file the listing lacks — written since its last walk, or
@@ -307,6 +386,9 @@ fn reconcile_held(
     let mut present: HashSet<String> = HashSet::new();
     let mut created: Vec<(String, String, i64, String)> = Vec::new();
     let mut quick_only: Vec<(String, String)> = Vec::new();
+    // A path the caller wrote whose bytes the log holds already: the
+    // watcher's walk took the change first, with no author.
+    let mut same: Vec<crate::db::Recorded> = Vec::new();
     let mut too_large: Vec<(String, u64)> = Vec::new();
     for (path, listed) in candidates {
         let old = known.get(&path);
@@ -362,25 +444,29 @@ fn reconcile_held(
             .or(listed_quick)
             .unwrap_or_else(|| format!("{}:0", read.len));
         if old.is_some_and(|k| k.hash == hash) {
+            if forced.contains(path.as_str()) {
+                same.push((path.clone(), Some((hash, size, quick.clone())), None));
+            }
             quick_only.push((path, quick));
         } else {
             created.push((path, hash, size, quick));
         }
     }
-    server.transfers.large.found(server, folder, too_large);
     let gone: Vec<(String, String)> = known
         .iter()
         .filter(|(p, _)| !present.contains(p.as_str()))
         .map(|(p, k)| (p.clone(), k.hash.clone()))
         .collect();
-    record_changes(
-        server,
-        (folder, key),
-        by,
-        (&known, &gone),
-        (created, moved),
-        &quick_only,
-    )
+    Ok(Found {
+        known,
+        gone,
+        created,
+        quick_only,
+        same,
+        twins,
+        too_large,
+        read_from,
+    })
 }
 
 /// The hash of the file at `path`, its length and the revision it was read
@@ -404,7 +490,7 @@ fn read_file(
 }
 
 /// The quick key of `len` bytes read or written at `revision`: their length
-/// and time in whole seconds, as a walk's listing says them, so that the
+/// and time, as a walk's listing says them ([`quick_key`]), so that the
 /// next walk skips the file while it stays as it is. A revision is
 /// `<nanoseconds since the epoch>:<length>:<hash>` (verso-core's
 /// `revision::encode`); `None` when it is not, or names another length (a
@@ -414,7 +500,64 @@ fn quick_of(revision: &str, len: u64) -> Option<String> {
     let mut parts = revision.split(':');
     let nanos: u128 = parts.next()?.parse().ok()?;
     let length: u64 = parts.next()?.parse().ok()?;
-    (len == length).then(|| format!("{len}:{}", nanos / 1_000_000_000))
+    (len == length).then(|| quick_key(len, nanos))
+}
+
+/// How long a file must have stood unmodified before the reading of it
+/// began for its quick key to be kept: git's racy rule, as the index
+/// trusts a note by its time and length (ADR 0011, amended 2026-10-08) and
+/// as the app's sync remembers a file it read (`app/src-tauri/src/sync.rs`).
+pub(crate) const SETTLED: Duration = Duration::from_secs(2);
+
+/// `quick`, kept only when the time it names is at least [`SETTLED`]
+/// before `read_from`, the moment the reconciliation began to read; else
+/// empty, which no listing gives, so the next walk reads the file again
+/// and keeps its key then. A file written again with its length within the
+/// time its file system keeps (a second on FAT, HFS+ or some shares, a
+/// tick of a coarse clock) has the key of the bytes read: kept, that key
+/// would skip the second write for good. A key with no time (`<len>:0`)
+/// is kept, and one that cannot be read is not.
+pub(crate) fn settled(quick: String, read_from: SystemTime) -> String {
+    let Some((_, time)) = quick.split_once(':') else {
+        return String::new();
+    };
+    if time == "0" {
+        return quick;
+    }
+    let (secs, frac) = time.split_once('.').unwrap_or((time, "0"));
+    let (Ok(secs), Ok(frac)) = (secs.parse::<u128>(), frac.parse::<u128>()) else {
+        return String::new();
+    };
+    let at = secs.saturating_mul(1_000_000_000).saturating_add(frac);
+    let from = read_from
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    if at.saturating_add(SETTLED.as_nanos()) <= from {
+        quick
+    } else {
+        String::new()
+    }
+}
+
+/// A file's quick key, what a walk skips it by while it is as last seen: its
+/// length and its time to the nanosecond as the disk keeps it
+/// (`<len>:<seconds>.<nanoseconds>`; `<len>:0` when the disk gave no time).
+/// Whole seconds told two writes of one length in one second apart from
+/// nothing, and a log entry left behind by one of them was skipped for good
+/// (the night stress, seed 3, 2026-11-04). Where the disk keeps whole
+/// seconds only (FAT, some network shares) the fraction is zero and the key
+/// is as fine as the disk. A key of whole seconds a log kept before
+/// (`<len>:<seconds>`, no dot) is never equal to one of these: such a file
+/// is read once more by the next walk, never skipped.
+pub(crate) fn quick_key(len: u64, nanos: u128) -> String {
+    if nanos == 0 {
+        return format!("{len}:0");
+    }
+    format!(
+        "{len}:{}.{:09}",
+        nanos / 1_000_000_000,
+        nanos % 1_000_000_000
+    )
 }
 
 /// The listing's size of each of `paths` it lists: checked against
@@ -446,15 +589,41 @@ type Created = (String, String, i64, String);
 /// changed (a new one of the same bytes as one gone is a rename; one a
 /// window's move names, `moved`: new path → old, is that rename whatever
 /// its bytes), the quick keys refreshed — and tell the devices on the
-/// folder the new head.
+/// folder the new head. `written`: the paths the caller wrote.
 fn record_changes(
     server: &Server,
     (folder, key): (&str, &str),
-    by: Author<'_>,
+    (by, written): (Author<'_>, &[String]),
     (known, gone): (&HashMap<String, crate::db::Known>, &[(String, String)]),
     (created, moved): (Vec<Created>, &HashMap<String, String>),
-    quick_only: &[(String, String)],
+    (quick_only, read_from): (&[(String, String)], SystemTime),
 ) -> Result<i64, ContractError> {
+    // A window's move not yet recorded by its own reconciliation: as the
+    // log has it, its new paths waiting (`paths::moving`).
+    let (old, new) = paths::held_back(server, folder, known, moved);
+    let gone_now: Vec<(String, String)>;
+    let gone = if old.is_empty() {
+        gone
+    } else {
+        gone_now = gone
+            .iter()
+            .filter(|(p, _)| !old.contains(p))
+            .cloned()
+            .collect();
+        gone_now.as_slice()
+    };
+    // A key only for a file that has settled (`settled`): one modified in
+    // the 2 s before its reading began is read again by the next walk.
+    let created: Vec<Created> = created
+        .into_iter()
+        .filter(|(p, _, _, _)| !new.contains(p))
+        .map(|(p, h, s, q)| (p, h, s, settled(q, read_from)))
+        .collect();
+    let quick_only: Vec<(String, String)> = quick_only
+        .iter()
+        .map(|(p, q)| (p.clone(), settled(q.clone(), read_from)))
+        .collect();
+    let quick_only = quick_only.as_slice();
     // What a reader is told of each note read (ADR 0087 item 4): its
     // projection's hash and size, when it holds a secret block — the new
     // and changed ones, and those read again whose bytes did not change.
@@ -519,6 +688,15 @@ fn record_changes(
         }
         changes.push((path, Some((hash, size, quick)), from));
     }
+    // A file renamed or deleted outside Verso keeps who sees it, before
+    // the players are told (`campaign_outside`).
+    // What the caller wrote through Verso carried its access already.
+    let written: HashSet<&str> = if by.names_someone() {
+        written.iter().map(String::as_str).collect()
+    } else {
+        HashSet::new()
+    };
+    crate::campaign_outside::followed(server, folder, (&changes, gone, &written), (known, moved));
     // A note a player saw that was deleted, or renamed: the players' devices
     // are told it went — decided in the step that records it, from what was
     // remembered before it ran (ADR 0110 item 4, amended 2026-10-23).
@@ -543,7 +721,8 @@ fn record_changes(
             &notices,
         )
         .map_err(verso_service::failed)?;
-    if !notices.is_empty() {
+    // And the paths the log keeps now are the veil's (`Veil::live`).
+    if !notices.is_empty() || !changes.is_empty() {
         crate::campaign::forget_files(server, folder);
     }
     // Each text file's new bytes a version, a rename followed, a deletion
@@ -904,28 +1083,34 @@ pub(crate) async fn command_in(
             "sync_delete" => {
                 let named: String = arg(&args, "path")?;
                 let base: String = arg(&args, "base")?;
-                let (head, path) = {
+                let (head, path, unshared) = {
                     let one = one_at_a_time(&s, &folder);
                     let _only = lock(&one);
-                    let (path, _) = as_kept(&s, &folder, &named, &*inside)?;
+                    let path = as_kept_file(&s, (&folder, &key), &named, &*inside)?;
                     let p = path.clone();
                     // The players who see it, remembered while it is there.
                     cc::device_will(&s, (&folder, &key), "sync_delete", "path", &path);
+                    let (sd, fd) = (Arc::clone(&s), folder.clone());
                     let gone = s.service.with_key(&key, move |ws| {
                         is_now(ws, &p, Some(&base))?;
                         let gone = ws.delete_entry(&p)?;
                         // No empty folder left behind on the server either.
                         ws.prune_empty_parents(&p);
-                        Ok(gone)
+                        // What the table keeps of the note goes with it, into
+                        // the bin, before the folder's session is free.
+                        cc::device_did(&sd, &fd, ("delete_entry", "path"), (&p, &gone.path));
+                        // And a shared folder pruned that way, its shares.
+                        let unshared = crate::shares::device_deleted(&sd, ws, &fd, &p);
+                        Ok((gone, unshared))
                     });
-                    let gone = cc::drop_if_failed(
+                    let (gone, unshared) = cc::drop_if_failed(
                         &s,
                         &folder,
                         ("sync_delete", &json!({ "path": path })),
                         gone,
                     )?;
-                    // What the table keeps of the note goes with it.
-                    cc::device_did(&s, &folder, ("delete_entry", "path"), (&path, ""));
+                    #[cfg(test)]
+                    crate::pause::at("device-deleted", &folder);
                     crate::trash::deleted(&s, &folder, &gone, &by);
                     let head = reconcile_paths(
                         &s,
@@ -938,10 +1123,13 @@ pub(crate) async fn command_in(
                         },
                         &[(path.clone(), Now::Gone)],
                     )?;
-                    (head, path)
+                    (head, path, unshared)
                 };
                 // Outside the folder's lock: a room takes its own lock first.
                 told(&s, &key, &[], std::slice::from_ref(&path), &[]);
+                if unshared {
+                    crate::shares::refresh(&s, &folder, "deleted");
+                }
                 Ok(json!({ "head": head }))
             }
             "sync_rename" => {
@@ -950,7 +1138,7 @@ pub(crate) async fn command_in(
                 let base: String = arg(&args, "base")?;
                 let one = one_at_a_time(&s, &folder);
                 let only = lock(&one);
-                let (from, _) = as_kept(&s, &folder, &from, &*inside)?;
+                let from = as_kept_file(&s, (&folder, &key), &from, &*inside)?;
                 // Only the accents' form changing: the same name, the same
                 // file (spec Q7) — nothing to move.
                 let same =
@@ -960,6 +1148,7 @@ pub(crate) async fn command_in(
                     cc::device_will(&s, (&folder, &key), "sync_rename", "from", &from);
                 }
                 let (f, t) = (from.clone(), to.clone());
+                let (sd, fd) = (Arc::clone(&s), folder.clone());
                 // The notes the device may write itself; the links of the
                 // others — a player's hidden or read-only ones — are
                 // corrected by the server, without telling (ADR 0113).
@@ -989,6 +1178,11 @@ pub(crate) async fn command_in(
                     }
                     let done = ws.rename_entry(&f, &t)?;
                     ws.prune_empty_parents(&f);
+                    // What the table keeps of the note follows it before the
+                    // folder's session is free: no read, a player's
+                    // included, finds it under its new folder's access first
+                    // (ADR 0113 K.2; the audit of 2026-11-05).
+                    cc::device_did(&sd, &fd, ("rename_entry", "from"), (&f, &done.path));
                     // Through a share, the owner's notes outside it that link
                     // to what moved: the server rewrites them (ADR 0081 item
                     // 11); the device rewrites the ones it has itself.
@@ -1015,8 +1209,8 @@ pub(crate) async fn command_in(
                     let head = s.db.head(&folder).map_err(verso_service::failed)?;
                     return Ok(json!({ "head": head, "path": from }));
                 };
-                // What the table keeps of the note follows it.
-                cc::device_did(&s, &folder, ("rename_entry", "from"), (&from, &landed));
+                #[cfg(test)]
+                crate::pause::at("device-renamed", &folder);
                 let head = reconcile_paths(
                     &s,
                     &folder,
@@ -1192,6 +1386,45 @@ fn as_kept(
         return Err(refused("not in the shared folder"));
     }
     Ok((kept, other))
+}
+
+/// [`as_kept`] for a file that is there, which a deletion or a rename's
+/// source names: where the disk folds names, a path in another case than
+/// the file the log keeps (`d/b.md` for `d/B.md`) reaches that file, and
+/// the change is the log's entry's — spelled as the disk keeps the name
+/// when the log has that spelling, else as the log does. Without this the
+/// file went from the disk while the log kept its entry until the next
+/// walk, a minute later at most, and a rename named no source.
+fn as_kept_file(
+    server: &Server,
+    (folder, key): (&str, &str),
+    path: &str,
+    inside: Inside<'_>,
+) -> Result<String, ContractError> {
+    let (kept, _) = as_kept(server, folder, path, inside)?;
+    let fail = verso_service::failed;
+    if !verso_core::sync::FOLDS_NAMES || server.db.known(folder, &kept).map_err(fail)?.is_some() {
+        return Ok(kept);
+    }
+    let p = kept.clone();
+    let disk = server
+        .service
+        .with_key(key, move |ws| Ok(ws.spelled_on_disk(&p)))?;
+    let name = verso_core::sync::folded(&kept);
+    let logged: Vec<String> = server
+        .db
+        .manifest_paths(folder)
+        .map_err(fail)?
+        .into_iter()
+        .filter(|p| verso_core::sync::folded(p) == name)
+        .collect();
+    let spelled = disk
+        .filter(|d| logged.contains(d))
+        .or_else(|| logged.into_iter().next());
+    match spelled {
+        Some(s) if inside(&s) => Ok(s),
+        _ => Ok(kept),
+    }
 }
 
 /// What a device's change may reach: everything for a whole folder's

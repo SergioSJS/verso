@@ -41,6 +41,7 @@ import { readOnlyText } from "./readOnlyText";
 import { readerWatch } from "../readerNotice";
 import * as textLive from "./textLive";
 import { presenceOpened } from "../notify/presence";
+import { focusOnOpen } from "../screen/openFocus";
 
 /* A text file that is not a note: shown in the source editor, read-only. */
 /* Any text file that is not a note — .txt, .json, .csv, .canvas… —
@@ -509,7 +510,7 @@ export class TextLeaf extends Leaf {
     return "read";
   }
   override focusContent(): void {
-    this.editor.focus();
+    focusOnOpen(this.editor.contentDOM);
   }
   private unhearJoin: (() => void) | null = null;
   /** The sync link is back, or a join found it not ready and the wait is

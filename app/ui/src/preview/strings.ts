@@ -5,6 +5,7 @@
 // What the hover preview says (ADR 0085), in both languages (ADR 0035):
 // the card, the command, the setting.
 
+import { prettyKeys } from "../keyNames";
 import { LANG } from "../strings";
 
 const pt = {
@@ -15,13 +16,13 @@ const pt = {
   missingPanel: (target: string) => `Nenhuma nota responde por [[${target}]].`,
   noHeading: (heading: string) => `A nota não tem o título “${heading}”; ela aparece desde o começo.`,
   noBlock: (id: string) => `A nota não tem o bloco ^${id}; ela aparece desde o começo.`,
-  unavailable: "A nota só está na nuvem: abra-a para baixá-la — a prévia não baixa nada.",
+  unavailable: "A nota só está no iCloud e não deu para baixá-la: sem conexão, ou o iCloud não tem o conteúdo.",
   /** Under the card: what a click does. */
   clickOpens: "Clique para abrir",
   command: "Ver a prévia do link sob o cursor",
   noLink: "Nenhum link sob o cursor para mostrar.",
   setting: "Prévia ao passar o mouse",
-  settingDesc: "Mostra a nota de um link quando o ponteiro para sobre ele — na Leitura, nos painéis, no grafo e no board; no modo Editar, com ⌘ ou Ctrl apertado. Desligada, a prévia continua no comando “Ver a prévia do link sob o cursor” e no toque.",
+  settingDesc: `Mostra a nota de um link quando o ponteiro para sobre ele — na Leitura, nos painéis, no grafo e no board; no modo Editar, com ${prettyKeys("Mod")} apertado. Desligada, a prévia continua no comando “Ver a prévia do link sob o cursor” e no toque.`,
 };
 
 const en: typeof pt = {
@@ -31,12 +32,12 @@ const en: typeof pt = {
   missingPanel: (target) => `No note answers to [[${target}]].`,
   noHeading: (heading) => `The note has no heading “${heading}”; it is shown from its start.`,
   noBlock: (id) => `The note has no block ^${id}; it is shown from its start.`,
-  unavailable: "The note is only in the cloud: open it to download it — a preview downloads nothing.",
+  unavailable: "The note is only in iCloud and could not be downloaded: no connection, or iCloud does not have its content.",
   clickOpens: "Click to open",
   command: "Preview the link under the cursor",
   noLink: "No link under the cursor to preview.",
   setting: "Preview on hover",
-  settingDesc: "Shows the note a link names when the pointer rests on it — in Reading, the panels, the graph and the board; in Edit mode, with ⌘ or Ctrl held. Off, the preview stays in the command “Preview the link under the cursor” and on touch.",
+  settingDesc: `Shows the note a link names when the pointer rests on it — in Reading, the panels, the graph and the board; in Edit mode, with ${prettyKeys("Mod")} held. Off, the preview stays in the command “Preview the link under the cursor” and on touch.`,
 };
 
 export type PreviewStrings = typeof pt;

@@ -233,6 +233,28 @@ pub(crate) async fn wait_or_asked(d: Duration, asked: Arc<tokio::sync::Notify>) 
     }
 }
 
+/// The log's level for a server's answer that is not a success: what it
+/// refused of what was asked (a 4xx) is an answer, said at INFO; its own
+/// fault (a 5xx, or anything else) an ERROR.
+pub(crate) fn level_of_answer(status: u16) -> &'static str {
+    if (400..500).contains(&status) {
+        "INFO"
+    } else {
+        "ERROR"
+    }
+}
+
+/// A server's answer that is not a success, the contract's `failed`,
+/// said in the log at its level ([`level_of_answer`]).
+pub(crate) fn answered(status: u16, message: String) -> verso_contract::ContractError {
+    crate::log::write(
+        level_of_answer(status),
+        "host",
+        &format!("the server answered {status}: {message}"),
+    );
+    verso_service::failed(message)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

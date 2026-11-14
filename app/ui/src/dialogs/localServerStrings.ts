@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { can, host as appHost } from "../can";
+
 // The words of "this app is a server" (ADR 0096): Settings' section, the
 // pairing dialog, the status mark — in both languages (ADR 0035), the
 // English typed as the Portuguese's shape.
@@ -9,12 +11,22 @@
 const pt = {
   section: "Transformar em servidor",
   title: "Servir minhas pastas ao celular",
-  lead: "O Verso deste computador pode servir as pastas que você marcar ao navegador do seu celular, pela rede em que os dois estão. Fica desligado até você ligar, e desliga de novo quando o app fecha.",
+  ownerName: "Seu nome para os jogadores",
+  ownerNameDesc: "Como os jogadores veem você no chat, nas rolagens, na lista da mesa e nos links de leitura. Começa com o nome do usuário deste computador.",
+  ownerNameSave: "Salvar nome",
+  ownerNameMoved: "O seu nome para os jogadores, o idioma e onde você entra como dono ficam em Ajustes › Conta enquanto o servidor está ligado.",
+  ownerProfile: "Perfil",
+  ownerWhere: "Onde você entra como dono",
+  ownerWhereNow: (phones: number) => `Nesta janela${phones === 0 ? "" : phones === 1 ? " e em 1 celular pareado" : ` e em ${phones} celulares pareados`}. Não há senha nem chave de acesso: o seu clique neste app é a prova de que é você.`,
+  ownerWhereGo: "Ver os celulares pareados",
+  ownerNameEmpty: "Escreva um nome para os jogadores.",
+  ownerNameSaved: (name: string) => `Os jogadores veem você como ${name}.`,
+  lead: "O Verso deste computador pode servir as pastas que você marcar: ao seu celular e a quem está na sua rede, e aos jogadores em qualquer lugar por um link na internet. Fica desligado até você ligar, e desliga de novo quando o app fecha.",
   unsupported: "Este sistema não consegue servir.",
   foldersTitle: "Pastas servidas",
-  foldersLead: "Só as pastas marcadas aqui são vistas pelo celular. Nenhuma vem marcada.",
+  foldersLead: "Só as pastas marcadas aqui são servidas; nenhuma vem marcada. Os jogadores veem só o que você compartilha ou põe numa mesa, pelo menu de uma pasta dela; escolher pastas dentro dela diz só o que os seus celulares veem.",
   noFolders: "Abra uma pasta neste computador primeiro: ela aparece aqui para marcar.",
-  syncsWith: (server: string) => `também sincroniza com ${server}: abra esse endereço no celular`,
+  receivedFrom: (server: string) => `compartilhada com você em ${server}: só quem é dona dela pode servi-la`,
   foldersLocked: "Desligue para mudar as pastas.",
   droppedSaid: (list: string) => `Ligou, mas ficaram de fora por não existirem mais no disco: ${list}.`,
   turnOn: "Ligar o servidor",
@@ -24,6 +36,10 @@ const pt = {
   phones: (paired: number, connected: number) =>
     `${paired === 0 ? "Nenhum celular pareado" : paired === 1 ? "1 celular pareado" : `${paired} celulares pareados`}${connected > 0 ? ` · ${connected} conectado${connected === 1 ? "" : "s"}` : ""}`,
   stoppedNet: "A rede mudou e o servidor parou sozinho. Ligue de novo para servir nesta.",
+  // iOS takes the listener while the device is locked (ADR 0119 B12/A2).
+  listenedAgain: "Com o Verso fora da tela, o iOS fechou o servidor; de volta à tela, o Verso voltou a servir no mesmo endereço.",
+  stoppedScreen: "Com o aparelho bloqueado, o iOS fechou a porta do servidor, e ela não abriu de novo. Ligue o servidor outra vez.",
+  stoppedEnded: "O iOS fechou o Verso quando ele estava fora da tela, há mais de dez minutos, e o servidor parou junto. Ligue-o outra vez para servir.",
   // Item 9: the app tried its own address and the system refused.
   unreachable: "Este computador não conseguiu conectar ao próprio endereço: o firewall provavelmente está recusando conexões de entrada, e o celular não vai alcançar. O Verso não mexe no firewall por conta própria.",
   unreachableMac: "No macOS: Ajustes do Sistema › Rede › Firewall › Opções, e permita conexões de entrada para o Verso; depois, Privacidade e Segurança › Rede Local, e ligue o Verso. Desligue e ligue o servidor de novo.",
@@ -77,6 +93,7 @@ const pt = {
     local_off: "Servidor desligado",
     pair_open: "Janela de pareamento aberta",
     pair_asked: "Um celular apresentou o código",
+    pair_asked_link: "Um aparelho apresentou o código pelo link na internet",
     pair_refused_attempt: "Código errado ou repetido",
     pair_allowed_reader: "Celular permitido (só lê)",
     pair_allowed_editor: "Celular permitido (edita)",
@@ -87,11 +104,87 @@ const pt = {
     phone_first_connection: "Primeira conexão de um celular",
     phone_connection_refused: "Celular recusado: o máximo de aparelhos conectados já estava ocupado",
     phone_revoked: "Celular revogado",
+    phone_link_ended: "Celulares pareados pelo link rápido saíram com ele",
     phone_role_editor: "Celular passou a editar",
     phone_role_reader: "Celular passou a só ler",
     phones_forgotten: "Celulares esquecidos",
     identity_replaced: "Identidade substituída",
+    reset_link: "Link de senha nova criado",
+    password_reset: "Senha nova criada pelo link",
+    token_revoked: "Token revogado",
+    account_sessions_ended: "Sessões de uma pessoa encerradas",
+    account_deleted: "Conta de uma pessoa removida",
+    // What the rest of this computer's server does (ADR 0117): the link,
+    // the window at its table, the tables, invitations and accounts.
+    link_on: "Link na internet ligado",
+    link_off: "Link na internet desligado",
+    seat_opened: "Esta janela sentou à mesa da pasta",
+    device_ended: "Aparelho de uma pessoa encerrado",
+    device_approved: "Aparelho aprovado",
+    device_refused: "Aparelho recusado",
+    device_renamed: "Aparelho renomeado",
+    campaign_make: "Mesa criada",
+    campaign_unmake: "Mesa desfeita",
+    campaign_settings: "Ajustes de uma mesa mudados",
+    campaign_release: "Notas liberadas ou escondidas dos jogadores",
+    campaign_release_all: "Todas as notas de uma mesa liberadas",
+    campaign_audience: "Quem vê uma nota mudou",
+    campaign_access: "Acesso numa mesa mudado",
+    campaign_secret_name: "Nome secreto de uma nota mudado",
+    campaign_grant: "Jogador posto numa mesa",
+    campaign_invite: "Convite para uma mesa criado",
+    access_set: "Acesso de uma nota ou pasta mudado",
+    table_rights_set: "Direitos dos jogadores numa mesa mudados",
+    invitation_created: "Convite criado",
+    invitation_ended: "Convite encerrado",
+    invitation_used: "Convite aceito: uma conta foi criada",
+    invitation_refused: "Convite recusado",
+    account_created: "Conta criada",
+    sign_in: "Entrada numa conta",
+    sign_in_passkey: "Entrada com uma chave de acesso",
+    sign_in_link: "Entrada por um link",
+    signin_failed: "Entrada recusada",
+    sign_out: "Saída de uma conta",
+    password_change: "Senha trocada",
+    proved: "Uma pessoa confirmou que é ela (senha ou chave de acesso)",
+    session_ended: "Sessão encerrada",
+    sessions_ended: "Outras sessões encerradas",
+    token_created: "Token criado",
+    passkey_added: "Chave de acesso adicionada",
+    passkey_removed: "Chave de acesso removida",
+    folder_created: "Pasta criada",
+    folder_adopted: "Pasta registrada no servidor",
+    folder_quota: "Cota de uma pasta definida",
+    grant_owner: "Acesso de dono dado",
+    grant_editor: "Acesso de editor dado",
+    grant_reader: "Acesso de leitor dado",
+    revoke: "Acesso tirado",
+    share_editor: "Pasta compartilhada para editar",
+    share_revoke: "Compartilhamento desfeito",
+    share_removed: "Compartilhamento removido",
+    share_moved: "Compartilhamento acompanhou uma pasta movida",
+    share_attachments: "Anexos compartilhados",
+    share_attachments_removed: "Anexos deixaram de ser compartilhados",
+    read_link_made: "Link de leitura criado",
+    read_link_revoked: "Link de leitura revogado",
+    read_link_passphrase: "Senha errada num link de leitura",
+    read_links_on: "Links de leitura ligados",
+    read_links_off: "Links de leitura desligados",
+    trash_restored: "Restaurado da lixeira",
+    trash_deleted: "Apagado de vez da lixeira",
+    trash_delete: "Apagado de vez da lixeira",
+    trash_emptied: "Lixeira esvaziada",
+    trash_days: "Dias da lixeira mudados",
+    history_restored: "Versão restaurada",
+    history_copied: "Versão copiada como nota nova",
+    history_deleted: "Versão apagada",
+    history_days: "Dias do histórico mudados",
   } as Record<string, string>,
+  // An event this app does not know by name (a newer server's): a
+  // sentence still, never its code.
+  logOther: "Outra ação no servidor",
+  // "1 address(es), port 49955", as the server keeps it, in words.
+  logAddresses: (n: number, port: string) => `${n === 1 ? "1 endereço" : `${n} endereços`}, porta ${port}`,
   // The first time (ADR 0096 item 9): what the system will ask, and why.
   firstTitle: "Antes de ligar",
   firstBody: [
@@ -101,6 +194,24 @@ const pt = {
     "Use numa rede em que você confia (a sua casa), não num café ou hotel.",
   ],
   firstGo: "Entendi, ligar",
+  // A phone serving (ADR 0118 item 3): no firewall asks, and the battery
+  // goes (item 3.5).
+  leadPhone: "O Verso deste celular pode servir as pastas que você marcar: aos seus outros aparelhos e a quem está no mesmo Wi-Fi, e aos jogadores em qualquer lugar por um link na internet. Fica desligado até você ligar.",
+  firstBodyPhone: [
+    "Ligar faz este celular aceitar conexões do seu Wi-Fi. Só os endereços privados dele, só enquanto o Verso estiver servindo, só para os aparelhos que você parear aqui.",
+    "Enquanto serve, o celular fica acordado mesmo com a tela apagada, e uma notificação diz isso: gasta bateria e esquenta o celular. Deixe-o carregando.",
+    "Nos dados móveis, só o link pela internet alcança o celular; a rede local precisa de Wi-Fi.",
+    "Use numa rede em que você confia (a sua casa), não num café ou hotel.",
+  ],
+  // A device that serves only while Verso is on its screen (iOS: no
+  // `serve_away`, no link; ADR 0119 A2, A3 and A13, decided 2026-11-12).
+  leadOnScreen: "O Verso deste aparelho pode servir as pastas que você marcar aos seus outros aparelhos e a quem está no mesmo Wi-Fi, só enquanto o Verso estiver aberto na tela. Fica desligado até você ligar.",
+  firstBodyOnScreen: [
+    "Ligar faz este aparelho aceitar conexões do seu Wi-Fi. Só os endereços privados dele, só enquanto o Verso estiver servindo, só para os aparelhos que você parear aqui.",
+    "Ele serve só enquanto o Verso estiver aberto na tela: se a tela apagar ou você for para outro app, o servidor deixa de responder.",
+    "A rede local precisa de Wi-Fi.",
+    "Use numa rede em que você confia (a sua casa), não num café ou hotel.",
+  ],
   // The pairing dialog.
   pairTitle: "Parear um celular",
   pairSteps: "Abra a câmera do celular e leia o QR. Se ele não ler, abra o endereço abaixo no navegador do celular e digite o código.",
@@ -139,7 +250,9 @@ const pt = {
   // The status mark.
   mark: (n: number) => (n === 0 ? "Servindo ao celular" : n === 1 ? "Servindo · 1 celular" : `Servindo · ${n} celulares`),
   markStop: "Parar",
-  markStopLabel: "Parar de servir ao celular",
+  // What the mark's Stop stops: the network, the internet link, or both.
+  markStopLabel: (net: boolean, link: boolean): string =>
+    net && link ? "Parar de servir na sua rede e pelo link na internet" : link ? "Parar o link na internet" : net ? "Parar de servir na sua rede" : "Parar de servir",
   // The updater's dialog.
   restartPhones: (n: number) => (n === 1 ? "1 celular está conectado e vai ser desconectado." : `${n} celulares estão conectados e vão ser desconectados.`),
   failed: "Não foi possível.",
@@ -147,12 +260,22 @@ const pt = {
 const en: typeof pt = {
   section: "Turn into a server",
   title: "Serve my folders to the phone",
-  lead: "Verso on this computer can serve the folders you tick to your phone's browser, over the network the two share. It stays off until you turn it on, and off again when the app quits.",
+  ownerName: "Your name for the players",
+  ownerNameDesc: "How the players see you in the chat, the rolls, the table's list and read links. It starts as this computer's user name.",
+  ownerNameSave: "Save name",
+  ownerNameMoved: "Your name for the players, the language and where you come in as the owner are in Settings › Account while the server is on.",
+  ownerProfile: "Profile",
+  ownerWhere: "Where you come in as the owner",
+  ownerWhereNow: (phones) => `In this window${phones === 0 ? "" : phones === 1 ? " and on 1 paired phone" : ` and on ${phones} paired phones`}. There is no password and no passkey: your click in this app is the proof that it is you.`,
+  ownerWhereGo: "See the paired phones",
+  ownerNameEmpty: "Type a name for the players.",
+  ownerNameSaved: (name) => `The players see you as ${name}.`,
+  lead: "Verso on this computer can serve the folders you tick: to your phone and the people on your network, and to players anywhere through an internet link. It stays off until you turn it on, and off again when the app quits.",
   unsupported: "This system cannot serve.",
   foldersTitle: "Folders served",
-  foldersLead: "Only the folders ticked here are seen by the phone. None comes ticked.",
+  foldersLead: "Only the folders ticked here are served; none comes ticked. The players see only what you share or put at a table, from the menu of a folder in it; choosing folders inside it says only what your phones see.",
   noFolders: "Open a folder on this computer first: it shows here to tick.",
-  syncsWith: (server: string) => `also syncs with ${server}: open that address on the phone`,
+  receivedFrom: (server: string) => `shared with you on ${server}: only its owner can serve it`,
   foldersLocked: "Turn it off to change the folders.",
   droppedSaid: (list) => `It is on, but these were left out for no longer being on the disk: ${list}.`,
   turnOn: "Turn the server on",
@@ -162,6 +285,9 @@ const en: typeof pt = {
   phones: (paired: number, connected: number) =>
     `${paired === 0 ? "No phone paired" : paired === 1 ? "1 phone paired" : `${paired} phones paired`}${connected > 0 ? ` · ${connected} connected` : ""}`,
   stoppedNet: "The network changed and the server stopped by itself. Turn it on again to serve on this one.",
+  listenedAgain: "While Verso was off the screen, iOS closed its server; back on the screen, Verso serves again at the same address.",
+  stoppedScreen: "While the device was locked, iOS closed the server's port, and it did not open again. Turn the server on again.",
+  stoppedEnded: "iOS closed Verso while it was off the screen, more than ten minutes ago, and the server stopped with it. Turn it on again to serve.",
   unreachable: "This computer could not connect to its own address: the firewall is probably refusing connections in, and the phone will not reach it. Verso does not change the firewall on its own.",
   unreachableMac: "On macOS: System Settings › Network › Firewall › Options, and allow incoming connections for Verso; then Privacy & Security › Local Network, and turn Verso on. Turn the server off and on again.",
   unreachableWindows: "On Windows: Windows Security › Firewall & network protection › Allow an app through firewall, and tick Verso under “Private”; the Wi-Fi network must also be set to Private (Settings › Network & internet › Wi-Fi › the network's properties). Turn the server off and on again.",
@@ -214,6 +340,7 @@ const en: typeof pt = {
     local_off: "Server turned off",
     pair_open: "Pairing window opened",
     pair_asked: "A phone presented the code",
+    pair_asked_link: "A device presented the code through the internet link",
     pair_refused_attempt: "Wrong or repeated code",
     pair_allowed_reader: "Phone allowed (reads only)",
     pair_allowed_editor: "Phone allowed (edits)",
@@ -224,11 +351,82 @@ const en: typeof pt = {
     phone_first_connection: "A phone's first connection",
     phone_connection_refused: "Phone refused: the most devices connected were already connected",
     phone_revoked: "Phone revoked",
+    phone_link_ended: "Phones paired through the quick link left with it",
     phone_role_editor: "Phone may now edit",
     phone_role_reader: "Phone now only reads",
     phones_forgotten: "Phones forgotten",
     identity_replaced: "Identity replaced",
+    reset_link: "New password link made",
+    password_reset: "New password set from the link",
+    token_revoked: "Token revoked",
+    account_sessions_ended: "A person's sessions ended",
+    account_deleted: "A person's account removed",
+    link_on: "Internet link turned on",
+    link_off: "Internet link turned off",
+    seat_opened: "This window sat at the folder's table",
+    device_ended: "A person's device ended",
+    device_approved: "Device approved",
+    device_refused: "Device refused",
+    device_renamed: "Device renamed",
+    campaign_make: "Table made",
+    campaign_unmake: "Table undone",
+    campaign_settings: "A table's settings changed",
+    campaign_release: "Notes released to or hidden from the players",
+    campaign_release_all: "Every note of a table released",
+    campaign_audience: "Who sees a note changed",
+    campaign_access: "Access at a table changed",
+    campaign_secret_name: "A note's secret name changed",
+    campaign_grant: "A player put at a table",
+    campaign_invite: "Invitation to a table made",
+    access_set: "Access of a note or folder changed",
+    table_rights_set: "The players' rights at a table changed",
+    invitation_created: "Invitation made",
+    invitation_ended: "Invitation ended",
+    invitation_used: "Invitation accepted: an account was made",
+    invitation_refused: "Invitation refused",
+    account_created: "Account made",
+    sign_in: "Sign-in to an account",
+    sign_in_passkey: "Sign-in with a passkey",
+    sign_in_link: "Sign-in by a link",
+    signin_failed: "Sign-in refused",
+    sign_out: "Sign-out of an account",
+    password_change: "Password changed",
+    proved: "A person confirmed it is them (password or passkey)",
+    session_ended: "Session ended",
+    sessions_ended: "Other sessions ended",
+    token_created: "Token made",
+    passkey_added: "Passkey added",
+    passkey_removed: "Passkey removed",
+    folder_created: "Folder made",
+    folder_adopted: "Folder registered on the server",
+    folder_quota: "A folder's quota set",
+    grant_owner: "Owner access given",
+    grant_editor: "Editor access given",
+    grant_reader: "Reader access given",
+    revoke: "Access taken away",
+    share_editor: "Folder shared to edit",
+    share_revoke: "Share undone",
+    share_removed: "Share removed",
+    share_moved: "A share followed a moved folder",
+    share_attachments: "Attachments shared",
+    share_attachments_removed: "Attachments no longer shared",
+    read_link_made: "Read link made",
+    read_link_revoked: "Read link revoked",
+    read_link_passphrase: "Wrong passphrase on a read link",
+    read_links_on: "Read links turned on",
+    read_links_off: "Read links turned off",
+    trash_restored: "Restored from the trash",
+    trash_deleted: "Deleted for good from the trash",
+    trash_delete: "Deleted for good from the trash",
+    trash_emptied: "Trash emptied",
+    trash_days: "The trash's days changed",
+    history_restored: "Version restored",
+    history_copied: "Version copied as a new note",
+    history_deleted: "Version deleted",
+    history_days: "The history's days changed",
   },
+  logOther: "Another action on the server",
+  logAddresses: (n: number, port: string) => `${n === 1 ? "1 address" : `${n} addresses`}, port ${port}`,
   firstTitle: "Before you turn it on",
   firstBody: [
     "Turning it on makes this computer accept connections from your local network. Only its private addresses, only while the app is serving, only for the phones you pair here.",
@@ -237,6 +435,20 @@ const en: typeof pt = {
     "Use it on a network you trust (your home), not in a café or a hotel.",
   ],
   firstGo: "Got it, turn it on",
+  leadPhone: "Verso on this phone can serve the folders you tick: to your other devices and the people on the same Wi-Fi, and to players anywhere through an internet link. It stays off until you turn it on.",
+  firstBodyPhone: [
+    "Turning it on makes this phone accept connections from your Wi-Fi. Only its private addresses, only while Verso is serving, only for the devices you pair here.",
+    "While serving, the phone stays awake even with the screen off, and a notification says so: it drains the battery and warms the phone. Keep it charging.",
+    "On mobile data, only the internet link reaches the phone; the local network needs Wi-Fi.",
+    "Use it on a network you trust (your home), not in a café or a hotel.",
+  ],
+  leadOnScreen: "Verso on this device can serve the folders you tick to your other devices and the people on the same Wi-Fi, only while Verso is open on the screen. It stays off until you turn it on.",
+  firstBodyOnScreen: [
+    "Turning it on makes this device accept connections from your Wi-Fi. Only its private addresses, only while Verso is serving, only for the devices you pair here.",
+    "It serves only while Verso is open on the screen: if the screen locks or you go to another app, the server stops answering.",
+    "The local network needs Wi-Fi.",
+    "Use it on a network you trust (your home), not in a café or a hotel.",
+  ],
   pairTitle: "Pair a phone",
   pairSteps: "Open the phone's camera and scan the QR. If it cannot, open the address below in the phone's browser and type the code.",
   qrLabel: "Pairing QR",
@@ -273,11 +485,43 @@ const en: typeof pt = {
   },
   mark: (n: number) => (n === 0 ? "Serving to the phone" : n === 1 ? "Serving · 1 phone" : `Serving · ${n} phones`),
   markStop: "Stop",
-  markStopLabel: "Stop serving to the phone",
+  markStopLabel: (net, link) =>
+    net && link ? "Stop serving on your network and by the internet link" : link ? "Stop the internet link" : net ? "Stop serving on your network" : "Stop serving",
   restartPhones: (n: number) => (n === 1 ? "1 phone is connected and will be disconnected." : `${n} phones are connected and will be disconnected.`),
   failed: "That did not work.",
 };
 
 export function localStrings(): typeof pt {
-  return document.documentElement.lang.startsWith("pt") ? pt : en;
+  const s = document.documentElement.lang.startsWith("pt") ? pt : en;
+  // An app that serves only while it is on the screen says so (ADR 0119
+  // A13, B12/A2), in its own window or one on a server's folder (where the
+  // host is the server's): the app lists `local_folders` there too.
+  if (can("local_folders") && !can("serve_away")) return { ...s, lead: s.leadOnScreen, firstBody: s.firstBodyOnScreen };
+  // A phone is not "this computer" and has no firewall to ask.
+  return appHost() === "mobile" ? { ...s, lead: s.leadPhone, firstBody: s.firstBodyPhone } : s;
+}
+
+/** An event of "O que aconteceu" in the window's language: its words, or
+ *  a sentence that says it is another (never the raw code). */
+export function eventWords(code: string): string {
+  const w = localStrings();
+  return w.actions[code] ?? w.logOther;
+}
+
+/** What an event is about, in the window's language: the turn-on's
+ *  "N address(es), port P", kept so in the log, said in words; the rest
+ *  (a phone's or a person's name, a folder) as it is. */
+export function eventSubject(subject: string): string {
+  const on = /^(\d+) address\(es\), port (\d+)$/.exec(subject);
+  return on ? localStrings().logAddresses(Number(on[1]), on[2] ?? "") : subject;
+}
+
+/** Why serving stopped by itself, from the host's phrase (verso-server
+ *  src/local/mod.rs): the system closed the app off the screen, iOS closed
+ *  its port and it did not open again (ADR 0119 B12/A2), or the network
+ *  changed. */
+export function stoppedWords(why: string, w: ReturnType<typeof localStrings>): string {
+  if (/closed the app while it was off the screen/.test(why)) return w.stoppedEnded;
+  if (/port was closed while the app was off the screen/.test(why)) return w.stoppedScreen;
+  return w.stoppedNet;
 }

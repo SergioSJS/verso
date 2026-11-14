@@ -77,7 +77,7 @@ test("previous and next skip the weeks with no note, and say when there is none"
   await app.command("Próxima nota periódica");
   await expect(app.page.locator(".pane.focused .note-title:visible")).toHaveText("2026-W42");
   // Not offered on a note that is not periodic.
-  await app.quickOpen("11 - Escrevendo");
+  await app.quickOpen("04 - Escrevendo");
   await app.key("Mod+Shift+p");
   await app.page.keyboard.type("Nota periódica anterior");
   await expect(app.page.locator(".palette:not([hidden]) li", { hasText: "Nota periódica anterior" })).toHaveCount(0);

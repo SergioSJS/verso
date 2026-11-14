@@ -48,6 +48,8 @@ type Words = {
   inputLabel: string;
   placeholder: string;
   placeholderLocal: string;
+  /** The local table's hint on a phone, whose field is one short line. */
+  placeholderLocalShort: string;
   placeholderImage: string;
   send: string;
   counter: (n: number, max: number) => string;
@@ -152,6 +154,7 @@ const pt: Words = {
   inputLabel: "Mensagem para a mesa",
   placeholder: "Escreva para a mesa…",
   placeholderLocal: "Role com /r 1d20+3, ou monte a rolagem nos dados abaixo…",
+  placeholderLocalShort: "Role com /r 1d20+3…",
   placeholderImage: "Escreva para a mesa, ou cole um arquivo…",
   send: "Enviar",
   counter: (n, max) => `${n} de ${max}`,
@@ -254,6 +257,7 @@ const en: Words = {
   inputLabel: "Message to the table",
   placeholder: "Write to the table…",
   placeholderLocal: "Roll with /r 1d20+3, or put it together with the dice below…",
+  placeholderLocalShort: "Roll with /r 1d20+3…",
   placeholderImage: "Write to the table, or paste a file…",
   send: "Send",
   counter: (n, max) => `${n} of ${max}`,

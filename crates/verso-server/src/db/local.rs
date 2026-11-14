@@ -26,10 +26,29 @@ CREATE TABLE phones (
 );
 ";
 
-/// The local owner's e-mail: no one signs in with it — there is no sign-in
-/// page and no password in this mode (ADR 0096 item 2) — it only names the
-/// account in the audit log and the folders' grants.
+/// The local owner's e-mail: no one signs in with it — it has no password,
+/// and its sessions are its phones (ADR 0096 item 2) — it only names the
+/// account in the audit log and the folders' grants. The owner is this
+/// server's admin (ADR 0117 D3 item 2); a phone of it is not
+/// (`crate::auth::who`).
 pub const LOCAL_OWNER: &str = "owner@this-computer.verso";
+
+/// The local owner's name until it has one (`local::owner`): the host
+/// names it from the system's user at the first use.
+pub const LOCAL_OWNER_UNNAMED: &str = "This computer";
+
+/// The domain of this computer's own accounts: none is a person's, and an
+/// invitation never makes one in it ([`is_this_computer`]).
+const THIS_COMPUTER: &str = "@this-computer.verso";
+
+/// Whether `email` is in the domain of this computer's own accounts (the
+/// owner, the holder of the folders served in part): no player takes such
+/// an address, so none can become the holder of a folder served in part
+/// before it is made (ADR 0117 D3 item 1).
+#[must_use]
+pub fn is_this_computer(email: &str) -> bool {
+    super::fold_email(email).ends_with(THIS_COMPUTER)
+}
 
 /// The account that holds a folder served in part (ADR 0096 item 2,
 /// amended 2026-10-16): the folder is registered because the shares of its
@@ -52,12 +71,21 @@ pub struct Phone {
 }
 
 impl Db {
-    /// The local owner, made at the first use.
+    /// The local owner, made at the first use: this server's admin (ADR
+    /// 0117 D3 item 2), who makes no folder (the laptop's are ticked, not
+    /// made). An owner a build before 0117 made is made admin here.
     pub fn local_owner(&self) -> R<Account> {
-        if let Some(a) = self.account_by_email(LOCAL_OWNER)? {
-            return Ok(a);
-        }
-        self.create_account(LOCAL_OWNER, "This computer", "pt", None, false)
+        let owner = match self.account_by_email(LOCAL_OWNER)? {
+            Some(a) if a.admin && !a.may_create => return Ok(a),
+            Some(a) => a,
+            None => self.create_account(LOCAL_OWNER, LOCAL_OWNER_UNNAMED, "pt", None, true)?,
+        };
+        self.set_powers(&owner.id, true, false)?;
+        Ok(Account {
+            admin: true,
+            may_create: false,
+            ..owner
+        })
     }
 
     /// The holder of the folders served in part, made at the first use.
@@ -114,6 +142,18 @@ impl Db {
         .map_err(e)?;
         tx.commit().map_err(e)?;
         Ok((token, csrf, id))
+    }
+
+    /// End the sessions of the owner's window's seat (`device`, a device
+    /// session of `owner`) that a run before left — a crash: no seat
+    /// outlives serving (ADR 0117 D4 Q3).
+    pub fn end_seats(&self, owner: &str, device: &str) -> R<usize> {
+        self.conn()
+            .execute(
+                "DELETE FROM sessions WHERE account = ?1 AND kind = 'device' AND device = ?2",
+                params![owner, device],
+            )
+            .map_err(e)
     }
 
     /// The role session `id` was paired with; `None` when it is no

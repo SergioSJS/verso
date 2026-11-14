@@ -9,7 +9,12 @@
 // (item 18) — and offers the folder of the attachments the notes show
 // when it lies outside (item 11). Only the owner shares (item 4): the
 // window learns it when the server answers the list of shares, and shows
-// nothing of this otherwise.
+// nothing of this otherwise. An e-mail no account has is invited by a
+// link when the owner runs the server, or on a UniVerso is a game master
+// the admin lets make folders, who invites to read, at most 20 waiting
+// (ADR 0081 item 4, revised by ADR 0117 D7 (e)) — the way a folder with no
+// table is invited to, on a UniVerso and where this app serves (ADR 0117,
+// decided 2026-11-04).
 
 import { commands, type ContractError, type FolderShare } from "./bindings";
 import { asDialog, closed, opened } from "./dialogs/a11y";
@@ -17,6 +22,8 @@ import { h, ui } from "./dom";
 import { told } from "./errors";
 import { failureText, unreachableAt } from "./reach";
 import { allNotes, folderName } from "./folder";
+import { serverLink } from "./can";
+import { LOCALE } from "./strings";
 import { folderAccess } from "./access";
 import { icon } from "./icons";
 import { dirOf, name } from "./paths";
@@ -25,6 +32,7 @@ import { askServerProof } from "./serverProver";
 import { roleWord, sh } from "./shareStrings";
 import { loadReadLinks, openReadLinkDialog } from "./readLinks";
 import { rl } from "./readLinkStrings";
+import { seatFirst, servedHere } from "./seatState";
 
 /** The folders of the open folder shared with someone, by path. */
 const shared = new Map<string, FolderShare>();
@@ -35,6 +43,9 @@ export function mayShare(): boolean {
   // The server says who the person is (ADR 0113): the game master of a
   // folder's table is its owner. A host with no such answer (a folder of
   // this computer synced to a server, until S8) keeps the share list's own.
+  // A folder this app serves, the window not at its table yet: its owner
+  // has the rows, and the first sits (ADR 0117 D4 Q3, revised 2026-11-05).
+  if (servedHere()) return true;
   const a = folderAccess();
   return a ? a.seat === "master" : owner;
 }
@@ -47,8 +58,16 @@ export async function loadShares(): Promise<void> {
   if (r.status === "ok") for (const s of r.data.slice(1)) if (s.path && s.people.length > 0) shared.set(s.path, s);
   markShared();
   dispatchEvent(new Event("verso:campaign-status"));
-  // The read links are the owner's too (ADR 0105), and mark the tree beside.
-  if (owner) await loadReadLinks();
+  // The read links are the owner's too (ADR 0105), and mark the tree beside:
+  // the game master's at their own server's table too (ADR 0117 D4 Q3),
+  // whose server lists its shares as a UniVerso does (D9).
+  if (owner || mayShare()) await loadReadLinks();
+}
+
+/** The id of the share at `path` (a table's root inside the folder, with
+ *  people in it), for its link: none when it is shared with no one. */
+export function shareIdAt(path: string): string | null {
+  return shared.get(path)?.id ?? null;
 }
 
 /** Whether the folder at `path`, or one inside it, is shared. */
@@ -85,7 +104,18 @@ function said(e: ContractError): string {
     told(e.kind, e.message, e);
     return failureText(e);
   }
-  return /no account has that e-mail/i.test(e.message) ? sh.noAccount : e.message;
+  if (/no account has that e-mail/i.test(e.message)) return sh.noAccount;
+  // A game master's invitation (ADR 0117 D7 (e)): to read, so many waiting.
+  if (/invitation gives reading/i.test(e.message)) return sh.inviteReadersOnly;
+  const many = /(\d+) invitations of yours are waiting/i.exec(e.message);
+  return many ? sh.inviteTooMany(Number(many[1])) : e.message;
+}
+
+/** Whether the server refused an e-mail no account has and said this
+ *  person may invite it: the server's admin, or a game master the admin
+ *  lets make folders. */
+function mayInvite(e: ContractError): boolean {
+  return /no account has that e-mail: make an invitation link/i.test(e.message);
 }
 
 /** A share command the server may want a fresh proof for (ADR 0083 item
@@ -137,6 +167,16 @@ function askFirst(where: HTMLElement, question: string, yes: () => Promise<void>
 
 /** The share dialog of the folder at `path` (`""` the whole folder). */
 export function openShareDialog(path: string): void {
+  // A folder this app serves, the window not at its table yet: it sits
+  // first, and the share is the server's (ADR 0117 D4 Q3, 2026-11-05).
+  if (servedHere()) {
+    void seatFirst().then((ok) => ok && drawShareDialog(path));
+    return;
+  }
+  drawShareDialog(path);
+}
+
+function drawShareDialog(path: string): void {
   const whole = path === "";
   // A layer of the page like the window's other dialogs, not a `<dialog>`
   // in the browser's top layer: what opens over it — the palette, a menu —
@@ -186,13 +226,52 @@ export function openShareDialog(path: string): void {
   form.append(emailLabel, email, roleLabel, role, add);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
+    invite.replaceChildren();
     void proved(() => commands.shareGrant(path, email.value.trim(), role.value)).then((r) => {
-      if (r.status !== "ok") return void (status.textContent = said(r.error));
+      if (r.status !== "ok") {
+        if (mayInvite(r.error)) return offerInvite(email.value.trim(), role.value);
+        return void (status.textContent = said(r.error));
+      }
       status.textContent = sh.added(email.value.trim());
       email.value = "";
       draw(r.data);
     });
   });
+
+  // An e-mail no account has, and the owner runs the server: an invitation
+  // link carrying this folder at this role, shown once with Copy.
+  const invite = h("div", "share-invite");
+  const offerInvite = (to: string, at: string) => {
+    status.textContent = sh.noAccountInvite(to);
+    const make = h("button", "btn", sh.inviteMake);
+    make.type = "button";
+    make.setAttribute("aria-label", sh.inviteMakeNamed(to));
+    make.addEventListener("click", () => {
+      make.disabled = true;
+      void proved(() => commands.shareInvite(path, to, at)).then(async (r) => {
+        make.disabled = false;
+        if (r.status !== "ok") return void (status.textContent = said(r.error));
+        const link = await serverLink(r.data.link);
+        const field = h("input");
+        field.readOnly = true;
+        field.value = link;
+        field.setAttribute("aria-label", sh.inviteField);
+        const copy = h("button", "btn", sh.inviteCopy);
+        copy.type = "button";
+        copy.addEventListener("click", () => {
+          void navigator.clipboard.writeText(link).then(() => (status.textContent = sh.inviteCopied));
+        });
+        const line = h("div", "cd-link");
+        line.append(field, copy);
+        const when = new Date(r.data.expires * 1000).toLocaleDateString(LOCALE, { day: "numeric", month: "long" });
+        invite.replaceChildren(line, h("p", "cd-hint", sh.inviteExpires(when)));
+        email.value = "";
+        field.select();
+      });
+    });
+    invite.replaceChildren(make);
+    make.focus();
+  };
 
   const draw = (s: FolderShare) => {
     missing.hidden = !s.missing;
@@ -292,7 +371,7 @@ export function openShareDialog(path: string): void {
     attachments.replaceChildren(h("p", "", sh.attachmentsOutside(out.count, out.folder)), include);
   };
 
-  dialog.append(title, h("p", "settings-hint", sh.kept), missing, list, form, attachments, status, footer);
+  dialog.append(title, h("p", "settings-hint", sh.kept), missing, list, form, invite, attachments, status, footer);
   document.body.append(overlay);
   opened(overlay);
   email.focus();

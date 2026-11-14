@@ -28,4 +28,4 @@ properties:
     label: { pt-BR: Primeira aparição, en: First appearance }
 ```
 
-Mudar este bloco muda o que as notas do tipo mostram, e nenhuma nota. Veja [[21 - Notas Tipadas]].
+Mudar este bloco muda o que as notas do tipo mostram, e nenhuma nota. Veja [[13 - Notas Tipadas]].

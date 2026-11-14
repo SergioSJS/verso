@@ -14,8 +14,8 @@ const today = (app) =>
 
 test("the / menu inserts today's date, and ⌘Z takes it back", async ({ app }) => {
   await app.open();
-  await app.quickOpen("11 - Escrevendo");
-  const note = "11 - Escrevendo no Editor.md";
+  await app.quickOpen("04 - Escrevendo");
+  const note = "04 - Escrevendo no Editor.md";
   await app.page.getByRole("button", { name: "Editar", exact: true }).click();
   const editor = app.page.locator(".cm-content").first();
   await editor.click();
@@ -39,8 +39,8 @@ test("the / menu inserts today's date, and ⌘Z takes it back", async ({ app }) 
 
 test("a note's own picture is shown from the folder, and its corner resizes it in the note", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("06 - Documentos");
-  const note = "06 - Documentos e Mídia.md";
+  await app.quickOpen("18 - Documentos");
+  const note = "18 - Documentos e Mídia.md";
   // `![Diagrama|320](assets/diagrama.svg)`: asked of the core, never of the
   // window's own address first (the fixture fails on that 404).
   const img = page.locator('.preview img[alt="Diagrama|320"]');
@@ -122,8 +122,8 @@ test("⌘⇧D makes today's note from the Diário template, and the calendar mar
 
 test("a note changed on disk while text typed here is unsaved shows both, and the disk's stays", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("11 - Escrevendo");
-  const note = "11 - Escrevendo no Editor.md";
+  await app.quickOpen("04 - Escrevendo");
+  const note = "04 - Escrevendo no Editor.md";
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
@@ -238,8 +238,8 @@ test("an embedded note is drawn in the editor as the reading view draws it", asy
 
 test("⌘R saves the note typed in, then reloads the window", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("11 - Escrevendo");
-  const note = "11 - Escrevendo no Editor.md";
+  await app.quickOpen("04 - Escrevendo");
+  const note = "04 - Escrevendo no Editor.md";
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
@@ -263,8 +263,8 @@ test("⌘R saves the note typed in, then reloads the window", async ({ app, page
 
 test("⌘R does not reload over a note that cannot be saved", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("11 - Escrevendo");
-  const note = "11 - Escrevendo no Editor.md";
+  await app.quickOpen("04 - Escrevendo");
+  const note = "04 - Escrevendo no Editor.md";
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
@@ -358,8 +358,8 @@ test("a name already taken is said, and logged as an answer, not an error", asyn
 
 test("a conflict in the editor keeps both: the disk's under the name, mine in a copy beside it, and the tab shows the copy", async ({ app, page }) => {
   await app.open();
-  await app.quickOpen("11 - Escrevendo");
-  const note = "11 - Escrevendo no Editor.md";
+  await app.quickOpen("04 - Escrevendo");
+  const note = "04 - Escrevendo no Editor.md";
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
@@ -373,7 +373,7 @@ test("a conflict in the editor keeps both: the disk's under the name, mine in a 
   await expect(conflict.getByRole("button")).toHaveText(["Descartar o meu e recarregar", "Gravar o meu por cima", "Guardar os dois"]);
   await conflict.getByRole("button", { name: "Guardar os dois" }).click();
   // Named as sync names a copy: this computer's name (the host's) and the minute.
-  const named = /^11 - Escrevendo no Editor \(conflito, Mac de Teste, \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\)\.md$/;
+  const named = /^04 - Escrevendo no Editor \(conflito, Mac de Teste, \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\)\.md$/;
   await expect.poll(async () => (await app.files()).filter((f) => named.test(f)).length).toBe(1);
   const copy = (await app.files()).find((f) => named.test(f));
   // The disk's version kept its name; mine is in the copy, a new file.
@@ -383,7 +383,7 @@ test("a conflict in the editor keeps both: the disk's under the name, mine in a 
   // The tab shows the copy, with nothing left to save and no conflict.
   await expect(page.locator(".note-title:visible")).toHaveText(copy.replace(/\.md$/, ""));
   await expect(page.locator(".conflict:visible")).toHaveCount(0);
-  await expect(page.locator("#status")).toContainText("Os dois ficaram: a versão do disco em 11 - Escrevendo no Editor, o seu texto em 11 - Escrevendo no Editor (conflito");
+  await expect(page.locator("#status")).toContainText("Os dois ficaram: a versão do disco em 04 - Escrevendo no Editor, o seu texto em 04 - Escrevendo no Editor (conflito");
 });
 
 /** A note of its own, opened in Editar with text typed at its end. */

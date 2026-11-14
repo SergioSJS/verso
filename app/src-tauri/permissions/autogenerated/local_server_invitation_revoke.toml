@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-server-invitation-revoke"
+description = "Enables the local_server_invitation_revoke command without any pre-configured scope."
+commands.allow = ["local_server_invitation_revoke"]
+
+[[permission]]
+identifier = "deny-local-server-invitation-revoke"
+description = "Denies the local_server_invitation_revoke command without any pre-configured scope."
+commands.deny = ["local_server_invitation_revoke"]

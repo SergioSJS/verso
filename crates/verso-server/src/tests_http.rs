@@ -332,7 +332,7 @@ fn peer_of(
     }
     let ip: std::net::IpAddr = remote.parse().unwrap();
     let remote = SocketAddr::new(ip, 5000);
-    crate::auth::peer(server, &headers, remote)
+    crate::auth::peer(server, &headers, remote, false)
 }
 
 #[test]
@@ -638,5 +638,26 @@ fn an_unwritable_data_directory_stops_the_start_with_the_sentence() {
             );
             assert!(!said.contains("os error 13"), "{said}");
         }
+    });
+}
+
+/// A test server's port is no one else's on `::1` (`tests::loopback`): no
+/// socket there can take it, so a client asking `localhost` on `::1` is
+/// refused and goes on to 127.0.0.1, rather than being handed the server's
+/// port as its own and reading back its own request.
+#[test]
+fn a_test_servers_port_is_held_on_the_ipv6_loopback_too() {
+    block_on(async {
+        if std::net::TcpListener::bind("[::1]:0").is_err() {
+            return; // No IPv6 loopback here: nothing to meet there.
+        }
+        let r = crate::tests::start().await;
+        let at = SocketAddr::from((std::net::Ipv6Addr::LOCALHOST, r.addr().port()));
+        let other = tokio::net::TcpSocket::new_v6().unwrap();
+        let taken = other.bind(at).map_err(|e| e.kind());
+        assert_eq!(taken, Err(std::io::ErrorKind::AddrInUse), "{at} was free");
+        assert!(tokio::net::TcpStream::connect(at).await.is_err());
+        let (status, _) = crate::tests::get(&r, "/api/state", None).await;
+        assert_eq!(status, 200);
     });
 }

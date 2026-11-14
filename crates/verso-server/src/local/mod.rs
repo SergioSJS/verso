@@ -25,25 +25,63 @@ pub mod allow;
 pub mod announce;
 mod bind;
 pub mod cert;
+mod devices;
+mod invites;
+pub mod link;
+pub mod link_pair;
+mod live;
+mod names;
 pub mod net;
+mod owner;
 pub mod pairing;
 mod parts;
+mod players;
+mod policy;
 pub mod qr;
+mod read_links;
 mod routes;
+pub mod seat;
+#[cfg(any(test, feature = "test-support"))]
+mod test_support;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_accounts;
+#[cfg(test)]
+mod tests_devices;
+#[cfg(test)]
+mod tests_link;
+#[cfg(test)]
+mod tests_link_load;
+#[cfg(test)]
+mod tests_link_pair;
 #[cfg(test)]
 mod tests_parts;
 #[cfg(test)]
 mod tests_parts_bin;
 #[cfg(test)]
+mod tests_players;
+#[cfg(test)]
+mod tests_read_links;
+#[cfg(test)]
+mod tests_rest;
+#[cfg(test)]
+mod tests_seat;
+#[cfg(test)]
 mod tests_serving;
+#[cfg(test)]
+mod tests_shares;
+#[cfg(test)]
+mod tests_subfolders;
+#[cfg(test)]
+mod tests_tokens;
+#[cfg(test)]
+mod tests_ui_files;
 
-use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -52,7 +90,7 @@ use verso_service::lock;
 use self::bind::bind_all;
 pub use self::bind::reachable;
 use self::net::{IfNet, Interfaces};
-use self::pairing::{Ended, Pairing, PendingView, Polled, Ready, Redeemed};
+use self::pairing::{Ended, PendingView, Ready};
 use crate::config::Config;
 use crate::db::{Audit, Db, Phone, Role};
 use crate::state::Server;
@@ -98,364 +136,13 @@ pub enum Event {
 
 type Sink = Arc<dyn Fn(Event) + Send + Sync>;
 
-/// Phones connected, counted by session, for the limit of item 13.
-pub struct PhoneGuard {
-    map: Arc<Mutex<HashMap<String, u32>>>,
-    session: String,
-    /// The phone's name, for the log's line when its last connection ends.
-    name: String,
-}
-
-impl Drop for PhoneGuard {
-    fn drop(&mut self) {
-        let mut held = lock(&self.map);
-        if let Some(n) = held.get_mut(&self.session) {
-            *n = n.saturating_sub(1);
-            if *n == 0 {
-                held.remove(&self.session);
-                drop(held);
-                crate::log::info(&format!("a paired phone disconnected: {}", self.name));
-            }
-        }
-    }
-}
-
-/// What the server consults while it runs "this app is a server": the
-/// addresses it answers to, the folders and their names, the pairing
-/// window, the phones connected.
-pub struct Policy {
-    hosts: RwLock<Vec<String>>,
-    folders: RwLock<HashMap<String, PathBuf>>,
-    served: RwLock<Vec<IfNet>>,
-    pairing: Mutex<Pairing>,
-    connected: Arc<Mutex<HashMap<String, u32>>>,
-    events: Sink,
-    announcer: Mutex<Option<announce::Announcer>>,
-    listening: RwLock<(u16, Vec<IpAddr>)>,
-    refused_said: crate::log::OnceAMinute,
-    /// The setting `max_connected`, read at every new connection.
-    connected_most: std::sync::atomic::AtomicU32,
-    /// When each phone's refusal by that ceiling was last logged and
-    /// audited: once a minute per phone, whatever the pace it retries at.
-    full_said: Mutex<HashMap<String, Instant>>,
-    /// The folders served in part (item 2, amended 2026-10-16).
-    parts: parts::Parts,
-    /// Loopback let in as a peer, for the tests only.
-    #[cfg(test)]
-    test_loopback: std::sync::atomic::AtomicBool,
-}
-
-impl Policy {
-    #[must_use]
-    pub fn new(events: Sink) -> Arc<Self> {
-        Arc::new(Self {
-            hosts: RwLock::new(Vec::new()),
-            folders: RwLock::new(HashMap::new()),
-            served: RwLock::new(Vec::new()),
-            pairing: Mutex::new(Pairing::default()),
-            connected: Arc::new(Mutex::new(HashMap::new())),
-            events,
-            announcer: Mutex::new(None),
-            listening: RwLock::new((0, Vec::new())),
-            refused_said: crate::log::OnceAMinute::default(),
-            connected_most: std::sync::atomic::AtomicU32::new(CONNECTED),
-            full_said: Mutex::new(HashMap::new()),
-            parts: parts::Parts::default(),
-            #[cfg(test)]
-            test_loopback: std::sync::atomic::AtomicBool::new(false),
-        })
-    }
-
-    fn emit(&self, e: Event) {
-        (self.events)(e);
-    }
-
-    /// The addresses served and the names the `Host` header may carry.
-    fn set_network(&self, served: &[IfNet], port: u16, extra_hosts: &[String]) {
-        let mut hosts: Vec<String> = served
-            .iter()
-            .map(|n| net::authority(n.ip, port).to_lowercase())
-            .collect();
-        hosts.extend(extra_hosts.iter().map(|h| h.to_lowercase()));
-        *self
-            .hosts
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = hosts;
-        *self
-            .served
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = served.to_vec();
-        *self
-            .listening
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            (port, served.iter().map(|n| n.ip).collect());
-    }
-
-    fn set_folders(&self, folders: HashMap<String, PathBuf>) {
-        *self
-            .folders
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = folders;
-    }
-
-    /// Whether `host` (a `Host` header) is one of the addresses this server
-    /// answers to.
-    #[must_use]
-    pub fn knows_host(&self, host: &str) -> bool {
-        let host = host.to_lowercase();
-        self.hosts
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .contains(&host)
-    }
-
-    /// The test of a peer's address for the listener (item 3): private, and
-    /// on a subnet of the machine.
-    #[must_use]
-    pub fn admit_fn(self: &Arc<Self>) -> crate::listen::Admit {
-        let policy = Arc::clone(self);
-        Arc::new(move |ip| {
-            let served = policy
-                .served
-                .read()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            #[cfg(test)]
-            if ip.is_loopback() && policy.test_loopback.load(Ordering::Relaxed) {
-                return true;
-            }
-            net::admits(&served, ip)
-        })
-    }
-
-    /// The directory behind the name a folder was given.
-    #[must_use]
-    pub fn folder_path(&self, name: &str) -> Option<PathBuf> {
-        self.folders
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(name)
-            .cloned()
-    }
-
-    /// A place for session `session` among the phones connected (item 13):
-    /// a phone connected already takes another connection without taking
-    /// another place.
-    #[must_use]
-    pub fn enter(&self, session: &str, name: &str) -> Option<PhoneGuard> {
-        let mut held = lock(&self.connected);
-        if !held.contains_key(session)
-            && held.len() >= self.connected_most.load(Ordering::Relaxed) as usize
-        {
-            return None;
-        }
-        let first = !held.contains_key(session);
-        *held.entry(session.to_owned()).or_insert(0) += 1;
-        drop(held);
-        if first {
-            crate::log::info(&format!("a paired phone connected: {name}"));
-        }
-        Some(PhoneGuard {
-            map: Arc::clone(&self.connected),
-            session: session.to_owned(),
-            name: name.to_owned(),
-        })
-    }
-
-    /// The ceiling of phones connected, from the setting: new connections
-    /// only; nobody connected is disconnected by a lower number.
-    pub fn set_connected_most(&self, most: u32) {
-        self.connected_most.store(
-            most.clamp(CONNECTED_LEAST, CONNECTED_MOST),
-            Ordering::Relaxed,
-        );
-    }
-
-    /// The ceiling of phones connected now.
-    #[must_use]
-    pub fn connected_most(&self) -> u32 {
-        self.connected_most.load(Ordering::Relaxed)
-    }
-
-    /// A phone refused because the most phones are connected already
-    /// (item 13): the log has it once a minute per phone (item 14, 0083
-    /// item 1), and so does the audit log Settings shows, naming it.
-    pub fn refused_full(&self, server: &Server, session: &str, name: &str) {
-        {
-            let mut said = lock(&self.full_said);
-            let minute = Duration::from_secs(60);
-            if said.get(session).is_some_and(|at| at.elapsed() < minute) {
-                return;
-            }
-            said.retain(|_, at| at.elapsed() < minute);
-            said.insert(session.to_owned(), Instant::now());
-        }
-        crate::log::warn(&format!(
-            "a connection refused: the phones connected holds {} already ({name} waits)",
-            self.connected_most.load(Ordering::Relaxed)
-        ));
-        self.audit(server, "phone_connection_refused", Some(name), None);
-    }
-
-    /// A phone's name, for the log; empty when it is not found.
-    #[must_use]
-    pub fn name_of(&self, server: &Server, session: &str) -> String {
-        server
-            .db
-            .phones()
-            .ok()
-            .and_then(|p| p.into_iter().find(|p| p.id == session))
-            .map(|p| p.name)
-            .unwrap_or_default()
-    }
-
-    /// How many phones are connected now.
-    #[must_use]
-    pub fn connected(&self) -> usize {
-        lock(&self.connected).len()
-    }
-
-    /// A phone connecting: the first time after it was paired, the person
-    /// is told (item 14), and the audit log says so.
-    pub fn first_seen(&self, server: &Server, session: &str) {
-        match server.db.first_seen(session) {
-            Ok(true) => {
-                let name = server
-                    .db
-                    .phones()
-                    .ok()
-                    .and_then(|p| p.into_iter().find(|p| p.id == session))
-                    .map(|p| p.name)
-                    .unwrap_or_default();
-                crate::log::info("a paired phone connected for the first time");
-                self.audit(server, "phone_first_connection", Some(&name), None);
-                self.emit(Event::PhoneConnected { name });
-            }
-            Ok(false) => {}
-            Err(e) => crate::log::error(&format!("a phone's first connection: {e}")),
-        }
-    }
-
-    fn audit(&self, server: &Server, action: &str, subject: Option<&str>, address: Option<&str>) {
-        if let Err(e) = server.db.audit(&Audit {
-            actor: None,
-            action,
-            subject,
-            folder: None,
-            address,
-            ok: true,
-        }) {
-            crate::log::error(&format!("audit log: {e}"));
-        }
-    }
-
-    fn pairing(&self) -> std::sync::MutexGuard<'_, Pairing> {
-        lock(&self.pairing)
-    }
-
-    /// Whether a pairing window is open now.
-    pub fn pairing_open(&self, now: Instant) -> bool {
-        self.pairing().is_open(now)
-    }
-
-    /// A phone presented `presented`; see [`Pairing::redeem`]. What the
-    /// laptop must know is logged and audited here — never the token, the
-    /// QR's contents or the fragment.
-    pub fn redeem(
-        &self,
-        server: &Server,
-        presented: &str,
-        device: &str,
-        address: &str,
-        now: Instant,
-    ) -> Result<Redeemed, String> {
-        let result =
-            self.pairing()
-                .redeem(presented, device, address, &crate::log::stamp(), now)?;
-        match &result {
-            Redeemed::Asked { .. } => {
-                crate::log::info(&format!(
-                    "a token was redeemed by {address}; the computer is asked"
-                ));
-                self.audit(server, "pair_asked", Some(device), Some(address));
-                self.emit(Event::Asked);
-            }
-            Redeemed::Refused { ended } => {
-                crate::log::warn(&format!("a wrong or reused pairing token from {address}"));
-                self.audit(server, "pair_refused_attempt", None, Some(address));
-                if let Some(why) = ended {
-                    self.ended(server, *why);
-                }
-            }
-            Redeemed::Closed => {}
-        }
-        Ok(result)
-    }
-
-    /// The phone asks for the answer; `None` when there is no pairing at
-    /// all.
-    pub fn poll(&self, secret: &str, now: Instant) -> Option<Polled> {
-        let mut p = self.pairing();
-        if p.idle() {
-            return None;
-        }
-        Some(p.poll(secret, now))
-    }
-
-    /// The window ended: logged, audited, announced no more, told.
-    fn ended(&self, server: &Server, why: Ended) {
-        self.stop_announcing();
-        let (action, said) = match why {
-            Ended::Closed => ("pair_closed", "closed"),
-            Ended::Expired => ("pair_expired", "expired"),
-            Ended::TooManyFailures => ("pair_failures", "failures"),
-            Ended::Answered => ("pair_answered", "answered"),
-        };
-        crate::log::info(&format!("the pairing window ended: {said}"));
-        self.audit(server, action, None, None);
-        self.emit(Event::PairingEnded {
-            why: said.to_owned(),
-        });
-    }
-
-    /// Stop announcing on the network; the goodbye is sent as it drops.
-    fn stop_announcing(&self) {
-        let announcer = lock(&self.announcer).take();
-        if let Some(a) = announcer {
-            a.stop();
-        }
-    }
-
-    fn start_announcing(&self) {
-        let (port, ips) = self
-            .listening
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
-        match announce::Announcer::start(port, &ips) {
-            Ok(a) => {
-                *lock(&self.announcer) = Some(a);
-            }
-            // Announcing is for a second desktop; a phone does not need it.
-            Err(e) => crate::log::warn(&format!("announcing on the local network: {e}")),
-        }
-    }
-}
-
-/// A command a phone ran and was refused: said in the log at most once a
-/// minute, by name (a name of the contract, never an argument).
-pub fn refused_command(server: &Server, cmd: &str) {
-    if let Some(local) = &server.local {
-        let name: String = cmd
-            .chars()
-            .filter(|c| c.is_ascii_alphanumeric() || *c == '_')
-            .take(48)
-            .collect();
-        local.refused_said.warn(&format!(
-            "a paired phone ran a command that is not its to run: {name}"
-        ));
-    }
-}
+pub use self::devices::Device;
+pub use self::invites::InvitationRow;
+pub use self::players::{Player, Reset};
+pub use self::policy::{PhoneGuard, Policy, refused_command};
+pub use self::seat::Seat;
+#[cfg(any(test, feature = "test-support"))]
+pub use self::test_support::Invite;
 
 /// The settings of the mode that outlast a start.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -479,6 +166,32 @@ pub struct LocalSettings {
     /// Phones connected at once, at most, `CONNECTED_LEAST..=CONNECTED_MOST`
     /// (item 13, amended 2026-10-16).
     pub max_connected: u32,
+    /// The box *On my network* (ADR 0117 D1, D4 Q2): serve on the private
+    /// addresses as ADR 0096 built. On by default — what serving was
+    /// before the link existed. Unticked, only the internet link serves,
+    /// on loopback; the link's own box is never kept (D3 item 6), so it is
+    /// not a setting.
+    pub network: bool,
+    /// The link is turned on with the person's own address, not a quick
+    /// link (ADR 0117 D10; the host's `local_server_link_mode`).
+    pub link_own: bool,
+    /// The own address, once the host set it up (D10 (a)): the hostname
+    /// routed at Cloudflare and the named tunnel's id.
+    pub own_address: Option<OwnAddress>,
+    /// The name each folder ever ticked is registered under, by its path:
+    /// given once, kept when it is unticked, never handed to another
+    /// folder (`names`; ADR 0117 D2, 2026-11-13).
+    pub names: std::collections::BTreeMap<String, String>,
+}
+
+/// An own address for the internet link (ADR 0117 D10 (a)), as the host's
+/// `cloudflared` made it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnAddress {
+    pub hostname: String,
+    /// The named tunnel's id (`cloudflared tunnel create`).
+    pub tunnel: String,
 }
 
 impl Default for LocalSettings {
@@ -491,11 +204,31 @@ impl Default for LocalSettings {
             key_file: None,
             host_name: None,
             max_connected: CONNECTED,
+            network: true,
+            link_own: false,
+            own_address: None,
+            names: std::collections::BTreeMap::new(),
         }
     }
 }
 
 const SETTINGS: &str = "local.settings";
+
+/// Why serving stopped when its port was found closed and could not be
+/// opened again (ADR 0119 B12/A2): the window says it in words.
+pub const LISTEN_AGAIN_FAILED: &str = "the port was closed while the app was off the screen and could not be opened again: turn serving on again";
+
+/// Why serving is off at a start when the app was serving as it went away
+/// by the system's hand (iOS ends an app off the screen, a locked device
+/// included; ADR 0119 B12/A2): the window says it in words.
+pub const ENDED_OFF_SCREEN: &str = "the system closed the app while it was off the screen, and serving with it: turn serving on again";
+
+/// Serving was on when the app last went away (`LocalServer::set_wanted`).
+const WANTED: &str = "local.wanted";
+
+/// When the app last left the screen while serving, in seconds since the
+/// epoch (`LocalServer::mark_away`).
+const AWAY: &str = "local.away";
 const PORT: &str = "local.port";
 
 /// The state of the mode for Settings.
@@ -524,6 +257,16 @@ pub struct Status {
     /// The folders chosen inside a served folder that this start left out
     /// for not being on the disk: (the folder's path, the chosen folder).
     pub dropped: Vec<(String, String)>,
+    /// The internet link's loopback listener's port, while it is open
+    /// (ADR 0117 D3 item 3): the address the tunnel is told.
+    pub link_port: Option<u16>,
+    /// The internet link's origin, once known.
+    pub link_origin: Option<String>,
+    /// Its port was found closed and it listens again
+    /// ([`LocalServer::listen_again`]): an iOS app's listener is taken
+    /// while the device is locked (ADR 0119 B12/A2). False once serving is
+    /// turned on or off by hand.
+    pub listened_again: bool,
 }
 
 /// What the pairing dialog shows.
@@ -543,6 +286,9 @@ pub struct PairView {
     pub expires_in: u64,
     pub fingerprint: String,
     pub certificate: String,
+    /// The same window's address through the internet link, its token in
+    /// the fragment, while the link has an address (ADR 0117 D5).
+    pub link: Option<link_pair::PairLink>,
 }
 
 /// One address the pairing dialog may show (ADR 0096 item 3, as built).
@@ -568,6 +314,9 @@ pub struct PairState {
     pub asked: Option<PendingView>,
 }
 
+/// The words of a link asked for before a stop (ADR 0117 D3 item 6).
+const STOPPED_SINCE: &str = "serving was turned off after the internet link was asked for";
+
 /// One running instance of the mode.
 struct Running {
     id: u64,
@@ -586,6 +335,12 @@ struct Running {
     /// The result of the app's try at its own address (item 9): 0 not
     /// tried yet, 1 reached, 2 not reached.
     reach: Arc<std::sync::atomic::AtomicU8>,
+    /// The internet link's listener, while the link box is ticked; `nets`
+    /// is empty when it serves alone.
+    link: Option<link::Listener>,
+    /// The owner's window's door, from its first sitting at a table until
+    /// serving stops (ADR 0117 D4 Q3).
+    seat: Option<seat::Door>,
 }
 
 impl Drop for Running {
@@ -605,15 +360,31 @@ struct Shared {
     /// Where the window's files for a browser may be, in order: the app's
     /// resources, and in a development build the build beside the source.
     ui_dirs: Vec<PathBuf>,
+    /// The window's files from memory, before any directory (a phone's
+    /// app, which carries them inside itself: `ui_files.rs`).
+    ui_files: Mutex<Option<crate::ui_files::UiFiles>>,
     commit: String,
     events: Sink,
     ifaces: Arc<dyn Interfaces>,
     inner: Mutex<Option<Running>>,
+    /// Held across a change of what is served — read, change, keep, serve
+    /// (`LocalServer::change_served`): two changes at once never write
+    /// over each other (review of 2026-11-14, I1).
+    serving_edit: Mutex<()>,
     last_stop: Mutex<Option<String>>,
+    /// Serving listened again by itself since it was last turned on.
+    listened_again: AtomicBool,
+    /// A start after the system ended the app while serving, due when the
+    /// app is on the screen ([`LocalServer::take_resume`]).
+    resume: AtomicBool,
     next: AtomicU64,
+    /// The stops asked so far, whether or not anything was serving: the
+    /// internet link asked for before a stop does not start serving after
+    /// it ([`Self::link_open_after`], ADR 0117 D3 item 6).
+    stops: AtomicU64,
     /// Loopback let in as a private address: for the tests only, which
     /// cannot count on a private address on the machine they run on.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     loopback: bool,
 }
 
@@ -644,15 +415,29 @@ impl LocalServer {
             shared: Arc::new(Shared {
                 dir,
                 ui_dirs,
+                ui_files: Mutex::new(None),
                 commit: commit.to_owned(),
                 events,
                 ifaces,
                 inner: Mutex::new(None),
+                serving_edit: Mutex::new(()),
                 last_stop: Mutex::new(None),
+                listened_again: AtomicBool::new(false),
+                resume: AtomicBool::new(false),
                 next: AtomicU64::new(1),
-                #[cfg(test)]
+                stops: AtomicU64::new(0),
+                #[cfg(any(test, feature = "test-support"))]
                 loopback: false,
             }),
+        }
+    }
+
+    /// Serve the window's files from memory (`files`), not from a
+    /// directory: a phone's app, whose files are inside it (ADR 0118
+    /// item 7). Before the server starts.
+    pub fn serve_ui_from(&self, files: crate::ui_files::UiFiles) {
+        if let Ok(mut kept) = self.shared.ui_files.lock() {
+            *kept = Some(files);
         }
     }
 
@@ -660,7 +445,7 @@ impl LocalServer {
     /// Under test, loopback may stand in (a test cannot count on a private
     /// address on the machine it runs on).
     fn addresses(&self, all: &[IfNet]) -> Vec<IfNet> {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         if self.shared.loopback {
             return all.to_vec();
         }
@@ -669,7 +454,7 @@ impl LocalServer {
 
     /// For the tests: the given interfaces, and loopback standing in for a
     /// private address when `loopback` is set.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn for_tests(
         dir: PathBuf,
         ui_dirs: Vec<PathBuf>,
@@ -681,12 +466,17 @@ impl LocalServer {
             shared: Arc::new(Shared {
                 dir,
                 ui_dirs,
+                ui_files: Mutex::new(None),
                 commit: "test".to_owned(),
                 events,
                 ifaces,
                 inner: Mutex::new(None),
+                serving_edit: Mutex::new(()),
                 last_stop: Mutex::new(None),
+                listened_again: AtomicBool::new(false),
+                resume: AtomicBool::new(false),
                 next: AtomicU64::new(1),
+                stops: AtomicU64::new(0),
                 loopback,
             }),
         }
@@ -727,6 +517,15 @@ impl LocalServer {
         for chosen in settings.parts.values() {
             parts::clean(chosen)?;
         }
+        // A folder's name is never taken back (`names`): a writer that read
+        // the settings before a name was given keeps it (review of
+        // 2026-11-14, I1).
+        let mut settings = settings.clone();
+        let kept = self.with_db(|db| Ok(read_settings(db).names))?;
+        for (path, name) in kept {
+            settings.names.entry(path).or_insert(name);
+        }
+        let settings = &settings;
         let text = serde_json::to_string(settings).map_err(|e| e.to_string())?;
         self.with_db(|db| db.set_setting(SETTINGS, &text))?;
         // At once, for new connections; no one connected is cut off.
@@ -755,49 +554,174 @@ impl LocalServer {
                 ..Status::default()
             });
         };
+        // Serving on the network, or by the link alone (ADR 0117 D1).
+        let lan = !r.nets.is_empty();
         Ok(Status {
             serving: true,
-            port: Some(r.port),
+            port: lan.then_some(r.port),
             addresses: r.nets.iter().map(|n| n.ip.to_string()).collect(),
             phones_paired: r.server.db.phone_count()?,
             phones_connected: r.policy.connected(),
             pairing_open: r.policy.pairing_open(Instant::now()),
-            fingerprint: Some(cert::spaced(&r.fingerprint)),
+            fingerprint: lan.then(|| cert::spaced(&r.fingerprint)),
             certificate: r.certificate.to_owned(),
             tailscale: r.tailscale,
             stopped_because: None,
             unreachable: r.reach.load(Ordering::Relaxed) == 2,
             max_connected: read_settings(&r.server.db).max_connected,
             dropped: parts::read_dropped(&r.server.db),
+            link_port: r.link.as_ref().map(|l| l.port),
+            link_origin: r.policy.link_origin(),
+            listened_again: self.shared.listened_again.load(Ordering::Relaxed),
         })
     }
 
-    /// Turn serving on, over the folders ticked. `Err` says why it did not
-    /// start, in words the person reads.
+    /// Serving turned on (`true`) or off (`false`) by the person, kept: an
+    /// app the system ended while it served finds it at its next start
+    /// ([`Self::ended_while_serving`]; ADR 0119 B12/A2).
+    pub fn set_wanted(&self, on: bool) -> Result<(), String> {
+        self.with_db(|db| db.set_setting(WANTED, if on { "1" } else { "0" }))
+    }
+
+    /// The app leaves the screen while it serves (iOS): when it went, kept,
+    /// for [`Self::ended_while_serving`] at a next start.
+    pub fn mark_away(&self) {
+        if lock(&self.shared.inner).is_none() {
+            return;
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or_default();
+        let _ = self.with_db(|db| db.set_setting(AWAY, &now.to_string()));
+    }
+
+    /// At a start: serving was on when the app went away and nobody turned
+    /// it off. `None` when not so. `Some(true)` when it went away less than
+    /// `within` ago: serving resumes when the app is on the screen
+    /// ([`Self::take_resume`]; ADR 0096 item 1 amended for iOS, the
+    /// maintainer on 2026-11-12, "bora"). `Some(false)` when longer: it
+    /// stays off, and the window says why.
+    pub fn ended_while_serving(&self, within: Duration) -> Option<bool> {
+        let read = |key: &str| self.with_db(|db| db.setting(key)).ok().flatten();
+        if read(WANTED).as_deref() != Some("1") || lock(&self.shared.inner).is_some() {
+            return None;
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or_default();
+        let recent = read(AWAY)
+            .and_then(|v| v.parse::<u64>().ok())
+            .is_some_and(|at| now.saturating_sub(at) <= within.as_secs());
+        if recent {
+            self.shared.resume.store(true, Ordering::Relaxed);
+        } else {
+            let _ = self.set_wanted(false);
+            *lock(&self.shared.last_stop) = Some(ENDED_OFF_SCREEN.to_owned());
+            (self.shared.events)(Event::Changed);
+        }
+        Some(recent)
+    }
+
+    /// A resume [`Self::ended_while_serving`] found due, taken once: the
+    /// host starts it with [`Self::listen_again`] when the app is on the
+    /// screen.
+    pub fn take_resume(&self) -> bool {
+        self.shared.resume.swap(false, Ordering::Relaxed)
+    }
+
+    /// Whether serving on the network still listens: the app connects to
+    /// its own address once (as [`Self::self_test`] does); `None` when it
+    /// does not serve on the network.
+    pub fn listening(&self) -> Option<bool> {
+        let addr = {
+            let running = lock(&self.shared.inner);
+            let r = running.as_ref()?;
+            SocketAddr::new(r.nets.first()?.ip, r.port)
+        };
+        Some(reachable(addr))
+    }
+
+    /// Serving again, on the port it had, after its listener was found
+    /// gone (ADR 0119 B12/A2: an iOS app's socket is taken while the device
+    /// is locked; the app back on the screen serves again). The phones'
+    /// sessions are kept in the database; the connections were gone with
+    /// the listener. When it cannot start again it stops, saying why.
+    pub fn listen_again(&self) -> Result<Status, String> {
+        crate::log::warn("the server's port was found closed: listening again");
+        self.stop_inner();
+        match self.start_with(false, None) {
+            Ok(status) => {
+                self.shared.listened_again.store(true, Ordering::Relaxed);
+                (self.shared.events)(Event::Changed);
+                self.status().or(Ok(status))
+            }
+            Err(why) => {
+                self.stop_because(LISTEN_AGAIN_FAILED);
+                Err(why)
+            }
+        }
+    }
+
+    /// Turn serving on, over the folders ticked, on the network (the box
+    /// *On my network*; the link opens with [`Self::link_open`]). `Err`
+    /// says why it did not start, in words the person reads.
     pub fn start(&self) -> Result<Status, String> {
+        self.shared.listened_again.store(false, Ordering::Relaxed);
+        self.start_with(false, None)
+    }
+
+    /// Serving on: on the network when its box is ticked, and on the
+    /// link's loopback listener when `link` (ADR 0117 D1, D4 Q2) — either,
+    /// or both; neither is no start. With `asked` (the stops counted when
+    /// the link was asked for), a stop since then is no start: the person
+    /// turned serving off after asking.
+    fn start_with(&self, link: bool, asked: Option<u64>) -> Result<Status, String> {
+        let stopped_since = || asked.is_some_and(|a| self.shared.stops.load(Ordering::SeqCst) != a);
         if lock(&self.shared.inner).is_some() {
             return self.status();
         }
-        let settings = self.settings()?;
+        if stopped_since() {
+            return Err(STOPPED_SINCE.to_owned());
+        }
+        let mut settings = self.settings()?;
         if settings.folders.is_empty() {
             return Err("tick at least one folder to serve".to_owned());
         }
+        let lan = settings.network;
+        if !lan && !link {
+            return Err("tick On my network, or turn the internet link on, to serve".to_owned());
+        }
         // The window the phone's browser is served: without its files a
         // phone would get a blank page, so it is said here instead.
+        let ui_files = self
+            .shared
+            .ui_files
+            .lock()
+            .ok()
+            .and_then(|f| f.clone())
+            .filter(|f| f.get("web.html").is_some());
         let ui_dir = self
             .shared
             .ui_dirs
             .iter()
             .find(|d| crate::data::readable(&d.join("web.html")))
             .cloned()
+            .or_else(|| ui_files.as_ref().map(|_| PathBuf::new()))
             .ok_or_else(|| {
                 "this build of the app has no web files for the phone (web.html): reinstall the app, or build the window first (npm run build in app/ui)".to_owned()
             })?;
         let all = self.shared.ifaces.list();
         // Best first: the default route's address, then real networks, then
         // virtual ones (a VPN's, ZeroTier's): `nets[0]` is what is shown.
-        let nets = net::rank(&self.addresses(&all), self.shared.ifaces.default_route());
-        if nets.is_empty() {
+        // The link alone listens on no address of the network.
+        let nets = if lan {
+            net::rank(&self.addresses(&all), self.shared.ifaces.default_route())
+        } else {
+            Vec::new()
+        };
+        if lan && nets.is_empty() {
             return Err(
                 "this computer has no private network address: join a Wi-Fi or Ethernet network, then turn it on again"
                     .to_owned(),
@@ -806,20 +730,31 @@ impl LocalServer {
         let db = self.open_db()?;
         let owner = db.local_owner()?;
         db.purge_phones()?;
-        // The folders ticked, by the name each is given; the registry in the
-        // database follows them.
-        let folders = names_for(&settings.folders);
+        // A quick link never outlives a run: its phones end (ADR 0117 D5).
+        link_pair::end_left(&db, &owner.id)?;
+        // No seat outlives serving: one a crash left is swept.
+        db.end_seats(&owner.id, seat::SEAT_DEVICE)?;
+        // The folders ticked, by the name each was given once and keeps
+        // (`names`); the registry in the database follows them, and a
+        // folder no longer ticked rests there (`parts::reconcile`).
+        if names::assign(&db, &mut settings)? {
+            let text = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
+            db.set_setting(SETTINGS, &text)?;
+        }
+        let folders = names::served(&settings);
         let served = parts::plan(&folders, &settings.parts)?;
         let reconciled = parts::reconcile(&db, &owner.id, &served)?;
         let ips: Vec<IpAddr> = nets.iter().map(|n| n.ip).collect();
-        // The certificate: the host's own files when given, else ours.
+        // The certificate: the host's own files when given, else ours. The
+        // link alone needs none: the tunnel ends HTTPS (ADR 0117 D3 item 4).
         let (fingerprint, certificate, acceptor) = match (&settings.cert_file, &settings.key_file) {
+            _ if !lan => (String::new(), "own", None),
             (Some(c), Some(k)) if !c.is_empty() && !k.is_empty() => {
                 let (c, k) = (PathBuf::from(c), PathBuf::from(k));
                 (
                     cert::from_files(&c, &k)?,
                     "files",
-                    crate::tls::acceptor(&c, &k)?,
+                    Some(crate::tls::acceptor(&c, &k)?),
                 )
             }
             _ => {
@@ -828,7 +763,7 @@ impl LocalServer {
                 (
                     id.fingerprint.clone(),
                     "own",
-                    crate::tls::acceptor_from(chain, key)?,
+                    Some(crate::tls::acceptor_from(chain, key)?),
                 )
             }
         };
@@ -839,7 +774,11 @@ impl LocalServer {
             .build()
             .map_err(|e| e.to_string())?;
         // One port for every address, kept once chosen (item 4).
-        let (listeners, port) = bind_all(&db, &nets)?;
+        let (listeners, port) = if lan {
+            bind_all(&db, &nets)?
+        } else {
+            (Vec::new(), 0)
+        };
         let policy = Policy::new(Arc::clone(&self.shared.events));
         policy.set_connected_most(settings.max_connected);
         let extra: Vec<String> = settings
@@ -848,11 +787,21 @@ impl LocalServer {
             .filter(|h| !h.is_empty())
             .map(|h| format!("{h}:{port}"))
             .collect();
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         policy
             .test_loopback
             .store(self.shared.loopback, Ordering::Relaxed);
         policy.set_network(&nets, port, &extra);
+        policy.set_net_base(nets.first().map(|first| {
+            match settings
+                .host_name
+                .as_deref()
+                .filter(|h| !h.is_empty() && certificate == "files")
+            {
+                Some(h) => format!("https://{h}:{port}"),
+                None => format!("https://{}", net::authority(first.ip, port)),
+            }
+        }));
         policy.set_folders(folders);
         for (folder, part) in &reconciled.dropped {
             crate::log::warn(&format!(
@@ -875,11 +824,12 @@ impl LocalServer {
             (self.shared.events)(Event::Dropped { what });
         }
         policy.parts.set(reconciled);
-        let config = Config::for_local(
-            self.shared.dir.clone(),
-            ui_dir,
-            SocketAddr::new(nets[0].ip, port),
+        let listen = nets.first().map_or_else(
+            || SocketAddr::from(([127, 0, 0, 1], 0)),
+            |n| SocketAddr::new(n.ip, port),
         );
+        let mut config = Config::for_local(self.shared.dir.clone(), ui_dir, listen);
+        config.ui_files = ui_files;
         let server = Server::new_local(
             config,
             db,
@@ -891,7 +841,9 @@ impl LocalServer {
         let _ = server.runtime.set(runtime.handle().clone());
         {
             let _enter = runtime.enter();
-            for std_listener in listeners {
+            // Each network listener with the one acceptor; the link alone
+            // has neither.
+            for (std_listener, acceptor) in listeners.into_iter().zip(acceptor.iter().cycle()) {
                 let tcp =
                     tokio::net::TcpListener::from_std(std_listener).map_err(|e| e.to_string())?;
                 let tls =
@@ -916,18 +868,37 @@ impl LocalServer {
             .iter()
             .map(|n| format!("{} ({})", n.ip, n.name))
             .collect();
-        crate::log::info(&format!(
-            "local server on: {}; port {port}; certificate: {certificate}; {} folder(s)",
-            on.join(", "),
-            settings.folders.len()
-        ));
+        let link = if link {
+            Some(link::open(runtime.handle(), &server)?)
+        } else {
+            None
+        };
+        if lan {
+            crate::log::info(&format!(
+                "local server on: {}; port {port}; certificate: {certificate}; {} folder(s)",
+                on.join(", "),
+                settings.folders.len()
+            ));
+        } else {
+            crate::log::info(&format!(
+                "local server on, by the internet link alone; {} folder(s)",
+                settings.folders.len()
+            ));
+        }
+        if let Some(l) = &link {
+            crate::log::info(&format!(
+                "the internet link's listener is open on 127.0.0.1:{}",
+                l.port
+            ));
+            policy.audit(&server, "link_on", None, None);
+        }
         policy.audit(
             &server,
             "local_on",
             Some(&format!("{} address(es), port {port}", nets.len())),
             None,
         );
-        *lock(&self.shared.inner) = Some(Running {
+        let running = Running {
             id,
             runtime: Some(runtime),
             server,
@@ -939,7 +910,21 @@ impl LocalServer {
             certificate,
             tailscale,
             reach: Arc::new(std::sync::atomic::AtomicU8::new(0)),
-        });
+            link,
+            seat: None,
+        };
+        {
+            // Under the lock a stop counts under: a stop is either seen
+            // here, or takes what is put here.
+            let mut inner = lock(&self.shared.inner);
+            if stopped_since() {
+                drop(inner);
+                drop(running);
+                crate::log::info("serving was stopped while the internet link started it");
+                return Err(STOPPED_SINCE.to_owned());
+            }
+            *inner = Some(running);
+        }
         *lock(&self.shared.last_stop) = None;
         self.spawn_watcher(id);
         (self.shared.events)(Event::Changed);
@@ -978,11 +963,16 @@ impl LocalServer {
     fn self_test(&self, id: u64) {
         let (addr, reach, policy) = {
             let running = lock(&self.shared.inner);
-            let Some(r) = running.as_ref().filter(|r| r.id == id) else {
+            // The link alone has no address of the network to try.
+            let Some((r, first)) = running
+                .as_ref()
+                .filter(|r| r.id == id)
+                .and_then(|r| Some((r, r.nets.first()?)))
+            else {
                 return;
             };
             (
-                SocketAddr::new(r.nets[0].ip, r.port),
+                SocketAddr::new(first.ip, r.port),
                 Arc::clone(&r.reach),
                 Arc::clone(&r.policy),
             )
@@ -1006,8 +996,13 @@ impl LocalServer {
             let Some(r) = running.as_ref().filter(|r| r.id == id) else {
                 return false;
             };
-            let now_nets = self.addresses(&self.shared.ifaces.list());
-            let changed = !net::same_set(&now_nets, &r.nets);
+            // Only the network's listeners follow the network: the link
+            // alone listens on loopback and survives a change of Wi-Fi
+            // (ADR 0117 D1). Serving on both, a change stops both, as it
+            // did — [OPEN] for the maintainer: whether the link should
+            // stay up then (the smallest change kept the network's rule).
+            let changed = !r.nets.is_empty()
+                && !net::same_set(&self.addresses(&self.shared.ifaces.list()), &r.nets);
             if slept && !changed {
                 crate::log::info("the computer woke; the addresses are the same, serving goes on");
                 if r.policy.pairing_open(Instant::now()) {
@@ -1040,6 +1035,8 @@ impl LocalServer {
 
     fn stop_because(&self, why: &str) {
         self.stop_inner();
+        // Said now: not again at the next start as the system's end.
+        let _ = self.set_wanted(false);
         *lock(&self.shared.last_stop) = Some(why.to_owned());
         (self.shared.events)(Event::Stopped {
             why: why.to_owned(),
@@ -1050,6 +1047,7 @@ impl LocalServer {
     /// Turn serving off: the port closes, every connection with it, the
     /// goodbye is sent, the pairing window ends.
     pub fn stop(&self) {
+        self.shared.listened_again.store(false, Ordering::Relaxed);
         let was = self.stop_inner();
         *lock(&self.shared.last_stop) = None;
         if was {
@@ -1058,11 +1056,16 @@ impl LocalServer {
     }
 
     fn stop_inner(&self) -> bool {
-        let running = lock(&self.shared.inner).take();
+        let mut inner = lock(&self.shared.inner);
+        self.shared.stops.fetch_add(1, Ordering::SeqCst);
+        let running = inner.take();
+        drop(inner);
         let Some(r) = running else { return false };
         r.policy.pairing().close();
         r.policy.stop_announcing();
+        link_pair::end(&r.server, &r.policy);
         r.policy.audit(&r.server, "local_off", None, None);
+        seat::close(&r);
         crate::log::info("local server stopped");
         // Dropping it ends the listeners and the runtime ([`Running`]).
         drop(r);
@@ -1089,8 +1092,19 @@ impl LocalServer {
                 "{PAIRED} phones are paired already: revoke one before pairing another"
             ));
         }
+        // A phone pairs on the network (ADR 0096 items 3 and 6) and through
+        // the internet link while it has an address (ADR 0117 D5): the link
+        // alone shows the link's QR.
+        let link_origin = r.policy.link_origin();
+        let Some(first) = r.nets.first() else {
+            let origin = link_origin.ok_or_else(|| {
+                "pairing a phone needs On my network, or the internet link on".to_owned()
+            })?;
+            let opened = r.policy.pairing().open(Instant::now())?;
+            return link_pair::view(&self.shared, r, &origin, opened);
+        };
         let chosen_net = match address.filter(|a| !a.is_empty()) {
-            None => &r.nets[0],
+            None => first,
             Some(a) => r
                 .nets
                 .iter()
@@ -1099,6 +1113,9 @@ impl LocalServer {
         };
         let default = self.shared.ifaces.default_route();
         let opened = r.policy.pairing().open(Instant::now())?;
+        let link = link_origin
+            .map(|o| link_pair::pair_link(&o, &opened.token))
+            .transpose()?;
         let settings_name = read_settings(&r.server.db)
             .host_name
             .filter(|h| !h.is_empty());
@@ -1150,6 +1167,7 @@ impl LocalServer {
             expires_in: opened.expires_in.as_secs(),
             fingerprint: cert::spaced(&r.fingerprint),
             certificate: r.certificate.to_owned(),
+            link,
         })
     }
 
@@ -1222,8 +1240,17 @@ impl LocalServer {
             (self.shared.events)(Event::Changed);
             return Ok(());
         }
+        let quick = match link_pair::before_allowing(r, &asked) {
+            Ok(quick) => quick,
+            Err(why) => {
+                r.policy.pairing().answer(None);
+                crate::log::warn(&format!("a pairing through the internet link: {why}"));
+                return Err(why);
+            }
+        };
         let owner = owner_of(&r.server);
-        // Never an owner: a phone reads or edits (item 12).
+        // Never an owner: a phone reads or edits (item 12), through the
+        // link as on the network (ADR 0117 D5).
         let role = if role.writes() {
             Role::Editor
         } else {
@@ -1240,6 +1267,13 @@ impl LocalServer {
                     e
                 }
             })?;
+        // Kept, or the pairing is not made: a quick link's phone that
+        // outlived its address would hold a place (D5 (3)).
+        if quick && let Err(why) = link_pair::remember(&r.server.db, &session) {
+            let _ = r.server.db.end_session(&owner, &session);
+            r.policy.pairing().answer(None);
+            return Err(why);
+        }
         r.policy.pairing().answer(Some(Ready {
             token,
             csrf,
@@ -1364,7 +1398,8 @@ impl LocalServer {
         let n = if let Some(r) = running.as_ref() {
             let owner = owner_of(&r.server);
             let ids = r.server.db.forget_phones()?;
-            r.server.sessions_ended(&owner, None, None);
+            // The owner's own window at the table is no device to forget.
+            r.server.sessions_ended(&owner, None, seat::session_of(r));
             r.policy.audit(
                 &r.server,
                 "phones_forgotten",
@@ -1413,8 +1448,22 @@ impl LocalServer {
     }
 
     /// The audit log, freshest first, for Settings (kept 365 days).
+    ///
+    /// A line about an account names it by its id, as on a UniVerso
+    /// (`crate::admin::acts`); the section shows its e-mail instead, as the
+    /// console does beside the id, while the account is there.
     pub fn audit(&self) -> Result<Vec<crate::db::AuditEntry>, String> {
-        self.with_db(|db| db.audit_log(None, 200))
+        self.with_db(|db| {
+            let mut log = db.audit_log(None, 200)?;
+            for line in &mut log {
+                if let Some(id) = line.subject.as_deref()
+                    && let Some(account) = db.account(id)?
+                {
+                    line.subject = Some(account.email);
+                }
+            }
+            Ok(log)
+        })
     }
 }
 
@@ -1438,27 +1487,4 @@ fn all_for_hint(shared: &Shared) -> Vec<IfNet> {
 /// The account every phone is a session of.
 fn owner_of(server: &Server) -> String {
     server.db.local_owner().map(|a| a.id).unwrap_or_default()
-}
-
-/// Each ticked folder's name: its directory's own, made unique (`Notes`,
-/// `Notes (2)`), and what a phone is shown — never a path. The key is that
-/// name; the value the directory.
-fn names_for(paths: &[String]) -> HashMap<String, PathBuf> {
-    let mut out = HashMap::new();
-    for p in paths {
-        let path = PathBuf::from(p);
-        let base = path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .filter(|n| !n.is_empty() && !n.contains(['/', '\\']))
-            .unwrap_or_else(|| "Folder".to_owned());
-        let mut name = base.clone();
-        let mut n = 2;
-        while out.contains_key(&name) {
-            name = format!("{base} ({n})");
-            n += 1;
-        }
-        out.insert(name, path);
-    }
-    out
 }

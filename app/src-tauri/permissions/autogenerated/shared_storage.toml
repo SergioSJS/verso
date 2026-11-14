@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-shared-storage"
+description = "Enables the shared_storage command without any pre-configured scope."
+commands.allow = ["shared_storage"]
+
+[[permission]]
+identifier = "deny-shared-storage"
+description = "Denies the shared_storage command without any pre-configured scope."
+commands.deny = ["shared_storage"]

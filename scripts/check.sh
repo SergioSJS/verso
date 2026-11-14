@@ -6,25 +6,28 @@
 # step with the workflow.
 #
 # Needs the Rust toolchain of rust-toolchain.toml, Node 22 for the UI and
-# cargo-deny (`cargo install cargo-deny --locked`); the wasm32 target is added
-# here if missing. The fuzzing and the benchmark are not run (see README.md).
-# One step CI does not run: the window's end-to-end tests in WebKit and
-# Chromium over the browser harness (ADR 0058), local only; Playwright's
-# browsers are downloaded on the first run. On a Mac they run with one
-# worker, without screen captures, after a pre-flight that refuses to start
-# while a browser or the Verso app is open, and under a watch that stops
-# them if the window server's surfaces climb (app/ui/e2e/preflight.mjs;
-# ADR 0069 item 8, revised 2026-10-12: four WindowServer aborts).
+# cargo-deny (`cargo install cargo-deny --locked`), and cargo-nextest for the
+# tests as CI runs them (`cargo install cargo-nextest --locked`; without it,
+# `cargo test`); the wasm32 target is added here if missing. The fuzzing and
+# the benchmark are not run (see README.md).
+#
+# One step CI does not run: the window's end-to-end tests (ADR 0058), the
+# browser harness's and the server's, local only. They run in Docker, in
+# Playwright's Linux image, never on this machine's own window server
+# (scripts/check-e2e.sh; the maintainer's decision of 2026-11-02, fix
+# release item C2: on a Mac they ran here with one worker for 1 h 10, and
+# the window server aborted under them four times, ADR 0069 item 8).
+# Without Docker they are skipped and the last line says so. `--no-e2e`
+# skips them on purpose, e.g. while scripts/check-e2e.sh runs on its own.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # The commit checked, so that a kept log names it.
 printf 'checking %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo 'no git')"
 
-step() { printf '\n== %s\n' "$*"; }
+e2e=1
+[ "${1:-}" = "--no-e2e" ] && e2e=0
 
-# The end-to-end steps come late: what would refuse them refuses now, before
-# the rest is built (app/ui/e2e/preflight.mjs; it does nothing off macOS).
-node app/ui/e2e/preflight.mjs
+step() { printf '\n== %s\n' "$*"; }
 
 step "docs mirror (ADR 0008)"
 bash scripts/check-docs-mirror.sh
@@ -45,6 +48,8 @@ step "the release page names the files the release workflow builds (ADR 0051)"
 node --test scripts/release-page.test.mjs
 step "file associations: a handler for .md on three systems, never the default (ADR 0114)"
 node scripts/check-file-associations.mjs
+step "the installer keeps a final server on finals (ADR 0051, 2026-11-14)"
+sh scripts/check-update-channel.sh
 step "std::fs in verso-core only in src/sidecar.rs (ADR 0029)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-core/src \
    | grep -v '^crates/verso-core/src/sidecar.rs:' \
@@ -64,6 +69,15 @@ if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' app/src-taur
    | grep -vE '^app/src-tauri/src/(update|log|resolv_conf)\.rs:' \
    | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
   echo 'std::fs outside app/src-tauri/src/update.rs, src/log.rs and src/resolv_conf.rs (ADR 0029, ADR 0097)'
+  exit 1
+fi
+# The internet link's files (ADR 0117 D11 item 5, D10), ratified 2026-11-04
+# (D14) as app/src-tauri/src/tunnel/files.rs, moved into verso-tunnel with R5.
+step "std::fs in verso-tunnel only in src/files.rs (ADR 0029, ADR 0117)"
+if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-tunnel/src \
+   | grep -v '^crates/verso-tunnel/src/files.rs:' \
+   | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'; then
+  echo 'std::fs outside crates/verso-tunnel/src/files.rs (ADR 0029, ADR 0117)'
   exit 1
 fi
 step "unsafe only in web_clip/{macos,windows}.rs and audio_share/{macos,windows,linux}.rs (ADR 0029, 0116)"
@@ -87,37 +101,46 @@ step "UI: type check, bundle and unit tests"
   npm run build
   npm test
 )
-step "UI: end-to-end tests in the browser harness (ADR 0058, local only)"
-(
-  cd app/ui
-  # Nothing else drawing on this Mac's window server while they run
-  # (ADR 0069 item 8, revised 2026-10-12); one worker on a Mac.
-  node e2e/preflight.mjs
-  npx playwright install webkit chromium >/dev/null
-  if [ "$(uname -s)" = Darwin ]; then
-    npx playwright test --workers=1
-  else
-    npx playwright test --workers=3
-  fi
-)
 step "cargo clippy -D warnings"
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-step "cargo test"
-cargo test --workspace --all-features --locked
-step "the server's end-to-end tests: the window in a browser against verso serve (ADR 0073, local only)"
-cargo build -q --locked -p verso-cli
-(
-  cd app/ui
-  node e2e/preflight.mjs
-  npx playwright test -c playwright.server.config.mjs --workers=1
-)
+# cargo-nextest when it is installed, as CI runs the tests: each test in a
+# process of its own, stopped at the limit of .config/nextest.toml if it
+# hangs; the doctests, which nextest does not run, with `cargo test --doc`.
+if command -v cargo-nextest >/dev/null; then
+  step "cargo nextest, and the doctests"
+  cargo nextest run --workspace --all-features --locked
+  cargo test --doc --workspace --all-features --locked
+else
+  step "cargo test (no time limit per test: cargo install cargo-nextest --locked)"
+  cargo test --workspace --all-features --locked
+fi
 step "the committed bindings are the generated ones (ADR 0026 rule 3)"
 tmp="$(mktemp "${TMPDIR:-/tmp}/verso-bindings.XXXXXX")"
 cargo run -q --locked -p verso-app -- --export-bindings "$tmp"
 diff -u app/ui/src/bindings.ts "$tmp"
 rm -f "$tmp"
+step "the fuzz harnesses compile (ADR 0029, ADR 0083 item 14)"
+# Packages of their own, outside the workspace, so neither clippy nor the
+# tests above build them: on 2026-11-02 a field added to the server's host
+# check broke one on main's CI after this machine had passed. Checked here,
+# into the workspace's target; run only in CI's fuzz job, on nightly.
+for fuzz in crates/verso-dialect/fuzz crates/verso-server/fuzz; do
+  cargo check -q --locked --manifest-path "$fuzz/Cargo.toml" --target-dir target --all-targets
+done
 step "verso-dialect compiles to wasm32 (ADR 0029)"
 rustup target list --installed | grep -qx wasm32-unknown-unknown || rustup target add wasm32-unknown-unknown
 cargo check --target wasm32-unknown-unknown -p verso-dialect --locked
 
-printf '\nall guardrails green on %s\n' "$(uname -s)"
+# Last, as the longest: in Docker, whatever this machine is (ADR 0058,
+# decision of 2026-11-02).
+e2e_said="the end-to-end tests with them, in Docker"
+if [ "$e2e" = 0 ]; then
+  e2e_said="WITHOUT the end-to-end tests (--no-e2e): run scripts/check-e2e.sh"
+elif ! docker info >/dev/null 2>&1; then
+  e2e_said="WITHOUT the end-to-end tests: Docker is not running here; run scripts/check-e2e.sh where it is"
+else
+  step "the window's end-to-end tests, the harness's and the server's, in Docker (ADR 0058, ADR 0073, local only)"
+  bash scripts/check-e2e.sh
+fi
+
+printf '\nall guardrails green on %s; %s\n' "$(uname -s)" "$e2e_said"

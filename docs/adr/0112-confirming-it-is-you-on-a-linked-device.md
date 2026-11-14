@@ -14,7 +14,7 @@
   token revocation, the fresh proof, the device page's typed code),
   [0074](0074-accounts-and-access-on-the-server.md) (accounts, the device
   session), [0079](0079-sync-a-local-folder-with-a-server.md) (the desktop
-  app connects to a server), [0096](0096-this-app-is-a-server.md) (the device
+  app connects to a server), [0096](archive/0096-this-app-is-a-server.md) (the device
   flow, item 6: the click as the proof on the host),
   [0026](0026-core-ui-contract-inviolable-rules.md) (the contract),
   [0029](0029-guardrails-in-ci.md) (guardrails),
@@ -46,7 +46,7 @@ action on a linked device can be a dead end.
 
 **What the person has instead.** On the host, the OS already knows who is at
 the keyboard (Touch ID or the login password on macOS, Windows Hello on
-Windows, polkit on some Linux desktops). [0096](0096-this-app-is-a-server.md)
+Windows, polkit on some Linux desktops). [0096](archive/0096-this-app-is-a-server.md)
 item 6 already chose the click on the host as the proof for allowing a phone,
 and left the OS prompt "possible later".
 
