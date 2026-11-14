@@ -81,6 +81,8 @@ Nothing yet.
 
 ### Fixed
 
+- **Verso Beta updates only to test versions, and Verso only to final ones** (the maintainer, 2026-11-14). The update check took the newest release of either kind: a beta would have offered the first final version, and a final one the next beta. Each app is its own, with its own identifier, beside the other, and now takes only its own channel's file.
+
 - **A folder this computer stops serving keeps its table** (ADR 0117 D2, 2026-11-13). Unticking a served folder in **Settings › Turn into a server** deleted, at the next start, everything the server kept of it: the table, its players, the chat and the rolls, the shares and read links. Now the folder rests: nobody reaches it, by its list, its id, a share or a link, and serving it again brings back the same table and the same people. And two served folders with the same name (*Campanha* in two places) each keep their own name for good: unticking the first gave its name, and its players, to the second, so a player of one table could open the other folder.
 
 - **Copying from the reading view no longer carries the theme's colours** (the maintainer, 2026-11-13: a block copied in reading mode pasted into a website came out in the theme's colours, and "only a piece" of it). When a page is copied, the system inlines the computed colour of the selected elements into the clipboard, so a dark theme's light text landed as light text on a white page. Verso now writes the clipboard itself from the selection, with the colour-carrying styles stripped: the paste keeps the structure (headings, bold, lists, links) and takes the colours of wherever it lands.

@@ -81,6 +81,8 @@ Nada ainda.
 
 ### Corrigido
 
+- **O Verso Beta só se atualiza para versões de teste, e o Verso só para versões finais** (o mantenedor, 2026-11-14). A verificação de atualização pegava a versão mais nova de qualquer tipo: um beta ofereceria a primeira versão final, e uma final o próximo beta. Cada app é um app próprio, com o seu identificador, ao lado do outro, e agora só pega o arquivo do seu canal.
+
 - **Uma pasta que este computador para de servir mantém a mesa dela** (ADR 0117 D2, 2026-11-13). Desmarcar uma pasta servida em **Ajustes › Transformar em servidor** apagava, no início seguinte, tudo o que o servidor guardava dela: a mesa, os jogadores, o chat e as rolagens, os compartilhamentos e os links de leitura. Agora a pasta descansa: ninguém a alcança, por lista, por id, por compartilhamento ou por link, e servi-la de novo traz de volta a mesma mesa e as mesmas pessoas. E duas pastas servidas com o mesmo nome (*Campanha* em dois lugares) mantêm cada uma o próprio nome de vez: desmarcar a primeira dava o nome dela, e os jogadores dela, à segunda, então um jogador de uma mesa podia abrir a outra pasta.
 
 - **Copiar da visão de leitura não leva mais as cores do tema** (o mantenedor, 2026-11-13: um bloco copiado no modo de leitura e colado num site saía com as cores do tema, e "só um pedaço" dele). Quando uma página é copiada, o sistema embute na área de transferência a cor calculada dos elementos selecionados, então o texto claro de um tema escuro caía como texto claro numa página branca. O Verso agora escreve a área de transferência ele mesmo a partir da seleção, sem os estilos que carregam cor: o que se cola mantém a estrutura (títulos, negrito, listas, links) e assume as cores de onde cai.

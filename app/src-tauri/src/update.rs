@@ -153,6 +153,10 @@ pub(crate) fn check_for_updates_blocking() -> Result<UpdateInfo, ContractError> 
             continue;
         }
         if let Some(parsed) = ParsedVersion::parse(&rel.tag_name) {
+            // Verso Beta takes only betas, Verso only finals (version.rs).
+            if !parsed.same_channel(&current_ver) {
+                continue;
+            }
             if parsed.is_newer_than(&latest_seen_ver) {
                 latest_seen_ver = parsed.clone();
                 latest_seen_tag = rel.tag_name.trim_start_matches(['v', 'V']).to_string();
@@ -238,6 +242,8 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
         }
     };
 
+    // Only this channel's app (`Verso-Beta-…` or `Verso-…`, version.rs).
+    let ours = |n: &str| ParsedVersion::parse(&rel.tag_name).is_none_or(|v| v.names_its_app(n));
     // Try to find the best asset: correct OS + arch + preferred extension
     preferred_exts.iter().find_map(|ext| {
         // 1st pass: OS + arch + extension
@@ -245,7 +251,8 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
             .iter()
             .find(|a| {
                 let n = a.name.to_lowercase();
-                n.ends_with(ext)
+                ours(&n)
+                    && n.ends_with(ext)
                     && os_keywords.iter().any(|k| n.contains(k))
                     && arch_keywords.iter().any(|k| n.contains(k))
             })
@@ -253,7 +260,7 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
             .or_else(|| {
                 rel.assets.iter().find(|a| {
                     let n = a.name.to_lowercase();
-                    n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
+                    ours(&n) && n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
                 })
             })
     })
