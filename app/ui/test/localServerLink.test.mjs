@@ -25,7 +25,9 @@ const L = await import("./.bundles/localServerLink.test-bundle.mjs");
 
 /** The host's words: the link's module, the commands, the local server. */
 function hostSources() {
-  const dirs = ["../src-tauri/src/tunnel", "../src-tauri/src/local_server", "../../crates/verso-server/src/local"];
+  // The tunnel's words are verso-tunnel's since R5 (ADR 0117 D4 item 2: the
+  // module moved into a crate both hosts use), the app's side beside them.
+  const dirs = ["../src-tauri/src/tunnel", "../../crates/verso-tunnel/src", "../src-tauri/src/local_server", "../../crates/verso-server/src/local"];
   return dirs
     .flatMap((d) => readdirSync(d).filter((f) => f.endsWith(".rs") && !f.startsWith("tests")).map((f) => readFileSync(join(d, f), "utf8")))
     .join("\n");
