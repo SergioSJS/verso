@@ -179,7 +179,7 @@ abstract class PlaceCloudflared @Inject constructor(private val exec: ExecOperat
 
 val placeCloudflared = tasks.register<PlaceCloudflared>("placeCloudflared") {
     script.set(layout.projectDirectory.file("../../../../../scripts/android/cloudflared.sh"))
-    pins.set(layout.projectDirectory.file("../../../src/tunnel/fetch.rs"))
+    pins.set(layout.projectDirectory.file("../../../../../crates/verso-tunnel/src/fetch.rs"))
     target.set(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libcloudflared.so"))
 }
 
