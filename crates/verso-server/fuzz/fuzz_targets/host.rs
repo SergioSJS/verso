@@ -70,6 +70,7 @@ fn server(listen: &str, public_url: Option<&str>, tls: bool, proxy: u8) -> Arc<S
         trash_max: None,
         history_days: 90,
         audit_days: 365,
+        tunnel: verso_server::config::Tunnel::default(),
     };
     let db = Db::memory().expect("a database in memory");
     Server::new(config, db, "fuzz".to_owned(), "fuzz".to_owned())
