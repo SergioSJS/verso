@@ -16,6 +16,11 @@ use crate::state::Server;
 /// a folder one may not see is one that does not exist, to them.
 pub fn role(server: &Server, who: &Who, id: &str) -> ApiResult<(Folder, Role)> {
     let folder = server.db.folder(id)?.ok_or_else(ApiError::not_found)?;
+    // A folder this computer keeps but does not serve now is no one's
+    // (ADR 0117 D2, 2026-11-13), its owner's phones and window included.
+    if server.rests(&folder.dir) {
+        return Err(ApiError::not_found());
+    }
     let (reaches, writes) = who.reaches(id);
     if !reaches {
         return Err(ApiError::not_found());

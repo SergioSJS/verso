@@ -173,8 +173,11 @@ pub fn plan(
 }
 
 /// The database's folders and shares follow what is ticked and chosen: a
-/// folder no longer served is forgotten (its shares and grants go with it);
-/// every ticked folder is the owner's and keeps the shares the owner made
+/// folder no longer served **rests** — kept with its table, players,
+/// shares and grants, reached by no one until it is served again under the
+/// name it keeps (`super::names`; ADR 0117 D2, decided 2026-11-13; until
+/// then it was forgotten, and the cascade took its table and chat); every
+/// ticked folder is the owner's and keeps the shares the owner made
 /// (R1); one in part gives the owner a share per chosen folder at the most
 /// a phone may have — the phones' parts — and a part no longer chosen loses
 /// the owner's grant (the share goes with it when no one else is in it); a
@@ -185,11 +188,6 @@ pub fn reconcile(
     owner: &str,
     served: &BTreeMap<String, Served>,
 ) -> Result<Reconciled, String> {
-    for f in db.folders()? {
-        if !served.contains_key(&f.dir) {
-            db.forget_folder(&f.id)?;
-        }
-    }
     let mut hidden = HashSet::new();
     let mut names = HashMap::new();
     let mut dropped = Vec::new();

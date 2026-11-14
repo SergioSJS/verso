@@ -59,6 +59,10 @@ pub fn scope_for(
     let Some(folder) = server.db.folder(&share.folder)? else {
         return Ok(None);
     };
+    // A share of a folder that rests opens nothing (ADR 0117 D2).
+    if server.rests(&folder.dir) {
+        return Ok(None);
+    }
     let role = server
         .db
         .role_at(&folder.id, account, &share.path)?
@@ -386,7 +390,9 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
         // (`crate::access::role` refuses it as well); its owner's window
         // lists it (ADR 0117 R1).
         let phone = who.phone.is_some();
-        if !who.reaches(&f.id).0 || (phone && server.local.as_ref().is_some_and(|p| p.hides(&f.id)))
+        if !who.reaches(&f.id).0
+            || server.rests(&f.dir)
+            || (phone && server.local.as_ref().is_some_and(|p| p.hides(&f.id)))
         {
             continue;
         }

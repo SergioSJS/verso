@@ -515,6 +515,17 @@ impl Server {
         format!("ws-{}", self.next.fetch_add(1, Ordering::Relaxed))
     }
 
+    /// Whether a registered folder rests: this app's server keeps it, with
+    /// its table and players, but does not serve it now (ADR 0117 D2,
+    /// 2026-11-13). No one reaches a resting folder, its shares or its
+    /// read links; a UniVerso's folders never rest.
+    #[must_use]
+    pub fn rests(&self, dir: &str) -> bool {
+        self.local
+            .as_ref()
+            .is_some_and(|local| local.folder_path(dir).is_none())
+    }
+
     /// The directory of a registered folder; the path is formed here and
     /// never crosses (ADR 0026 rule 4).
     pub fn folder_path(&self, dir: &str) -> Option<PathBuf> {

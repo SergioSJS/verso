@@ -28,6 +28,7 @@ pub mod cert;
 mod devices;
 mod invites;
 pub mod link;
+mod names;
 pub mod net;
 mod owner;
 pub mod pairing;
@@ -59,6 +60,8 @@ mod tests_players;
 #[cfg(test)]
 mod tests_read_links;
 #[cfg(test)]
+mod tests_rest;
+#[cfg(test)]
 mod tests_seat;
 #[cfg(test)]
 mod tests_serving;
@@ -71,7 +74,6 @@ mod tests_tokens;
 #[cfg(test)]
 mod tests_ui_files;
 
-use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -172,6 +174,10 @@ pub struct LocalSettings {
     /// The own address, once the host set it up (D10 (a)): the hostname
     /// routed at Cloudflare and the named tunnel's id.
     pub own_address: Option<OwnAddress>,
+    /// The name each folder ever ticked is registered under, by its path:
+    /// given once, kept when it is unticked, never handed to another
+    /// folder (`names`; ADR 0117 D2, 2026-11-13).
+    pub names: std::collections::BTreeMap<String, String>,
 }
 
 /// An own address for the internet link (ADR 0117 D10 (a)), as the host's
@@ -197,6 +203,7 @@ impl Default for LocalSettings {
             network: true,
             link_own: false,
             own_address: None,
+            names: std::collections::BTreeMap::new(),
         }
     }
 }
@@ -656,7 +663,7 @@ impl LocalServer {
         if stopped_since() {
             return Err(STOPPED_SINCE.to_owned());
         }
-        let settings = self.settings()?;
+        let mut settings = self.settings()?;
         if settings.folders.is_empty() {
             return Err("tick at least one folder to serve".to_owned());
         }
@@ -703,9 +710,14 @@ impl LocalServer {
         db.purge_phones()?;
         // No seat outlives serving: one a crash left is swept.
         db.end_seats(&owner.id, seat::SEAT_DEVICE)?;
-        // The folders ticked, by the name each is given; the registry in the
-        // database follows them.
-        let folders = names_for(&settings.folders);
+        // The folders ticked, by the name each was given once and keeps
+        // (`names`); the registry in the database follows them, and a
+        // folder no longer ticked rests there (`parts::reconcile`).
+        if names::assign(&db, &mut settings)? {
+            let text = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
+            db.set_setting(SETTINGS, &text)?;
+        }
+        let folders = names::served(&settings);
         let served = parts::plan(&folders, &settings.parts)?;
         let reconciled = parts::reconcile(&db, &owner.id, &served)?;
         let ips: Vec<IpAddr> = nets.iter().map(|n| n.ip).collect();
@@ -1426,27 +1438,4 @@ fn all_for_hint(shared: &Shared) -> Vec<IfNet> {
 /// The account every phone is a session of.
 fn owner_of(server: &Server) -> String {
     server.db.local_owner().map(|a| a.id).unwrap_or_default()
-}
-
-/// Each ticked folder's name: its directory's own, made unique (`Notes`,
-/// `Notes (2)`), and what a phone is shown — never a path. The key is that
-/// name; the value the directory.
-fn names_for(paths: &[String]) -> HashMap<String, PathBuf> {
-    let mut out = HashMap::new();
-    for p in paths {
-        let path = PathBuf::from(p);
-        let base = path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .filter(|n| !n.is_empty() && !n.contains(['/', '\\']))
-            .unwrap_or_else(|| "Folder".to_owned());
-        let mut name = base.clone();
-        let mut n = 2;
-        while out.contains_key(&name) {
-            name = format!("{base} ({n})");
-            n += 1;
-        }
-        out.insert(name, path);
-    }
-    out
 }
