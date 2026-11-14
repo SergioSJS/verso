@@ -159,7 +159,14 @@ export class Campaign {
       const imageMax = a["imageMax"] as number | null | undefined;
       if (typeof logMax === "number" && (logMax < LOG_LEAST || logMax > LOG_MOST)) refuse("the log keeps 1000 to 200000 entries");
       if (typeof imageMax === "number" && (imageMax < IMAGE_LEAST || imageMax > IMAGE_MOST)) refuse("an image is 1 to 30 MB");
+      // Moved to its other server (ADR 0117 R9): the host's act, never the
+      // switch; a moved table does not open again.
+      if (t.moved && a["open"] === true) refuse("this table moved to the other server: undo it here to free it");
       if (typeof a["open"] === "boolean") t.open = a["open"];
+      if (a["moved"] === true) {
+        t.open = false;
+        t.moved = true;
+      }
       if (typeof logMax === "number") t.log_max = logMax;
       if (typeof imageMax === "number") t.image_max = imageMax;
       return this.changed([]);

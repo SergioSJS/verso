@@ -270,8 +270,9 @@ function onMessage(data: string): void {
   if (m.gone === "folder") {
     const reason = typeof m.reason === "string" ? m.reason : null;
     // The game master closed the table: the folder is remembered, and the
-    // window that follows says the table is closed and waits for it to open.
-    const shut = reason === "closed";
+    // window that follows says the table is closed and waits for it to open;
+    // or moved it to its other server (ADR 0117 R9), said as that.
+    const shut = reason === "closed" || reason === "moved";
     if (!shut) {
       notice(w().folderGone, "error");
       folderId = null;
@@ -279,7 +280,7 @@ function onMessage(data: string): void {
     }
     // No folder, no role in it.
     setRole(null);
-    void emit("server-gone", { url: location.origin, what: shut ? "closed" : "folder", address: null, reason: shut ? null : reason }).finally(() => location.reload());
+    void emit("server-gone", { url: location.origin, what: shut ? reason : "folder", address: null, reason: shut ? null : reason }).finally(() => location.reload());
   }
 }
 

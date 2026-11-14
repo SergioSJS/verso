@@ -110,8 +110,8 @@ pub fn opening(server: &Server, who: &Who, id: &str) -> ApiResult<Opening> {
         let (folder, role) = crate::access::role(server, who, id)?;
         // A closed table keeps its players out (ADR 0110 item 3, MC.1 = A).
         let master = crate::campaign::is_master(server, &folder.id, &who.account.id);
-        if crate::campaign::closed_for(server, &folder.id, "", !master) {
-            return Err(ApiError::forbidden(crate::campaign::CLOSED));
+        if let Some(words) = crate::campaign::shut_for(server, &folder.id, "", !master) {
+            return Err(ApiError::forbidden(words));
         }
         return Ok(Opening::Folder(folder, role));
     }
@@ -123,8 +123,8 @@ pub fn opening(server: &Server, who: &Who, id: &str) -> ApiResult<Opening> {
     let (folder, scope, role) =
         scope_for(server, &who.account.id, &share, writes)?.ok_or_else(ApiError::not_found)?;
     // A share is always a player's place, an editor's as a reader's.
-    if crate::campaign::closed_for(server, &folder.id, &scope.root, true) {
-        return Err(ApiError::forbidden(crate::campaign::CLOSED));
+    if let Some(words) = crate::campaign::shut_for(server, &folder.id, &scope.root, true) {
+        return Err(ApiError::forbidden(words));
     }
     Ok(Opening::Share(folder, scope, role))
 }

@@ -33,7 +33,7 @@
 // ended and their account removed.
 
 import { emit } from "@tauri-apps/api/event";
-import type { ContractError, FolderAccess, FolderInfo, LocalAudit, LocalDevice, LocalFolder, LocalInvitation, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer, LocalReset, LocalServerStatus, ReadLinkInfo } from "../bindings";
+import type { ContractError, FolderAccess, FolderInfo, LocalAudit, LocalDevice, LocalFolder, LocalInvitation, LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer, LocalReset, LocalServerStatus, ReadLinkInfo, TableHost } from "../bindings";
 
 type Args = Record<string, unknown>;
 
@@ -86,6 +86,11 @@ export class LocalServerHarness {
   /** How many tables the server holds in the window's folder: the
    *  harness's campaign says (`harness.ts`). */
   tablesOf: () => number = () => 0;
+  /** The other server of the window's table (ADR 0117 R9): a test's
+   *  (`?moveTo=universo` or `?moveTo=here`, `harness.ts`); none at first. */
+  otherHost: () => TableHost | null = () => null;
+  /** The move's two steps on the harness's one campaign (`harness.ts`). */
+  moveTable: (root: string) => void = () => {};
   private fingerprint = "AB:CD:EF:01:23:45:67:89";
   /** The identity's generation: replaced, the fingerprint changes. */
   private generation = 1;
@@ -470,6 +475,15 @@ export class LocalServerHarness {
       this.seated = true;
       this.log("seat_opened", "Vault");
       return { name: "Vault", key: "seat:harness", index: { indexed: 0, unchanged: 0, removed: 0, placeholders: 0, problems: [], unwatched: null, unindexed: null }, late_outside_changes: null };
+    },
+    // ADR 0117 R9: the other server of the window's table, and the move
+    // there; the Rust tests (`tests_table_move.rs`) drive the real hosts.
+    local_server_table_host: (): TableHost | null => this.otherHost(),
+    local_server_move_table: (a): TableHost => {
+      const to = this.otherHost();
+      if (!to) refuse("this table has no other server to move to");
+      this.moveTable(String(a["root"] ?? ""));
+      return to;
     },
     // ADR 0117: the two boxes, the link, the own address, invitations.
     local_server_network: (a): LocalServerStatus => {

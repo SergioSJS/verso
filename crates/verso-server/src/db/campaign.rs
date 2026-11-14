@@ -142,6 +142,14 @@ CREATE TABLE campaign_rights_binned (
 );
 "#;
 
+/// Schema 23: a table moved to the other host (ADR 0117 D8, R9): when it
+/// moved, `NULL` for one that did not. A moved table is closed (`open` 0)
+/// and stays so until it is undone; its log, rights and access stay here.
+pub(super) const MOVED: &str = r"
+ALTER TABLE campaigns ADD COLUMN moved INTEGER;
+ALTER TABLE campaigns_binned ADD COLUMN moved INTEGER;
+";
+
 pub const LOG_DEFAULT: i64 = 20_000;
 pub const LOG_LEAST: i64 = 1_000;
 pub const LOG_MOST: i64 = 200_000;
@@ -159,6 +167,9 @@ pub struct Campaign {
     pub open: bool,
     pub log_max: i64,
     pub image_max: i64,
+    /// Moved to the other host (ADR 0117 D8, R9): closed to its players,
+    /// who are told it moved.
+    pub moved: bool,
 }
 
 /// Who may edit a note besides the owner.
@@ -223,6 +234,7 @@ fn campaign(r: &rusqlite::Row<'_>) -> rusqlite::Result<Campaign> {
         open: r.get::<_, i64>(2)? != 0,
         log_max: r.get(3)?,
         image_max: r.get(4)?,
+        moved: r.get::<_, Option<i64>>(5)?.is_some(),
     })
 }
 
@@ -232,7 +244,7 @@ impl Db {
         let conn = self.reader();
         let mut st = conn
             .prepare(
-                "SELECT folder, root, open, log_max, image_max FROM campaigns
+                "SELECT folder, root, open, log_max, image_max, moved FROM campaigns
                  WHERE folder = ?1 ORDER BY length(root), root",
             )
             .map_err(e)?;
@@ -315,6 +327,22 @@ impl Db {
         }
         tx.commit().map_err(e)?;
         self.refresh_images(&conn);
+        Ok(n > 0)
+    }
+
+    /// The table at `root` moved to the other host (ADR 0117 D8, R9): closed
+    /// to its players and marked moved, in one step. Nothing else changes:
+    /// its log, rights and access stay until it is undone. Whether there was
+    /// such a table.
+    pub fn campaign_moved(&self, folder: &str, root: &str) -> R<bool> {
+        let n = self
+            .conn()
+            .execute(
+                "UPDATE campaigns SET open = 0, moved = COALESCE(moved, ?3)
+                 WHERE folder = ?1 AND root = ?2",
+                params![folder, root, now()],
+            )
+            .map_err(e)?;
         Ok(n > 0)
     }
 
@@ -804,8 +832,8 @@ fn tables_moved(
     };
     tx.execute(
         &format!(
-            "INSERT OR IGNORE INTO {kept} (folder, root, open, log_max, image_max, created)
-             SELECT folder, {}, open, log_max, image_max, created FROM {live}
+            "INSERT OR IGNORE INTO {kept} (folder, root, open, log_max, image_max, created, moved)
+             SELECT folder, {}, open, log_max, image_max, created, moved FROM {live}
              WHERE folder = ?1 AND ?2 <> '' AND ?4 <> '' AND {}",
             rebased("root"),
             under_of("root")

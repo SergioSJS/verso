@@ -215,6 +215,12 @@ const campaign = new Campaign(core);
 // tables are that server's, up while it sits.
 const link = (): boolean | null => (core.localServer.isSeated() ? true : core.sync.on && rooms ? rooms.up : null);
 core.localServer.tablesOf = () => campaign.tables.length;
+// A table's other server (ADR 0117 R9), for a test: `?moveTo=universo` (a
+// UniVerso the folder syncs with) or `?moveTo=here` (this computer).
+const moveTo = params.get("moveTo");
+core.localServer.otherHost = () =>
+  !campaign.up ? null : moveTo === "universo" ? { to: "universo", name: "notas.exemplo", url: "https://notas.exemplo", folder: "f-notas", key: null } : moveTo === "here" ? { to: "here", name: "", url: null, folder: null, key: "harness" } : null;
+core.localServer.moveTable = (root) => void core.handlers["campaign_settings"]!({ root, open: false, moved: true });
 if (table) table.linked = link;
 // The folder's tables are the campaign's (one log per table, ADR 0107 as amended 2026-10-23).
 if (table) table.roots = () => (campaign.up ? campaign.tables.map((t) => t.root) : []);
@@ -261,7 +267,9 @@ if (tableParam === "owner" || tableParam === "player") {
 // A player at a closed table (`?closed=1`): no folder is open at the start and
 // every way to open one is refused as the server refuses it, until a test says
 // the game master opened the table (`__harness.shutOut = false`).
-if (params.get("closed") === "1") {
+// `?closed=moved`: the table moved to its other server (ADR 0117 R9).
+const shutWords = params.get("closed") === "moved" ? "a mesa está fechada: ela mudou de servidor" : "a mesa está fechada";
+if (params.get("closed") === "1" || params.get("closed") === "moved") {
   const win = window as unknown as { __harness: Record<string, unknown> };
   let shut = true;
   Object.defineProperty(win, "__harnessShutOut", { get: () => shut, set: (v: boolean) => (shut = v) });
@@ -269,7 +277,7 @@ if (params.get("closed") === "1") {
   const was = opens.map((c) => core.handlers[c]!);
   opens.forEach((c, i) => {
     core.handlers[c] = (a) => {
-      if (shut) throw { kind: "refused", message: "a mesa está fechada" };
+      if (shut) throw { kind: "refused", message: shutWords };
       return was[i]!(a);
     };
   });

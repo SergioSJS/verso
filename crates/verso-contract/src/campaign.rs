@@ -44,6 +44,11 @@ pub struct CampaignTable {
     /// Whether this account may send a file that is not an image.
     #[serde(default)]
     pub files: bool,
+    /// Moved to the other host (ADR 0117 D8, R9): closed to its players for
+    /// good here, who are told it moved; its chat, rolls and rights stay
+    /// here until it is undone. Absent from a server before R9: not moved.
+    #[serde(default)]
+    pub moved: bool,
 }
 
 /// Who may edit a note besides the game master (ADR 0110 item 5).
@@ -162,4 +167,24 @@ pub struct CampaignAccess {
     pub people: Vec<CampaignPerson>,
     /// The game master's name: the one who always has access.
     pub master: String,
+}
+
+/// The other host of the window's table (ADR 0117 D8, R9): a folder of this
+/// computer served from here that also syncs with a UniVerso has two, and a
+/// table lives on one. Where the table may move to, and where it went.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct TableHost {
+    /// `universo`: the UniVerso the folder syncs with, for a window at this
+    /// computer's own table; `here`: this computer's own server, for a
+    /// window on that UniVerso's folder.
+    pub to: String,
+    /// The UniVerso's address as the person reads it (no scheme); empty for
+    /// this computer, which the window names in its own words.
+    pub name: String,
+    /// To open the new host's folder: the UniVerso's address as signed in
+    /// to and its folder's id there (`to` = `universo`)…
+    pub url: Option<String>,
+    pub folder: Option<String>,
+    /// …or the key of this computer's folder (`to` = `here`).
+    pub key: Option<String>,
 }

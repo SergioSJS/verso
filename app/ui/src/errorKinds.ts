@@ -118,3 +118,11 @@ export function isTableClosed(e: ContractError | unknown): boolean {
   const { kind, message } = errorParts(e);
   return (kind === "refused" || kind === "") && message.includes(TABLE_CLOSED);
 }
+
+/** What a table moved to its other server answers its players there (the
+ *  contract's `TABLE_MOVED`, ADR 0117 R9): it begins with `TABLE_CLOSED`, so
+ *  it is a closed table too, said as moved. */
+export const TABLE_MOVED = "a mesa está fechada: ela mudou de servidor";
+export function isTableMoved(e: ContractError | unknown): boolean {
+  return isTableClosed(e) && errorParts(e).message.includes(TABLE_MOVED);
+}

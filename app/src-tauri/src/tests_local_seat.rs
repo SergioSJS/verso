@@ -23,6 +23,10 @@ use verso_server::local::{LocalServer, LocalSettings};
 use super::tests::{call, note};
 use super::*;
 
+/// A table moved to the other host (ADR 0117 R9), with these helpers.
+#[path = "tests_table_move.rs"]
+mod table_move;
+
 const NAME: &str = "tidy-otter-quiet-lamp.trycloudflare.com";
 const ORIGIN: &str = "https://tidy-otter-quiet-lamp.trycloudflare.com";
 

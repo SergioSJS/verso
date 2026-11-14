@@ -173,6 +173,28 @@ impl Db {
         pending_by(&self.conn(), account, now())
     }
 
+    /// Every invitation into `folder` at or inside `root` (`""` the whole
+    /// folder) that is not used, ended or expired yet, ended now; their ids:
+    /// a moved table's undone (ADR 0117 R9, `campaign_move`). For a
+    /// subfolder, an invitation into a share at that folder or inside it.
+    pub fn end_invitations_into(&self, folder: &str, root: &str) -> R<Vec<String>> {
+        let conn = self.conn();
+        let mut st = conn
+            .prepare(
+                "UPDATE invitations SET ended = ?3
+                 WHERE kind = 'invite' AND folder = ?1 AND used IS NULL AND ended IS NULL
+                   AND expires > ?3
+                   AND (?2 = '' OR share IN (SELECT id FROM shares WHERE folder = ?1
+                        AND (path = ?2 OR substr(path, 1, length(?2) + 1) = ?2 || '/')))
+                 RETURNING id",
+            )
+            .map_err(e)?;
+        st.query_map(params![folder, root, now()], |r| r.get(0))
+            .map_err(e)?
+            .collect::<rusqlite::Result<_>>()
+            .map_err(e)
+    }
+
     /// Every invitation `account` made that is not used, ended or expired
     /// yet ended now; their ids. One already used stays used: whoever
     /// accepted keeps what it gave.

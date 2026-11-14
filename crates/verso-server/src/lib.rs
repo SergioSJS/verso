@@ -18,6 +18,7 @@ pub mod auth;
 pub mod board_sight;
 pub mod campaign;
 pub mod campaign_cmds;
+pub mod campaign_move;
 pub mod campaign_outside;
 pub mod campaign_serve;
 pub mod campaign_sync;
@@ -551,6 +552,8 @@ mod tests_sync;
 mod tests_table;
 #[cfg(test)]
 mod tests_table_images;
+#[cfg(test)]
+mod tests_table_move;
 #[cfg(test)]
 mod tests_table_share;
 #[cfg(test)]

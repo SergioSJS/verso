@@ -343,7 +343,7 @@ fn schema_17_keeps_a_released_note_the_whole_tables_and_a_hidden_one_hidden() {
         .conn()
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 22);
+    assert_eq!(version, 23);
 }
 
 /// An audience is the table's, a set of its players or nobody; a grant

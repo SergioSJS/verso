@@ -50,7 +50,7 @@ pub struct SyncStatus {
     /// The last error, said (in English, for the log).
     pub message: Option<String>,
     /// What the last error was, for the window to say in its language:
-    /// `not_signed_in`, `signed_out`, `version`, `folder_gone`, `table_closed`, `failed`;
+    /// `not_signed_in`, `signed_out`, `version`, `folder_gone`, `table_closed`, `table_moved`, `failed`;
     /// with the state `off`, `revoked`.
     pub problem: Option<String>,
     /// With the problem `version`: what each side runs — two builds of one
