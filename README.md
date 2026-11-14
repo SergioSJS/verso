@@ -14,8 +14,8 @@ you only opened. It is made first for preparing tabletop RPG sessions
 ([ADR 0036](docs/adr/0036-tabletop-rpg-support.md)), and is useful for any
 body of linked notes.
 
-The repository is private while the app matures; it is in Phase 2 of
-[the roadmap](docs/roadmap.md), in daily use by the maintainer.
+Verso is in beta: it is in Phase 4 of [the roadmap](docs/roadmap.md), on the
+way to V1, in daily use by the maintainer.
 
 ## Principles
 

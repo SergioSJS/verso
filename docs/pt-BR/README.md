@@ -15,8 +15,8 @@ para preparar sessões de RPG de mesa
 ([ADR 0036](../adr/0036-tabletop-rpg-support.md)), e serve para qualquer
 conjunto de notas ligadas.
 
-O repositório fica privado enquanto o app amadurece; ele está na Fase 2 do
-[roadmap](../roadmap.md), em uso diário pelo mantenedor.
+O Verso está em beta: ele está na Fase 4 do [roadmap](../roadmap.md), a
+caminho da V1, em uso diário pelo mantenedor.
 
 ## Princípios
 
