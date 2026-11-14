@@ -328,30 +328,45 @@ impl Policy {
         self.pairing().is_open(now)
     }
 
-    /// A phone presented `presented`; see [`Pairing::redeem`]. What the
-    /// laptop must know is logged and audited here — never the token, the
-    /// QR's contents or the fragment.
+    /// A phone presented `presented`, on the network or through the
+    /// internet link (`link`, ADR 0117 D5); see [`Pairing::redeem`]. What
+    /// the laptop must know is logged and audited here — never the token,
+    /// the QR's contents or the fragment. Through the link the address is
+    /// the one the tunnel forwarded.
     pub fn redeem(
         &self,
         server: &Server,
         presented: &str,
         device: &str,
         address: &str,
+        link: bool,
         now: Instant,
     ) -> Result<Redeemed, String> {
         let result =
             self.pairing()
-                .redeem(presented, device, address, &crate::log::stamp(), now)?;
+                .redeem(presented, device, address, &crate::log::stamp(), link, now)?;
+        let by = if link {
+            " through the internet link"
+        } else {
+            ""
+        };
         match &result {
             Redeemed::Asked { .. } => {
                 crate::log::info(&format!(
-                    "a token was redeemed by {address}; the computer is asked"
+                    "a token was redeemed by {address}{by}; the computer is asked"
                 ));
-                self.audit(server, "pair_asked", Some(device), Some(address));
+                let action = if link {
+                    "pair_asked_link"
+                } else {
+                    "pair_asked"
+                };
+                self.audit(server, action, Some(device), Some(address));
                 self.emit(Event::Asked);
             }
             Redeemed::Refused { ended } => {
-                crate::log::warn(&format!("a wrong or reused pairing token from {address}"));
+                crate::log::warn(&format!(
+                    "a wrong or reused pairing token from {address}{by}"
+                ));
                 self.audit(server, "pair_refused_attempt", None, Some(address));
                 if let Some(why) = ended {
                     self.ended(server, *why);

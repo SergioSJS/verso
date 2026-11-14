@@ -453,6 +453,10 @@ pub(super) async fn pair_open<R: tauri::Runtime>(
             expires_in: u32::try_from(v.expires_in).unwrap_or(120),
             fingerprint: v.fingerprint,
             certificate: v.certificate,
+            link: v.link.map(|l| LocalPairLink {
+                url: l.url,
+                qr: l.qr,
+            }),
         })
     })
     .await
@@ -484,6 +488,7 @@ pub(super) async fn pair_state<R: tauri::Runtime>(
                 device: a.device,
                 address: a.address,
                 asked: a.asked,
+                link: a.link,
             }),
         })
     })

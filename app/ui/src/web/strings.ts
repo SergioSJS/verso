@@ -268,6 +268,7 @@ const pt = {
   // Pairing a phone with the computer that serves it (ADR 0096).
   pairTitle: "Conectar este celular",
   pairLead: "Este endereço é de um computador que serve as notas dele só para a sua rede. Para entrar, o computador precisa mostrar um QR ou um código de pareamento.",
+  pairLeadLink: "Este é o link na internet de um computador que serve as notas dele. Para entrar, quem serve abre Parear um celular no app e aprova este aparelho.",
   pairHow: "No computador: Ajustes › Transformar em servidor › Parear um celular. Leia o QR com a câmera, ou digite aqui o código que ele mostra.",
   pairCodeLabel: "Código de pareamento",
   pairCodeHint: "Oito letras, como BCDF-GHJK. Vale por 2 minutos.",
@@ -535,6 +536,7 @@ const en: WebStrings = {
   proveFirst: "This action needs you to confirm it is you. Try again and confirm.",
   pairTitle: "Connect this phone",
   pairLead: "This address is a computer serving its notes to your network only. To get in, the computer has to show a pairing QR or code.",
+  pairLeadLink: "This is the internet link of a computer serving its notes. To get in, the person serving opens Pair a phone in the app and approves this device.",
   pairHow: "On the computer: Settings › Turn into a server › Pair a phone. Scan the QR with the camera, or type here the code it shows.",
   pairCodeLabel: "Pairing code",
   pairCodeHint: "Eight letters, like BCDF-GHJK. Good for 2 minutes.",

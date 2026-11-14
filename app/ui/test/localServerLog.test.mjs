@@ -30,7 +30,7 @@ const S = await import("./.bundles/localServerLog.test-bundle.mjs");
  *  local/, campaign_cmds.rs, access_cmds.rs, invite_join.rs, the accounts). */
 const codes = [
   "local_on", "local_off", "link_on", "link_off", "seat_opened", "device_ended",
-  "pair_open", "pair_asked", "pair_refused_attempt", "pair_refused", "phone_first_connection",
+  "pair_open", "pair_asked", "pair_asked_link", "phone_link_ended", "pair_refused_attempt", "pair_refused", "phone_first_connection",
   "phone_connection_refused", "phone_revoked", "phones_forgotten", "identity_replaced",
   "campaign_make", "campaign_unmake", "campaign_settings", "campaign_release", "campaign_release_all",
   "campaign_audience", "campaign_access", "campaign_secret_name", "campaign_grant", "campaign_invite",

@@ -309,7 +309,14 @@ impl LocalServer {
             .filter(|r| r.link.is_some())
             .ok_or_else(|| "the internet link is off".to_owned())?;
         let said = origin.is_some();
+        let old = r.policy.link_origin();
+        let new = origin.as_ref().map(|o| o.origin.clone());
         r.policy.set_link(origin);
+        // A quick link's address ended: the phones paired through it end
+        // with it (ADR 0117 D5 (3)).
+        if super::link_pair::ends(old.as_deref(), new.as_deref()) {
+            super::link_pair::end(&r.server, &r.policy);
+        }
         drop(running);
         crate::log::info(if said {
             "the internet link has its address"
@@ -333,7 +340,11 @@ impl LocalServer {
         if r.link.is_none() {
             return;
         }
+        let old = r.policy.link_origin();
         r.policy.set_link(None);
+        if super::link_pair::ends(old.as_deref(), None) {
+            super::link_pair::end(&r.server, &r.policy);
+        }
         let alone = r.nets.is_empty();
         let listener = r.link.take();
         r.policy.audit(&r.server, "link_off", None, None);

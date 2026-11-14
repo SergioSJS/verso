@@ -110,11 +110,12 @@ async function start(): Promise<void> {
   if (path === "/device") return devicePage(s.account);
   // "This app is a server" (ADR 0096, ADR 0117 D3 item 2): the owner's
   // phone is paired (the QR's address, or a code typed at /pair) where
-  // this door pairs; a person invited signs in, on the network as through
-  // the internet link.
+  // this door pairs — on the network, and through the internet link (ADR
+  // 0117 D5); a person invited signs in, on the network as through the
+  // internet link.
   if (s.local && !s.account) {
     const pairing = s.pairing !== false;
-    if (path === "/pair" && pairing) return pairPage();
+    if (path === "/pair" && pairing) return pairPage(s.link === true);
     if (path !== "/signin") {
       location.href = `/signin?next=${encodeURIComponent(path === "/pair" ? "/" : path + location.search)}`;
       return;

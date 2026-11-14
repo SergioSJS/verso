@@ -4,8 +4,8 @@
 
 // The browser's pages of a game master's computer that serves (ADR 0117
 // D3 items 2 and 6): a player signs in there, beside the pairing of the
-// owner's phones — on the network both, through the internet link the
-// sign-in alone (`/api/state`'s `pairing`); and when the table goes away
+// owner's phones — on the network and, since ADR 0117 D5 (R3), through the
+// internet link too (`/api/state`'s `pairing`); and when the table goes away
 // under an open window (the computer stopped, slept, or the link ended)
 // the page says the table is offline, in the player's language, and
 // offers to try again. Nothing else changes for players: it is the

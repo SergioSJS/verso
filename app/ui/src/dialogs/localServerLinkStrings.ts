@@ -22,7 +22,13 @@ const pt = {
   linkLater: "O link liga junto com o servidor.",
   tickOne: "Marque “Na minha rede”, “Por um link na internet”, ou os dois.",
   servingLinkOnly: "Servindo só pelo link na internet.",
-  pairNeedsNetwork: "Parear um celular é pela sua rede: marque “Na minha rede” (pare de servir para mudar).",
+  pairNeedsNetwork: "Parear um celular precisa de “Na minha rede”, ou do link na internet ligado e no ar.",
+  // Pairing through the link (ADR 0117 D5): the same window, another QR.
+  pairByNetwork: "Este QR é pela sua rede: o celular precisa estar no mesmo Wi-Fi.",
+  pairByLink: "Este QR é pelo link na internet: abre de qualquer lugar, também nos dados móveis. O mesmo código vale, por 2 minutos.",
+  pairShowLink: "Mostrar o QR do link na internet",
+  pairShowNetwork: "Mostrar o QR da rede",
+  askedByLink: "Este pedido veio pelo link na internet, de qualquer lugar. Permita só se for um aparelho seu, na sua mão, agora.",
   starting: "Ligando o link…",
   downloading: (done: number, total: number | null): string =>
     `Baixando o cloudflared, da Cloudflare: ${total === null ? `${done} MB` : `${done} de ${total} MB`}. Só na primeira vez; depois o Verso confere a soma dele e liga o link.`,
@@ -141,7 +147,12 @@ const en: typeof pt = {
   linkLater: "The link turns on with the server.",
   tickOne: "Tick “On my network”, “By an internet link”, or both.",
   servingLinkOnly: "Serving by the internet link only.",
-  pairNeedsNetwork: "A phone pairs over your network: tick “On my network” (stop serving to change it).",
+  pairNeedsNetwork: "Pairing a phone needs “On my network”, or the internet link on and up.",
+  pairByNetwork: "This QR is over your network: the phone has to be on the same Wi-Fi.",
+  pairByLink: "This QR is through the internet link: it opens from anywhere, mobile data too. The same code works, for 2 minutes.",
+  pairShowLink: "Show the internet link's QR",
+  pairShowNetwork: "Show the network's QR",
+  askedByLink: "This request came through the internet link, from anywhere. Allow it only if it is a device of yours, in your hands, now.",
   starting: "Turning the link on…",
   downloading: (done, total) =>
     `Downloading cloudflared, Cloudflare's program: ${total === null ? `${done} MB` : `${done} of ${total} MB`}. Only the first time; then Verso checks its sum and turns the link on.`,

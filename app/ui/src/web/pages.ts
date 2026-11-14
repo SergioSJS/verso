@@ -470,8 +470,10 @@ const PAIR_POLL_MS = 2000;
 
 /** The pairing page: the QR's address carries the token in its fragment,
  *  which the browser never sends in a request; it is read here and taken
- *  out of the address bar at once. Without a token, the code is typed. */
-export function pairPage(): void {
+ *  out of the address bar at once. Without a token, the code is typed.
+ *  Through the internet link (`link`, ADR 0117 D5) it says so, and nothing
+ *  of the network's own certificate. */
+export function pairPage(link = false): void {
   const s = w();
   const token = new URLSearchParams(location.hash.slice(1)).get("t");
   // The secret leaves the address bar, the history and the screen.
@@ -489,7 +491,8 @@ export function pairPage(): void {
     },
     explainPair,
   );
-  page(s.pairTitle, lead(s.pairLead), el("p", { class: "web-lead" }, s.pairHow), f.form, el("p", { class: "web-note" }, s.pairTofu));
+  if (link) page(s.pairTitle, lead(s.pairLeadLink), el("p", { class: "web-lead" }, s.pairHow), f.form);
+  else page(s.pairTitle, lead(s.pairLead), el("p", { class: "web-lead" }, s.pairHow), f.form, el("p", { class: "web-note" }, s.pairTofu));
   focusOnOpen(code.input);
 }
 

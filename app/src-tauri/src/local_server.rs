@@ -12,8 +12,8 @@
 
 use verso_contract::{
     LocalAddressChoice, LocalAsked, LocalAudit, LocalDevice, LocalFolder, LocalInvitation,
-    LocalLink, LocalOwnLogin, LocalPairState, LocalPairing, LocalPhone, LocalPlayer, LocalReset,
-    LocalServerStatus,
+    LocalLink, LocalOwnLogin, LocalPairLink, LocalPairState, LocalPairing, LocalPhone, LocalPlayer,
+    LocalReset, LocalServerStatus,
 };
 
 use super::*;

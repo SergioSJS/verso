@@ -53,6 +53,7 @@
   .ls-dialog .ls-pair-body > .ls-qr { grid-column: 1; grid-row: 2 / span 12; width: 100%; }
   .ls-dialog .ls-pair-body > .btn { justify-self: start; }
 }
+.ls-pair-link { display: flex; flex-direction: column; gap: .4rem; align-items: inherit; }
 .ls-pair-body { display: flex; flex-direction: column; align-items: center; gap: .7rem; text-align: center; }
 .ls-qr { width: min(18rem, 70vw); height: auto; border: 1px solid var(--hair); border-radius: 8px; background: #fff; }
 .ls-facts { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; margin: 0; text-align: start; font-size: .9rem; width: 100%; }

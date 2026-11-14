@@ -28,6 +28,7 @@ pub mod cert;
 mod devices;
 mod invites;
 pub mod link;
+pub mod link_pair;
 mod live;
 mod names;
 pub mod net;
@@ -52,6 +53,8 @@ mod tests_devices;
 mod tests_link;
 #[cfg(test)]
 mod tests_link_load;
+#[cfg(test)]
+mod tests_link_pair;
 #[cfg(test)]
 mod tests_parts;
 #[cfg(test)]
@@ -283,6 +286,9 @@ pub struct PairView {
     pub expires_in: u64,
     pub fingerprint: String,
     pub certificate: String,
+    /// The same window's address through the internet link, its token in
+    /// the fragment, while the link has an address (ADR 0117 D5).
+    pub link: Option<link_pair::PairLink>,
 }
 
 /// One address the pairing dialog may show (ADR 0096 item 3, as built).
@@ -709,6 +715,8 @@ impl LocalServer {
         let db = self.open_db()?;
         let owner = db.local_owner()?;
         db.purge_phones()?;
+        // A quick link never outlives a run: its phones end (ADR 0117 D5).
+        link_pair::end_left(&db, &owner.id)?;
         // No seat outlives serving: one a crash left is swept.
         db.end_seats(&owner.id, seat::SEAT_DEVICE)?;
         // The folders ticked, by the name each was given once and keeps
@@ -1040,6 +1048,7 @@ impl LocalServer {
         let Some(r) = running else { return false };
         r.policy.pairing().close();
         r.policy.stop_announcing();
+        link_pair::end(&r.server, &r.policy);
         r.policy.audit(&r.server, "local_off", None, None);
         seat::close(&r);
         crate::log::info("local server stopped");
@@ -1068,13 +1077,17 @@ impl LocalServer {
                 "{PAIRED} phones are paired already: revoke one before pairing another"
             ));
         }
-        // A phone pairs on the network (ADR 0096 items 3 and 6); the link's
-        // listener answers no pairing ([OPEN] for the maintainer, the
-        // smaller door kept: `routes.rs`).
-        let first = r
-            .nets
-            .first()
-            .ok_or_else(|| "pairing a phone is on your network: tick On my network".to_owned())?;
+        // A phone pairs on the network (ADR 0096 items 3 and 6) and through
+        // the internet link while it has an address (ADR 0117 D5): the link
+        // alone shows the link's QR.
+        let link_origin = r.policy.link_origin();
+        let Some(first) = r.nets.first() else {
+            let origin = link_origin.ok_or_else(|| {
+                "pairing a phone needs On my network, or the internet link on".to_owned()
+            })?;
+            let opened = r.policy.pairing().open(Instant::now())?;
+            return link_pair::view(&self.shared, r, &origin, opened);
+        };
         let chosen_net = match address.filter(|a| !a.is_empty()) {
             None => first,
             Some(a) => r
@@ -1085,6 +1098,9 @@ impl LocalServer {
         };
         let default = self.shared.ifaces.default_route();
         let opened = r.policy.pairing().open(Instant::now())?;
+        let link = link_origin
+            .map(|o| link_pair::pair_link(&o, &opened.token))
+            .transpose()?;
         let settings_name = read_settings(&r.server.db)
             .host_name
             .filter(|h| !h.is_empty());
@@ -1136,6 +1152,7 @@ impl LocalServer {
             expires_in: opened.expires_in.as_secs(),
             fingerprint: cert::spaced(&r.fingerprint),
             certificate: r.certificate.to_owned(),
+            link,
         })
     }
 
@@ -1208,8 +1225,17 @@ impl LocalServer {
             (self.shared.events)(Event::Changed);
             return Ok(());
         }
+        let quick = match link_pair::before_allowing(r, &asked) {
+            Ok(quick) => quick,
+            Err(why) => {
+                r.policy.pairing().answer(None);
+                crate::log::warn(&format!("a pairing through the internet link: {why}"));
+                return Err(why);
+            }
+        };
         let owner = owner_of(&r.server);
-        // Never an owner: a phone reads or edits (item 12).
+        // Never an owner: a phone reads or edits (item 12), through the
+        // link as on the network (ADR 0117 D5).
         let role = if role.writes() {
             Role::Editor
         } else {
@@ -1226,6 +1252,13 @@ impl LocalServer {
                     e
                 }
             })?;
+        // Kept, or the pairing is not made: a quick link's phone that
+        // outlived its address would hold a place (D5 (3)).
+        if quick && let Err(why) = link_pair::remember(&r.server.db, &session) {
+            let _ = r.server.db.end_session(&owner, &session);
+            r.policy.pairing().answer(None);
+            return Err(why);
+        }
         r.policy.pairing().answer(Some(Ready {
             token,
             csrf,

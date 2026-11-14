@@ -11,7 +11,7 @@ const win = new Window({
   url: "https://verso.test/",
   settings: { navigation: { disableMainFrameNavigation: true } },
 });
-for (const name of ["window", "document", "location", "HTMLElement", "Node", "Element", "localStorage", "addEventListener", "dispatchEvent", "CustomEvent"]) {
+for (const name of ["window", "document", "location", "history", "HTMLElement", "Node", "Element", "localStorage", "addEventListener", "dispatchEvent", "CustomEvent"]) {
   globalThis[name] = name === "window" ? win : win[name];
 }
 Object.defineProperty(globalThis, "navigator", { value: win.navigator, configurable: true });
@@ -174,5 +174,33 @@ describe("The sign-in link page", () => {
     await until(() => document.querySelector("main")?.textContent.includes("link"), "the link is said gone");
     assert.equal(document.querySelector("main button"), null);
     assert.deepEqual(sent.map((s) => s.key), [`GET ${path}`]);
+  });
+});
+
+describe("The pairing page", () => {
+  // The owner's phone pairs through the internet link too (ADR 0117 D5,
+  // R3): there the page says it is the link, and nothing of the network's
+  // own certificate, whose warning a link never shows.
+  const tofu = /certificado que o próprio app fez|certificate the app itself made/;
+
+  test("through the link: the link's words, no certificate warning, and the typed code sent", async () => {
+    win.happyDOM.setURL("https://mesa.trycloudflare.com/pair");
+    answers["POST /api/pair"] = { status: 404, body: { error: "not_found", message: "closed" } };
+    pages.pairPage(true);
+    const main = document.querySelector("main");
+    assert.match(main.textContent, /link na internet|internet link/);
+    assert.doesNotMatch(main.textContent, tofu);
+    await enter("bcdf ghjk");
+    await until(() => sent.length === 1, "the typed code is sent");
+    assert.deepEqual(sent, [{ key: "POST /api/pair", body: { token: "bcdf ghjk" } }]);
+    // No window open in the app: said in words, not as a code.
+    await until(() => document.querySelector("[role=alert]"), "the refusal is said");
+    assert.match(document.querySelector("[role=alert]").textContent, /Parear um celular|Pair a phone/);
+  });
+
+  test("on the network: the certificate warning, as before", () => {
+    win.happyDOM.setURL("https://192.168.1.20:51234/pair");
+    pages.pairPage(false);
+    assert.match(document.querySelector("main").textContent, tofu);
   });
 });
