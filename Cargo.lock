@@ -6486,7 +6486,6 @@ dependencies = [
  "blake2",
  "block2",
  "chrono",
- "flate2",
  "futures-util",
  "gtk",
  "jni 0.22.4",
@@ -6518,7 +6517,6 @@ dependencies = [
  "sha2 0.10.9",
  "specta",
  "specta-typescript",
- "tar",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -6535,6 +6533,7 @@ dependencies = [
  "verso-fs",
  "verso-server",
  "verso-service",
+ "verso-tunnel",
  "wasapi",
  "webkit2gtk",
  "webview2-com",
@@ -6696,6 +6695,20 @@ dependencies = [
  "verso-contract",
  "verso-core",
  "verso-fs",
+]
+
+[[package]]
+name = "verso-tunnel"
+version = "0.8.4-beta.1"
+dependencies = [
+ "flate2",
+ "nix 0.31.3",
+ "reqwest",
+ "serde",
+ "sha2 0.10.9",
+ "tar",
+ "tempfile",
+ "win32job",
 ]
 
 [[package]]

@@ -2,13 +2,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! Every file the internet link touches, and the one module of `tunnel/`
-//! allowed `std::fs` (ADR 0029, a declared exception: `scripts/check.sh`
-//! and `.github/workflows/ci.yml` hold the crate's `std::fs` to this file
-//! beside `src/update.rs`, `src/log.rs` and `src/resolv_conf.rs`).
+//! Every file the internet link touches, and the one module of this crate
+//! allowed `std::fs` (ADR 0029, a declared exception, ratified by the
+//! maintainer on 2026-11-04 — ADR 0117 D14 — for this file when it was
+//! `app/src-tauri/src/tunnel/files.rs`, and moved here with it in R5:
+//! `scripts/check.sh` and `.github/workflows/ci.yml` hold the crate's
+//! `std::fs` to this file).
 //!
-//! What it touches is the app's own data directory, `<config>/tunnel/`
-//! ([0011](../../../../docs/adr/0011-config-outside-tree-index-as-cache.md)):
+//! What it touches is the host's own data directory, `<dir>/tunnel/` — the
+//! app's configuration directory
+//! ([0011](../../../docs/adr/0011-config-outside-tree-index-as-cache.md)),
+//! a UniVerso's `VERSO_DATA_DIR` ([0075](../../../docs/adr/0075-server-packaging-and-storage.md)):
 //! the pinned `cloudflared` (downloaded, checked, extracted, made
 //! runnable) and an own address's tunnel credentials (ADR 0117 D10 item 3,
 //! `0600`). Never a file of an open folder (ADR 0026 rule 5), and never
@@ -25,7 +29,7 @@ use sha2::Digest;
 
 /// The words of a download ended by a stop: the window's `linkWhy` reads
 /// them as the link turned off before it was up.
-pub(crate) const STOPPED: &str = "the link was stopped";
+pub const STOPPED: &str = "the link was stopped";
 
 /// The directory, made if it is not there; `0700` on Unix (it will hold a
 /// tunnel's credentials).
@@ -41,7 +45,7 @@ pub(crate) fn make_dir(dir: &Path) -> Result<(), String> {
 }
 
 /// The file's SHA-256 in lower-case hex; `None` when there is no file.
-pub(crate) fn sha256_of(path: &Path) -> Result<Option<String>, String> {
+pub fn sha256_of(path: &Path) -> Result<Option<String>, String> {
     let mut file = match std::fs::File::open(path) {
         Ok(f) => f,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -163,12 +167,12 @@ pub(crate) fn settle_credentials(from: &Path, to: &Path) -> Result<(), String> {
 }
 
 /// Whether a file is at `path` (its metadata alone: nothing is read).
-pub(crate) fn is_there(path: &Path) -> bool {
+pub fn is_there(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|m| m.is_file())
 }
 
 /// Remove a file; one that is not there is no failure.
-pub(crate) fn remove(path: &Path) {
+pub fn remove(path: &Path) {
     let _ = std::fs::remove_file(path);
 }
 

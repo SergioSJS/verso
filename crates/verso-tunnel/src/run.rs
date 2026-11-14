@@ -80,6 +80,11 @@ pub enum Seen {
     Url(String),
     /// "Registered tunnel connection", with its `protocol=`.
     Registered(String),
+    /// "Register tunnel error from server side": Cloudflare refused the
+    /// tunnel itself (a token for no tunnel of the account, a tunnel
+    /// deleted — the spike of 2026-11-13, `RESULTS-R5.md`), with its
+    /// `error=` words.
+    Refused(String),
     /// An `ERR` line, with every address in it taken out.
     Error(String),
     /// `stderr` closed: the process ended.
@@ -103,6 +108,13 @@ pub fn parse_line(line: &str, created: bool) -> Option<Seen> {
     }
     if created && let Some(url) = quick_url(line) {
         return Some(Seen::Url(url));
+    }
+    if line.contains("Register tunnel error from server side") {
+        let words = line
+            .split_once("error=\"")
+            .and_then(|(_, rest)| rest.split_once('"'))
+            .map_or("", |(words, _)| words);
+        return Some(Seen::Refused(redact(words)));
     }
     if line.contains(" ERR ") {
         return Some(Seen::Error(redact(line)));
@@ -244,12 +256,35 @@ pub fn spawn(
     args: &[OsString],
     timing: &Timing,
 ) -> Result<(Tunnel, Receiver<Seen>), String> {
+    spawn_with(program, args, timing, None)
+}
+
+/// The variables `cloudflared` reads a tunnel's token from: never passed
+/// on from the host's own environment, so that a quick link or an own
+/// address by its credentials is never another tunnel's run.
+pub const TOKEN_VARIABLES: [&str; 2] = ["TUNNEL_TOKEN", "TUNNEL_TOKEN_FILE"];
+
+/// [`spawn`], with a tunnel's `token` in the child's environment
+/// (`TUNNEL_TOKEN`): out of the command line, which any user of the
+/// machine may read, and out of every file.
+pub fn spawn_with(
+    program: &Path,
+    args: &[OsString],
+    timing: &Timing,
+    token: Option<&str>,
+) -> Result<(Tunnel, Receiver<Seen>), String> {
     let mut command = Command::new(program);
     command
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
+    for name in TOKEN_VARIABLES {
+        command.env_remove(name);
+    }
+    if let Some(token) = token {
+        command.env("TUNNEL_TOKEN", token);
+    }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -391,6 +426,17 @@ enum Miss {
     Failed(String),
 }
 
+/// What a run by a tunnel's token adds ([`up_with`]).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Extra<'a> {
+    /// The tunnel's token, for the child's environment ([`spawn_with`]).
+    pub token: Option<&'a str>,
+    /// Cloudflare refusing the tunnel ([`Seen::Refused`]) ends the start
+    /// at once, in its words, instead of waiting for both protocols:
+    /// `cloudflared` itself retries a refused token for ever.
+    pub refusal_ends: bool,
+}
+
 /// Start the tunnel and return once it has a registered connection: with
 /// QUIC first and, failing that, `--protocol http2`. `args(http2)` builds
 /// the command line; `quick` waits for a quick link's URL first. `cancel`
@@ -402,7 +448,32 @@ pub fn up(
     timing: &Timing,
     cancel: &AtomicBool,
 ) -> Result<Up, String> {
-    match attempt(program, &args(false), quick, timing.quic, timing, cancel) {
+    run_up(program, args, quick, &Extra::default(), timing, cancel)
+}
+
+/// [`up`] for an own address by a tunnel's token (never a quick link).
+pub fn up_with(
+    program: &Path,
+    args: &dyn Fn(bool) -> Vec<OsString>,
+    extra: &Extra<'_>,
+    timing: &Timing,
+    cancel: &AtomicBool,
+) -> Result<Up, String> {
+    run_up(program, args, false, extra, timing, cancel)
+}
+
+fn run_up(
+    program: &Path,
+    args: &dyn Fn(bool) -> Vec<OsString>,
+    quick: bool,
+    extra: &Extra<'_>,
+    timing: &Timing,
+    cancel: &AtomicBool,
+) -> Result<Up, String> {
+    let attempt = |args: &[OsString], wait: Duration| {
+        attempt(program, args, quick, wait, extra, timing, cancel)
+    };
+    match attempt(&args(false), timing.quic) {
         Ok(up) => return Ok(up),
         Err(Miss::Failed(why)) => return Err(why),
         Err(Miss::NotRegistered) => crate::log::write(
@@ -414,7 +485,7 @@ pub fn up(
             ),
         ),
     }
-    match attempt(program, &args(true), quick, timing.http2, timing, cancel) {
+    match attempt(&args(true), timing.http2) {
         Ok(up) => Ok(up),
         Err(Miss::Failed(why)) => Err(why),
         Err(Miss::NotRegistered) => Err(
@@ -430,10 +501,11 @@ fn attempt(
     args: &[OsString],
     quick: bool,
     register_wait: Duration,
+    extra: &Extra<'_>,
     timing: &Timing,
     cancel: &AtomicBool,
 ) -> Result<Up, Miss> {
-    let (tunnel, rx) = spawn(program, args, timing).map_err(Miss::Failed)?;
+    let (tunnel, rx) = spawn_with(program, args, timing, extra.token).map_err(Miss::Failed)?;
     let started = Instant::now();
     let mut url: Option<String> = None;
     let mut url_at: Option<Instant> = None;
@@ -469,7 +541,12 @@ fn attempt(
                 url_at = Some(Instant::now());
             }
             Ok(Seen::Registered(p)) => protocol = Some(p),
-            Ok(Seen::Error(e)) => last_error = Some(e),
+            Ok(Seen::Refused(words)) if extra.refusal_ends => {
+                return Err(Miss::Failed(format!(
+                    "Cloudflare refused the tunnel: {words} (is the token the one of a tunnel of your account, made in Cloudflare's dashboard?)"
+                )));
+            }
+            Ok(Seen::Refused(e) | Seen::Error(e)) => last_error = Some(e),
             Ok(Seen::Ended) | Err(RecvTimeoutError::Disconnected) => {
                 let why = last_error.map_or_else(String::new, |e| format!(": {e}"));
                 return Err(Miss::Failed(format!(
