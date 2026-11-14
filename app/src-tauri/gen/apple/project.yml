@@ -57,8 +57,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
-        CFBundleShortVersionString: 0.8.5
-        CFBundleVersion: "80501"
+        CFBundleShortVersionString: 0.9.0
+        CFBundleVersion: "90001"
     entitlements:
       path: verso-app_iOS/verso-app_iOS.entitlements
     scheme:

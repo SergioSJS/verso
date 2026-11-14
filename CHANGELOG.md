@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.9.0-beta.1 — 2026-11-14
+
 ### Added
 
 - **Move a table to its other server** (ADR 0117 D8, R9). A folder of this computer that Verso serves and that also syncs with a UniVerso has two servers, and a table lives on one. The table's window now offers its game master **Move this table to …** — to the UniVerso from this computer's table, or to this computer from the UniVerso's folder — asked first. The table is made there with every note hidden and no players (invite them again: the window takes you there and opens the table's window); where it was, it closes for good to its players, who read **The table moved to another server: ask the game master for a new invitation.** Its chat, rolls and rights stay on the old server, untouched, until you undo that table, and its window says so; undoing it there also takes out the players it had, who lose access to that folder on the old server (a place you gave someone outside the table stays).

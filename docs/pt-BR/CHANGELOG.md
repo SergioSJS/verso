@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.9.0-beta.1 — 2026-11-14
+
 ### Acrescentado
 
 - **Mudar uma mesa para o outro servidor dela** (ADR 0117 D8, R9). Uma pasta deste computador que o Verso serve e que também sincroniza com um UniVerso tem dois servidores, e uma mesa mora em um só. A janela da mesa agora oferece ao mestre **Mudar esta mesa para: …** — para o UniVerso, a partir da mesa deste computador, ou para este computador, a partir da pasta do UniVerso — com uma pergunta antes. A mesa é criada lá com todas as notas ocultas e sem jogadores (convide-os de novo: a janela leva você até lá e abre a janela da mesa); onde estava, ela fecha de vez para os jogadores, que leem **A mesa mudou de servidor: peça ao mestre um convite novo.** O chat, as rolagens e os direitos dela ficam no servidor antigo, intactos, até você desfazer essa mesa, e a janela diz isso; desfazê-la ali também tira os jogadores que ela tinha, que perdem o acesso a essa pasta no servidor antigo (um lugar que você deu a alguém fora da mesa continua).
