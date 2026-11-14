@@ -36,7 +36,7 @@ The shortest path: paste the compose file, open `http://<the machine's IP>:7340`
 ## The first admin and the accounts
 
 - The admin comes from the `VERSO_ADMIN_EMAIL` and `VERSO_ADMIN_PASSWORD` variables, **on the first start only**. Without them, the log shows a setup link that is valid for one hour.
-- **Nobody signs up on their own**: the admin **invites**, with a single-use link that is valid for seven days, and sees who used it.
+- **Nobody signs up on their own**: the admin **invites**, with a single-use link that is valid for seven days, and sees who used it. An account the admin gave the **creates folders** power invites too, only into the tables of its own folders and only to read; in the console, **Made by** says who made each invitation.
 - Each folder has an **owner**, **editors** and **readers**. The admin does not enter a folder without granting themselves access — and that goes in the log the owner reads.
 - Forgotten password: the admin makes a new-password link. Lost admin: `universo admin reset <e-mail>` on the machine itself.
 - Lost phone: on the account page, in the console, **End sessions and tokens** signs the account out of every browser and device at once and revokes its tokens, without changing the password — and it goes in the log.

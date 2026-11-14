@@ -36,7 +36,7 @@ O caminho mais curto: cole o arquivo compose, abra `http://<IP da máquina>:7340
 ## O primeiro admin e as contas
 
 - O admin vem das variáveis `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD`, **só na primeira subida**. Sem elas, o log mostra um link de configuração que vale uma hora.
-- **Ninguém se cadastra sozinho**: o admin **convida**, com um link de uso único que vale sete dias, e vê quem o usou.
+- **Ninguém se cadastra sozinho**: o admin **convida**, com um link de uso único que vale sete dias, e vê quem o usou. Uma conta a quem o admin deu a permissão **cria pastas** também convida, só para as mesas das pastas dela e só para ler; no console, **Feito por** diz quem fez cada convite.
 - Cada pasta tem um **dono**, **editores** e **leitores**. O admin não entra numa pasta sem dar acesso a si mesmo — e isso fica no registro que o dono lê.
 - Senha esquecida: o admin gera um link de senha nova. Admin perdido: `universo admin reset <e-mail>` na própria máquina.
 - Celular perdido: na página da conta, no console, **Encerrar sessões e tokens** desconecta a conta de todo navegador e aparelho na hora e revoga os tokens dela, sem trocar a senha — e fica no registro.
