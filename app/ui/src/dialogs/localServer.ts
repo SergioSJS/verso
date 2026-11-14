@@ -28,6 +28,7 @@ import { playersBlock } from "./localServerPlayers";
 import { hearSeat, lookAgain, onSeatChange, setOpener } from "./localServerSeat";
 import type { openFolderBy } from "../open";
 import { drawQr } from "./qr";
+import { askedByLink, firstShown, linkSwitch, pairOffered, typedAddress, type Shown } from "./localServerPairLink";
 
 /** What the host emits as `local-server` (verso_server::local::Event). */
 type Heard =
@@ -527,11 +528,11 @@ export function localServerBody(_item: Item): HTMLElement {
       const steps = mac ? w.unreachableMac : windows ? w.unreachableWindows : w.unreachableLinux(s.port);
       blocked.replaceChildren(h("p", "", w.unreachable), h("p", "ls-help", steps));
     }
-    // Pairing is the network's (a phone on the same Wi-Fi): not with the
-    // internet link alone.
-    const onNet = s.serving && s.port !== null;
-    pair.disabled = !onNet;
-    pairHelp.hidden = onNet;
+    // A phone pairs on the network (the same Wi-Fi) and through the
+    // internet link once it has its address (ADR 0117 D5).
+    const can = pairOffered(s);
+    pair.disabled = !can;
+    pairHelp.hidden = can;
     pairHelp.textContent = s.serving ? linkStrings().pairNeedsNetwork : w.pairNeedsOn;
     boxes.draw(s);
     // Why it stopped by itself, from the host's phrase (verso-server local/mod.rs).
@@ -779,6 +780,8 @@ export function openPairing(): void {
     const editor = h("input");
     editor.type = "checkbox";
     editor.id = "ls-editor";
+    // An editor chosen first (ADR 0117 D5 (2)): the owner's own device.
+    editor.checked = true;
     const editorLabel = h("label", "ls-check");
     editorLabel.htmlFor = editor.id;
     editorLabel.append(editor, h("span", "", w.canEdit));
@@ -803,6 +806,8 @@ export function openPairing(): void {
     refuse.addEventListener("click", () => answer(false));
     const row = h("div", "confirm-actions");
     row.append(refuse, allow);
+    const byLink = askedByLink(a.link);
+    if (byLink) ask.append(byLink);
     ask.append(facts, editorLabel, h("p", "ls-help", w.canEditDesc), row);
     refuse.focus();
   };
@@ -859,15 +864,18 @@ export function choiceLabel(c: LocalAddressChoice): string {
   return `${c.address} — ${c.interface} (${what})`;
 }
 
-function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string) => void): void {
+function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string) => void, shown: Shown = firstShown(p)): void {
   const w = localStrings();
-  body.replaceChildren(h("p", "ls-help", w.pairSteps), drawQr(p.qr, w.qrLabel));
+  // The network's QR, or the same window's through the internet link
+  // (ADR 0117 D5): the token is the same, and so is the code.
+  const qr = shown.link && p.link ? p.link.qr : p.qr;
+  body.replaceChildren(h("p", "ls-help", w.pairSteps), drawQr(qr, w.qrLabel));
   const facts = h("dl", "ls-facts");
   const addr = h("dd", "ls-big");
-  addr.append(h("code", "", `https://${p.address}/pair`));
+  addr.append(h("code", "", typedAddress(shown.url)));
   // Which address, on which interface; the list lets the person pick
   // another (a native list: keyboard and screen reader for free).
-  if (p.choices.length > 0) {
+  if (p.choices.length > 0 && !shown.link) {
     const row = h("p", "ls-pick");
     const label = h("label", "ls-help", w.addressPick);
     label.htmlFor = "ls-address";
@@ -898,6 +906,11 @@ function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string)
   code.append(h("code", "ls-code", p.code));
   facts.append(h("dt", "", w.address), addr, h("dt", "", w.code), code);
   body.append(facts);
+  const swap = linkSwitch(p, shown, (next) => {
+    drawPairing(body, p, pick, next);
+    body.querySelector<HTMLElement>(".ls-pair-link .btn")?.focus();
+  });
+  if (swap) body.append(swap);
   // The same link the QR encodes, for a phone that cannot scan or a
   // message to oneself: it carries the same one-time token, in the part
   // after `#` that no server (nor a messenger's preview) receives.
@@ -906,13 +919,13 @@ function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string)
   const copied = h("p", "ls-help");
   copied.setAttribute("role", "status");
   copy.addEventListener("click", () => {
-    void navigator.clipboard.writeText(p.url).then(
+    void navigator.clipboard.writeText(shown.url).then(
       () => { copied.textContent = w.linkCopied; },
       () => { copied.textContent = w.linkNotCopied; },
     );
   });
   body.append(copy, copied);
-  if (p.certificate === "own") {
+  if (p.certificate === "own" && !shown.link) {
     body.append(h("p", "ls-help", w.trustOwn));
     const fp = h("p", "ls-fp");
     fp.append(h("strong", "", `${w.fingerprint}: `), h("code", "", p.fingerprint));

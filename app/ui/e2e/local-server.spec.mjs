@@ -71,16 +71,18 @@ test("a phone is paired only when the laptop says Allow, and can then be revoked
   await expect(dialog.getByText("Foi você quem leu este QR?")).toBeVisible();
   await expect(dialog.getByText("iPhone da Ana")).toBeVisible();
   await expect(dialog.getByText("192.168.1.77")).toBeVisible();
+  // An editor chosen first (ADR 0117 D5 (2)): the owner's own device.
+  await expect(dialog.getByRole("checkbox", { name: "Pode editar as notas" })).toBeChecked();
   await dialog.getByRole("button", { name: "Permitir" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(body.getByText("iPhone da Ana · só lê")).toBeVisible();
+  await expect(body.getByText("iPhone da Ana · edita")).toBeVisible();
   await expect(body.getByText("1 celular pareado").first()).toBeVisible();
   await body.getByRole("button", { name: "Revogar iPhone da Ana: a sessão dele termina agora" }).click();
   await expect(body.getByText("Revogado. O celular foi desconectado.")).toBeVisible();
   await expect(body.getByText("Nenhum ainda.")).toBeVisible();
   // What happened is kept and shown, without a secret in it.
   await body.getByText("O que aconteceu").click();
-  await expect(body.locator(".ls-log-list")).toContainText("Celular permitido (só lê)");
+  await expect(body.locator(".ls-log-list")).toContainText("Celular permitido (edita)");
   await expect(body.locator(".ls-log-list")).toContainText("Celular revogado");
 });
 
@@ -194,6 +196,8 @@ test("a paired phone can be let edit, or only read, without pairing again", asyn
   const dialog = page.getByRole("dialog", { name: "Parear um celular" });
   await expect(dialog.getByRole("img", { name: "QR de pareamento" })).toBeVisible();
   await page.evaluate(() => window.__harness.core.localServer.askAsPhone("Pixel do Caio"));
+  // Only reading, chosen in the question (an editor is chosen first).
+  await dialog.getByRole("checkbox", { name: "Pode editar as notas" }).uncheck();
   await dialog.getByRole("button", { name: "Permitir" }).click();
   await expect(body.getByText("Pixel do Caio · só lê")).toBeVisible();
   const toggle = body.getByRole("checkbox", { name: "Pixel do Caio: pode editar as notas" });

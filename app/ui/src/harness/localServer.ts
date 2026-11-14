@@ -55,7 +55,7 @@ export class LocalServerHarness {
   private paired: LocalPhone[] = [];
   private audit: LocalAudit[] = [];
   private open = false;
-  private asked: { device: string; address: string; asked: string } | null = null;
+  private asked: { device: string; address: string; asked: string; link: boolean } | null = null;
   private nextId = 1;
   private cert: Pick<LocalServerStatus, "cert_file" | "key_file" | "host_name"> = { cert_file: null, key_file: null, host_name: null };
   private ticked = new Set<string>();
@@ -270,11 +270,14 @@ export class LocalServerHarness {
     };
   }
 
-  /** A phone presents the token: the dialog is asked "Was it you?". */
-  askAsPhone(device = "iPhone de teste"): void {
+  /** A phone presents the token: the dialog is asked "Was it you?" — on
+   *  the network, or through the internet link (`link`, ADR 0117 D5), from
+   *  the address the tunnel forwarded. */
+  askAsPhone(device = "iPhone de teste", link = false): void {
     if (!this.open) throw new Error("no pairing window is open");
-    this.asked = { device, address: "192.168.1.77", asked: "2026-10-15T10:00:00Z" };
-    this.log("pair_asked", device, "192.168.1.77");
+    const address = link ? "203.0.113.9" : "192.168.1.77";
+    this.asked = { device, address, asked: "2026-10-15T10:00:00Z", link };
+    this.log(link ? "pair_asked_link" : "pair_asked", device, address);
   }
 
   readonly handlers: Record<string, (a: Args) => unknown> = {
@@ -379,10 +382,18 @@ export class LocalServerHarness {
       const chosen = address ?? "192.168.3.122";
       if (!this.serving) refuse("turn serving on first");
       if (this.paired.length >= 4) refuse("4 phones are paired already: revoke one before pairing another");
+      // Through the internet link too, once it has its address (ADR 0117 D5).
+      const origin = this.link.state === "on" ? this.link.origin : null;
+      if (!this.lan && origin === null) refuse("pairing a phone needs On my network, or the internet link on");
       this.open = true;
       this.asked = null;
       this.log("pair_open");
       const rows = square();
+      const link = origin ? { url: `${origin}/pair#t=harness`, qr: square() } : null;
+      if (!this.lan && link) {
+        const name = link.url.slice("https://".length).split("/")[0] ?? "";
+        return { url: link.url, address: name, choices: [], chosen: name, code: "BCDF-GHJK", qr: link.qr, expires_in: 120, fingerprint: "", certificate: "link", link };
+      }
       return {
         url: `https://${chosen}:51234/pair#t=harness&fp=abcd&c=0123456789abcdef`,
         address: `${chosen}:51234`,
@@ -393,6 +404,7 @@ export class LocalServerHarness {
         expires_in: 120,
         fingerprint: this.fingerprint,
         certificate: this.cert.cert_file ? "files" : "own",
+        link,
       };
     },
     local_server_pair_close: (): null => {

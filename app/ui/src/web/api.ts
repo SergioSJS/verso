@@ -23,9 +23,14 @@ export type State = {
   /** "This app is a server" (ADR 0096): a desktop app serving a phone,
    *  which pairs; and people it invited, who sign in (ADR 0117 D3 item 2). */
   local?: boolean;
-  /** This door pairs a phone (ADR 0117 D1): the network's does, the
-   *  internet link's does not. */
+  /** This door pairs a phone: the network's, and since ADR 0117 D5 (R3)
+   *  the internet link's too, answering only while the owner's *Pair a
+   *  phone* is open in the app. */
   pairing?: boolean;
+  /** This page came through the internet link of a computer that serves
+   *  (ADR 0117 D5): its pairing page says nothing of the network's own
+   *  certificate. */
+  link?: boolean;
   /** This door offers passkeys: false on the network of a computer that
    *  serves (ADR 0117 D9, S13), true through its link and on a UniVerso. */
   passkeys?: boolean;

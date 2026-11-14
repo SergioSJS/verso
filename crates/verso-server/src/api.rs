@@ -36,11 +36,15 @@ pub async fn state(ctx: Ctx) -> ApiResult<Response> {
         // D3 item 2 a person invited signs in there too ("accounts").
         "local": ctx.server.local.is_some(),
         "accounts": true,
-        // Whether this door offers pairing (ADR 0117 D1): the network's
-        // does; the internet link's, whose requests a trusted proxy alone
-        // forwards, answers pairing as an unknown route, and its page says
-        // nothing of it.
-        "pairing": ctx.server.local.is_some() && !ctx.peer.link,
+        // Whether this door offers pairing: both of "this app is a
+        // server" do — the network's (ADR 0096) and, since ADR 0117 D5
+        // (R3), the internet link's, whose pairing answers only while the
+        // owner's *Pair a phone* is open in the app.
+        "pairing": ctx.server.local.is_some(),
+        // This page came through the internet link of "this app is a
+        // server": its pairing page says no word of the network's own
+        // certificate (ADR 0117 D5).
+        "link": ctx.server.local.is_some() && ctx.peer.link,
         // Whether a passkey can be added and used from this page: in "this
         // app is a server", through its internet link alone (ADR 0117 D9).
         "passkeys": ctx.server.local.is_none() || ctx.peer.link,
