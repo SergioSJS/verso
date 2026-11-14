@@ -110,6 +110,18 @@ services:
       # believed without this; set it only to replace that list (addresses
       # and CIDRs separated by commas) or to `none` to believe no proxy.
       # VERSO_TRUSTED_PROXY: ""
+      # Optional. The server's own link on the internet through Cloudflare
+      # (ADR 0117), for a server with no domain or open port: `quick` (a
+      # random https://….trycloudflare.com, new at each start, 12 hours with
+      # Extend in the admin console) or `own` (your address: a tunnel made
+      # in Cloudflare's dashboard, its hostname and its token, best as a
+      # secret like the admin's password). Off when left out; the admin
+      # console (Server) turns it on and off too and shows the address.
+      # cloudflared is downloaded from GitHub on first use, pinned and
+      # checked, into /data/tunnel.
+      # VERSO_TUNNEL: "quick"
+      # VERSO_TUNNEL_HOSTNAME: "mesa.example.com"
+      # VERSO_TUNNEL_TOKEN_FILE: /run/secrets/universo-tunnel
     # secrets:
     #   - universo-admin
     x-casaos:
