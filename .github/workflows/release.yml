@@ -566,6 +566,13 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;29.0.14206865" "platforms;android-36"
           echo "NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> "$GITHUB_ENV"
+          # The vendored OpenSSL (verso-server, webauthn) archives with the
+          # NDK's LLVM tools: the NDK has no aarch64-linux-android-ranlib
+          # any more (the first release run, 2026-11-14, failed there).
+          tc="$ANDROID_HOME/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          test -x "$tc/llvm-ranlib" && test -x "$tc/llvm-ar"
+          echo "AR_aarch64_linux_android=$tc/llvm-ar" >> "$GITHUB_ENV"
+          echo "RANLIB_aarch64_linux_android=$tc/llvm-ranlib" >> "$GITHUB_ENV"
       - name: toolchain from rust-toolchain.toml, and the Android target
         run: |
           rustup show
