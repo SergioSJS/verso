@@ -444,3 +444,54 @@ fn an_own_addresss_phone_stays() {
         );
     });
 }
+
+/// A quick link replaced while *Was it you?* waits — by the person's own
+/// address, or by another quick link — leaves the phone on a dead address:
+/// Allow is judged by the address it asked through, and refuses. No
+/// session, no place taken, the phone told; the same address still there
+/// is allowed, as before (review M6, 2026-11-14).
+#[test]
+fn a_quick_link_replaced_while_the_question_waits_is_refused_at_allow() {
+    run(async {
+        for next in [
+            "https://mesa.example.com",
+            "https://other-quick-name.trycloudflare.com",
+        ] {
+            let (lab, port) = served(ORIGIN);
+            let view = lab.local.pair_open().unwrap();
+            let (status, asked, _) = post(
+                port,
+                NAME,
+                "/api/pair",
+                CLIENT,
+                json!({ "token": view.code, "device": "Pixel" }),
+            )
+            .await;
+            assert_eq!(status, 200, "{asked}");
+            let poll = asked["poll"].as_str().unwrap().to_owned();
+            assert!(lab.local.pair_state().asked.unwrap().link);
+            lab.local.set_link_origin(Some(next)).unwrap();
+            let refused = lab.local.answer(true, Role::Editor).unwrap_err();
+            assert!(refused.contains("address changed"), "{next}: {refused}");
+            assert!(
+                lab.local.phones().unwrap().is_empty(),
+                "{next}: no place taken"
+            );
+            let host = next.strip_prefix("https://").unwrap();
+            let (status, said, cookie) = post(
+                port,
+                host,
+                "/api/pair/poll",
+                CLIENT,
+                json!({ "poll": poll }),
+            )
+            .await;
+            assert_eq!(
+                (status, said["error"].as_str()),
+                (410, Some("link_gone")),
+                "{next}"
+            );
+            assert!(cookie.is_empty(), "{next}: no session handed over");
+        }
+    });
+}

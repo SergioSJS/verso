@@ -339,9 +339,18 @@ impl Policy {
         link: bool,
         now: Instant,
     ) -> Result<Redeemed, String> {
-        let result =
-            self.pairing()
-                .redeem(presented, device, address, &crate::log::stamp(), link, now)?;
+        // The link's origin now, kept with the request: Allow judges a
+        // quick link's device by the address it asked through (none here
+        // cannot be: the link's listener answers nothing without one).
+        let origin = link.then(|| self.link_origin().unwrap_or_default());
+        let result = self.pairing().redeem(
+            presented,
+            device,
+            address,
+            &crate::log::stamp(),
+            origin.as_deref(),
+            now,
+        )?;
         let by = if link {
             " through the internet link"
         } else {
