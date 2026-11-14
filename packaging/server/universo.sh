@@ -116,8 +116,8 @@ Opções:
   --insecure-no-verify
                     Instala sem conferir assinatura nem checksum. Perigoso.
 
-Enquanto o repositório é privado, o download pede um token do GitHub em
-GITHUB_TOKEN (o comando explica como criar um), ou use --package.
+O download não precisa de token (o repositório é público). GITHUB_TOKEN só
+ajuda se o GitHub recusar pelo limite de pedidos sem conta; ou use --package.
 
 Manual: https://github.com/SergioSJS/verso/blob/main/docs/reference/server-install.md
 EOF
@@ -218,8 +218,8 @@ Options:
                     Installs without checking a signature or checksum.
                     Dangerous.
 
-While the repository is private, downloading needs a GitHub token in
-GITHUB_TOKEN (the command explains how to make one), or use --package.
+Downloading needs no token (the repository is public). GITHUB_TOKEN only
+helps if GitHub refuses over its limit for anonymous requests; or use --package.
 
 Guide: https://github.com/SergioSJS/verso/blob/main/docs/reference/server-install.md
 EOF
@@ -397,26 +397,18 @@ ask() {
 # --- getting the package ----------------------------------------------------
 
 token_help() {
-  t "The repository $REPO is private for now: downloading its releases needs a GitHub token.
-  1. Open https://github.com/settings/personal-access-tokens/new (signed in
-     with an account that can see $REPO).
-  2. Repository access: Only select repositories › $REPO.
-     Permissions › Repository › Contents: Read-only. Generate.
-  3. On this machine, in bash or zsh:  read -rs GITHUB_TOKEN && export GITHUB_TOKEN
-     paste the token and press Enter (it is not shown, nor kept in the
-     shell's history), then run again in the same shell.
+  t "GitHub answered 404: the release asked for is not on $REPO, or GitHub cannot be reached from here.
+  The releases: https://github.com/$REPO/releases
 Or download the .deb/.rpm and its .sig from the release page yourself and
-use --package FILE." \
-    "O repositório $REPO está privado por enquanto: baixar as releases pede um token do GitHub.
-  1. Abra https://github.com/settings/personal-access-tokens/new (com uma
-     conta que vê o $REPO).
-  2. Repository access: Only select repositories › $REPO.
-     Permissions › Repository › Contents: Read-only. Generate.
-  3. Nesta máquina, no bash ou no zsh:  read -rs GITHUB_TOKEN && export GITHUB_TOKEN
-     cole o token e tecle Enter (ele não aparece, nem fica no histórico do
-     shell), e rode de novo no mesmo shell.
+use --package FILE. (A GitHub token is not needed; it only helps against the
+rate limit, 403/429: read -rs GITHUB_TOKEN && export GITHUB_TOKEN, then run
+again; the token stays out of the shell's history.)" \
+    "O GitHub respondeu 404: a release pedida não está no $REPO, ou o GitHub não é alcançável daqui.
+  As releases: https://github.com/$REPO/releases
 Ou baixe o .deb/.rpm e o .sig da página da release você mesmo e use
---package ARQ." >&2
+--package ARQ. (Não precisa de token do GitHub; ele só ajuda contra o limite
+de uso, 403/429: read -rs GITHUB_TOKEN && export GITHUB_TOKEN, e rode de novo;
+o token fica fora do histórico do shell.)" >&2
 }
 
 # gh_get URL OUT [ACCEPT]: a GitHub API request; the token, when given,
@@ -496,20 +488,17 @@ fetch_package() {
   code=$(gh_get "$api" "$TMPD/release.json")
   case "$code" in
     200) ;;
-    401) die "GitHub refused the token in GITHUB_TOKEN (401): it is wrong or expired. Make a new one." \
-             "O GitHub recusou o token em GITHUB_TOKEN (401): está errado ou expirou. Crie outro." ;;
-    403|429) die "GitHub refused the request ($code), likely its rate limit. Wait an hour, or set GITHUB_TOKEN." \
-                 "O GitHub recusou o pedido ($code), provavelmente pelo limite de uso. Espere uma hora, ou defina GITHUB_TOKEN." ;;
+    401) die "GitHub refused the token in GITHUB_TOKEN (401): it is wrong or expired. Make a new one, or unset it." \
+             "O GitHub recusou o token em GITHUB_TOKEN (401): está errado ou expirou. Crie outro, ou desfaça a variável." ;;
+    403|429) die "GitHub refused the request ($code), likely its rate limit for anonymous requests (60 an hour). Wait an hour, or set GITHUB_TOKEN." \
+                 "O GitHub recusou o pedido ($code), provavelmente pelo limite de pedidos sem conta (60 por hora). Espere uma hora, ou defina GITHUB_TOKEN." ;;
     404)
-      if [ -z "${GITHUB_TOKEN:-}" ]; then
+      if [ -n "$1" ]; then
+        die "No release v${1#v} in $REPO. The releases: https://github.com/$REPO/releases" \
+            "Não há release v${1#v} no $REPO. As releases: https://github.com/$REPO/releases"
+      else
         token_help
         exit 1
-      elif [ -n "$1" ]; then
-        die "No release v${1#v} in $REPO (or the token cannot see it). The releases: https://github.com/$REPO/releases" \
-            "Não há release v${1#v} no $REPO (ou o token não a vê). As releases: https://github.com/$REPO/releases"
-      else
-        die "The token in GITHUB_TOKEN cannot see $REPO (404): give it access to that repository, Contents: Read-only." \
-            "O token em GITHUB_TOKEN não vê o $REPO (404): dê acesso a esse repositório, Contents: Read-only."
       fi ;;
     *) die "GitHub answered $code to $api." "O GitHub respondeu $code para $api." ;;
   esac
@@ -2525,9 +2514,9 @@ EOF
   copie os backups para fora também (scp, rclone), ou uma máquina perdida perde-os."
   else
     t "  Every Sunday around 04:30: a backup, then the update to the latest release (checked as always).
-  While the repository is private it needs GITHUB_TOKEN: without it the update fails and says so." \
+  It needs no token; GITHUB_TOKEN only helps against GitHub's rate limit." \
       "  Todo domingo perto das 04:30: um backup e depois a atualização para a release mais nova (conferida como sempre).
-  Enquanto o repositório for privado precisa do GITHUB_TOKEN: sem ele a atualização falha e avisa."
+  Não precisa de token; o GITHUB_TOKEN só ajuda contra o limite de uso do GitHub."
   fi
 }
 

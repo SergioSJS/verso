@@ -8,9 +8,9 @@
 //! at start and once a day it asks the project's release feed — the only
 //! place it reaches (ADR 0050 as revised that day) — and nothing about the
 //! server goes with the request but its version, in the `User-Agent`.
-//! `VERSO_UPDATE_CHECK=off` turns it off. While the repository is private
-//! the feed answers only with a token that reads it
-//! (`VERSO_UPDATE_TOKEN`); without one the log says so, once.
+//! `VERSO_UPDATE_CHECK=off` turns it off. The repository is public
+//! (2026-11-14): a token (`VERSO_UPDATE_TOKEN`) only raises GitHub's limit
+//! for questions without one.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -124,8 +124,7 @@ async fn ask(token: Option<&str>) -> Result<Vec<Release>, String> {
     let status = response.status();
     if !status.is_success() {
         return Err(if status.as_u16() == 404 && token.is_none() {
-            "the release feed answered 404: a private repository needs VERSO_UPDATE_TOKEN"
-                .to_owned()
+            "the release feed answered 404: no release is published there yet".to_owned()
         } else if matches!(status.as_u16(), 403 | 429) && token.is_none() {
             // GitHub limits questions without a token by address: a
             // server restarted often, or behind a shared address, meets it.

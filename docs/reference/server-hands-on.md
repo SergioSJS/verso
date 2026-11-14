@@ -85,9 +85,10 @@ reaches a server with the next release (`CHANGELOG.md`, Unreleased):
 | `VERSO_AUDIT_DAYS` (item 10) | no |
 | plain HTTP signing in from another machine, `VERSO_PUBLIC_URL` and `VERSO_TRUSTED_PROXY` optional, the compose file publishing `7340:7340` ([ADR 0073](../adr/0073-self-hosted-server-first.md) item 6, amended 2026-10-16) | no: sign-in over HTTP is refused outside the machine, and `VERSO_PUBLIC_URL` is needed beyond loopback |
 
-While the repository is private, downloading a release needs a GitHub
-token, and pulling the image needs a `docker login` (guide, sections 11
-and "The installer script").
+The repository is public: downloading a release needs no token and pulling
+the image needs no `docker login`. `GITHUB_TOKEN` is optional, only against
+GitHub's anonymous rate limit; if a pull answers `denied`, see the guide,
+section 11.
 
 ## Path A — the package
 
@@ -114,12 +115,12 @@ On the server, as your ordinary user (the script asks for `sudo` itself):
 V=0.8.0-beta.1
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                          # optional: read what it does
-read -rs GITHUB_TOKEN && export GITHUB_TOKEN   # paste the token, Enter; while the repository is private
 sh universo.sh install --version "$V"
 ```
 
-The token: a fine-grained GitHub token with Contents: Read-only on the
-repository; without one, the script says how to make it. `--url` is
+No token is needed. (Only if GitHub answers 403 or 429, its anonymous rate
+limit of 60 requests an hour per address: `export GITHUB_TOKEN`, a
+fine-grained token with Contents: Read-only.) `--url` is
 optional (`--url https://notes.example.com`): the https address people
 will type, once HTTPS is in front. Leave it out and the script asks (Enter
 leaves it empty): plain HTTP works without it.
@@ -412,18 +413,10 @@ yourself instead (and the container then has nothing to mend):
 sudo install -d -o 1000 -g 1000 /srv/universo/data /srv/universo/folders
 ```
 
-While the repository is private, sign in to GitHub's registry once, with a
-classic token that has `read:packages` (guide, section 11):
-
-```sh
-echo "$TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
-```
-
-`Login Succeeded` does not prove the token works: the registry checks it
-only when the image is pulled. A `403 Forbidden` on `docker compose up`
-means the token lacks `read:packages` (`repo` alone is not enough). Docker
-stores the token unencrypted in `/root/.docker/config.json`;
-`sudo docker logout ghcr.io` removes it.
+The image is public, so no sign-in is needed. Only if `docker compose up`
+answers `denied` or `unauthorized` is the package not public yet: sign in
+with `docker login ghcr.io` and a classic token with `read:packages` (guide,
+section 11; it also says where Docker keeps the token).
 
 Prefix `docker` with `sudo` throughout if your user is not in the `docker`
 group.

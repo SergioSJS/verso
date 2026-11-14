@@ -14,7 +14,7 @@ status: active
 A **UniVerso** is Verso on a server of your own ([[30 - Verso on a Server]]). It needs a machine that stays on: a **NAS** in the closet or a small rented server, a **VPS**. This note helps you pick the road for the machine you have, then walks it with real commands. It is the short map; when a step already has a full explanation, the link takes you there instead of repeating it: the long step by step is [[31 - Installing Your UniVerso, Step by Step]], and the road for a free Oracle machine, with nothing but the menu, is [[33 - UniVerso on a Free Oracle Server]].
 
 > [!WARNING] Verso is in testing
-> While Verso's repository is private, downloading the program (and the Docker image) needs a GitHub **token** that the maintainer gives you, as note 31 explains. Without that access, you cannot install yet. The commands below are the ones in the project's install guide (`docs/reference/server-install.md`) and in the installer script itself (`sh universo.sh --help`).
+> Downloading the program (and the Docker image) needs no account or token: Verso's repository is public. The commands below are the ones in the project's install guide (`docs/reference/server-install.md`) and in the installer script itself (`sh universo.sh --help`).
 
 ---
 
@@ -35,9 +35,8 @@ Both roads end the same: `http://<machine address>:7340` opens the UniVerso, and
 
 ### ZimaOS and CasaOS
 
-1. **Sign in to the image registry**, once, in the system's terminal (while the repository is private): the `docker login ghcr.io` step in [[31 - Installing Your UniVerso, Step by Step#3. Path 2 — Docker|note 31, Docker, step 2]], with its warning about the token's `read:packages`.
-2. In the panel, install a **custom app** and paste the compose file in [[31 - Installing Your UniVerso, Step by Step#4. CasaOS and ZimaOS|note 31, section 4]]. There is nothing to fill in. Install.
-3. Open `http://<NAS address>:7340` in a browser and sign in with the setup link from the app's log (section 6 of note 31 has the screens; the same command is `docker logs universo 2>&1 | grep setup`). The log writes `localhost` in the link: swap in the NAS address.
+1. In the panel, install a **custom app** and paste the compose file in [[31 - Installing Your UniVerso, Step by Step#4. CasaOS and ZimaOS|note 31, section 4]]. There is nothing to fill in. Install.
+2. Open `http://<NAS address>:7340` in a browser and sign in with the setup link from the app's log (section 6 of note 31 has the screens; the same command is `docker logs universo 2>&1 | grep setup`). The log writes `localhost` in the link: swap in the NAS address. If the image answers `denied` or `unauthorized` when pulled, it is not public yet: sign in first with `docker login ghcr.io` (a GitHub *classic* token with `read:packages`), as [[31 - Installing Your UniVerso, Step by Step#3. Path 2 — Docker|note 31]] says.
 
 What that file does, in four lines:
 
@@ -83,7 +82,6 @@ On the server, as your regular user (the script asks for `sudo` when it needs it
 ```bash
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                                  # optional: read what it does (q to quit)
-read -rs GITHUB_TOKEN && export GITHUB_TOKEN      # paste the token, Enter; while the repository is private
 sh universo.sh
 ```
 

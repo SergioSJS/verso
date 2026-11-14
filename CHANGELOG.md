@@ -67,6 +67,8 @@ Nothing yet.
 
 ### Changed
 
+- **The UniVerso installer and lessons 31 to 33 no longer ask for a GitHub token**, as the repository is public: the program downloads from the releases page with no account (`GITHUB_TOKEN` stays optional, only against GitHub's rate limit for anonymous requests), and the Docker image needs no `docker login` unless `docker pull` answers `denied`.
+
 - **A table can be in any folder inside a folder served from this computer** (ADR 0117 R1; the maintainer, 2026-11-05, ticked *Campanha Fractal* inside his vault and got nothing). A folder served only in part used to be no one's but the phones': the window could not sit at its table, and nothing in it could be shared. Now it is yours, whole or in part, as a folder of yours is on a UniVerso: make a table in, or share, any folder inside it, and each player reaches only that folder. The folders you choose inside it in **Settings › Turn into a server** are what **your phones** see, nothing more; a share or a read link made before you chose them keeps working.
 
 - **A folder that syncs with a UniVerso can be served from this computer too** (the maintainer, 2026-11-04: "se eu tenho um servidor sincronizando, não deveria ser motivo para não poder abrir a minha máquina como servidor"). *Turn into a server* no longer refuses a folder of yours because it syncs: what players change through this computer is a change on it, which the sync carries to the UniVerso by its usual rules (a conflict keeps both versions). Only a folder **another account shared with you** is refused — on its row, at ticking and at the start — since its owner serves it (ADR 0081: a share is not shared again).

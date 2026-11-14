@@ -14,7 +14,7 @@ status: active
 Um **UniVerso** é o Verso num servidor seu ([[30 - Verso num Servidor]]). Ele precisa de uma máquina que fique ligada: um **NAS** no armário ou um servidor pequeno alugado, um **VPS**. Esta nota ajuda a escolher o caminho para a máquina que você tem e depois o percorre com comandos de verdade. É o mapa curto; quando um passo já tem explicação completa, o link leva até ela em vez de repetir: o passo a passo longo é a [[31 - Instalar o seu UniVerso, Passo a Passo]], e o roteiro para uma máquina grátis da Oracle, só com o menu, é a [[33 - UniVerso num Servidor Grátis da Oracle]].
 
 > [!WARNING] O Verso está em teste
-> Enquanto o repositório do Verso é privado, baixar o programa (e a imagem do Docker) pede um **token** do GitHub que o mantenedor lhe dá, como a nota 31 explica. Sem esse acesso, ainda não dá para instalar. Os comandos abaixo são os do guia de instalação do projeto (`docs/reference/server-install.md`) e os do próprio script de instalação (`sh universo.sh --help`).
+> Baixar o programa (e a imagem do Docker) não pede conta nem token: o repositório do Verso é público. Os comandos abaixo são os do guia de instalação do projeto (`docs/reference/server-install.md`) e os do próprio script de instalação (`sh universo.sh --help`).
 
 ---
 
@@ -35,9 +35,8 @@ Os dois caminhos terminam igual: `http://<endereço da máquina>:7340` abre o Un
 
 ### ZimaOS e CasaOS
 
-1. **Entre no registro de imagens**, uma vez, no terminal do sistema (enquanto o repositório é privado): o passo do `docker login ghcr.io` da [[31 - Instalar o seu UniVerso, Passo a Passo#3. Caminho 2 — Docker|nota 31, Docker, passo 2]], com o aviso sobre o `read:packages` do token.
-2. No painel, instale um **app personalizado** e cole o arquivo compose da [[31 - Instalar o seu UniVerso, Passo a Passo#4. CasaOS e ZimaOS|nota 31, seção 4]]. Não há nada para preencher. Instale.
-3. Abra `http://<endereço do NAS>:7340` num navegador e entre pelo link de configuração que aparece no log do app (a seção 6 da nota 31 mostra as telas; o mesmo comando é `docker logs universo 2>&1 | grep setup`). O log escreve `localhost` no link: troque pelo endereço do NAS.
+1. No painel, instale um **app personalizado** e cole o arquivo compose da [[31 - Instalar o seu UniVerso, Passo a Passo#4. CasaOS e ZimaOS|nota 31, seção 4]]. Não há nada para preencher. Instale.
+2. Abra `http://<endereço do NAS>:7340` num navegador e entre pelo link de configuração que aparece no log do app (a seção 6 da nota 31 mostra as telas; o mesmo comando é `docker logs universo 2>&1 | grep setup`). O log escreve `localhost` no link: troque pelo endereço do NAS. Se a imagem responder `denied` ou `unauthorized` ao ser puxada, ela ainda não é pública: entre antes com `docker login ghcr.io` (um token *classic* do GitHub com `read:packages`), como a [[31 - Instalar o seu UniVerso, Passo a Passo#3. Caminho 2 — Docker|nota 31]] diz.
 
 O que esse arquivo faz, em quatro linhas:
 
@@ -83,7 +82,6 @@ No servidor, como seu usuário comum (o script pede `sudo` quando precisa):
 ```bash
 curl -fsSLO https://versomd.com/universo.sh
 less universo.sh                                  # opcional: ler o que ele faz (q para sair)
-read -rs GITHUB_TOKEN && export GITHUB_TOKEN      # cole o token, Enter; enquanto o repositório é privado
 sh universo.sh
 ```
 

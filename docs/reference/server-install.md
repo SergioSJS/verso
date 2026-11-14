@@ -139,8 +139,7 @@ Off by default. `schedule backup [--keep N]` writes
 backups kept, 7 by default; `backup --keep N` does the pruning, only of files
 with this script's names, never through a link); `schedule update` writes
 `universo-update.service` and `.timer` (Sundays around 04:30: a backup, then
-`update`, which checks the download as always, and needs `GITHUB_TOKEN`
-while the repository is private). They run a copy of the script in
+`update`, which checks the download as always). They run a copy of the script in
 `/usr/local/lib/universo/`. `schedule status` shows them; `schedule off`
 removes both. A backup on the same machine does not survive losing it: copy
 backups off.
@@ -169,13 +168,14 @@ missing signature — none in the release, its download failed, none beside
 `--no-signature`, which settles for the published `sha256` (proof that the
 file is the one uploaded to the release, not of who made it). A package
 from `--package FILE` is checked with the list and its `.sig` beside it,
-else with `FILE.sig`. While the repository is private, downloading
-needs a GitHub token in `GITHUB_TOKEN` (fine-grained, Contents: Read-only
-on the repository); without one the script says how to make it, or takes
-`--package`. Give it with `read -rs GITHUB_TOKEN && export GITHUB_TOKEN`
-(bash or zsh: paste, Enter), which keeps it out of the screen and of the
-shell's history, rather than `export GITHUB_TOKEN=…` on the command
-line. A machine with neither apt nor dnf is told
+else with `FILE.sig`. The repository is public, so the download
+needs no token. `GITHUB_TOKEN` is optional: set it only against GitHub's
+anonymous rate limit (60 requests an hour per address), which answers 403 or
+429; the script sends it only when set. A 404 means the release or version
+asked for does not exist. Give the token with
+`read -rs GITHUB_TOKEN && export GITHUB_TOKEN` (bash or zsh: paste, Enter),
+which keeps it out of the screen and of the shell's history, rather than
+`export GITHUB_TOKEN=…` on the command line. A machine with neither apt nor dnf is told
 to use the archive (section 6). Sections 5 and 6 stay the manual paths.
 
 ### A link on the internet: `link`
@@ -350,8 +350,7 @@ come from `id` on the host). The server writes only to `/data` and
 `/folders`, so any user that can write both will do (decided by the
 maintainer on 2026-10-10).
 
-Then (while the repository is private, sign in to the registry first,
-section 11):
+Then (if the pull is refused, section 11):
 
 ```sh
 docker run -d --name universo --restart unless-stopped \
@@ -463,7 +462,7 @@ the server's log (60 lines a minute at most, F21 of the
 would grow for as long as a member keeps writing.
 
 The image is pulled from GitHub's registry,
-which needs a `docker login` while the repository is private (section 11):
+which needs no sign-in while the package is public (section 11):
 on CasaOS and ZimaOS, in the system's terminal, once.
 
 **Found by the desktop app.** With the server listening beyond the
@@ -630,7 +629,7 @@ value counts as not set.
 | `VERSO_TLS_CERT_FILE` and `VERSO_TLS_KEY_FILE` | none | Verso serves TLS itself with this certificate and key (PEM); both or neither |
 | `VERSO_ANNOUNCE` | on | `off` stops the server announcing itself on the home network by mDNS (ADR 0097); it is never announced when it listens on loopback only |
 | `VERSO_UPDATE_CHECK` | on | `off` stops the check for a new version (section 12) |
-| `VERSO_UPDATE_TOKEN` | no | a token that reads the project's releases, needed for the check while the repository is private (a GitHub token with read access to it); without one the log says so once |
+| `VERSO_UPDATE_TOKEN` | no | optional: a GitHub token for the release check, useful only against GitHub's anonymous rate limit (60 requests an hour per address); the repository is public, so without one the check works |
 | `VERSO_SMTP_URL` | no | the host's mail server (`smtps://user:password@host:465`, or `smtp://…:587?tls=required`): sign-in links, "forgot the password" and invitations sent by e-mail |
 | `VERSO_MAIL_FROM` | no | the sender of those e-mails; `Verso <verso@` the public address's host `>` by default |
 | `VERSO_FOLDER_QUOTA` | no | the quota a new folder gets: bytes, or a size such as `500MB` or `10GB`; none when unset. The console (`/admin`, Folders) changes each folder's ([ADR 0077](../adr/0077-the-server-administration-console-and-folder-quotas.md)) |
@@ -932,18 +931,23 @@ audit log (ADR 0083 item 4). A member's password is reset by the admin,
 in the administration console (`/admin`); using that link revokes the
 member's tokens too.
 
-## 11. The registry while the repository is private
+## 11. The registry: when a pull is refused
 
-The image is a private package of GitHub's registry while the repository
-is private (0075, Consequences). A host signs in once, with a personal
-access token (classic) that has `read:packages`:
+The image `ghcr.io/sergiosjs/universo` is a public package of GitHub's
+registry: it is pulled with no sign-in. If `docker pull` or
+`docker compose up` answers `denied` or `unauthorized`, the package is not
+public yet (its visibility is set apart from the repository's). Until it is,
+sign in once, with a personal access token (classic) that has `read:packages`
+(`repo` alone is not enough):
 
 ```sh
 echo "$TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
 ```
 
-When the repository opens, the package is made public once in its settings
-and is pulled with no sign-in.
+`Login Succeeded` does not prove the token works: the registry checks it
+only at the pull. Docker stores the token unencrypted in
+`~/.docker/config.json` (`/root/.docker/config.json` under `sudo`);
+`docker logout ghcr.io` removes it.
 
 ## 12. Updates
 

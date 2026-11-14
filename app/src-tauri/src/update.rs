@@ -24,9 +24,9 @@ pub(crate) fn github_token() -> Option<String> {
         }
     }
     // An app the Dock launches inherits none of the shell's PATH, so
-    // `gh` is looked for where its installers put it too — without
-    // this, a private repository answers 404 and the check says the
-    // repository does not exist.
+    // `gh` is looked for where its installers put it too. The repository
+    // is public (2026-11-14): a token only raises GitHub's limit for
+    // questions without one.
     for gh in ["gh", "/opt/homebrew/bin/gh", "/usr/local/bin/gh"] {
         let Ok(output) = std::process::Command::new(gh)
             .args(["auth", "token"])
@@ -103,10 +103,10 @@ pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
         } else if status == reqwest::StatusCode::NOT_FOUND
             && crate::update_source::SOURCE.is_github()
         {
-            // A private repository answers 404 to a request without a
-            // credential; the likeliest cause is the missing token, not
-            // a repository that vanished.
-            "Sem acesso ao repositório de atualizações: entre com `gh auth login` no terminal (o repositório é privado).".to_string()
+            // The repository is public (2026-11-14): a 404 is a feed
+            // with no release, or the repository out of reach.
+            "O repositório de atualizações não tem versão publicada (o GitHub respondeu 404)."
+                .to_string()
         } else {
             format!("GitHub API returned HTTP {status}")
         };
