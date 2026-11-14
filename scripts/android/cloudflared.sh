@@ -9,7 +9,7 @@
 # resolver (Cloudflare's linux-arm64 build reads /etc/resolv.conf, absent on
 # Android, and asks [::1]:53: "connection refused").
 #
-# What is pinned: the version (VERSION in app/src-tauri/src/tunnel/fetch.rs,
+# What is pinned: the version (VERSION in crates/verso-tunnel/src/fetch.rs,
 # the one every desktop downloads), the SHA-256 of GitHub's tarball of that
 # tag (below; a sum that differs stops the build), the modules by the
 # source's own go.sum (Go checks each against it), and the Go toolchain
@@ -35,7 +35,7 @@ API=29
 
 out=${1:?usage: cloudflared.sh <output file>}
 here=$(cd "$(dirname "$0")/../.." && pwd)
-pinned=$(sed -n 's/^pub const VERSION: &str = "\(.*\)";$/\1/p' "$here/app/src-tauri/src/tunnel/fetch.rs")
+pinned=$(sed -n 's/^pub const VERSION: &str = "\(.*\)";$/\1/p' "$here/crates/verso-tunnel/src/fetch.rs")
 if [ "$pinned" != "$SOURCE_VERSION" ]; then
   echo "cloudflared.sh: fetch.rs pins $pinned but the source pinned here is $SOURCE_VERSION: move SOURCE_VERSION and SOURCE_SHA256 with it" >&2
   exit 1
