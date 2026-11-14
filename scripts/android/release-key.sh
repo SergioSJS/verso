@@ -55,10 +55,10 @@ The release key is in $dir/ (only you can read it).
    - SHA-256 fingerprint: $fingerprint
 
 2. The repository's secrets (the release workflow reads them):
-   gh secret set VERSO_ANDROID_KEYSTORE_B64 < $dir/verso-release.p12.base64
-   gh secret set VERSO_ANDROID_KEYSTORE_PASSWORD --body '$password'
-   gh secret set VERSO_ANDROID_KEY_ALIAS --body '$alias'
-   gh secret set VERSO_ANDROID_KEY_PASSWORD --body '$password'
+   gh secret set VERSO_ANDROID_KEYSTORE_B64 -R SergioSJS/verso < $dir/verso-release.p12.base64
+   gh secret set VERSO_ANDROID_KEYSTORE_PASSWORD -R SergioSJS/verso --body '$password'
+   gh secret set VERSO_ANDROID_KEY_ALIAS -R SergioSJS/verso --body '$alias'
+   gh secret set VERSO_ANDROID_KEY_PASSWORD -R SergioSJS/verso --body '$password'
 
 3. A release built by hand with this key (on your own computer):
    export VERSO_ANDROID_KEYSTORE=\$PWD/$store
