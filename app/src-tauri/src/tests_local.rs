@@ -48,6 +48,19 @@ fn a_folder_of_ones_own_that_syncs_with_a_server_is_ticked_and_served() {
         let vault = tempfile::tempdir().unwrap();
         let _nota = note(vault.path(), "Nota.md", "# Nota\n");
         let (app, webview) = app_with(Some(vault.path().to_path_buf()));
+        // The phone's page from a directory of the test's own: the window's
+        // build (`app/ui/dist`) is not there on CI (main's run of
+        // 2026-11-14 refused to serve, "no web files for the phone").
+        let ui = tempfile::tempdir().unwrap();
+        let data = tempfile::tempdir().unwrap();
+        let _web = note(ui.path(), "web.html", "<!doctype html><title>Verso</title>");
+        app.state::<App>().local_server.set_for_tests(
+            verso_server::local::LocalServer::on_loopback_for_tests(
+                data.path().join("local-server"),
+                vec![ui.path().to_path_buf()],
+                std::sync::Arc::new(|_| {}),
+            ),
+        );
         let key = known(&webview);
         syncs_with_a_server(&app, &key, role);
         let rows = call(
