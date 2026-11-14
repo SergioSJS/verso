@@ -596,9 +596,11 @@ pub struct Invite {
 
 /// An invitation link for a person who has no account, carrying the
 /// folder at `path` (`""` the whole folder) at a role — asked from the
-/// share dialog when the e-mail given is no account's. Only the server's
-/// admin invites a person who has no account (ADR 0081 item 4), here the
-/// folder's owner too, with a fresh proof (ADR 0083 item 6): the way a
+/// share dialog when the e-mail given is no account's. The server's admin
+/// invites a person who has no account (ADR 0081 item 4), and on a
+/// UniVerso an account the admin lets make folders does too, to read, at
+/// most 20 waiting (`acts::Inviter`, ADR 0117 D7 (e)) — here the folder's
+/// owner in both cases, with a fresh proof (ADR 0083 item 6): the way a
 /// folder with no table is invited to, on a UniVerso and where the app
 /// serves (decided 2026-11-04; a table's is `campaign_invite`). The act is
 /// the console's (`admin::acts::make_invitation`); the link opens where a
@@ -612,7 +614,18 @@ pub async fn invite(
     ctx.changes()?;
     ctx.proved()?;
     let folder = owned(&ctx, &id)?;
-    let admin = ctx.admin()?.account.id.clone();
+    let who = ctx.person()?;
+    let inviter = crate::admin::acts::Inviter::of(&who.account, ctx.server.local.is_some())
+        .ok_or(crate::admin::acts::Refused::NotInviter)?;
+    // Who may invite, at what role and how many, before anything is made.
+    let asked = inviter.invitee(crate::admin::acts::Invitee {
+        email: body.email.as_deref(),
+        folder: Some(&folder.id),
+        role: Some(body.role),
+        ..crate::admin::acts::Invitee::default()
+    })?;
+    let admin = who.account.id.clone();
+    crate::admin::acts::room_for(&ctx.server.db, &admin, &asked)?;
     let share = if body.path.is_empty() {
         // As a grant of the whole folder here (`grant`): reading or
         // editing, the folder stays this computer's owner's.
@@ -639,17 +652,11 @@ pub async fn invite(
         actor: Some(&admin),
         address: Some(&address),
     };
-    let (token, inv) = crate::admin::acts::make_invitation(
-        &ctx.server.db,
-        &by,
-        Some(&admin),
-        &crate::admin::acts::Invitee {
-            email: body.email.as_deref(),
-            folder: Some(&folder.id),
-            role: Some(body.role),
-            share: share.as_ref().map(|s| s.id.as_str()),
-        },
-    )?;
+    let to = crate::admin::acts::Invitee {
+        share: share.as_ref().map(|s| s.id.as_str()),
+        ..asked
+    };
+    let (token, inv) = crate::admin::acts::make_invitation(&ctx.server.db, &by, Some(&admin), &to)?;
     let mailed = crate::admin::mail_invitation(&ctx, inv.email.as_deref(), &token).await?;
     Ok(ok(json!({
         "link": crate::window_link(&ctx.server, &format!("/invite/{token}")),

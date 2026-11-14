@@ -18,7 +18,7 @@ type Ctx = { me: Account; go: (href: string) => void; title: (t: string) => void
 
 type AccountRow = { id: string; email: string; name: string; admin: boolean; mayCreate: boolean; created: number; password: boolean; folders: number; space: number; lastSeen: number | null };
 type FolderRow = { id: string; name: string; created: number; owners: string[]; members: number; space: number; quota: number | null; changed: number | null };
-type Invitation = { id: string; state: string; email: string | null; folder: string | null; role: string | null; created: number; expires: number; usedBy: string | null };
+type Invitation = { id: string; state: string; email: string | null; folder: string | null; role: string | null; created: number; expires: number; usedBy: string | null; madeBy: string | null };
 type About = { kind: "account"; name: string; email: string } | { kind: "invitation"; email: string | null; folder: string | null } | { kind: "named"; name: string };
 type AuditRow = { at: number; who: string | null; action: string; subject: string | null; about: About | null; folder: string | null; address: string | null; ok: boolean };
 /** A change of a folder's files, with who made it: the account and, for a
@@ -503,6 +503,8 @@ async function invitations(c: Ctx, body: HTMLElement): Promise<void> {
       { key: "created", label: s.created, cell: (r) => when(r.created) },
       { key: "expires", label: s.expiresColumn, cell: (r) => when(r.expires) },
       { key: "usedBy", label: s.usedBy, cell: (r) => r.usedBy ?? "—" },
+      // The admin's, or a game master's (ADR 0117 D7 (e)).
+      { key: "madeBy", label: s.madeBy, cell: (r) => r.madeBy ?? "—" },
       {
         key: "end",
         label: "",

@@ -63,6 +63,15 @@ fn failed(e: impl std::fmt::Display) -> ContractError {
     verso_service::failed(e.to_string())
 }
 
+/// An administrator's act refused, in its words; a database's failure as
+/// one.
+fn said(r: crate::admin::acts::Refused) -> ContractError {
+    match r {
+        crate::admin::acts::Refused::Failed(e) => failed(e),
+        other => refused(&other.to_string()),
+    }
+}
+
 /// The folder of a window that is its game master: the owner, on the
 /// folder itself, with a credential that writes, not a phone — the rules'
 /// `ManageTable` and `ManageAccess` (ADR 0113 section B), one condition.
@@ -760,7 +769,10 @@ async fn status(
                     .collect(),
                 notes,
                 players,
-                can_invite: w.account.admin,
+                // The admin, or on a UniVerso a game master the admin lets
+                // make folders (ADR 0117 D7 (e)).
+                can_invite: crate::admin::acts::Inviter::of(&w.account, s.local.is_some())
+                    .is_some(),
             });
         }
         // A player: the tables, and the notes it may edit — only those. A
@@ -920,9 +932,11 @@ async fn access(
 }
 
 /// An invitation to the table: a reader's, for the folder itself or for
-/// the share at the table's folder. Only the server's admin invites a
-/// person who has no account (ADR 0081 item 4), and wants a fresh proof
-/// (ADR 0083 item 6), as the console's invitation to a folder does.
+/// the share at the table's folder, by the folder's owner. The server's
+/// admin invites a person who has no account (ADR 0081 item 4), and on a
+/// UniVerso so does an account the admin lets make folders, at most 20
+/// waiting (`acts::Inviter`, ADR 0117 D7 (e)); with a fresh proof (ADR
+/// 0083 item 6), as the console's invitation to a folder wants.
 async fn invite(
     server: &Arc<Server>,
     who: &Arc<Who>,
@@ -942,11 +956,20 @@ async fn invite(
                 message: "prove it is you first".to_owned(),
             });
         }
-        if !w.account.admin {
+        use crate::admin::acts::{Invitee, Inviter, room_for};
+        let Some(inviter) = Inviter::of(&w.account, s.local.is_some()) else {
             return Err(refused(
-                "only the server's admin invites a person who has no account: ask for one, or give an account of this server a place at the table",
+                "only the server's admin, or an account the admin lets make folders, invites a person who has no account: ask for one, or give an account of this server a place at the table",
             ));
-        }
+        };
+        let asked = inviter
+            .invitee(Invitee {
+                folder: Some(&f),
+                role: Some(Role::Reader),
+                ..Invitee::default()
+            })
+            .map_err(said)?;
+        room_for(&s.db, &w.account.id, &asked).map_err(said)?;
         let veil = campaign::veil_of(&s, &f).ok_or_else(|| refused("not a table"))?;
         if !veil.tables.iter().any(|t| t.root == root) {
             return Err(refused("that folder is not a table"));
@@ -964,14 +987,12 @@ async fn invite(
             &s.db,
             &by,
             Some(&w.account.id),
-            &crate::admin::acts::Invitee {
-                folder: Some(&f),
-                role: Some(Role::Reader),
+            &Invitee {
                 share: share.as_ref().map(|x| x.id.as_str()),
-                ..crate::admin::acts::Invitee::default()
+                ..asked
             },
         )
-        .map_err(|e| failed(e.to_string()))?;
+        .map_err(said)?;
         Ok(CampaignInvite {
             link: crate::window_link(&s, &format!("/invite/{token}")),
             expires: u32::try_from(inv.expires).unwrap_or(u32::MAX),

@@ -1062,47 +1062,6 @@ impl Db {
 
     /* ---------- invitations, resets, the setup link ---------- */
 
-    /// A single-use link's token, made now; its row says what it does.
-    pub fn create_invitation(&self, link: &NewLink<'_>) -> R<(String, Invitation)> {
-        let NewLink {
-            kind,
-            email,
-            account,
-            folder,
-            role,
-            created_by,
-            life,
-            share,
-        } = *link;
-        let token = crypto::token()?;
-        let id = crypto::id()?;
-        let at = now();
-        self.conn()
-            .execute(
-                "INSERT INTO invitations (id, hash, kind, email, account, folder, role, created_by, created, expires, share, scope)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-                params![
-                    id,
-                    crypto::hash(&token),
-                    kind,
-                    email.map(str::trim),
-                    account,
-                    folder,
-                    role.map(Role::as_str),
-                    created_by,
-                    at,
-                    at + life,
-                    share,
-                    if share.is_some() { "share" } else { "folder" }
-                ],
-            )
-            .map_err(e)?;
-        let invitation = self
-            .invitation(&id)?
-            .ok_or_else(|| "invitation vanished".to_owned())?;
-        Ok((token, invitation))
-    }
-
     const INVITATION: &'static str = "SELECT id, kind, email, account, folder, role, created_by, created, expires, used, used_by, ended, share, scope FROM invitations";
 
     fn invitation_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<Invitation> {
@@ -1425,6 +1384,7 @@ pub use campaign::{
     LOG_MOST, NoteState,
 };
 mod console;
+mod invitations;
 mod local;
 mod proof;
 mod readlinks;

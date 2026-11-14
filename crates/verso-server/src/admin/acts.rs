@@ -15,7 +15,7 @@ use axum::http::StatusCode;
 use serde::Serialize;
 use serde_json::json;
 
-use crate::db::{self, Audit, Db, Invitation, NewLink, Role};
+use crate::db::{self, Account, Audit, Db, Invitation, NewLink, Role};
 use crate::http::ApiError;
 use crate::state::Server;
 
@@ -57,6 +57,12 @@ pub enum Refused {
     NotFound,
     /// The folder named would be left with no owner.
     LastOwner(String),
+    /// Not one who invites a person who has no account ([`Inviter`]).
+    NotInviter,
+    /// A game master who is not the admin invites to read only.
+    ReadersOnly,
+    /// That many invitations of a game master are pending already.
+    TooMany(usize),
     /// The database failed.
     Failed(String),
 }
@@ -74,6 +80,16 @@ impl std::fmt::Display for Refused {
             Self::Exists => f.write_str("an account has this e-mail"),
             Self::NotFound => f.write_str("not found"),
             Self::LastOwner(dir) => write!(f, "{dir} keeps an owner: give it another first"),
+            Self::NotInviter => f.write_str(
+                "only the server's admin, or an account the admin lets make folders, invites a person who has no account",
+            ),
+            Self::ReadersOnly => f.write_str(
+                "a game master's invitation gives reading: invite them as a reader, and give more once they have come in",
+            ),
+            Self::TooMany(n) => write!(
+                f,
+                "{n} invitations of yours are waiting already: wait until one is used or expires, or ask the server's admin to end one"
+            ),
             Self::Failed(e) => f.write_str(e),
         }
     }
@@ -86,6 +102,9 @@ impl From<Refused> for ApiError {
             Refused::Exists => ApiError::new(StatusCode::CONFLICT, "exists", r.to_string()),
             Refused::NotFound => ApiError::not_found(),
             Refused::LastOwner(_) => ApiError::bad("last_owner", r.to_string()),
+            Refused::NotInviter => ApiError::forbidden(r.to_string()),
+            Refused::ReadersOnly => ApiError::bad("readers_only", r.to_string()),
+            Refused::TooMany(_) => ApiError::bad("too_many_invitations", r.to_string()),
             Refused::Failed(e) => ApiError::from(e),
         }
     }
@@ -93,12 +112,76 @@ impl From<Refused> for ApiError {
 
 /// An invitation to make: to whom (an e-mail, or anyone holding the link),
 /// to what (a folder, or a share of one, ADR 0081 item 4) and at what role.
+/// `most_pending`: refused when its maker has that many pending already
+/// (a game master's, [`Inviter::invitee`]).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Invitee<'a> {
     pub email: Option<&'a str>,
     pub folder: Option<&'a str>,
     pub role: Option<Role>,
     pub share: Option<&'a str>,
+    pub most_pending: Option<usize>,
+}
+
+/// The most invitations a game master who is not the admin has pending at
+/// once (ADR 0117 D7 (e), decided 2026-11-13).
+pub const GAME_MASTER_PENDING_MOST: usize = 20;
+
+/// Who invites a person who has no account (ADR 0081 item 4, revised by
+/// ADR 0117 D7 (e)). The caller checks first that the folder is the
+/// inviter's own — its owner, never an editor or a member of another's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Inviter {
+    /// The server's admin: any role, no number.
+    Admin,
+    /// On a UniVerso, an account the admin lets make folders (ADR 0074
+    /// item 6): into a folder of its own, to read, at most
+    /// [`GAME_MASTER_PENDING_MOST`] pending at once. On this computer only
+    /// the owner owns folders, and nobody else invites.
+    GameMaster,
+}
+
+impl Inviter {
+    /// What `account` may be here, on this computer when `local`.
+    #[must_use]
+    pub fn of(account: &Account, local: bool) -> Option<Self> {
+        if account.admin {
+            Some(Self::Admin)
+        } else if account.may_create && !local {
+            Some(Self::GameMaster)
+        } else {
+            None
+        }
+    }
+
+    /// The invitation as this inviter may make it: the admin's as asked; a
+    /// game master's carries a folder, at reading, within the number.
+    pub fn invitee<'a>(self, to: Invitee<'a>) -> Result<Invitee<'a>, Refused> {
+        match self {
+            Self::Admin => Ok(to),
+            Self::GameMaster if to.folder.is_none() && to.share.is_none() => {
+                Err(Refused::NotInviter)
+            }
+            Self::GameMaster if to.role.is_some_and(|r| r != Role::Reader) => {
+                Err(Refused::ReadersOnly)
+            }
+            Self::GameMaster => Ok(Invitee {
+                role: Some(Role::Reader),
+                most_pending: Some(GAME_MASTER_PENDING_MOST),
+                ..to
+            }),
+        }
+    }
+}
+
+/// Refused before anything is made — a share for the invitation — when
+/// `maker` has `to.most_pending` invitations waiting already;
+/// [`make_invitation`] counts again under its lock.
+pub fn room_for(db: &Db, maker: &str, to: &Invitee<'_>) -> Result<(), Refused> {
+    match to.most_pending {
+        Some(most) if db.pending_invitations_by(maker)? >= most => Err(Refused::TooMany(most)),
+        _ => Ok(()),
+    }
 }
 
 /// An invitation: a single-use link for seven days (ADR 0074 item 4), made
@@ -140,16 +223,21 @@ pub fn make_invitation(
             r
         }
     });
-    let (token, inv) = db.create_invitation(&NewLink {
-        kind: "invite",
-        email,
-        account: None,
-        folder: folder.as_deref(),
-        role,
-        created_by,
-        life: db::INVITE_LIFE,
-        share: shared.as_ref().map(|s| s.id.as_str()),
-    })?;
+    let (token, inv) = db
+        .create_invitation_within(
+            &NewLink {
+                kind: "invite",
+                email,
+                account: None,
+                folder: folder.as_deref(),
+                role,
+                created_by,
+                life: db::INVITE_LIFE,
+                share: shared.as_ref().map(|s| s.id.as_str()),
+            },
+            to.most_pending,
+        )?
+        .ok_or(Refused::TooMany(to.most_pending.unwrap_or_default()))?;
     by.audit(db, "invitation_created", Some(&inv.id), folder.as_deref());
     Ok((token, inv))
 }
@@ -162,6 +250,17 @@ pub fn end_invitation(db: &Db, by: &By<'_>, id: &str) -> Result<bool, String> {
         by.audit(db, "invitation_ended", Some(id), None);
     }
     Ok(ended)
+}
+
+/// Every pending invitation `maker` made, ended now — when the admin takes
+/// *may create folders* away from a game master (ADR 0117 D7 (e)): whoever
+/// accepted one keeps their place. Each in the audit. How many.
+pub fn end_invitations_of(db: &Db, by: &By<'_>, maker: &str) -> Result<usize, String> {
+    let ended = db.end_invitations_by(maker)?;
+    for id in &ended {
+        by.audit(db, "invitation_ended", Some(id), None);
+    }
+    Ok(ended.len())
 }
 
 /// An invitation as the console and the app's section list it.
@@ -182,6 +281,9 @@ pub struct InvitationRow {
     pub used_by: Option<String>,
     /// The name of the account that used it.
     pub used_by_name: Option<String>,
+    /// The e-mail of the account that made it: the admin's, or a game
+    /// master's (ADR 0117 D7 (e)).
+    pub made_by: Option<String>,
 }
 
 /// Each of `invitations` as a list shows it, at `now`.
@@ -201,6 +303,10 @@ pub fn invitation_rows(
                 Some(id) => db.folder(id)?.map(|f| f.dir),
                 None => None,
             };
+            let made_by = match &i.created_by {
+                Some(id) => db.account(id)?.map(|a| a.email),
+                None => None,
+            };
             Ok(InvitationRow {
                 id: i.id.clone(),
                 state: i.state(now).to_owned(),
@@ -212,6 +318,7 @@ pub fn invitation_rows(
                 used: i.used,
                 used_by: user.as_ref().map(|a| a.email.clone()),
                 used_by_name: user.map(|a| a.name),
+                made_by,
             })
         })
         .collect()

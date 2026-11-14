@@ -105,19 +105,24 @@ pub async fn set_powers(
     if id == me && !body.admin {
         return Err(ApiError::bad("last_admin", "another admin removes you"));
     }
-    ctx.server
-        .db
-        .set_powers(&id, body.admin, body.may_create || body.admin)?;
+    let may_create = body.may_create || body.admin;
+    ctx.server.db.set_powers(&id, body.admin, may_create)?;
     ctx.audit(
-        &format!(
-            "powers_admin_{}_create_{}",
-            body.admin,
-            body.may_create || body.admin
-        ),
+        &format!("powers_admin_{}_create_{may_create}", body.admin),
         Some(&id),
         None,
         true,
     );
+    // A game master's invitations waiting end with the power to make
+    // folders; whoever accepted one keeps their place (ADR 0117 D7 (e)).
+    if target.may_create && !may_create {
+        let address = ctx.address();
+        let by = acts::By {
+            actor: Some(&me),
+            address: Some(&address),
+        };
+        acts::end_invitations_of(&ctx.server.db, &by, &id)?;
+    }
     Ok(ok(json!(null)))
 }
 
@@ -236,6 +241,7 @@ pub async fn invite(ctx: Ctx, Json(body): Json<Invite>) -> ApiResult<Response> {
             folder: body.folder.as_deref(),
             role: body.role,
             share: body.share.as_deref(),
+            most_pending: None,
         },
     )?;
     let address = link(&ctx, "invite", &token);
