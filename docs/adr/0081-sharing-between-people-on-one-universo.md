@@ -175,7 +175,10 @@ carried a recommendation; the maintainer decided. Open items answered
    2026-11-04, Revisions: an account the admin lets make folders may also
    invite people into tables of its own folders — readers, audited, in the
    console's invitations — per [0117](0117-this-app-is-a-universo-server.md)
-   D14 (e); not built.)*
+   D14 (e); not built.)* *(2026-11-13: built, `205cdfb8`; 0117's D14 (e)
+   is now its D7 (e), which adds at most 20 pending per game master, an
+   account made by their link starts without making folders, and the
+   power taken away ends their pending invitations.)*
 5. **Where it appears.** A section **"Shared with me"** — *Compartilhados
    comigo* — in every place that lists a person's folders: the browser's
    folder picker and Settings › Account › Folders; the desktop app's
