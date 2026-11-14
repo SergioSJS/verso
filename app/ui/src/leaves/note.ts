@@ -73,6 +73,7 @@ import { unfoldFor } from "./note/folds";
 import * as live from "./note/live";
 import * as web from "./note/web";
 import { cleanCopy } from "./note/copyClean";
+import { jumpToFootnote } from "./note/footnote";
 import { PdfLeaf } from "./pdf";
 import { fromDisk, lineSeparator } from "./text";
 import { type CollabHandlers, type CollabSession, joinBusy, joinCollab, joinGiveUp, type JoinAnswer, joinPending, lostLine, onJoinRetry, sideCan } from "../collab";
@@ -418,16 +419,7 @@ export class NoteLeaf extends Leaf {
         return;
       }
       if (a.classList.contains("wikilink")) this.follow(a.dataset["target"] ?? "");
-      else if (a.getAttribute("href")?.startsWith("#")) {
-        // A footnote, in either direction: to the note at the bottom, back to the mark.
-        const id = decodeURIComponent(a.getAttribute("href")?.slice(1) ?? "");
-        const target = Array.from(this.preview.querySelectorAll<HTMLElement>("[id]")).find((e) => e.id === id);
-        target?.scrollIntoView({ block: "center", behavior: calm.matches ? "auto" : "smooth" });
-        if (target) {
-          target.classList.add("flash");
-          setTimeout(() => target.classList.remove("flash"), 1200);
-        }
-      }
+      else if (a.getAttribute("href")?.startsWith("#")) jumpToFootnote(this.preview, a.getAttribute("href") ?? "#");
       // A web address was already sent to the browser window (guardLink).
     });
     // Enter on a link the core writes without an address (keyLinks)
