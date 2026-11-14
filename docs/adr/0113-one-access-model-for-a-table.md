@@ -264,7 +264,7 @@ it, or when the table shows it (0110 "Chosen in the code" (5)).
 | Delete an entry, clear the table | — | yes | only their own message or file | no |
 | SendFile (chat) | — | cap Write | image: right *Images*; other: right *Files*; ∧ cap Write (K.6) | no |
 | ManageAccess, ManageTable | — | cap Write ∧ not a phone (as built) | no | no |
-| Share, Invite | owner ∧ cap Write (Invite of a person with no account: the admin, 0081 item 4) | owner | no | no |
+| Share, Invite | owner ∧ cap Write (Invite of a person with no account: the admin, 0081 item 4; *2026-11-14:* or, on a UniVerso, an owner the admin lets make folders, to read — [0117](0117-this-app-is-a-universo-server.md) D7 (e), `access::invites_new`) | owner | no | no |
 
 **Amended 2026-10-31: outside a table, only the folder's owner deletes.**
 `[DECIDED 2026-10-31, to be built]` Put to the maintainer as B8 of the list of

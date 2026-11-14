@@ -325,8 +325,12 @@ pub enum Action {
     Share,
     /// Invite someone who has an account.
     Invite,
-    /// Invite someone who has none: the server's admin (0081 item 4).
-    InviteNew,
+    /// Invite someone who has none, at `role`: the folder's owner who is the
+    /// server's admin, or on a UniVerso one the admin lets make folders, to
+    /// read ([`invites_new`]; 0081 item 4, revised by ADR 0117 D7 (e)).
+    InviteNew {
+        role: Role,
+    },
 }
 
 /// What a credential may do at most (item 6).
@@ -352,6 +356,9 @@ pub struct Asker {
     /// A read link's visitor (0105).
     pub link: bool,
     pub admin: bool,
+    /// The admin lets the account make folders (ADR 0074 item 6), on a
+    /// UniVerso: never on this computer, where only the owner owns folders.
+    pub may_create: bool,
     /// The account is the folder's owner, though the window holds a share's
     /// role (a phone served a part of the folder): the owner's seat for a
     /// deletion outside a table, not for a table (ADR 0113 B8, 2026-11-01).
@@ -813,11 +820,20 @@ pub fn may(f: &AccessFacts, who: &Asker, action: Action, t: &Target<'_>) -> Verd
             }
         }
         ManageAccess | ManageTable | Share | Invite => owner(),
-        InviteNew => match owner() {
-            Allow if !who.admin => Deny(NotAdmin),
+        InviteNew { role } => match owner() {
+            Allow if !invites_new(who.admin, who.may_create, role) => Deny(NotAdmin),
             other => other,
         },
     }
+}
+
+/// Whether an account with these powers, its folder's owner, invites a
+/// person who has no account at `role` (0081 item 4, revised by ADR 0117
+/// D7 (e)): the server's admin at any role; one the admin lets make
+/// folders, to read.
+#[must_use]
+pub fn invites_new(admin: bool, may_create: bool, role: Role) -> bool {
+    admin || (may_create && role == Role::Reader)
 }
 
 /// A closed table keeps its players out of every action at it.
@@ -844,6 +860,7 @@ mod tests {
             phone: false,
             link: false,
             admin: false,
+            may_create: false,
             owns_folder: false,
         }
     }

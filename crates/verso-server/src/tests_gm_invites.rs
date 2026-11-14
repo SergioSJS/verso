@@ -12,7 +12,7 @@
 use serde_json::{Value, json};
 
 use crate::admin::acts::{GAME_MASTER_PENDING_MOST, Invitee, Inviter, Refused};
-use crate::db::{Account, Role};
+use crate::db::Role;
 use crate::tests::{Browser, Running, block_on, folder_id, get, post, sign_in, start};
 use crate::tests_campaign::Win;
 
@@ -360,53 +360,277 @@ fn taking_may_create_folders_away_ends_the_waiting_invitations_only() {
     });
 }
 
-fn account(admin: bool, may_create: bool) -> Account {
-    Account {
-        id: "a".into(),
-        email: "a@b.c".into(),
-        name: "A".into(),
-        lang: "pt".into(),
-        admin,
-        may_create,
-        created: 0,
-        password: None,
-    }
+/// A DELETE as the browser `b` sends it; the status.
+async fn delete(r: &Running, path: &str, b: &Browser) -> u16 {
+    reqwest::Client::new()
+        .delete(r.url(path))
+        .header("origin", r.origin())
+        .header("cookie", &b.cookie)
+        .header("x-verso-csrf", &b.csrf)
+        .send()
+        .await
+        .unwrap()
+        .status()
+        .as_u16()
 }
 
-/// On this computer nothing changes (ADR 0117 D7 (e)): only the owner,
-/// its admin, invites; an account that makes folders invites on a
-/// UniVerso only, to read, within the number.
+/// The power taken away counts at the next command of a window opened
+/// before (review B3): the window's connection holds the account as it was
+/// when it opened, and the invitation reads it again.
 #[test]
-fn who_invites_on_a_universo_and_on_this_computer() {
-    assert_eq!(
-        Inviter::of(&account(true, true), false),
-        Some(Inviter::Admin)
-    );
-    assert_eq!(
-        Inviter::of(&account(true, false), true),
-        Some(Inviter::Admin)
-    );
-    assert_eq!(
-        Inviter::of(&account(false, true), false),
-        Some(Inviter::GameMaster)
-    );
-    assert_eq!(Inviter::of(&account(false, true), true), None);
-    assert_eq!(Inviter::of(&account(false, false), false), None);
-    let to = Invitee {
-        folder: Some("f"),
-        role: Some(Role::Owner),
-        ..Invitee::default()
+fn a_window_open_before_the_power_goes_invites_no_one_after() {
+    block_on(async {
+        let mut m = gm().await;
+        invite(&mut m.win).await.unwrap();
+        let status = patch(
+            &m.r,
+            &format!("/api/admin/accounts/{}", m.gil_id),
+            json!({ "admin": false, "mayCreate": false }),
+            &m.admin,
+        )
+        .await;
+        assert_eq!(status, 200);
+        // The same window, its connection from before.
+        let status = m.win.call("campaign_status", json!({})).await;
+        assert_eq!(status["ok"]["can_invite"], false, "{status}");
+        let refused = invite(&mut m.win).await.unwrap_err();
+        assert!(refused.contains("only the server's admin"), "{refused}");
+        assert_eq!(m.r.server.db.pending_invitations_by(&m.gil_id).unwrap(), 0);
+    });
+}
+
+/// An admin made a member, their window open: an invitation is refused
+/// from the next command on, and the row is never written for a power the
+/// maker lost before it.
+#[test]
+fn a_demoted_admins_open_window_invites_no_one() {
+    block_on(async {
+        let m = gm().await;
+        let ze =
+            m.r.server
+                .db
+                .create_account("ze@casa.lan", "Zé", "pt", Some("a senha do zé aqui"), true)
+                .unwrap();
+        let zb = sign_in(&m.r, "ze@casa.lan", "a senha do zé aqui").await;
+        let (_, made) = post(
+            &m.r,
+            "/api/folders",
+            json!({ "name": "Mesa do Zé" }),
+            Some(&zb),
+        )
+        .await;
+        let folder = made["id"].as_str().unwrap().to_owned();
+        let (mut win, _) = Win::open(&m.r, &zb, &folder).await;
+        let table = win.call("campaign_make", json!({ "root": "" })).await;
+        assert!(table.get("ok").is_some(), "{table}");
+        invite(&mut win).await.unwrap();
+        let status = patch(
+            &m.r,
+            &format!("/api/admin/accounts/{}", ze.id),
+            json!({ "admin": false, "mayCreate": false }),
+            &m.admin,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert!(invite(&mut win).await.is_err());
+        // The row checks the power under its lock: an admin's invitation
+        // whose maker is no admin any more is not written.
+        let refused = crate::admin::acts::make_invitation(
+            &m.r.server.db,
+            &crate::admin::acts::By::default(),
+            Some(&ze.id),
+            &Invitee {
+                folder: Some(&folder),
+                inviter: Some(Inviter::Admin),
+                owned: true,
+                ..Invitee::default()
+            },
+        )
+        .unwrap_err();
+        assert_eq!(refused, Refused::NotInviter);
+        let refused = crate::admin::acts::make_invitation(
+            &m.r.server.db,
+            &crate::admin::acts::By::default(),
+            Some(&m.gil_id),
+            &Invitee {
+                folder: Some(&folder),
+                inviter: Some(Inviter::GameMaster),
+                owned: true,
+                ..Invitee::default()
+            },
+        )
+        .unwrap_err();
+        assert_eq!(refused, Refused::NotOwner, "Gil does not own Zé's folder");
+    });
+}
+
+/// A game master no longer an owner of the folder: what they invited into
+/// it waits no more (review I3), in the audit; into their other folders it
+/// still does.
+#[test]
+fn an_owner_no_more_leaves_no_invitation_into_the_folder() {
+    block_on(async {
+        let mut m = gm().await;
+        let into = [
+            invite(&mut m.win).await.unwrap(),
+            invite(&mut m.win).await.unwrap(),
+        ];
+        // A second folder of Gil's, with one of its own.
+        let (_, made) = post(
+            &m.r,
+            "/api/folders",
+            json!({ "name": "Outra do Gil" }),
+            Some(&m.gil),
+        )
+        .await;
+        let other = made["id"].as_str().unwrap().to_owned();
+        let (mut win2, _) = Win::open(&m.r, &m.gil, &other).await;
+        win2.call("campaign_make", json!({ "root": "" })).await;
+        invite(&mut win2).await.unwrap();
+        // Another owner, then Gil made an editor of the first.
+        let admin =
+            m.r.server
+                .db
+                .account_by_email("admin@casa.lan")
+                .unwrap()
+                .unwrap();
+        m.r.server
+            .db
+            .grant(&m.folder, &admin.id, Role::Owner)
+            .unwrap();
+        m.r.server
+            .db
+            .grant(&m.folder, &m.gil_id, Role::Editor)
+            .unwrap();
+        for t in &into {
+            let (status, _) = get(&m.r, &format!("/api/invite/{t}"), None).await;
+            assert_eq!(status, 404);
+        }
+        assert_eq!(m.r.server.db.pending_invitations_by(&m.gil_id).unwrap(), 1);
+        let (_, log) = get(
+            &m.r,
+            "/api/admin/audit?action=invitation_ended",
+            Some(&m.admin),
+        )
+        .await;
+        assert_eq!(log["total"], 2, "{log}");
+        // Taken out of the second: its invitation ends too.
+        m.r.server.db.grant(&other, &admin.id, Role::Owner).unwrap();
+        m.r.server.db.revoke(&other, &m.gil_id).unwrap();
+        assert_eq!(m.r.server.db.pending_invitations_by(&m.gil_id).unwrap(), 0);
+        // Their windows invite no more there either.
+        assert!(invite(&mut m.win).await.is_err());
+    });
+}
+
+/// An account removed: the invitations it made that wait end with it
+/// (review I3: `invitations.created_by` has no key to cascade by); in the
+/// audit, by the admin.
+#[test]
+fn a_removed_accounts_invitations_end_with_it() {
+    block_on(async {
+        let mut m = gm().await;
+        let waiting = invite(&mut m.win).await.unwrap();
+        let admin =
+            m.r.server
+                .db
+                .account_by_email("admin@casa.lan")
+                .unwrap()
+                .unwrap();
+        // The folder keeps an owner, so the account may go.
+        m.r.server
+            .db
+            .grant(&m.folder, &admin.id, Role::Owner)
+            .unwrap();
+        let before = m.r.server.db.pending_invitations_by(&m.gil_id).unwrap();
+        assert_eq!(before, 1);
+        let status = delete(&m.r, &format!("/api/admin/accounts/{}", m.gil_id), &m.admin).await;
+        assert_eq!(status, 200);
+        let (status, _) = get(&m.r, &format!("/api/invite/{waiting}"), None).await;
+        assert_eq!(status, 404);
+        assert_eq!(m.r.server.db.pending_invitations_by(&m.gil_id).unwrap(), 0);
+        let (_, log) = get(
+            &m.r,
+            "/api/admin/audit?action=invitation_ended&actor=admin@casa.lan",
+            Some(&m.admin),
+        )
+        .await;
+        assert_eq!(log["total"], 1, "{log}");
+    });
+}
+
+/// The 21st refused leaves no share made for it behind (review M1).
+#[test]
+fn a_refused_invitation_leaves_no_empty_share() {
+    block_on(async {
+        let mut m = gm().await;
+        let made = m
+            .win
+            .call("create_folder", json!({ "path": "Pasta" }))
+            .await;
+        assert!(made.get("ok").is_some(), "{made}");
+        for _ in 0..GAME_MASTER_PENDING_MOST {
+            invite(&mut m.win).await.unwrap();
+        }
+        let (status, said) = post(
+            &m.r,
+            &format!("/api/folders/{}/shares/invite", m.folder),
+            json!({ "path": "Pasta", "role": "reader" }),
+            Some(&m.gil),
+        )
+        .await;
+        assert_eq!(status, 400, "{said}");
+        assert!(
+            m.r.server
+                .db
+                .share_at(&m.folder, "Pasta")
+                .unwrap()
+                .is_none()
+        );
+    });
+}
+
+/// The one answer (ADR 0113, `InviteNew`): the owner who is the admin at
+/// any role; one the admin lets make folders, to read; nobody else. On
+/// this computer the door never says *may create folders*
+/// (`Door::build`), so only the owner, its admin, invites there.
+#[test]
+fn who_invites_by_the_one_answer() {
+    use crate::access::{Action, Asker, Cap, Kind, Reason, Target, Verdict, may};
+    let ask = |admin: bool, may_create: bool, role: Option<Role>, invited: Role| {
+        let who = Asker {
+            account: "a".into(),
+            role,
+            cap: Cap::Write,
+            phone: false,
+            link: false,
+            admin,
+            may_create,
+            owns_folder: false,
+        };
+        may(
+            &crate::access::AccessFacts::default(),
+            &who,
+            Action::InviteNew { role: invited },
+            &Target::new("", Kind::Folder),
+        )
     };
+    let owner = Some(Role::Owner);
+    for r in [Role::Reader, Role::Editor, Role::Owner] {
+        assert_eq!(ask(true, true, owner, r), Verdict::Allow);
+        assert_eq!(ask(false, false, owner, r), Verdict::Deny(Reason::NotAdmin));
+        assert_eq!(
+            ask(true, true, Some(Role::Editor), r),
+            Verdict::Deny(Reason::NotMaster)
+        );
+    }
+    assert_eq!(ask(false, true, owner, Role::Reader), Verdict::Allow);
     assert_eq!(
-        Inviter::GameMaster.invitee(to).unwrap_err(),
-        Refused::ReadersOnly
+        ask(false, true, owner, Role::Editor),
+        Verdict::Deny(Reason::NotAdmin)
     );
-    assert_eq!(Inviter::Admin.invitee(to).unwrap().role, Some(Role::Owner));
-    let none = Inviter::GameMaster.invitee(Invitee::default()).unwrap_err();
-    assert_eq!(none, Refused::NotInviter);
-    let ok = Inviter::GameMaster
-        .invitee(Invitee { role: None, ..to })
-        .unwrap();
-    assert_eq!(ok.role, Some(Role::Reader));
-    assert_eq!(ok.most_pending, Some(GAME_MASTER_PENDING_MOST));
+    assert_eq!(
+        ask(false, true, Some(Role::Editor), Role::Reader),
+        Verdict::Deny(Reason::NotMaster)
+    );
 }

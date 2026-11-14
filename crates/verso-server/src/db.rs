@@ -272,7 +272,7 @@ pub fn is_email(email: &str) -> bool {
 
 /// A member's role in a folder (ADR 0073 item 5).
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
@@ -968,11 +968,15 @@ impl Db {
     }
 
     pub fn forget_folder(&self, id: &str) -> R<()> {
-        let conn = self.conn();
-        conn.execute("DELETE FROM folders WHERE id = ?1", [id])
-            .map_err(e)?;
-        self.refresh_images(&conn);
-        Ok(())
+        let ended = {
+            let conn = self.conn();
+            let ended = Self::folder_ending(&conn, id)?;
+            conn.execute("DELETE FROM folders WHERE id = ?1", [id])
+                .map_err(e)?;
+            self.refresh_images(&conn);
+            ended
+        };
+        self.audit_ended(&ended, None)
     }
 
     pub fn role(&self, folder: &str, account: &str) -> R<Option<Role>> {
@@ -989,6 +993,7 @@ impl Db {
     }
 
     pub fn grant(&self, folder: &str, account: &str, role: Role) -> R<()> {
+        let was = self.role(folder, account)?;
         self.conn()
             .execute(
                 "INSERT INTO grants (folder, account, role) VALUES (?1, ?2, ?3)
@@ -996,11 +1001,18 @@ impl Db {
                 params![folder, account, role.as_str()],
             )
             .map_err(e)?;
+        // An owner no more: what it invited into the folder waits no more.
+        if was == Some(Role::Owner) && role != Role::Owner {
+            self.ownership_ended(folder, account)?;
+        }
         // A role that writes makes it a game master, not a player.
         self.campaign_account_left(folder, account)
     }
 
     pub fn revoke(&self, folder: &str, account: &str) -> R<()> {
+        if self.role(folder, account)? == Some(Role::Owner) {
+            self.ownership_ended(folder, account)?;
+        }
         self.conn()
             .execute(
                 "DELETE FROM grants WHERE folder = ?1 AND account = ?2",
@@ -1395,6 +1407,7 @@ pub use table::{ROWS_MOST, Row as TableRow};
 mod tokens;
 mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
+pub use invitations::{Lost, Still};
 pub use local::{LOCAL_OWNER, LOCAL_OWNER_UNNAMED, Phone, VAULT_HOLDER, is_this_computer};
 pub use readlinks::{NewReadLink, ReadLink};
 pub use shares::{Share, covers};

@@ -301,6 +301,25 @@ essa pessoa me convidar."* Read against the code on 2026-11-04:
   invitation the account made that is still pending, each
   `invitation_ended` in the audit. The console's invitations gain *Made
   by*. Tests: `tests_gm_invites.rs`.
+  *Review of R6, fixed 2026-11-14:* who may invite is the one answer,
+  `access::may` with `InviteNew { role }` ([0113](0113-one-access-model-for-a-table.md)):
+  the folder's owner who is the admin at any role, or who may make
+  folders on a UniVerso, to read (`access::invites_new`; the shared
+  vectors carry *may create folders*); the door reads the account's powers
+  again for each invitation (`Door::with_powers`), so a window opened
+  before a power was taken away invites no one after; the row is written
+  only while its maker still holds the power and owns the folder, and has
+  fewer than 20 waiting — read under the lock it is written under
+  (`db::Still`). What a game master invited into a folder waits no more
+  once they stop being its owner (a role lowered, taken out) or their
+  account is removed; a folder forgotten ends the invitations into it,
+  which would otherwise carry nothing; each in the audit. A share made for
+  a refused invitation goes again.
+  `[OPEN]` (no code): an invitation into a folder that rests on this
+  computer (D2, `Server::rests`) is still shown and, accepted, gives its
+  place — reached again when the folder is served. Refusing it at accept
+  would end the owner's invitation while the folder only pauses; his to
+  say.
   `[OPEN]` (smallest choice kept): a game master has no list of their own
   invitations, so cannot end one; the 21st's words say to wait or ask the
   admin. `[OPEN]` (smallest choice kept): an account that loses both

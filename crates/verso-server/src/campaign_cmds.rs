@@ -227,7 +227,7 @@ pub async fn command(
             });
             subject = Some(permission(server, &folder, &given, right).await?);
         }
-        "campaign_invite" => return invite(server, who, &folder, &args).await,
+        "campaign_invite" => return invite(server, who, client, &folder, &args).await,
         _ => return Err(refused("no such command")),
     }
     // Who made, opened, closed, released, granted: in the audit log.
@@ -703,6 +703,13 @@ async fn status(
             return Err(failed("the table's state cannot be read now"));
         }
         if owner {
+            // The admin, or on a UniVerso a game master the admin lets make
+            // folders (ADR 0117 D7 (e)), by the one answer and the powers
+            // as they are now.
+            let can_invite = door
+                .clone()
+                .with_powers(&s)
+                .is_ok_and(|d| crate::admin::acts::Inviter::at(&d, Role::Reader).is_ok());
             let mut players: Vec<CampaignPlayer> = Vec::new();
             // A folder's editor edits every file they see (ADR 0113 K.1).
             let mut editors: HashSet<String> = HashSet::new();
@@ -769,10 +776,7 @@ async fn status(
                     .collect(),
                 notes,
                 players,
-                // The admin, or on a UniVerso a game master the admin lets
-                // make folders (ADR 0117 D7 (e)).
-                can_invite: crate::admin::acts::Inviter::of(&w.account, s.local.is_some())
-                    .is_some(),
+                can_invite,
             });
         }
         // A player: the tables, and the notes it may edit — only those. A
@@ -940,11 +944,17 @@ async fn access(
 async fn invite(
     server: &Arc<Server>,
     who: &Arc<Who>,
+    client: &str,
     folder: &str,
     args: &Value,
 ) -> Result<Value, ContractError> {
     let root = root_arg(args)?;
-    let (s, w, f) = (Arc::clone(server), Arc::clone(who), folder.to_owned());
+    let (s, w, f, c) = (
+        Arc::clone(server),
+        Arc::clone(who),
+        folder.to_owned(),
+        client.to_owned(),
+    );
     let made = blocking(move || {
         let Some(session) = w.session() else {
             return Err(refused("not with an access token"));
@@ -956,41 +966,36 @@ async fn invite(
                 message: "prove it is you first".to_owned(),
             });
         }
-        use crate::admin::acts::{Invitee, Inviter, room_for};
-        let Some(inviter) = Inviter::of(&w.account, s.local.is_some()) else {
-            return Err(refused(
+        use crate::admin::acts::{Invitee, Inviter, Refused, make_invitation_at};
+        // The powers as they are now, not as the window's connection held
+        // them when it opened (ADR 0117 D7 (e)).
+        let door = Door::of(&s, &w, &c)?.with_powers(&s).map_err(failed)?;
+        let inviter = Inviter::at(&door, Role::Reader).map_err(|r| match r {
+            Refused::NotInviter => refused(
                 "only the server's admin, or an account the admin lets make folders, invites a person who has no account: ask for one, or give an account of this server a place at the table",
-            ));
-        };
-        let asked = inviter
-            .invitee(Invitee {
-                folder: Some(&f),
-                role: Some(Role::Reader),
-                ..Invitee::default()
-            })
-            .map_err(said)?;
-        room_for(&s.db, &w.account.id, &asked).map_err(said)?;
+            ),
+            other => said(other),
+        })?;
         let veil = campaign::veil_of(&s, &f).ok_or_else(|| refused("not a table"))?;
         if !veil.tables.iter().any(|t| t.root == root) {
             return Err(refused("that folder is not a table"));
         }
-        let share = if root.is_empty() {
-            None
-        } else {
-            Some(s.db.make_share(&f, &root).map_err(failed)?)
-        };
         let by = crate::admin::acts::By {
             actor: Some(&w.account.id),
             address: None,
         };
-        let (token, inv) = crate::admin::acts::make_invitation(
+        let (token, inv) = make_invitation_at(
             &s.db,
             &by,
             Some(&w.account.id),
             &Invitee {
-                share: share.as_ref().map(|x| x.id.as_str()),
-                ..asked
+                folder: Some(&f),
+                role: Some(Role::Reader),
+                inviter: Some(inviter),
+                owned: true,
+                ..Invitee::default()
             },
+            &root,
         )
         .map_err(said)?;
         Ok(CampaignInvite {

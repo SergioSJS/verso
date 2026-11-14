@@ -302,6 +302,7 @@ impl Veil {
             phone: false,
             link: false,
             admin: false,
+            may_create: false,
             owns_folder: false,
         }
     }
@@ -316,6 +317,7 @@ impl Veil {
             phone: false,
             link: true,
             admin: false,
+            may_create: false,
             owns_folder: false,
         }
     }

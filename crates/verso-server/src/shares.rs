@@ -615,18 +615,19 @@ pub async fn invite(
     ctx.proved()?;
     let folder = owned(&ctx, &id)?;
     let who = ctx.person()?;
-    let inviter = crate::admin::acts::Inviter::of(&who.account, ctx.server.local.is_some())
-        .ok_or(crate::admin::acts::Refused::NotInviter)?;
-    // Who may invite, at what role and how many, before anything is made.
-    let asked = inviter.invitee(crate::admin::acts::Invitee {
-        email: body.email.as_deref(),
-        folder: Some(&folder.id),
-        role: Some(body.role),
-        ..crate::admin::acts::Invitee::default()
-    })?;
+    // Who may invite and at what role, by the one answer (ADR 0113,
+    // `InviteNew`), before anything is made.
+    let door = crate::access::Door::build(
+        &ctx.server,
+        who,
+        (folder.id.clone(), Role::Owner, true),
+        true,
+        None,
+    )
+    .with_powers(&ctx.server)?;
+    let inviter = crate::admin::acts::Inviter::at(&door, body.role)?;
     let admin = who.account.id.clone();
-    crate::admin::acts::room_for(&ctx.server.db, &admin, &asked)?;
-    let share = if body.path.is_empty() {
+    if body.path.is_empty() {
         // As a grant of the whole folder here (`grant`): reading or
         // editing, the folder stays this computer's owner's.
         if ctx.server.local.is_some() && body.role == Role::Owner {
@@ -635,7 +636,6 @@ pub async fn invite(
                 "a person invited here reads or edits: the folder stays yours",
             ));
         }
-        None
     } else {
         share_path(&body.path)?;
         if !exists_folder(&ctx.server, &folder, &body.path)? {
@@ -645,18 +645,22 @@ pub async fn invite(
                 "no folder there",
             ));
         }
-        Some(ctx.server.db.make_share(&folder.id, &body.path)?)
-    };
+    }
     let address = ctx.address();
     let by = crate::admin::acts::By {
         actor: Some(&admin),
         address: Some(&address),
     };
     let to = crate::admin::acts::Invitee {
-        share: share.as_ref().map(|s| s.id.as_str()),
-        ..asked
+        email: body.email.as_deref(),
+        folder: Some(&folder.id),
+        role: Some(body.role),
+        share: None,
+        inviter: Some(inviter),
+        owned: true,
     };
-    let (token, inv) = crate::admin::acts::make_invitation(&ctx.server.db, &by, Some(&admin), &to)?;
+    let (token, inv) =
+        crate::admin::acts::make_invitation_at(&ctx.server.db, &by, Some(&admin), &to, &body.path)?;
     let mailed = crate::admin::mail_invitation(&ctx, inv.email.as_deref(), &token).await?;
     Ok(ok(json!({
         "link": crate::window_link(&ctx.server, &format!("/invite/{token}")),

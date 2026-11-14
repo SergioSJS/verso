@@ -155,6 +155,7 @@ impl Door {
                 phone: who.phone.is_some(),
                 link,
                 admin: who.account.admin,
+                may_create: who.account.may_create && server.local.is_none(),
                 owns_folder: owns && !link,
             },
             folder,
@@ -303,6 +304,22 @@ impl Door {
             )
             .serves_whole(path)
         })
+    }
+
+    /// The door with its account's powers as the database says them now —
+    /// the admin, *may create folders* (ADR 0117 D7 (e)) — not as the
+    /// connection held them when it opened: a power taken away counts from
+    /// the next command. A phone and a read link hold none; on this
+    /// computer nobody but the admin owns folders.
+    pub fn with_powers(mut self, server: &Server) -> Result<Self, String> {
+        let fresh = if self.asker.phone || self.asker.link {
+            None
+        } else {
+            server.db.account(&self.asker.account)?
+        };
+        self.asker.admin = fresh.as_ref().is_some_and(|a| a.admin);
+        self.asker.may_create = fresh.is_some_and(|a| a.may_create) && server.local.is_none();
+        Ok(self)
     }
 
     /// The rules' answer for `path` (a path of the folder, not of a share).
@@ -959,6 +976,7 @@ pub fn asker_of(c: &crate::state::Client) -> Asker {
         phone: c.phone,
         link,
         admin: false,
+        may_create: false,
         owns_folder: c.owns && !link,
     }
 }

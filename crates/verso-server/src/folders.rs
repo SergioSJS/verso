@@ -128,7 +128,7 @@ pub async fn set_member(
 
 /// An account named by id or by e-mail. None: one who may invite a person
 /// who has no account — the server's admin, or on a UniVerso an account the
-/// admin lets make folders (`acts::Inviter`; ADR 0081 item 4, revised by
+/// admin lets make folders (`access::invites_new`; ADR 0081 item 4, revised by
 /// ADR 0117 D7 (e)) — is told they may make an invitation link for it
 /// (`shares::invite`).
 pub(crate) fn named(ctx: &Ctx, account: &str) -> ApiResult<crate::db::Account> {
@@ -136,9 +136,15 @@ pub(crate) fn named(ctx: &Ctx, account: &str) -> ApiResult<crate::db::Account> {
         Some(a) => Ok(a),
         None => ctx.server.db.account_by_email(account)?.ok_or_else(|| {
             let local = ctx.server.local.is_some();
-            let invites = ctx
-                .person()
-                .is_ok_and(|w| crate::admin::acts::Inviter::of(&w.account, local).is_some());
+            // The words only: the act asks the one answer again
+            // (`acts::Inviter::at`).
+            let invites = ctx.person().is_ok_and(|w| {
+                crate::access::invites_new(
+                    w.account.admin,
+                    w.account.may_create && !local,
+                    Role::Reader,
+                )
+            });
             if invites {
                 ApiError::bad(
                     "no_account",
