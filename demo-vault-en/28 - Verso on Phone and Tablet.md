@@ -116,6 +116,21 @@ The Android app is the same Verso as on the computer, in an APK you install on t
 
 ---
 
+## The App for iPad and iPhone
+
+The same Verso also comes to iPad and iPhone (iOS 16 or newer). For now it arrives **through AltStore Classic**, not the App Store:
+
+1. On your computer, install **AltServer** (altstore.io) and, through it, **AltStore** on the iPad or iPhone. It signs apps with **your own Apple ID**, free, for 7 days at a time, and renews them by itself while the computer and the device are on the same network.
+2. On the iPad or iPhone, download Verso's `.ipa` file from the version's page, open it with AltStore and tap **Install**.
+
+Through **AltStore PAL** (no computer needed) Verso comes later, and **for now in Brazil only**.
+
+What differs from Android:
+
+- **The app's folder** shows in the **Files** app, under *On My iPad › Verso* (or *On My iPhone*): other apps open its notes there, and Verso sees what they change when it comes back to the screen. It is deleted with Verso unless it syncs.
+- **A UniVerso** and **the device as a server** work as on Android, but iOS lets it serve only while Verso is on the screen.
+- **Not on iOS**: the internet link, the terminal, the command line and agents, and updates from the app itself (AltStore brings them).
+
 ## Screen Readers
 
 With VoiceOver (iPhone and iPad) or TalkBack (Android), a double tap and hold does the same as holding: it opens the menu. Every new button has a name, in Portuguese and in English.

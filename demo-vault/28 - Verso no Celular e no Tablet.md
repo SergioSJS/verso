@@ -116,6 +116,21 @@ O app para Android é o mesmo Verso do computador, num APK que você instala no 
 
 ---
 
+## O App para iPad e iPhone
+
+O mesmo Verso também vem para iPad e iPhone (iOS 16 ou mais novo). Por enquanto ele chega **pela AltStore Classic**, não pela App Store:
+
+1. No computador, instale o **AltServer** (altstore.io) e, por ele, a **AltStore** no iPad ou no iPhone. Ela assina os apps com o **seu próprio Apple ID**, de graça, por 7 dias de cada vez, e os renova sozinha quando o computador e o aparelho estão na mesma rede.
+2. No iPad ou no iPhone, baixe o arquivo `.ipa` do Verso da página da versão, abra-o com a AltStore e toque em **Instalar**.
+
+Pela **AltStore PAL** (sem computador), o Verso vem depois, e **por enquanto só no Brasil**.
+
+O que muda em relação ao Android:
+
+- **A pasta do app** aparece no app **Arquivos**, em *No meu iPad › Verso* (ou *No meu iPhone*): outros apps abrem as notas dali, e o que eles mudam o Verso vê ao voltar para a tela. Ela é apagada junto se o Verso for desinstalado, a não ser que sincronize.
+- **Um UniVerso** e **o aparelho como servidor** funcionam como no Android, mas o iOS só deixa servir com o Verso na tela.
+- **Não tem** no iOS: o link pela internet, o terminal, a linha de comando e os agentes, e as atualizações pelo próprio app (a AltStore as traz).
+
 ## Leitores de Tela
 
 Com o VoiceOver (iPhone e iPad) ou o TalkBack (Android), tocar duas vezes e segurar faz o mesmo que segurar: abre o menu. Cada botão novo tem nome, em português e em inglês.
