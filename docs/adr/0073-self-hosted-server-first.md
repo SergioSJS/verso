@@ -218,7 +218,7 @@
   optional step. The old wording of item 6 is kept above, marked.
   2026-10-21 — six `[OPEN]` of the Status answered by the maintainer's marks
   in the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all as
-  recommended; each is written under the Status. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) brings the desktop's sync with WebDAV and a bucket into V1; item 4(b), the server's bucket, unchanged and after V1.
+  recommended; each is written under the Status. 2026-10-21 — [0104](0104-external-cloud-storage-transports-and-quotas.md) brings the desktop's sync with WebDAV and a bucket into V1; item 4(b), the server's bucket, unchanged and after V1 *(superseded 2026-11-01: the maintainer's item 16 = b brings the bucket's pre-signed URL into V1 — roadmap V.52, [0044](0044-verso-fs-semantics.md) — and with it the server's bucket mode it serves from; not built, after the terminal and the music; the contradiction found and corrected 2026-11-14)*.
   2026-11-02 — item 2's contract version, amended (Architecture Path,
   built on 2026-11-03 for 0.8.5). The Mac's beta stopped syncing with VM
   107 because the two builds' binding hashes differed, and the maintainer

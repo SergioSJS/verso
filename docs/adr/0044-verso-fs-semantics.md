@@ -396,7 +396,8 @@ for the server, option (a) of that plan:
   [0026](0026-core-ui-contract-inviolable-rules.md) is unchanged, with a
   dated clarification there.
 - **The pre-signed URL** of a bucket ([0073](0073-self-hosted-server-first.md)
-  item 4) stays `[OPEN]`, with the bucket mode. *(2026-10-31: whether it
+  item 4), with the bucket mode: **into V1** (decided 2026-11-01, below;
+  roadmap V.52), not built. *(2026-10-31: whether it
   waits for after V1 is to be discussed with the maintainer on 2026-11-02.
   Decided 2026-11-01, item 16 = b: **into V1**, after the terminal and the
   music are polished; not built. *"12. A 13. B 14. B - Mas vamos fazer depois, quero terminal e música redondinho primeiro 15. B - (idem) 16. B - (idem)"* (12 a; 13 b; 14 b, but later, he wants the terminal and the music polished first; 15 b, likewise; 16 b, likewise).)*
