@@ -173,8 +173,23 @@ pub async fn command(
         }
         "campaign_unmake" => {
             let root = root_arg(&args)?;
-            let (s, f) = (Arc::clone(server), folder.clone());
-            blocking(move || s.db.campaign_drop(&f, &root).map_err(failed)).await?;
+            let (s, f, actor) = (Arc::clone(server), folder.clone(), who.account.id.clone());
+            // A table that moved to the other host takes with it what it
+            // gave its players (ADR 0117 R9, `campaign_move`).
+            let freed = blocking(move || {
+                let moved = (s.db.campaigns_of(&f).map_err(failed)?.iter())
+                    .any(|t| t.root == root && t.moved);
+                let freed = moved
+                    .then(|| crate::campaign_move::free(&s, &f, &root, &actor))
+                    .transpose()
+                    .map_err(failed)?;
+                s.db.campaign_drop(&f, &root).map_err(failed)?;
+                Ok(freed)
+            })
+            .await?;
+            if let Some(freed) = freed {
+                crate::campaign_move::tell(server, &folder, &freed);
+            }
         }
         "campaign_settings" => settings(server, &folder, &args).await?,
         "campaign_release" | "campaign_release_all" => {

@@ -18,6 +18,7 @@ import { h, ui } from "./dom";
 import { folderName } from "./folder";
 import { name } from "./paths";
 import { moveCard } from "./tableMoveCard";
+import { tm } from "./tableMoveStrings";
 
 const MB = 1024 * 1024;
 
@@ -121,7 +122,8 @@ export function openCampaignDialog(root: string, undo = false): void {
   const ask = () =>
     askFirst(
       footer,
-      cp.undoConfirm,
+      // A moved table takes its players' places with it (ADR 0117 R9).
+      campaign().tables.find((t) => t.root === root)?.moved === true ? tm.movedUndoConfirm : cp.undoConfirm,
       async () => {
         if (await undoTable(root)) close();
         else footer.replaceChildren(...footerRows());

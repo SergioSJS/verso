@@ -22,7 +22,9 @@ const pt = {
   movedBody: (to: string) =>
     `Ela agora é hospedada em: ${to}. Aqui ela está fechada para os jogadores, que leem que a mesa mudou e pedem um convite novo. O chat, as rolagens e os direitos dela ficam aqui até você desfazer esta mesa.`,
   movedUndoWarn:
-    "Desfazer esta mesa a torna uma pasta comum aqui: quem ainda lê esta pasta neste servidor passa a ver todas as notas. Tire os jogadores antes, se for o caso.",
+    "Desfazer esta mesa a torna uma pasta comum aqui e tira dela os jogadores que a mesa tinha: eles perdem o acesso a esta pasta neste servidor (já foram avisados de que a mesa mudou). Quem tem um lugar nesta pasta fora da mesa continua como está.",
+  movedUndoConfirm:
+    "Desfazer esta mesa? Ela volta a ser uma pasta comum aqui, e os jogadores que ela tinha perdem o acesso a esta pasta neste servidor; os arquivos nunca mudam.",
   movedGo: (to: string) => `Abrir a mesa nova (${to})`,
   thisComputer: "este computador",
   universo: (name: string) => `UniVerso ${name}`,
@@ -46,7 +48,9 @@ const en: typeof pt = {
   movedBody: (to) =>
     `It now lives on ${to}. Here it is closed to its players, who read that the table moved and ask for a new invitation. Its chat, rolls and rights stay here until you undo this table.`,
   movedUndoWarn:
-    "Undoing this table makes it an ordinary folder here: whoever still reads this folder on this server then sees every note. Remove the players first, if they should not.",
+    "Undoing this table makes it an ordinary folder here and takes out the players it had: they lose access to this folder on this server (they were already told the table moved). Whoever has a place in this folder outside the table keeps it.",
+  movedUndoConfirm:
+    "Undo this table? It becomes an ordinary folder here, and the players it had lose access to this folder on this server; the files never change.",
   movedGo: (to) => `Open the new table (${to})`,
   thisComputer: "this computer",
   universo: (name) => `the UniVerso ${name}`,

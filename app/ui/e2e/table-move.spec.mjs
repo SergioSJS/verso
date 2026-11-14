@@ -37,10 +37,14 @@ test("the game master moves the table to this computer, asked first, and the tab
   // Its window there: what it means, no switch, no invitation; undo stays.
   const again = await tableWindow(app);
   await expect(again).toContainText("Esta mesa mudou de servidor");
-  await expect(again).toContainText("Desfazer esta mesa a torna uma pasta comum aqui");
+  await expect(again).toContainText("tira dela os jogadores que a mesa tinha: eles perdem o acesso");
   await expect(again.getByRole("switch", { name: "Mesa aberta" })).toBeHidden();
   await expect(again.getByRole("heading", { name: "Convidar jogadores" })).toBeHidden();
   await expect(again.getByRole("button", { name: "Desfazer mesa" })).toBeVisible();
+  // Undoing it says the old players lose access here.
+  await again.getByRole("button", { name: "Desfazer mesa" }).click();
+  await expect(again.getByRole("group", { name: /os jogadores que ela tinha perdem o acesso/ })).toBeVisible();
+  await again.getByRole("button", { name: "Cancelar" }).click();
   await expect(again.getByRole("button", { name: "Abrir a mesa nova (este computador)" })).toBeVisible();
 });
 

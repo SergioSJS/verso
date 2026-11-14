@@ -18,6 +18,7 @@ pub mod auth;
 pub mod board_sight;
 pub mod campaign;
 pub mod campaign_cmds;
+pub mod campaign_move;
 pub mod campaign_outside;
 pub mod campaign_serve;
 pub mod campaign_sync;
