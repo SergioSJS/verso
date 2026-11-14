@@ -105,7 +105,7 @@ all ordered *after the terminal and the music are polished*, none built: the
 shared board with the owner's paths (V.49, [0081](adr/0081-sharing-between-people-on-one-universo.md)
 item 11), the merge by block of offline edits (V.50, its own ADR still to be
 written), the other placeholder providers (V.51, [0043](adr/0043-placeholder-guard.md))
-and the bucket's pre-signed URL (V.52, [0044](adr/0044-verso-fs-semantics.md)).
+and the bucket's pre-signed URL (V.52, [0044](adr/0044-verso-fs-semantics.md)). *(V.52 moved after V1 on 2026-11-14: After V1, item 10.)*
 
 Still open: **B14**, the ZimaOS server's `VERSO_PUBLIC_URL` at `universo-test`
 (no answer yet; the maintainer's server); **B16**, the PUM Companion research:
@@ -138,7 +138,7 @@ The following items gate the official release of V1 (they do not block local com
 | V.49 | A shared board with the owner's paths: a share's sync carries a board with the share's paths, and a share window without a table joins the board's room by them | [ADR 0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 | Decided into V1 2026-11-01; not built; after the terminal and the music are polished |
 | V.50 | Merge by block of offline edits (two people who edited one note offline are merged, not copied) | [ADR 0082](adr/0082-live-co-editing-of-a-synced-folder.md), [ADR 0073](adr/0073-self-hosted-server-first.md) item 10 | Decided into V1 2026-11-01; its own ADR still to be written; not built; after the terminal and the music are polished |
 | V.51 | The other placeholder providers (Dropbox, Google Drive on macOS) never read as a deletion | [ADR 0043](adr/0043-placeholder-guard.md) | Decided into V1 2026-11-01; not built; after the terminal and the music are polished |
-| V.52 | The bucket's pre-signed URL (a file served from the bucket, not through the server) | [ADR 0044](adr/0044-verso-fs-semantics.md) | Decided into V1 2026-11-01; not built; after the terminal and the music are polished |
+| V.52 | ~~The bucket's pre-signed URL~~ | [ADR 0044](adr/0044-verso-fs-semantics.md) | Moved **after V1** by the maintainer on 2026-11-14 (*"fica pra depois mesmo, tem que tá no roadmap"*): After V1, item 10 |
 
 ---
 
@@ -159,3 +159,4 @@ Features deliberately deferred until after the V1 release:
 7. **Terminal and agents on a server's folder** ([ADR 0054](adr/0054-terminal-and-agents-from-the-app.md)): they stay hidden in a desktop window that shows a server's folder; deferred by the maintainer on 2026-10-23 (*"Isso fica pra depois"*; [`review/2026-10-23-table-three-devices.md`](review/2026-10-23-table-three-devices.md)).
 8. **Merge by block of offline edits** and the three-way merge of an outside program's edit into a live room ([ADR 0082](adr/0082-live-co-editing-of-a-synced-folder.md) Consequences, [ADR 0073](adr/0073-self-hosted-server-first.md) item 10): two people who edited one note offline end with a copy today; kept for later by the maintainer on 2026-10-10 because it needs the base's bytes kept, not only its hash. Its own ADR first. *(2026-10-31: put to the maintainer as "after V1, with its own ADR" and not accepted. **2026-11-01: moved into V1 as V.50** by the maintainer, after the terminal and the music are polished.)*
 9. **Opening one `.md` file without a folder** (maintainer's request, 2026-10-30; [ADR 0114](adr/0114-opening-one-markdown-file-without-a-folder.md), **Accepted** 2026-10-30, built on `feat/single-file` 2026-10-30). Verso declared a handler for `.md`/`.markdown` on the three systems — never the default by itself; a double-clicked file opens in a loose-files window with no tree, no index and nothing written beside the file, through a `verso-fs` root scoped to that one file (pictures beside it readable, siblings not); "Open the whole folder in Verso" as the way back. Index, search, backlinks, MCP, sync and history are off in that window. Listed here as a proposal; whether it enters V1 (Q11 of the ADR) is the maintainer's call.
+10. **The bucket's pre-signed URL** (V.52 until 2026-11-14, [ADR 0044](adr/0044-verso-fs-semantics.md), [ADR 0073](adr/0073-self-hosted-server-first.md) item 4(b)): a UniVerso that keeps its files in a bucket hands each file over by a short-lived link of the bucket itself, signed after the access check, instead of passing the bytes through the server; with it, the server's bucket mode. Moved after V1 by the maintainer on 2026-11-14 (*"Ah tá, fica pra depois mesmo, tem que tá no roadmap"*), after the explanation of what it is.
