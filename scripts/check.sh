@@ -48,6 +48,8 @@ step "the release page names the files the release workflow builds (ADR 0051)"
 node --test scripts/release-page.test.mjs
 step "file associations: a handler for .md on three systems, never the default (ADR 0114)"
 node scripts/check-file-associations.mjs
+step "the installer keeps a final server on finals (ADR 0051, 2026-11-14)"
+sh scripts/check-update-channel.sh
 step "std::fs in verso-core only in src/sidecar.rs (ADR 0029)"
 if grep -rnE --include='*.rs' '(std::fs|\bfs::|std::\{[^}]*\bfs\b)' crates/verso-core/src \
    | grep -v '^crates/verso-core/src/sidecar.rs:' \

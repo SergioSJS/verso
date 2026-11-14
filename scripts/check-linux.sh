@@ -245,12 +245,13 @@ EOF
   UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh; token_help' > /tmp/token-help 2>&1
   if grep -q 'export GITHUB_TOKEN=' /tmp/token-help; then fail "the token is to be typed where the shell's history keeps it"; fi
   grep -q 'read -rs GITHUB_TOKEN' /tmp/token-help || fail "no hidden way to give the token"
-  # The channel (the maintainer, 2026-11-14): FINALS=1 skips test releases.
-  printf '%s' '[{"tag_name":"v0.9.1-beta.1","draft":false,"prerelease":true,"assets":[{"name":"universo-0.9.1-beta.1-amd64.deb","url":"u1"}]},{"tag_name":"v0.9.0","draft":false,"prerelease":false,"assets":[{"name":"universo-0.9.0-amd64.deb","url":"u2"}]}]' > /tmp/rels.json
-  for want in 0:v0.9.1-beta.1 1:v0.9.0; do
-    got=$(UNIVERSO_SH_FUNCTIONS=1 FINALS=${want%%:*} sh -c ". /src/packaging/server/universo.sh; PKG_RE='amd64\\.deb\$'; pick_asset /tmp/rels.json" | cut -f1)
-    [ "$got" = "${want#*:}" ] || fail "FINALS=${want%%:*} picked '$got', not ${want#*:}"
-  done
+  # The installer's channel (ADR 0051, 2026-11-14): scripts/check.sh runs
+  # it on the Mac; here only where jq or python3 is, as pick_asset needs.
+  if command -v jq >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
+    sh /src/scripts/check-update-channel.sh || fail "the installer's channel"
+  else
+    printf 'the installer channel check runs in scripts/check.sh (no jq or python3 in this image)\n'
+  fi
   # A package with a published checksum but no signature.
   verify_with() {
     UNIVERSO_SH_FUNCTIONS=1 sh -c '. /src/packaging/server/universo.sh
