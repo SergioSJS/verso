@@ -6681,6 +6681,7 @@ dependencies = [
  "verso-core",
  "verso-fs",
  "verso-service",
+ "verso-tunnel",
  "webauthn-rs",
  "yrs",
 ]

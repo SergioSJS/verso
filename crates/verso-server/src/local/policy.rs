@@ -66,14 +66,12 @@ pub struct Policy {
     pub(super) parts: parts::Parts,
     /// The internet link's public origin and the `Host` it carries, while
     /// it has one (ADR 0117 D3 item 4): set at runtime, gone the moment
-    /// the link is off.
-    pub(super) link: RwLock<Option<super::link::Origin>>,
+    /// the link is off; with the link listener's named proxies.
+    pub(super) link: super::link::LinkOrigin,
     /// Where the network's listeners are reached, while there are any:
     /// the host's own name with its own certificate files, or the best
     /// address (ADR 0117 D13 Q8). Set at each start.
     pub(super) net_base: RwLock<Option<String>>,
-    /// The named proxies of the link's loopback listener.
-    pub(super) link_proxies: crate::proxy::Proxies,
     /// The session of the owner's window's seat, while there is one (ADR
     /// 0117 D4 Q3): the one bearer credential this server takes, and only
     /// through the seat's door (`seat.rs`).
@@ -99,9 +97,8 @@ impl Policy {
             connected_most: std::sync::atomic::AtomicU32::new(CONNECTED),
             full_said: Mutex::new(HashMap::new()),
             parts: parts::Parts::default(),
-            link: RwLock::new(None),
+            link: super::link::LinkOrigin::default(),
             net_base: RwLock::new(None),
-            link_proxies: crate::proxy::Proxies::loopback(),
             seat: RwLock::new(None),
             #[cfg(any(test, feature = "test-support"))]
             test_loopback: std::sync::atomic::AtomicBool::new(false),

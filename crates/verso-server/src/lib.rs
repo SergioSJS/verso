@@ -83,6 +83,7 @@ pub mod texts;
 pub mod tls;
 pub mod transfers;
 pub mod trash;
+pub mod tunnel;
 pub mod twins;
 pub mod ui_files;
 pub mod update;
@@ -169,8 +170,10 @@ fn base_url(config: &Config) -> String {
 /// address — the same base as the invitations of its Settings
 /// (`local::Policy::links_base`), so the two never name two places.
 pub(crate) fn window_link(server: &state::Server, path: &str) -> String {
+    // A UniVerso's own link's origin too, while it has one and no
+    // `VERSO_PUBLIC_URL` says otherwise (ADR 0117 D4 item 2, R5).
     let link = server.local.as_ref().and_then(|l| l.links_base());
-    match server.config.public_url.as_deref().or(link.as_deref()) {
+    match server.public_origin().or(link).as_deref() {
         Some(base) => format!("{}{path}", base.trim_end_matches('/')),
         None => path.to_owned(),
     }
@@ -302,10 +305,18 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
         .enable_all()
         .build()
         .map_err(|e| e.to_string())?;
-    runtime.block_on(async move {
+    // The UniVerso's own link (ADR 0117 D4 item 2): its lines in this log,
+    // its tunnel stopped when serving ends, whatever ended it.
+    tunnel::log_to_the_server();
+    let linked = Arc::clone(&server);
+    let served = runtime.block_on(async move {
         let listener = tokio::net::TcpListener::bind(listen)
             .await
             .map_err(|e| format!("listening on {listen}: {e}"))?;
+        // `VERSO_TUNNEL`: started once the server has its runtime, on a
+        // thread of its own (the first download of `cloudflared`).
+        let _ = server.runtime.set(tokio::runtime::Handle::current());
+        tunnel::at_start(&server);
         // Found on the home network by itself (ADR 0097); held until the
         // server stops.
         let announced = discovery::announce(&server.config, acceptor.is_some());
@@ -325,7 +336,9 @@ pub fn serve(config: Config, commit: &str) -> Result<(), String> {
         // worker of the runtime.
         let _ = tokio::task::spawn_blocking(move || drop(announced)).await;
         served
-    })
+    });
+    tunnel::at_end(&linked);
+    served
 }
 
 /// Serve on `listener` until `stop` resolves.
@@ -546,5 +559,8 @@ mod tests_table_sound;
 mod tests_threats;
 #[cfg(test)]
 mod tests_trash;
+// A stand-in `cloudflared` is a shell script: Unix only (`#![cfg(unix)]`).
+#[cfg(test)]
+mod tests_tunnel;
 #[cfg(test)]
 mod tests_writers;

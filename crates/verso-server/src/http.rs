@@ -468,6 +468,14 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/api/admin/audit/actions", get(crate::console::actions))
         .route("/api/admin/overview", get(crate::console::overview))
         .route("/api/admin/config", get(crate::console::config))
+        // The UniVerso's own Cloudflare link (ADR 0117 D4 item 2, R5).
+        .route(
+            "/api/admin/link",
+            get(crate::console::link)
+                .post(crate::console::link_on)
+                .delete(crate::console::link_off),
+        )
+        .route("/api/admin/link/extend", post(crate::console::link_extend))
         .route("/api/device/start", post(crate::device::start))
         .route("/api/device/poll", post(crate::device::poll))
         .route("/api/device/describe", post(crate::device::describe_typed))

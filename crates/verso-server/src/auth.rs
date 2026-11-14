@@ -122,12 +122,14 @@ pub fn is_local(proxies: &Proxies, remote: IpAddr, client: &crate::proxy::Client
 
 /// The proxies believed for a request: the server's (`VERSO_TRUSTED_PROXY`;
 /// none for "this app is a server" on the network), or, for one that came
-/// in by the internet link's loopback listener, that listener's named
-/// `127.0.0.1` and `::1` alone (ADR 0117 D3 item 4).
+/// in by the internet link's loopback listener — this computer's, or a
+/// UniVerso's own (ADR 0117 D4 item 2) — that listener's named `127.0.0.1`
+/// and `::1` alone (D11 item 4).
 fn proxies(server: &Server, link: bool) -> &Proxies {
-    match (&server.local, link) {
-        (Some(local), true) => local.link_proxies(),
-        _ => &server.config.trusted_proxy,
+    if link {
+        server.link().proxies()
+    } else {
+        &server.config.trusted_proxy
     }
 }
 
@@ -152,7 +154,6 @@ pub fn client_key(
     remote: SocketAddr,
     link: bool,
 ) -> Option<String> {
-    let link = link && server.local.is_some();
     let proxies = proxies(server, link);
     let client = client_of(proxies, headers, remote.ip());
     (!is_local(proxies, remote.ip(), &client)).then(|| crate::limit::address_key(client.addr))
@@ -166,7 +167,6 @@ pub fn client_key(
 /// request came in by the internet link's loopback listener
 /// ([`Peer::link`]).
 pub fn peer(server: &Server, headers: &HeaderMap, remote: SocketAddr, link: bool) -> Peer {
-    let link = link && server.local.is_some();
     let proxies = proxies(server, link);
     let client = client_of(proxies, headers, remote.ip());
     // A proxy on this machine that is not in the list makes every visitor
@@ -302,7 +302,7 @@ pub fn host_ok(server: &Server, headers: &HeaderMap, peer: &Peer) -> bool {
     // other — not a loopback name, not the network's addresses — and to
     // none while the link has no address (ADR 0117 D3 item 4).
     if peer.link {
-        return server.local.as_ref().is_some_and(|l| l.link_knows(host));
+        return server.link().knows(host);
     }
     public_authority(server).is_some_and(|a| a.eq_ignore_ascii_case(host))
         || loopback_host(host)
@@ -313,7 +313,7 @@ pub fn host_ok(server: &Server, headers: &HeaderMap, peer: &Peer) -> bool {
 /// The origin pages of this server have.
 pub fn expected_origin(server: &Server, headers: &HeaderMap, peer: &Peer) -> Option<String> {
     if peer.link {
-        return server.local.as_ref().and_then(|l| l.link_origin());
+        return server.link().origin();
     }
     if let Some(url) = server.config.public_url.as_deref() {
         let (scheme, rest) = url.split_once("://")?;
