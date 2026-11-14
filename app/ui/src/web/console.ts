@@ -9,6 +9,7 @@
 
 import { ApiError, api, type Account } from "./api";
 import { cw } from "./consoleStrings";
+import { linkPanel } from "./consoleLink";
 import { brand, button, controls, el, input, snippet, toggle } from "./form";
 import { bytes, setLang, when } from "./strings";
 import { table, type Page } from "./table";
@@ -647,6 +648,8 @@ async function server(c: Ctx, body: HTMLElement): Promise<void> {
   c.title(s.server);
   const rows = await api<{ name: string; set: boolean; secret: boolean; value: string | null }[]>("GET", "/api/admin/config");
   body.replaceChildren(
+    // The UniVerso's own Cloudflare link (ADR 0117 D4 item 2).
+    await linkPanel(),
     await readLinksSwitch(),
     el("p", { class: "settings-hint" }, s.serverLead),
     el(
