@@ -629,6 +629,90 @@ jobs:
             ./*-android-*.apk.sig
           retention-days: 1
 
+  # The iPad and iPhone app (ADR 0119): an unsigned .ipa (`tauri ios build
+  # --no-sign`), which AltStore Classic signs with the person's own Apple
+  # ID; no Apple Developer account yet (B1). The bundle's version is set by
+  # `release.mjs prepare` (A16). The Rust static library is linked, never
+  # copied into the bundle (project.yml). Named as the page links it.
+  ios:
+    name: Verso for iPad and iPhone (${{ needs.decide.outputs.tag }})
+    needs: decide
+    if: needs.decide.outputs.tag != ''
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: what is released
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ needs.decide.outputs.tag }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            node scripts/release.mjs verify "$TAG"
+            version="${TAG#v}"
+          else
+            version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"$/\1/p' Cargo.toml)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sigs=$(node scripts/release.mjs per-file-signatures)" >> "$GITHUB_OUTPUT"
+          case "$EVENT:$version" in
+            push:*-beta.*|workflow_dispatch:*) echo "name=Verso Beta" >> "$GITHUB_OUTPUT" ;;
+            *) echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: toolchain from rust-toolchain.toml, and the iOS target
+        run: |
+          rustup show
+          rustup target add aarch64-apple-ios
+          xcodebuild -version
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: the UI bundle
+        working-directory: app/ui
+        run: npm ci && npm run build
+      - name: the .ipa
+        working-directory: app/src-tauri
+        run: npm --prefix ../ui exec -- tauri ios build --no-sign --export-method debugging
+      - name: the release's files
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          NAME: ${{ steps.version.outputs.name }}
+        run: |
+          slug="$(printf '%s' "$NAME" | tr ' ' '-')"
+          ipa=app/src-tauri/gen/apple/build/arm64/Verso.ipa
+          test -s "$ipa"
+          # The static library is linked, not shipped (433 MB before).
+          if unzip -l "$ipa" | grep -q 'libapp\.a'; then
+            echo "::error::the .ipa carries libapp.a"
+            exit 1
+          fi
+          cp "$ipa" "$slug-$VERSION-ios.ipa"
+      - name: sign the release's files
+        if: steps.version.outputs.sigs == 'true'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for f in ./*-ios.ipa; do
+            npm --prefix app/ui exec -- tauri signer sign "$f"
+            test -s "$f.sig"
+          done
+      - name: keep the files for the publish job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-ios
+          if-no-files-found: error
+          path: |
+            ./*-ios.ipa
+            ./*-ios.ipa.sig
+          retention-days: 1
+
   # The server (ADR 0075 item 2): `verso serve` is a subcommand of the
   # `verso` binary, built here without the window, static (musl), for x64
   # and ARM64 — ARM64 cross-compiled on this x86-64 runner with
@@ -844,7 +928,7 @@ jobs:
   # published, as the server job checks its files. A rehearsal makes it too.
   checksums:
     name: the signed checksums list (${{ needs.decide.outputs.tag }})
-    needs: [decide, macos, windows, linux, android, server]
+    needs: [decide, macos, windows, linux, android, ios, server]
     # 24.04 for minisign, as the server job.
     runs-on: ubuntu-24.04
     permissions:
@@ -869,7 +953,7 @@ jobs:
         run: |
           list="verso-$VERSION-SHA256SUMS"
           mapfile -t covered < <(node scripts/release.mjs files "$VERSION")
-          if [ "${#covered[@]}" -ne 14 ]; then echo "::error::expected fourteen files to list, got: ${covered[*]}"; exit 1; fi
+          if [ "${#covered[@]}" -ne 16 ]; then echo "::error::expected sixteen files to list, got: ${covered[*]}"; exit 1; fi
           (cd files && sha256sum -- "${covered[@]}") > "$list"
           cat "$list"
       # The Tauri CLI, at the version app/ui's lockfile pins, for `tauri
@@ -921,7 +1005,7 @@ jobs:
   # run's artifacts.
   publish:
     name: publish ${{ needs.decide.outputs.tag }}
-    needs: [decide, macos, windows, linux, android, server, checksums]
+    needs: [decide, macos, windows, linux, android, ios, server, checksums]
     if: github.event_name == 'push' && needs.decide.outputs.tag != ''
     runs-on: ubuntu-latest
     steps:
@@ -954,7 +1038,8 @@ jobs:
           node scripts/release.mjs notes "$version" > notes.md
           files=(files/*)
           # Exactly the files release.mjs names: macOS 2, Windows 2, Linux 4
-          # (x64; ARM64 waits for a public repository), the server 6 (an
+          # (x64; ARM64 waits for a public repository), Android 1, iOS 1 (an
+          # unsigned .ipa, ADR 0119), the server 6 (an
           # archive, a .deb and an .rpm for x64 and for ARM64), the signed
           # checksums list and its .sig — 16; and in the 0.8.3 bridge each
           # file's own .sig too — 30 (ADR 0055, revised 2026-10-14).
