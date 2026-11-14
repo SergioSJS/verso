@@ -1066,6 +1066,40 @@ export const commands = {
 	 */
 	localServerSitAtTable: () => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("local_server_sit_at_table")),
 	/**
+	 *  The other host the window's table may move to (ADR 0117 D8, R9): the
+	 *  UniVerso the folder syncs with, for a window at this computer's own
+	 *  table; this computer, for a window on that UniVerso's folder while it
+	 *  serves the folder too. None when there is no other.
+	 */
+	localServerTableHost: () => typedError<{
+	/**
+	 *  `universo`: the UniVerso the folder syncs with, for a window at this
+	 *  computer's own table; `here`: this computer's own server, for a
+	 *  window on that UniVerso's folder.
+	 */
+	to: string,
+	/**
+	 *  The UniVerso's address as the person reads it (no scheme); empty for
+	 *  this computer, which the window names in its own words.
+	 */
+	name: string,
+	/**
+	 *  To open the new host's folder: the UniVerso's address as signed in
+	 *  to and its folder's id there (`to` = `universo`)…
+	 */
+	url: string | null,
+	folder: string | null,
+	/**  …or the key of this computer's folder (`to` = `here`). */
+	key: string | null,
+} | null, ContractError>(__TAURI_INVOKE("local_server_table_host")),
+	/**
+	 *  Move the window's table at `root` to its other host (ADR 0117 D8, R9):
+	 *  made there, every note hidden and nobody invited; closed here to its
+	 *  players and marked moved, its chat, rolls and rights kept here until it
+	 *  is undone. Answers where it went, for the window to go there.
+	 */
+	localServerMoveTable: (root: string) => typedError<TableHost, ContractError>(__TAURI_INVOKE("local_server_move_table", { root })),
+	/**
 	 *  The box *On my network* (ADR 0117 D1, D4 Q2): kept; changed while
 	 *  serving is off.
 	 */
@@ -2000,6 +2034,12 @@ export type CampaignTable = {
 	images?: boolean,
 	/**  Whether this account may send a file that is not an image. */
 	files?: boolean,
+	/**
+	 *  Moved to the other host (ADR 0117 D8, R9): closed to its players for
+	 *  good here, who are told it moved; its chat, rolls and rights stay
+	 *  here until it is undone. Absent from a server before R9: not moved.
+	 */
+	moved?: boolean,
 };
 
 /**
@@ -4339,7 +4379,8 @@ export type ServerGone = {
 	 *  (the connection dropped; the app tries again), `unreachable` (a
 	 *  try found the server out of reach: `address` names it) or `closed`
 	 *  (the table is closed by its game master: the app tries again and
-	 *  gets in when it opens), or `seat` (the owner's own window at the
+	 *  gets in when it opens), `moved` (the table moved to its other server,
+	 *  ADR 0117 R9: the player is invited again there), or `seat` (the owner's own window at the
 	 *  table of this app's server, which stopped serving: the window goes
 	 *  back to this computer's folder; ADR 0117 D4 Q3).
 	 */
@@ -4590,7 +4631,7 @@ export type SyncStatus = {
 	message: string | null,
 	/**
 	 *  What the last error was, for the window to say in its language:
-	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `table_closed`, `failed`;
+	 *  `not_signed_in`, `signed_out`, `version`, `folder_gone`, `table_closed`, `table_moved`, `failed`;
 	 *  with the state `off`, `revoked`.
 	 */
 	problem: string | null,
@@ -4671,6 +4712,33 @@ export type TableEntry = {
 	draw: OracleDraw | null,
 	text: string | null,
 	image: string | null,
+};
+
+/**
+ *  The other host of the window's table (ADR 0117 D8, R9): a folder of this
+ *  computer served from here that also syncs with a UniVerso has two, and a
+ *  table lives on one. Where the table may move to, and where it went.
+ */
+export type TableHost = {
+	/**
+	 *  `universo`: the UniVerso the folder syncs with, for a window at this
+	 *  computer's own table; `here`: this computer's own server, for a
+	 *  window on that UniVerso's folder.
+	 */
+	to: string,
+	/**
+	 *  The UniVerso's address as the person reads it (no scheme); empty for
+	 *  this computer, which the window names in its own words.
+	 */
+	name: string,
+	/**
+	 *  To open the new host's folder: the UniVerso's address as signed in
+	 *  to and its folder's id there (`to` = `universo`)…
+	 */
+	url: string | null,
+	folder: string | null,
+	/**  …or the key of this computer's folder (`to` = `here`). */
+	key: string | null,
 };
 
 /**

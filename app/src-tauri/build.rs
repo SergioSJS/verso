@@ -229,6 +229,8 @@ fn main() {
         "local_server_replace_identity",
         "local_server_audit",
         "local_server_sit_at_table",
+        "local_server_table_host",
+        "local_server_move_table",
         "local_server_network",
         "local_server_link_on",
         "local_server_link_off",

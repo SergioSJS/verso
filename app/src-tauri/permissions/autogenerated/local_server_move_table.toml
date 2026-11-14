@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-local-server-move-table"
+description = "Enables the local_server_move_table command without any pre-configured scope."
+commands.allow = ["local_server_move_table"]
+
+[[permission]]
+identifier = "deny-local-server-move-table"
+description = "Denies the local_server_move_table command without any pre-configured scope."
+commands.deny = ["local_server_move_table"]

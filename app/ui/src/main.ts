@@ -112,6 +112,7 @@ import { importFile } from "./theme/actions";
 import { installDropHost } from "./dropHost";
 import { installPageDownloads } from "./watabou/pageDownload";
 import { watchSuggestion } from "./theme/suggest";
+import { setTableGo } from "./tableMove";
 
 watchDeskOnPhone();
 watchSuggestion();
@@ -846,6 +847,11 @@ export const started: Promise<void> = (async () => {
       await loadShares();
       await loadCampaign();
     });
+    // A table moved to its other server (ADR 0117 R9): the window goes there.
+    if (can("local_folders"))
+      setTableGo((host) =>
+        host.to === "universo" ? openServerFolder(host.url ?? "", host.folder ?? "") : openFolderBy(() => commands.reopenFolder(host.key ?? "")),
+      );
     // (and a browser that keeps a server's folder offline says so the same way, ADR 0092 item 7)
     if (!popout && (can("local_folders") || offline.available)) hearSync((section) => settingsDialog.show(section));
   });

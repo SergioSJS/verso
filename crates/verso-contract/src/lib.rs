@@ -47,7 +47,7 @@ pub use access::{
 mod campaign;
 pub use campaign::{
     CampaignAccess, CampaignAudience, CampaignChanged, CampaignGrant, CampaignInvite, CampaignNote,
-    CampaignPerson, CampaignPlayer, CampaignStatus, CampaignTable,
+    CampaignPerson, CampaignPlayer, CampaignStatus, CampaignTable, TableHost,
 };
 mod capabilities;
 pub use capabilities::{Can, Capabilities, Host};
@@ -799,6 +799,14 @@ pub struct FoundServer {
 /// closed table is told to the player as a state to wait out, not a fault.
 pub const TABLE_CLOSED: &str = "a mesa está fechada";
 
+/// What a table moved to the other host answers a player of it there (ADR
+/// 0117 D8, R9): the table is closed for good on that host, and the player
+/// is invited again on the new one. It begins with [`TABLE_CLOSED`], so a
+/// window of a release that knows only that one keeps the player out as a
+/// closed table; one that knows this says the table moved instead of
+/// waiting for it to open.
+pub const TABLE_MOVED: &str = "a mesa está fechada: ela mudou de servidor";
+
 /// The window's server, or what it held there, is gone (event
 /// `server-gone`, ADR 0084 item 10): said by the desktop app to a window
 /// on a server's folder.
@@ -812,7 +820,8 @@ pub struct ServerGone {
     /// (the connection dropped; the app tries again), `unreachable` (a
     /// try found the server out of reach: `address` names it) or `closed`
     /// (the table is closed by its game master: the app tries again and
-    /// gets in when it opens), or `seat` (the owner's own window at the
+    /// gets in when it opens), `moved` (the table moved to its other server,
+    /// ADR 0117 R9: the player is invited again there), or `seat` (the owner's own window at the
     /// table of this app's server, which stopped serving: the window goes
     /// back to this computer's folder; ADR 0117 D4 Q3).
     pub what: String,

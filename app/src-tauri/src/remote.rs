@@ -1265,12 +1265,15 @@ pub(crate) fn hear<R: tauri::Runtime>(
 /// What a window on a server's folder hears when the server, or what it
 /// held there, is gone (ADR 0084 item 10).
 fn gone(url: &str, what: &str, reason: Option<String>, address: Option<String>) -> ServerGone {
-    // The game master closed the table: said as that, not as a share revoked.
-    let shut = what == "folder" && reason.as_deref() == Some("closed");
+    // The game master closed the table, or moved it to the other server (ADR
+    // 0117 R9): said as that, not as a share revoked.
+    let shut = reason
+        .as_deref()
+        .filter(|r| what == "folder" && matches!(*r, "closed" | "moved"));
     ServerGone {
         url: url.to_owned(),
-        what: if shut { "closed" } else { what }.to_owned(),
-        reason: reason.filter(|_| !shut),
+        what: shut.unwrap_or(what).to_owned(),
+        reason: reason.clone().filter(|_| shut.is_none()),
         address,
     }
 }
@@ -1370,9 +1373,13 @@ async fn redial_once<R: tauri::Runtime>(
         .call("open_server_folder", json!({ "id": folder }))
         .await;
     let Ok(info) = opened else {
-        // A closed table: said, and tried again until the game master opens it.
-        if opened.is_err_and(|e| e.to_string().contains(verso_contract::TABLE_CLOSED)) {
-            let _ = app.emit_to(label, "server-gone", gone(url, "closed", None, None));
+        // A closed table: said, and tried again until the game master opens it;
+        // a moved one said as moved (ADR 0117 R9).
+        let words = opened.err().map(|e| e.to_string()).unwrap_or_default();
+        if words.contains(verso_contract::TABLE_CLOSED) {
+            let moved = words.contains(verso_contract::TABLE_MOVED);
+            let what = if moved { "moved" } else { "closed" };
+            let _ = app.emit_to(label, "server-gone", gone(url, what, None, None));
         }
         return Step::Again;
     };

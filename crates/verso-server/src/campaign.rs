@@ -34,6 +34,11 @@ use crate::state::Server;
 /// What a closed table answers a player who tries to open it (MC.1 = A).
 pub const CLOSED: &str = verso_contract::TABLE_CLOSED;
 
+/// What a table moved to the other host answers its players (ADR 0117 D8,
+/// R9): it holds [`CLOSED`], so a window that knows only that one keeps the
+/// player out as before.
+pub const MOVED: &str = verso_contract::TABLE_MOVED;
+
 /// The key a path is looked up by: case folded, the separators of any
 /// system made `/`, and `.` and `..` resolved as the path reads (a `..`
 /// that would leave the folder is dropped), so that every name that
@@ -861,6 +866,7 @@ pub fn unreadable(folder: &str) -> Arc<Veil> {
             open: false,
             log_max: crate::db::LOG_DEFAULT,
             image_max: crate::db::IMAGE_DEFAULT,
+            moved: false,
         }],
         lang: "en".to_owned(),
         images: Arc::new(HashSet::new()),
@@ -1028,13 +1034,28 @@ pub fn player(
 /// the window reaches: the share's path, `""` for the whole folder.
 #[must_use]
 pub fn closed_for(server: &Server, folder: &str, root: &str, player: bool) -> bool {
+    shut_for(server, folder, root, player).is_some()
+}
+
+/// What [`closed_for`] answers the window, in words: [`MOVED`] when a table
+/// that shuts it out moved to the other host (ADR 0117 D8, R9), else
+/// [`CLOSED`]; `None` when nothing shuts it out.
+#[must_use]
+pub fn shut_for(server: &Server, folder: &str, root: &str, player: bool) -> Option<&'static str> {
     if !player {
-        return false;
+        return None;
     }
-    let Some(veil) = veil_of(server, folder) else {
-        return false;
-    };
-    veil.tables.iter().any(|t| !t.open && covers(&t.root, root))
+    let veil = veil_of(server, folder)?;
+    let mut shut = veil
+        .tables
+        .iter()
+        .filter(|t| !t.open && covers(&t.root, root));
+    let first = shut.next()?;
+    Some(if first.moved || shut.any(|t| t.moved) {
+        MOVED
+    } else {
+        CLOSED
+    })
 }
 
 /// Whether `account` is the owner of `folder` itself: its game master.
@@ -1059,13 +1080,13 @@ pub fn guard(server: &Server, who: &crate::auth::Who, client: &str) -> Result<()
         .scope
         .as_ref()
         .map_or_else(String::new, |s| s.root.clone());
-    if closed_for(
+    if let Some(words) = shut_for(
         server,
         &door.folder,
         &root,
         door.seat() != crate::access::Seat::Master,
     ) {
-        return Err(closed_error());
+        return Err(verso_service::refused(words));
     }
     Ok(())
 }

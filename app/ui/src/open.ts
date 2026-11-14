@@ -10,7 +10,7 @@ import { loadBookmarks } from "./bookmarks";
 import { flushed, recheckAll, refreshLists, setShownProblems, showProblems, stopped, tellOutcomes } from "./changes";
 import { button, h, ui } from "./dom";
 import { flash } from "./notify";
-import { isTableClosed } from "./errorKinds";
+import { isTableClosed, isTableMoved } from "./errorKinds";
 import { fail } from "./errors";
 import { showTableClosed } from "./tableClosed";
 import { forgetFiles, forgetMoves } from "./files";
@@ -91,7 +91,7 @@ export async function openFolderBy(
     // A closed table is a state to wait out, said where the folder would be
     // (tableClosed.ts), not a fault: no ERROR in the log.
     if (isTableClosed(r.error)) {
-      showTableClosed(() => openFolderBy(run, true, null), currentFolder !== "");
+      showTableClosed(() => openFolderBy(run, true, null), currentFolder !== "", isTableMoved(r.error));
       said?.(r.error);
       return false;
     }

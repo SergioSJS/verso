@@ -539,6 +539,8 @@ mod tests_table;
 #[cfg(test)]
 mod tests_table_images;
 #[cfg(test)]
+mod tests_table_move;
+#[cfg(test)]
 mod tests_table_share;
 #[cfg(test)]
 mod tests_table_sound;

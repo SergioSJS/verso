@@ -131,7 +131,7 @@ pub(super) fn received_from(config: Option<&Path>, key: &str) -> Option<String> 
     (!role.is_empty() && role != "owner").then(|| host_of(&state.server))
 }
 
-fn host_of(url: &str) -> String {
+pub(super) fn host_of(url: &str) -> String {
     url.split_once("://")
         .map_or(url, |(_, rest)| rest)
         .trim_end_matches('/')

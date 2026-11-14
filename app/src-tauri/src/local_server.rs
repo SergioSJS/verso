@@ -32,6 +32,7 @@ mod own;
 mod owner;
 #[cfg(test)]
 pub(crate) use own::hostname_of;
+mod moving;
 mod platform;
 pub(crate) mod seat;
 
@@ -244,6 +245,33 @@ pub(crate) async fn local_server_sit_at_table<R: tauri::Runtime>(
     window: tauri::Window<R>,
 ) -> Result<FolderInfo, ContractError> {
     seat::sit(app, window).await
+}
+
+/// The other host the window's table may move to (ADR 0117 D8, R9): the
+/// UniVerso the folder syncs with, for a window at this computer's own
+/// table; this computer, for a window on that UniVerso's folder while it
+/// serves the folder too. None when there is no other.
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn local_server_table_host<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+) -> Result<Option<verso_contract::TableHost>, ContractError> {
+    Ok(moving::other(&app, window.label()))
+}
+
+/// Move the window's table at `root` to its other host (ADR 0117 D8, R9):
+/// made there, every note hidden and nobody invited; closed here to its
+/// players and marked moved, its chat, rolls and rights kept here until it
+/// is undone. Answers where it went, for the window to go there.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_move_table<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    window: tauri::Window<R>,
+    root: String,
+) -> Result<verso_contract::TableHost, ContractError> {
+    moving::move_table(app, window.label().to_owned(), root).await
 }
 
 /// The box *On my network* (ADR 0117 D1, D4 Q2): kept; changed while

@@ -460,7 +460,8 @@ pub(crate) fn problem_of(e: &ContractError, cloud: bool) -> &'static str {
         // Offline, because the server did not answer: the window names it.
         ErrorKind::Unreachable => "unreachable",
         ErrorKind::Refused if e.message.starts_with("not signed in") => "not_signed_in",
-        // The game master closed the table: sync waits for it to open.
+        // The game master closed the table, or moved it (ADR 0117 R9): sync waits.
+        ErrorKind::Refused if e.message.contains(verso_contract::TABLE_MOVED) => "table_moved",
         ErrorKind::Refused if e.message.contains(verso_contract::TABLE_CLOSED) => "table_closed",
         // A cloud (ADR 0104): the sign-in, the keyring, the service that
         // cannot keep a write safe.

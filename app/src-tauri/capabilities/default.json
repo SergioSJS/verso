@@ -238,6 +238,8 @@
     "allow-local-server-replace-identity",
     "allow-local-server-audit",
     "allow-local-server-sit-at-table",
+    "allow-local-server-table-host",
+    "allow-local-server-move-table",
     "allow-local-server-network",
     "allow-local-server-link-on",
     "allow-local-server-link-off",

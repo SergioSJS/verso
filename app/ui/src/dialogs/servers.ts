@@ -22,6 +22,7 @@ import { sh } from "../shareStrings";
 import { foundList } from "./serversFound";
 import { copyWhenKnown, startSignIn } from "../serverSignIn";
 import { cp as cp2 } from "../campaignStrings";
+import { tm } from "../tableMoveStrings";
 import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 import { focusOnOpen } from "../screen/openFocus";
 
@@ -191,6 +192,11 @@ export function hearServers(): void {
     // (tableClosed.ts); the host tries again by itself.
     if (p.what === "closed") {
       ui.status.textContent = cp2.closedStatus;
+      return;
+    }
+    // It moved to its other server (ADR 0117 R9): a new invitation is the way.
+    if (p.what === "moved") {
+      ui.status.textContent = tm.playerStatus;
       return;
     }
     if (p.what === "folder") {

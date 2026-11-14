@@ -964,6 +964,8 @@ macro_rules! commands_for {
                 local_server_replace_identity::<$runtime>,
                 local_server_audit::<$runtime>,
                 local_server_sit_at_table::<$runtime>,
+                local_server_table_host::<$runtime>,
+                local_server_move_table::<$runtime>,
                 local_server_network::<$runtime>,
                 local_server_link_on::<$runtime>,
                 local_server_link_off::<$runtime>,
