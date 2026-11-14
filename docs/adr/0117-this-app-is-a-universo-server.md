@@ -37,6 +37,8 @@
   (D4.2), R6 (D7 (e)) and the table's move (D8, now R9) decided as the
   session recommended, all in V1; *Sit* dropped from R4 (D13 Q3 had
   removed it); D14 confirmed as built.
+  2026-11-13, later — R6 built (`205cdfb8`), D7 (e) says how; two
+  `[OPEN]` details of the build there.
 - Related: [0073](0073-self-hosted-server-first.md), [0074](0074-accounts-and-access-on-the-server.md),
   [0077](0077-the-server-administration-console-and-folder-quotas.md),
   [0079](0079-sync-a-local-folder-with-a-server.md), [0081](0081-sharing-between-people-on-one-universo.md),
@@ -287,6 +289,22 @@ essa pessoa me convidar."* Read against the code on 2026-11-04:
   takes *may create folders* away, that game master's pending invitations
   end and the people who already accepted keep their places. On this
   computer nothing changes: only the owner owns folders here.
+  *Built 2026-11-13 (R6, `205cdfb8`):* one rule in `admin::acts::Inviter`
+  for both ways a folder's owner invites a person with no account — the
+  table's *Invite players* (`campaign_invite`) and the share dialog's
+  *Make an invitation link* (`shares::invite`), each already the folder's
+  owner's only; a game master's invitation is at reading (another role is
+  refused in words), the 21st pending is refused in words, counted and
+  made under one lock; `campaign_status`'s `can_invite` is true for them,
+  so the window offers both. Taking *may create folders* away ends every
+  invitation the account made that is still pending, each
+  `invitation_ended` in the audit. The console's invitations gain *Made
+  by*. Tests: `tests_gm_invites.rs`.
+  `[OPEN]` (smallest choice kept): a game master has no list of their own
+  invitations, so cannot end one; the 21st's words say to wait or ask the
+  admin. `[OPEN]` (smallest choice kept): an account that loses both
+  *admin* and *may create folders* at once has every pending invitation it
+  made ended, those made as the admin too.
 - **(f)** The console keeps listing every folder's name and members to the
   admin (space and quotas need the list); the content stays closed, and a
   self-grant is in the owner's audit; the lesson says so in words. Nothing
@@ -515,7 +533,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | Changed | The folder's page: serve from this computer (card and tree), stop serving with its confirmation, the table's link; what is served changes while serving (D2, 2026-11-13) | **Built** 2026-11-13 (R4; `3f76ee9c`, `a7e392a6` and the UI commit). Settings' list stays tickable, not read-only: the phones' parts tree (D1) lives there and has no other place — `[OPEN]` for the maintainer | `tableCard.ts`, `dialogs/servedFolders.ts` |
 | To build | The owner pairs through the link (D5, decided 2026-11-04) | Not built: R3 | `local/routes.rs`, `web/localTable.ts` |
 | To build | The UniVerso's link from the admin console (D4.2, decided 2026-11-04; revises 0077 item 6) | Not built: R5 | `console.rs`, `app/ui/src/web/console.ts` |
-| To build | A game master who may make folders invites into their own tables (D7 (e), decided 2026-11-04; revises 0081 item 4) | Not built: R6 | `campaign_cmds.rs`, `shares.rs` |
+| Changed | A game master who may make folders invites into their own tables (D7 (e), decided 2026-11-04; revises 0081 item 4) | **Built** 2026-11-13 (R6, `205cdfb8`) | `admin/acts.rs` (`Inviter`), `campaign_cmds.rs`, `shares.rs`, `db/invitations.rs` |
 | To build | Moving a table to the other host (D8, decided 2026-11-04; in V1 2026-11-13) | Not built: R9 | — |
 | To build | A UniVerso's own link, reusing the tunnel module (D4.2) | Not built: R5 | `app/src-tauri/src/tunnel/` → a crate |
 | To build | Lessons 22, 23 and the UniVerso's 31 for its link; manual checks; the threat model's rows | Partly (29 and 28 say the folder's page, synced folders, received ones) | `demo-vault*/`, `docs/reference/` |
@@ -529,7 +547,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | R3 | The owner pairs through the link (D5). Tests: the code works only once approved in the app; limits by forwarded address; no owner role through it | Opus |
 | R4 | **Built 2026-11-13.** The folder's page: serve from this computer (the card and the tree's menu; the server turned on in the same step), *Stop serving* with its confirmation, *Copy the table's link*; Settings' read-only list (D2, decided 2026-11-13). Both languages, keyboard, 390×844, e2e in Docker | Sonnet |
 | R5 | A UniVerso's own link (D4.2): the tunnel module moved into a crate both hosts use; a spike first (a quick link's address with no window; a named tunnel on a headless server); the runtime origin in `verso-server`; an environment variable and `universo.sh` for the `.deb`, Docker compose and ZimaOS; on and off from the console as well (D4.2, decided). Tests: `Host`/`Origin` follow the runtime origin; a forged header moves no limit | Opus |
-| R6 | D7 (e), decided: a game master who may make folders invites people into their own tables. Tests: never into another's folder; audited | Opus |
+| R6 | **Built 2026-11-13** (`205cdfb8`). D7 (e), decided: a game master who may make folders invites people into their own tables. Tests (`tests_gm_invites.rs`): never into another's folder; audited; at most 20 pending; the power taken away ends the pending ones | Opus |
 | R7 | Docs: lessons 22, 23 and the UniVerso's 31 for its link, the walkthrough, manual checks, threat-model rows (a synced folder served, a UniVerso's link); the site's wiki imported again | Sonnet |
 | R8 | The guardrails seen failing; the checks on the three systems; the hostile lab run again (R3 and R6 touch access); the beta installed on the maintainer's OK | Opus |
 | R9 | A table moved to the other host (D8, in V1 2026-11-13): the players invited again there; the old host's chat, rolls and grants stay where they were. Tests: nothing of the old host's log reaches the new one; the old table keeps its log until made a folder again | Opus |
@@ -589,7 +607,8 @@ until the folder was opened again; the folder's windows now hear it
 - The UniVerso gains `cloudflared` in its packages and a runtime public
   origin (R5): a new outbound reach for [0050](0050-outbound-network-access.md)
   and new rows in the threat model.
-- D7's gaps are decided (2026-11-04): (e) closes the invitation gap (R6);
+- D7's gaps are decided (2026-11-04): (e) closes the invitation gap (R6,
+  built 2026-11-13);
   (f) keeps the console's folder list, said in the lesson.
 - The laptop faces the internet while a link is on; the mitigations are
   D11's. The residual risk is a bug in the HTTP stack reachable by anyone

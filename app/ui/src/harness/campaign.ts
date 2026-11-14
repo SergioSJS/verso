@@ -93,6 +93,8 @@ export class Campaign {
   /** The window's account; the others at the table are `players`. */
   readonly account = "acc-ana";
   admin = true;
+  /** May create folders: on a UniVerso a game master who is not the admin invites too (ADR 0117 D7 (e)). */
+  mayCreate = false;
   tables: CampaignTable[] = [];
   notes = new Map<string, CampaignNote>();
   players: CampaignPlayer[] = [
@@ -239,7 +241,7 @@ export class Campaign {
     h["campaign_invite"] = (a) => {
       this.owner();
       const root = this.rootOf(a["root"]);
-      if (!this.admin) refuse("only the server's admin invites a person who has no account");
+      if (!this.admin && !this.mayCreate) refuse("only the server's admin, or an account the admin lets make folders, invites a person who has no account");
       if (!this.tables.some((t) => t.root === root)) refuse("that folder is not a table");
       const link = `/invite/harness-${this.invites.length + 1}`;
       this.invites.push(link);
@@ -557,7 +559,7 @@ export class Campaign {
       };
       const notes = [...this.notes.values()].map((n) => ({ ...n, audience: audOf(n), released: audOf(n).kind !== "hidden", sees: who(n.path, "see"), edits: who(n.path, "edit") })).sort((a, b) => a.path.localeCompare(b.path));
       const given = (root: string, right: RightName): string[] => this.seated().filter((p) => this.grants.get(right)?.has(`${root}\0${p.id}`)).map((p) => p.id);
-      return { viewer: "owner", tables: this.tables.map((t) => ({ ...t, images: true, files: true, image_players: given(t.root, "images"), file_players: given(t.root, "files"), note_players: given(t.root, "create_notes"), board_players: given(t.root, "create_boards") })), notes, players: this.players.filter((p) => p.id !== this.account), can_invite: this.admin };
+      return { viewer: "owner", tables: this.tables.map((t) => ({ ...t, images: true, files: true, image_players: given(t.root, "images"), file_players: given(t.root, "files"), note_players: given(t.root, "create_notes"), board_players: given(t.root, "create_boards") })), notes, players: this.players.filter((p) => p.id !== this.account), can_invite: this.admin || this.mayCreate };
     }
     const notes = [...this.notes.values()].filter((n) => this.mayEdit(n.path)).map((n) => ({ ...n, audience: (audOf(n).kind === "table" ? { kind: "table" } : { kind: "players", accounts: [this.account] }) as CampaignAudience, released: true, secret_name: false }));
     return { viewer: "player", tables: this.tables.map((t) => ({ ...t, images: this.rightFor(t.root, "images"), files: this.rightFor(t.root, "files"), image_players: [], file_players: [], note_players: [], board_players: [] })), notes, players: [], can_invite: false };

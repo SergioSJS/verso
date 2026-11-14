@@ -10,9 +10,11 @@
 // when it lies outside (item 11). Only the owner shares (item 4): the
 // window learns it when the server answers the list of shares, and shows
 // nothing of this otherwise. An e-mail no account has is invited by a
-// link when the owner runs the server (ADR 0081 item 4: only the admin
-// invites a new person) — the way a folder with no table is invited to,
-// on a UniVerso and where this app serves (ADR 0117, decided 2026-11-04).
+// link when the owner runs the server, or on a UniVerso is a game master
+// the admin lets make folders, who invites to read, at most 20 waiting
+// (ADR 0081 item 4, revised by ADR 0117 D7 (e)) — the way a folder with no
+// table is invited to, on a UniVerso and where this app serves (ADR 0117,
+// decided 2026-11-04).
 
 import { commands, type ContractError, type FolderShare } from "./bindings";
 import { asDialog, closed, opened } from "./dialogs/a11y";
@@ -102,11 +104,16 @@ function said(e: ContractError): string {
     told(e.kind, e.message, e);
     return failureText(e);
   }
-  return /no account has that e-mail/i.test(e.message) ? sh.noAccount : e.message;
+  if (/no account has that e-mail/i.test(e.message)) return sh.noAccount;
+  // A game master's invitation (ADR 0117 D7 (e)): to read, so many waiting.
+  if (/invitation gives reading/i.test(e.message)) return sh.inviteReadersOnly;
+  const many = /(\d+) invitations of yours are waiting/i.exec(e.message);
+  return many ? sh.inviteTooMany(Number(many[1])) : e.message;
 }
 
 /** Whether the server refused an e-mail no account has and said this
- *  person may invite it: the server's admin. */
+ *  person may invite it: the server's admin, or a game master the admin
+ *  lets make folders. */
 function mayInvite(e: ContractError): boolean {
   return /no account has that e-mail: make an invitation link/i.test(e.message);
 }

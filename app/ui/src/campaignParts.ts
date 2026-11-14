@@ -174,7 +174,9 @@ export function inviteBlock(root: string): HTMLElement {
   make.addEventListener("click", () => {
     void proved(() => commands.campaignInvite(root)).then(async (r) => {
       if (r.status !== "ok") {
-        fb.say(r.error.kind === "prove_first" ? cp.proveFirst : r.error.message, true);
+        // A game master's invitations waiting, at most (ADR 0117 D7 (e)).
+        const many = /(\d+) invitations of yours are waiting/i.exec(r.error.message);
+        fb.say(r.error.kind === "prove_first" ? cp.proveFirst : many ? cp.inviteTooMany(Number(many[1])) : r.error.message, true);
         return;
       }
       fb.say("");

@@ -479,6 +479,8 @@ mod tests_dice;
 #[cfg(test)]
 mod tests_folder_data;
 #[cfg(test)]
+mod tests_gm_invites;
+#[cfg(test)]
 mod tests_hashes;
 #[cfg(test)]
 mod tests_history;
