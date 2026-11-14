@@ -39,8 +39,8 @@ test("it is off, serves only the ticked folders, and says what the system will a
   await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false }).first()).toBeVisible();
   // Said once, beside the switch: not again under it (the walk of 2026-11-06).
   await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false })).toHaveCount(1);
-  // The folders are locked while it serves, and the mark is in the status bar.
-  await expect(vault).toBeDisabled();
+  // What is served changes while it serves (ADR 0117 R4), and the mark is in the status bar.
+  await expect(vault).toBeEnabled();
   await expect(page.locator("#local-mark")).toContainText("Servindo");
   // Settings is modal: the mark's Stop is reached with it closed.
   await app.key("Escape");
@@ -398,7 +398,7 @@ test("a ticked folder can be served in part: a tree of its folders, a folder ser
   await expect(body.locator(".ls-here .ls-serves")).toHaveText(", serve tudo");
 });
 
-test("the folders chosen inside a folder are locked while serving, and a bad choice is said", async ({ app, page }) => {
+test("the folders chosen inside a folder change while serving, at once (ADR 0117 R4)", async ({ app, page }) => {
   await app.open();
   await section(app);
   const body = page.locator(".settings-body");
@@ -408,12 +408,33 @@ test("the folders chosen inside a folder are locked while serving, and a bad cho
   await body.getByRole("button", { name: "Ligar o servidor" }).click();
   await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
   await expect(body.getByText("Servindo em 192.168.1.20:51234", { exact: false }).first()).toBeVisible();
-  await expect(tree.getByRole("checkbox", { name: "Servir Anexos" })).toBeDisabled();
-  await expect(tree.getByRole("checkbox", { name: "Servir Segredo" })).toBeDisabled();
-  await expect(body.getByRole("checkbox", { name: /^Vault/ })).toBeDisabled();
-  // The tree stays readable (open and closed) while it serves.
-  await tree.getByRole("button", { name: "Mostrar as pastas dentro de Diario" }).click();
-  await expect(tree.getByRole("checkbox", { name: "Servir Diario/2026" })).toBeDisabled();
+  await expect(tree.getByRole("checkbox", { name: "Servir Segredo" })).toBeEnabled();
+  await tree.getByRole("checkbox", { name: "Servir Segredo" }).check();
+  await expect.poll(() => app.calls("local_server_parts")).toContainEqual({ key: "harness", parts: ["Anexos", "Segredo"] });
+  await expect(body.getByRole("checkbox", { name: /^Vault/ })).toBeEnabled();
+  // Still serving: nothing was stopped to change it.
+  await expect(page.locator("#local-mark")).toContainText("Servindo");
+});
+
+test("a folder is served from its page: the server turned on in the same step, and stopped from the tree (ADR 0117 R4)", async ({ app, page }) => {
+  await app.open();
+  await page.locator('#notes summary').first().locator("button.folder-page").click();
+  const card = page.locator(".table-card-serve");
+  await card.getByRole("button", { name: "Servir deste computador" }).click();
+  // Off: asked once, and both done by one answer.
+  await page.getByRole("alertdialog").getByRole("button", { name: "Ligar e servir" }).click();
+  await expect(page.locator("#status")).toContainText("é servida deste computador");
+  await expect.poll(() => app.calls("local_server_tick")).toContainEqual({ key: "harness", ticked: true });
+  await expect.poll(async () => (await app.calls("local_server_start")).length).toBe(1);
+  await expect(page.locator("#local-mark")).toContainText("Servindo");
+  // The tree's root menu stops it, after saying what is kept.
+  await page.locator("#tree-root").dispatchEvent("contextmenu", { clientX: 40, clientY: 40 });
+  await page.getByRole("menuitem", { name: "Parar de servir" }).click();
+  const asked = page.getByRole("alertdialog");
+  await expect(asked).toContainText("A mesa, o chat e as rolagens ficam guardados.");
+  await asked.getByRole("button", { name: "Parar de servir" }).click();
+  await expect.poll(() => app.calls("local_server_tick")).toContainEqual({ key: "harness", ticked: false });
+  await expect(page.locator("#status")).toContainText("não é mais servida");
 });
 
 test("a chosen folder gone from the disk is left out at the start and said, and with none left it will not start", async ({ app, page }) => {

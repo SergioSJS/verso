@@ -22,6 +22,8 @@ import { h } from "./dom";
 import { icon } from "./icons";
 import { mayShare } from "./shares";
 import { showTable } from "./table/show";
+import { copyLinkButton, servedFromHere, stopServingButton } from "./serveHere";
+import { isSeated } from "./seatState";
 
 /** The card for the folder at `path`, or null when the page has none. */
 export function tableCard(path: string): HTMLElement | null {
@@ -34,6 +36,12 @@ export function tableCard(path: string): HTMLElement | null {
   // Not inside another table, and the folder's owner: a way to make one.
   if (mayShare() && !tableFor(path) && viewer !== "player") return makeCard(path);
   return null;
+}
+
+/** On the root of a folder this computer serves: *Stop serving* beside
+ *  the owner's actions (ADR 0117 D2, R4). */
+function withStop(path: string, actions: HTMLElement): void {
+  if (path === "" && servedFromHere()) actions.append(stopServingButton());
 }
 
 function button(cls: string, label: string): HTMLButtonElement {
@@ -65,6 +73,7 @@ function makeCard(path: string): HTMLElement {
   b.prepend(icon("dice"));
   b.addEventListener("click", () => void makeTable(path));
   actions.append(b);
+  withStop(path, actions);
   return box;
 }
 
@@ -103,6 +112,9 @@ function ownerCard(path: string): HTMLElement {
   gear.title = cp.cardSettings;
   gear.addEventListener("click", () => openCampaignDialog(path));
   actions.append(access, invite, enter, gear);
+  // A table this computer hosts: its link to copy (ADR 0117 D6, R4).
+  if (isSeated()) actions.insertBefore(copyLinkButton(path), gear);
+  withStop(path, actions);
   const counts = h("p", "table-strip-counts");
   const panel = h("div", "table-strip-invite");
   panel.hidden = true;

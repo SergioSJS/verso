@@ -295,7 +295,6 @@ export class LocalServerHarness {
     },
     local_server_parts: (a): LocalFolder[] => {
       const key = String(a["key"]);
-      if (this.serving) refuse("turn serving off to change which folders are served");
       if (!this.ticked.has(key)) refuse("tick the folder first");
       const chosen = (a["parts"] as string[]).map((p) => p.replace(/\/+$/, ""));
       for (const p of chosen) if (p === "" || p.startsWith("/") || p.split("/").some((x) => x === "" || x === "." || x === ".." || x.startsWith("."))) refuse(`not a folder inside the served folder: ${p}`);
@@ -310,7 +309,6 @@ export class LocalServerHarness {
     },
     local_server_whole: (a): LocalFolder[] => {
       const key = String(a["key"]);
-      if (this.serving) refuse("turn serving off to change which folders are served");
       if (!this.ticked.has(key)) refuse("tick the folder first");
       this.parts.delete(key);
       this.dropped = [];
@@ -319,7 +317,6 @@ export class LocalServerHarness {
     local_server_tick: (a): LocalFolder[] => {
       const key = String(a["key"]);
       const folder = this.folders.find((f) => f.key === key);
-      if (this.serving) refuse("turn serving off to change which folders are served");
       if (!folder) refuse("this computer does not know that folder");
       if (a["ticked"] === true && folder.received_from) refuse(`this folder was shared with you on ${folder.received_from}: only its owner serves it`);
       // As the host: unticking forgets what was chosen inside a folder;
@@ -330,6 +327,8 @@ export class LocalServerHarness {
         this.parts.delete(key);
         this.dropped = [];
       }
+      // While serving, what is served changes at once (ADR 0117 R4).
+      if (this.serving) void emit("local-server", { kind: "changed" });
       return this.rows();
     },
     local_server_settings: (a): LocalServerStatus => {
@@ -356,6 +355,8 @@ export class LocalServerHarness {
       this.serving = true;
       this.lan = true;
       this.log("local_on", "1 address(es), port 51234");
+      // As the host does on every change of what it serves.
+      void emit("local-server", { kind: "changed" });
       return this.status();
     },
     local_server_stop: (): LocalServerStatus => {
@@ -366,6 +367,7 @@ export class LocalServerHarness {
       this.lan = false;
       this.open = false;
       this.asked = null;
+      void emit("local-server", { kind: "changed" });
       return this.status();
     },
     local_server_pair_open: (a): LocalPairing => {

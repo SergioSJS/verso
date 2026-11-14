@@ -151,7 +151,8 @@ export function servedFolders(opts: ServedOptions): Served {
     const partly = f.ticked && f.parts.length > 0;
     input.checked = f.ticked && !partly;
     input.indeterminate = partly;
-    input.disabled = serving || f.received_from !== null;
+    // While serving too (ADR 0117 R4, 2026-11-13): what is served changes at once.
+    input.disabled = f.received_from !== null;
     const label = h("label", "ls-check");
     label.htmlFor = input.id;
     label.append(input, h("span", "ls-name", f.name));
@@ -181,7 +182,7 @@ export function servedFolders(opts: ServedOptions): Served {
             chosen: f.parts,
             attachments: f.attachments,
             missing: f.missing,
-            locked: serving,
+            locked: false,
             always: openHere,
             load: () => opts.subfolders(f.key),
             save: async (parts) => {
@@ -257,7 +258,7 @@ export function servedFolders(opts: ServedOptions): Served {
     if (others.length === 0) ul.append(h("li", "ls-help", w.noRecent));
     else if (visible.length === 0) ul.append(h("li", "ls-help", w.none));
     else for (const f of visible) ul.append(folderRow(f, twins, false));
-    foot.hidden = !(serving && list.length > 0);
+    foot.hidden = true;
     foot.textContent = opts.locked;
   };
   search.addEventListener("input", () => draw(all, serving));

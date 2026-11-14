@@ -277,11 +277,13 @@ test("the folder's page carries the table strip: state, counts, Acesso…, Convi
   await page.keyboard.press("Escape");
 });
 
-test("a local folder shows no table card; a player sees one read-only line", async ({ app }) => {
+test("a local folder shows no table card, only the way to serve it; a player sees one read-only line", async ({ app }) => {
   await furnish(app, "?vault=empty");
   await app.page.locator('#notes summary[data-folder="Mundo"] button.folder-page').click();
   await expect(app.page.locator(".sheet")).toBeVisible();
-  await expect(app.page.locator(".table-card")).toHaveCount(0);
+  await expect(app.page.locator(".table-card-make, .table-card-owner, .table-card-player")).toHaveCount(0);
+  // Not served yet: the page offers to serve it (ADR 0117 D2, R4).
+  await expect(app.page.locator(".table-card-serve").getByRole("button", { name: "Servir deste computador" })).toBeVisible();
 });
 
 test("a player sees the table strip as one line: state, who is online and Entrar na Mesa", async ({ app }) => {

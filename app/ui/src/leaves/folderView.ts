@@ -22,6 +22,8 @@ import { Pane } from "../layout/pane";
 import { tableViewer } from "../access";
 import { tableCard } from "../tableCard";
 import { receivedHost, receivedLine } from "../receivedHere";
+import { serveCard } from "../serveHere";
+import { isSeated, servedHere } from "../seatState";
 import { campaign } from "../campaign";
 import { mayShare } from "../shares";
 import { crumbsFor, crumbsNav, layout, liveHolder, openFolder, openNote, persistSoon } from "../layout/spaces";
@@ -186,7 +188,7 @@ export class FolderLeaf extends Leaf {
   private tableFor = "\u0000";
   /** The card of the table under the title; drawn again when the tables change. */
   private paintTable(): void {
-    const key = `${this.path}|${campaign().viewer}|${tableViewer()}|${mayShare()}|${campaign().tables.map((t) => t.root).join(",")}`;
+    const key = `${this.path}|${campaign().viewer}|${tableViewer()}|${mayShare()}|${isSeated()}|${servedHere()}|${campaign().tables.map((t) => t.root).join(",")}`;
     if (key === this.tableFor) return;
     this.tableFor = key;
     const card = tableCard(this.path);
@@ -199,9 +201,14 @@ export class FolderLeaf extends Leaf {
   }
   private async paintReceived(asked: string): Promise<void> {
     const r = await commands.localServerFolders();
-    const host = r.status === "ok" ? receivedHost(r.data, currentFolder) : null;
-    if (!host || asked !== this.tableFor) return;
-    this.tableBox.replaceChildren(receivedLine(host));
+    if (r.status !== "ok" || asked !== this.tableFor) return;
+    const host = receivedHost(r.data, currentFolder);
+    // A folder of this computer not served: *Serve from this computer*
+    // (ADR 0117 D2, R4); one received from another account says why not.
+    const row = r.data.find((f) => f.key === currentFolder);
+    const card = host ? receivedLine(host) : row && !servedHere() ? serveCard() : null;
+    if (!card) return;
+    this.tableBox.replaceChildren(card);
     this.tableBox.hidden = false;
   }
   setViewMode(mode: "table" | "grid" | "list"): void {

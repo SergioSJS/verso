@@ -62,6 +62,12 @@ export async function loadShares(): Promise<void> {
   if (owner || mayShare()) await loadReadLinks();
 }
 
+/** The id of the share at `path` (a table's root inside the folder, with
+ *  people in it), for its link: none when it is shared with no one. */
+export function shareIdAt(path: string): string | null {
+  return shared.get(path)?.id ?? null;
+}
+
 /** Whether the folder at `path`, or one inside it, is shared. */
 export function sharedUnder(path: string): boolean {
   return [...shared.keys()].some((p) => p === path || p.startsWith(`${path}/`));

@@ -63,8 +63,9 @@ test("each refusal of the link's path is the host's own phrase and is said in wo
   assert.ok(!rust.includes("also syncs with {}"), "the host refuses a folder for syncing");
   assert.equal(L.linkWhy("verso-vault-test was shared with you on 192.168.3.150:7340: only its owner serves it; untick it", w), w.received("verso-vault-test", "192.168.3.150:7340"));
   assert.match(L.linkWhy("this folder was shared with you on 192.168.3.150:7340: only its owner serves it", w), /192\.168\.3\.150:7340/);
-  assert.ok(rust.includes("turn serving off to change which folders are served"));
-  assert.equal(L.linkWhy("turn serving off to change which folders are served", w), w.why.servingLocks);
+  // What is served changes while serving (ADR 0117 R4, 2026-11-13): the
+  // host no longer refuses it.
+  assert.ok(!rust.includes("turn serving off to change which folders are served"), "the host refuses a change of folders while serving");
   // Anything else is errorSentence's.
   assert.equal(L.linkWhy("a refusal of another kind", w), null);
 });

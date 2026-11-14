@@ -32,6 +32,7 @@ import { giveBack } from "./side";
 import { mayShare, openShareDialog } from "./shares";
 import { openReadLinkDialog } from "./readLinks";
 import { campaign, campaignEntryItems, accessSelectionItems } from "./campaign";
+import { serveMenuItems } from "./serveHere";
 import { rl } from "./readLinkStrings";
 import { sh } from "./shareStrings";
 import { boardText, LOCALE, t } from "./strings";
@@ -166,6 +167,7 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
       // The table (ADR 0110): the game master makes a folder a table and
       // releases its notes.
       ...campaignEntryItems(path, kind),
+      ...(folder ? serveMenuItems(false) : []),
       [t.rename, rename, "edit"],
       [`${t.moveTo}…`, () => movePrompt(path), "sidebar"],
       ...(folder ? [] : [[t.duplicate, () => void duplicateEntry(path, kind), "template"] as MenuItem]),

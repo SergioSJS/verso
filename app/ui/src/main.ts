@@ -17,6 +17,7 @@ import { ready } from "./earlyClicks";
 import { watchDeskOnPhone } from "./deskOnPhone";
 import { loadShares, mayShare, openShareDialog } from "./shares";
 import { campaignRootItems, hearCampaign, loadCampaign } from "./campaign";
+import { serveMenuItems } from "./serveHere";
 import { sh } from "./shareStrings";
 import { redo, selectAll, undo } from "@codemirror/commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -491,6 +492,7 @@ ui.treeRoot.addEventListener("contextmenu", (e) => {
     ...(rootNote ? [[t.openFolderNote, () => void openNote(rootNote, false), "note"] as MenuItem] : []),
     ...(mayShare() ? [[sh.shareWhole, () => openShareDialog(""), "user"] as MenuItem] : []),
     ...campaignRootItems(),
+    ...serveMenuItems(true),
     ...(order.length > 0 ? [...order, sep] : []),
     [collapsed ? t.expandAll : t.collapseAll, collapseAll, collapsed ? "expand" : "collapse"],
     // The folder's trash (ADR 0080 item 4): no row in the tree, a way in here.

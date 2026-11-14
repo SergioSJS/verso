@@ -14,6 +14,8 @@ test release.
 
 ### Added
 
+- **Serve a folder from its page** (ADR 0117 D2, R4; the maintainer, 2026-11-13). A folder of this computer that Verso does not serve shows **Serve from this computer** on its page, and the same row is in its menu in the tree; with the server off, the click asks **Turn the server on and serve this folder?** and does both. A served folder's page, and the tree's root menu, have **Stop serving**, which says first how many players lose access until you serve it again — the table, its chat and rolls are kept. The owner's table card has **Copy the table's link**: the internet link's address while it is on, otherwise the network's, said to open only on that network. And what is served now changes while serving, in Settings too: serving or stopping one folder no longer stops the server, so a quick link keeps its address and the players at other tables stay.
+
 - **A beta of the Android app installs beside the release** (ADR 0118 A3, 2026-11-12): a test release's APK is *Verso Beta* (`com.versomd.app.beta`), with its own folder and settings, so trying a beta leaves the installed Verso as it is.
 - **A web page stays in sight behind a menu or a dialog** (ADR 0056, the maintainer, 2026-11-12: the page vanished whenever something opened over it). A web note's page, and an embedded page of a site that refuses frames, are drawn by the system over the window, so nothing of Verso could show on top of them: the quick switcher, a menu, a confirmation or the folder switcher hid the page while it showed. Now the page is replaced by a still picture of itself while the overlay is open, exactly where it was, and the live page comes back when it closes. Where the system cannot draw the picture in time (about 150 ms), the page hides as before.
 
