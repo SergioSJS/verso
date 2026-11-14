@@ -97,16 +97,30 @@ pub(super) fn view(
 
 /// Before a pairing asked through the link is allowed: the link still has
 /// an address (`Err` when it ended while the question waited — the phone's
-/// page is on an address that is gone). `Some(true)` when it is a quick
+/// page is on an address that is gone). `Ok(true)` when it is a quick
 /// link's, whose phones end with it.
+///
+/// Judged by the address the phone asked through, kept at redeem, not by
+/// the link's address now: a quick link replaced while *Was it you?*
+/// waited — by another, or by the person's own address — left the phone's
+/// page on an address that is gone, and its cookie would be that dead
+/// name's alone; allowed, it would hold one of the four places with no
+/// address to end with. So the link's address must be the one asked
+/// through, or the pairing is refused.
 pub(super) fn before_allowing(r: &Running, asked: &PendingView) -> Result<bool, String> {
-    if !asked.link {
+    let Some(through) = asked.origin.as_deref().filter(|_| asked.link) else {
         return Ok(false);
-    }
-    let origin = r.policy.link_origin().ok_or_else(|| {
+    };
+    let now = r.policy.link_origin().ok_or_else(|| {
         "the internet link ended while the phone waited: turn it on and pair again".to_owned()
     })?;
-    Ok(is_quick(&origin))
+    if !now.eq_ignore_ascii_case(through) {
+        return Err(
+            "the internet link's address changed while the phone waited: pair again at the new one"
+                .to_owned(),
+        );
+    }
+    Ok(is_quick(through))
 }
 
 /// Session `session` was paired through a quick link: it ends with that
