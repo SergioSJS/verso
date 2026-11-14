@@ -142,6 +142,19 @@ com mesa, inclusive, daria para aproveitar a mesma tela."*
      address, with words saying it works only on this network.
   5. There is no *Sit* (D13 Q3, revised 2026-11-05): the window sits by
      itself.
+  6. *(Chosen by the session building R4, 2026-11-13, for the
+     maintainer's reading:)* what is served changes **while serving**, at
+     once — ADR 0096 item 2 changed it only with serving off, which here
+     would stop the server on every *Serve* or *Stop serving*: a quick
+     link's address would change and every table's players would be cut.
+     A folder unticked **rests** (its registration, table, players, chat
+     and rolls kept; reached by no one; served again under the same id),
+     its open windows are told it is gone, and a window sitting at it
+     comes back to this computer's folder as when serving stops. Found on
+     the way and fixed: an untick deleted the folder's registration at
+     the next start, the table and chat with it, and a served folder's
+     name came from the order of the ticked ones, so unticking one gave
+     its name and players to another of the same name (`3f76ee9c`).
 
 ### D3. N tables, N served folders, several active `[DECIDED 2026-11-04]`
 

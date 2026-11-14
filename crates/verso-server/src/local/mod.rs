@@ -28,6 +28,7 @@ pub mod cert;
 mod devices;
 mod invites;
 pub mod link;
+mod live;
 mod names;
 pub mod net;
 mod owner;

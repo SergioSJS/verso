@@ -169,3 +169,51 @@ fn a_name_is_never_handed_to_another_folder() {
         );
     });
 }
+
+/// While serving (ADR 0117 R4): a folder unticked rests at once — its
+/// player's open window is told the folder is gone, the server keeps
+/// serving on the same port — and ticked again it is served at once.
+#[test]
+fn what_is_served_changes_while_serving() {
+    run(async {
+        let mut lab = lab();
+        let campanha = lab.notes.path().join("Campanha");
+        let outra = lab.notes.path().join("Outra");
+        crate::data::ensure_dir(&outra).unwrap();
+        serve_only(&mut lab, &[&campanha, &outra]);
+        let port = lab.port;
+        let link = table_with_invite(&lab, &campanha).await;
+        let ana = accept(&lab, &link, "ana@example.org", "Ana").await;
+        let id = server_of(&lab)
+            .db
+            .folder_by_dir("Campanha")
+            .unwrap()
+            .unwrap()
+            .id;
+        let mut ws = lab.connect(&ana).await.unwrap();
+        let opened = call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
+        assert!(opened.get("ok").is_some(), "{opened}");
+
+        let before = lab.local.settings().unwrap();
+        let mut without = before.clone();
+        without.folders.retain(|f| !f.ends_with("Campanha"));
+        lab.local.change_served(&before, &without).unwrap();
+        let status = lab.local.status().unwrap();
+        assert!(status.serving, "serving stopped");
+        assert_eq!(status.port, Some(port));
+        let mut told = false;
+        for _ in 0..20 {
+            let m = super::tests::next(&mut ws).await;
+            if m["gone"] == "folder" {
+                told = true;
+                break;
+            }
+        }
+        assert!(told, "the open window was not told");
+        assert!(reads(&lab, &ana, &id, "Sessao.md").await.is_none());
+        assert!(server_of(&lab).db.folder(&id).unwrap().is_some());
+
+        lab.local.change_served(&without, &before).unwrap();
+        assert!(reads(&lab, &ana, &id, "Sessao.md").await.is_some());
+    });
+}

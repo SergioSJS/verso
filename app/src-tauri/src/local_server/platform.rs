@@ -261,9 +261,8 @@ pub(super) async fn tick<R: tauri::Runtime>(
 ) -> Result<Vec<LocalFolder>, ContractError> {
     let local = server(&app)?;
     blocking(move || {
-        if local.status()?.serving {
-            return Err("turn serving off to change which folders are served".to_owned());
-        }
+        // While serving too, at once (ADR 0117 R4, 2026-11-13): a folder
+        // served from its page must not stop the server.
         let state = app.state::<App>();
         let config = state.service.config();
         let path = verso_core::recent_folders(config)
@@ -275,19 +274,21 @@ pub(super) async fn tick<R: tauri::Runtime>(
                 "this folder was shared with you on {host}: only its owner serves it"
             ));
         }
-        let mut settings = local.settings()?;
+        let before = local.settings()?;
+        let mut settings = before.clone();
         let text = path.to_string_lossy().into_owned();
-        settings.folders.retain(|f| *f != text);
-        // What was chosen inside a folder is forgotten with its untick;
-        // ticking it again while it is ticked changes nothing.
-        if !ticked {
-            settings.parts.remove(&text);
-            local.forget_dropped()?;
+        // Ticking it again while it is ticked changes nothing.
+        if ticked && settings.folders.contains(&text) {
+            return rows(&app, &local);
         }
+        settings.folders.retain(|f| *f != text);
+        // What was chosen inside a folder is forgotten with its untick.
         if ticked {
             settings.folders.push(text);
+        } else {
+            settings.parts.remove(&text);
         }
-        local.set_settings(&settings)?;
+        local.change_served(&before, &settings)?;
         rows(&app, &local)
     })
     .await

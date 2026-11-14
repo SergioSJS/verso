@@ -1206,7 +1206,10 @@ pub(crate) fn hear<R: tauri::Runtime>(
                     // The owner's own window at the table: its session ends
                     // because serving stopped, which the person did — said as
                     // the seat's, never as a server that ended a session.
-                    let what = if seated && what == "session" {
+                    // So too when this computer stops serving the folder the
+                    // window sits at (ADR 0117 R4): the window comes back to
+                    // its own folder, as when serving stops.
+                    let what = if seated && (what == "session" || what == "folder") {
                         "seat"
                     } else {
                         what

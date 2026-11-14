@@ -32,8 +32,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::RwLock;
 
-use verso_service::lock;
-
 use crate::db::{Db, Role};
 
 /// What the policy keeps of the folders served in part.
@@ -284,55 +282,57 @@ impl super::LocalServer {
     }
 
     /// Serve all of the folder at `folder` again, with nothing chosen inside
-    /// it: the explicit way to the whole folder. Only while serving is off.
+    /// it: the explicit way to the whole folder. While serving too, at once
+    /// (`live`, ADR 0117 R4).
     pub fn set_whole(&self, folder: &str) -> Result<(), String> {
-        let running = lock(&self.shared.inner);
-        if running.is_some() {
-            return Err("turn serving off to change which folders are served".to_owned());
-        }
-        let db = self.open_db()?;
-        let mut settings = super::read_settings(&db);
-        if !settings.folders.iter().any(|f| f == folder) {
+        let before = self.settings()?;
+        if !before.folders.iter().any(|f| f == folder) {
             return Err("tick the folder first".to_owned());
         }
+        let mut settings = before.clone();
         settings.parts.remove(folder);
-        let text = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
-        db.set_setting(super::SETTINGS, &text)?;
-        write_dropped(&db, &[])?;
-        drop(running);
-        Ok(())
+        self.change_served(&before, &settings)
     }
 
     /// Choose which folders inside the served folder at `folder` (its path,
     /// as the host knows it) are served. **None chosen stops serving the
     /// folder** — it is unticked and its choice forgotten (the maintainer,
     /// 2026-10-16: "Para de servir o cofre"); the whole folder is
-    /// [`set_whole`](Self::set_whole)'s. Only
-    /// while serving is off, like ticking: what a phone may reach does not
-    /// change under it (item 1). The check and the write are made holding
-    /// the same lock.
+    /// [`set_whole`](Self::set_whole)'s. While serving too, at once (`live`,
+    /// ADR 0117 R4): a part no longer chosen is let go by its windows.
     pub fn set_parts(&self, folder: &str, chosen: &[String]) -> Result<Vec<String>, String> {
-        let running = lock(&self.shared.inner);
-        if running.is_some() {
-            return Err("turn serving off to change which folders are served".to_owned());
-        }
         let chosen = clean(chosen)?;
-        let db = self.open_db()?;
-        let mut settings = super::read_settings(&db);
-        if !settings.folders.iter().any(|f| f == folder) {
+        let before = self.settings()?;
+        if !before.folders.iter().any(|f| f == folder) {
             return Err("tick the folder first".to_owned());
         }
+        let mut settings = before.clone();
         settings.parts.remove(folder);
         if chosen.is_empty() {
             settings.folders.retain(|f| f != folder);
         } else {
             settings.parts.insert(folder.to_owned(), chosen.clone());
         }
-        let text = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
-        db.set_setting(super::SETTINGS, &text)?;
-        write_dropped(&db, &[])?;
-        drop(running);
+        self.change_served(&before, &settings)?;
         Ok(chosen)
+    }
+
+    /// What is served becomes `settings`, kept, and served now when serving
+    /// is on; when that cannot be (a part chosen is not on the disk), the
+    /// settings go back to `before` and the reason is the `Err`.
+    pub fn change_served(
+        &self,
+        before: &super::LocalSettings,
+        settings: &super::LocalSettings,
+    ) -> Result<(), String> {
+        self.set_settings(settings)?;
+        self.with_db(|db| write_dropped(db, &[]))?;
+        if let Err(why) = self.refolder() {
+            self.set_settings(before)?;
+            let _ = self.refolder();
+            return Err(why);
+        }
+        Ok(())
     }
 }
 
