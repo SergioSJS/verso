@@ -76,6 +76,8 @@ struct Request {
     device: String,
     address: String,
     asked: String,
+    /// It came through the internet link (ADR 0117 D5), not the network.
+    link: bool,
     at: Instant,
     answer: Answer,
 }
@@ -86,6 +88,9 @@ pub struct PendingView {
     pub device: String,
     pub address: String,
     pub asked: String,
+    /// It came through the internet link (ADR 0117 D5): the address is the
+    /// one the tunnel forwarded, and the question says so.
+    pub link: bool,
 }
 
 /// The token and the code a new window shows, once.
@@ -214,13 +219,16 @@ impl Pairing {
     }
 
     /// A phone presents `presented` — the token from the QR's fragment, or
-    /// the code typed by hand.
+    /// the code typed by hand — on the network, or through the internet
+    /// link when `link` (ADR 0117 D5): the same window, the same three
+    /// attempts, counted for the window and not per address.
     pub fn redeem(
         &mut self,
         presented: &str,
         device: &str,
         address: &str,
         asked: &str,
+        link: bool,
         now: Instant,
     ) -> Result<Redeemed, String> {
         if self.expire(now).is_some() {
@@ -240,6 +248,7 @@ impl Pairing {
                 device: device.to_owned(),
                 address: address.to_owned(),
                 asked: asked.to_owned(),
+                link,
                 at: now,
                 answer: Answer::Waiting,
             });
@@ -266,6 +275,7 @@ impl Pairing {
                 device: r.device.clone(),
                 address: r.address.clone(),
                 asked: r.asked.clone(),
+                link: r.link,
             })
     }
 
@@ -350,6 +360,7 @@ mod tests {
             "iPhone",
             "192.168.1.9",
             "2026-10-15T10:00:00Z",
+            false,
             now,
         )
         .unwrap()

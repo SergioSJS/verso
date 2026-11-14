@@ -232,7 +232,8 @@ owner pairs through the link** *(decided 2026-11-04, was D14 (b),
 `[DECIDED 2026-11-04]`)*: the phone's pairing, offered on the link's sign-in
 page too — a code typed in the browser, approved in the app (*Foi você?*),
 two minutes, three attempts — making a device of the owner, reader or
-editor as 0096 item 12 says; no owner password. Not built (R3).
+editor as 0096 item 12 says; no owner password. **Built** (R3,
+`2e7a35cb`; see D16).
 *(Decided 2026-11-13, `[DECIDED 2026-11-13]`:)* (1) through the link,
 pairing answers **only after the owner pressed *Pair a device*** in the
 app, for its two minutes, as on the network; at any other time the link's
@@ -418,7 +419,7 @@ session). "Through the link" results are the spike's (As built).
 | Read links (0105) | **Built** (S12 `dbebb66b5`, a switch, off at first); never into what is not served | `readlinks.rs`, `local/read_links.rs` |
 | Sign-in by mail, "forgot the password" | **Out** `[DECIDED 2026-11-03]`; the owner makes a new-password link (`27eece626`) | `local/players.rs` |
 | Passkeys, tokens (0074 items 3, 8) | **Built** (S13 `cd5bc9289`); a passkey only through the link; a quick link's passkey dies with it | `passkeys.rs` |
-| The owner's own browser or phone through the link (D5) | **No**: pairing is the network's; decided (D5), **R3** to build | `local/routes.rs` |
+| The owner's own browser or phone through the link (D5) | **Built** (R3 `2e7a35cb`): pairing through the link while *Pair a phone* is open; a quick link's device ends with its address | `local/routes.rs`, `local/link_pair.rs`, `web/pages.ts` |
 | A UniVerso's own Cloudflare link (D4) | **New**: **R5** | — |
 
 ### D10. "My own address": a named Cloudflare Tunnel `[DECIDED 2026-11-03]`
@@ -594,7 +595,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | Changed | A player accepting an invitation is told to the table's windows | **Built** (`22a2eea9d`) | `campaign_cmds::people_changed` |
 | Changed | A served subfolder for players = a share or a table root on the owner's registered folder (D1, D2) — nothing of the app's own | **Built** 2026-11-05 (R1) | `local/parts.rs`, `access.rs`, `shares.rs`, `readlinks.rs`, `local/tests_subfolders.rs` |
 | Changed | The folder's page: serve from this computer (card and tree), stop serving with its confirmation, the table's link; what is served changes while serving (D2, 2026-11-13) | **Built** 2026-11-13 (R4; `3f76ee9c`, `a7e392a6` and the UI commit). Settings' list stays tickable, not read-only: the phones' parts tree (D1) lives there and has no other place — `[OPEN]` for the maintainer | `tableCard.ts`, `dialogs/servedFolders.ts` |
-| To build | The owner pairs through the link (D5, decided 2026-11-04) | Not built: R3 | `local/routes.rs`, `web/localTable.ts` |
+| Changed | The owner pairs through the link (D5, decided 2026-11-04 and 2026-11-13) | **Built** (`2e7a35cb`, R3) | `local/routes.rs`, `local/link_pair.rs`, `dialogs/localServerPairLink.ts`, `web/pages.ts` |
 | To build | The UniVerso's link from the admin console (D4.2, decided 2026-11-04; revises 0077 item 6) | Not built: R5 | `console.rs`, `app/ui/src/web/console.ts` |
 | Changed | A game master who may make folders invites into their own tables (D7 (e), decided 2026-11-04; revises 0081 item 4) | **Built** 2026-11-13 (R6, `205cdfb8`) | `admin/acts.rs` (`Inviter`), `campaign_cmds.rs`, `shares.rs`, `db/invitations.rs` |
 | Changed | Moving a table to the other host (D8, decided 2026-11-04; in V1 2026-11-13) | **Built** 2026-11-14 (R9, `fd543a30`): made there, closed and marked moved here; five details `[OPEN]` in D8 | `local_server/moving.rs`, `campaign_cmds.rs` (`moved`), `db/campaign.rs` (schema 23), `tableMoveCard.ts` |
@@ -607,7 +608,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 |---|---|---|
 | R1 | **Built 2026-11-05.** Served subfolders the lean way: the ticked folder registered as the owner's; a player reaches a subfolder by a share or a table root only; 0096's parts kept for phones. Tests (`local/tests_subfolders.rs`): a player in A never reaches B or the rest (id, share, list, file, link, device); the owner's phones as before. Found by the maintainer, 2026-11-05: he ticked *Campanha Fractal* inside his vault and got nothing — the window could not sit at a folder served in part | Opus |
 | R2 | ~~Synced folders served; a received share refused~~ — **built** (`96123d8f4`); the host per table follows D4.1 with nothing more to build | — |
-| R3 | The owner pairs through the link (D5). Tests: the code works only once approved in the app; limits by forwarded address; no owner role through it | Opus |
+| R3 | **Built 2026-11-13** (`2e7a35cb`). The owner pairs through the link (D5): the link's pairing answers only while *Pair a phone* is open; *Was it you?* says the link, an editor first; the dialog shows the link's QR (alone) or switches to it (beside the network); the link's sign-in page offers the code; a quick link's device ends with its address (its session ended when the address ends, the next start for one a crash left), an own address's stays. The three attempts are the window's, not per address, so no forwarded address resets them; the audit keeps the tunnel's address. Tests (`local/tests_link_pair.rs`): refused until opened, works once allowed, refused when the app says no, three wrong codes with forged addresses, a new forwarded address resets nothing, never the owner, a quick link's device ends, an own address's stays. Left for R7: lessons, walkthrough, manual checks, threat-model row; for R8: the hostile lab (D5) | Opus |
 | R4 | **Built 2026-11-13.** The folder's page: serve from this computer (the card and the tree's menu; the server turned on in the same step), *Stop serving* with its confirmation, *Copy the table's link*; Settings' read-only list (D2, decided 2026-11-13). Both languages, keyboard, 390×844, e2e in Docker | Sonnet |
 | R5 | A UniVerso's own link (D4.2): the tunnel module moved into a crate both hosts use; a spike first (a quick link's address with no window; a named tunnel on a headless server); the runtime origin in `verso-server`; an environment variable and `universo.sh` for the `.deb`, Docker compose and ZimaOS; on and off from the console as well (D4.2, decided). Tests: `Host`/`Origin` follow the runtime origin; a forged header moves no limit | Opus |
 | R6 | **Built 2026-11-13** (`205cdfb8`). D7 (e), decided: a game master who may make folders invites people into their own tables. Tests (`tests_gm_invites.rs`): never into another's folder; audited; at most 20 pending; the power taken away ends the pending ones | Opus |
@@ -678,8 +679,8 @@ until the folder was opened again; the folder's windows now hear it
   with the link.
 - Who sees what on this computer is decided by the same code and the same
   rules as on a UniVerso; the app adds transport and the owner's phones.
-- Cost left: R3 S, R4 M, R5 M plus its spike, R6 S, R7 M, R9 M (the
-  session's estimate, 2026-11-13).
+- Cost left: R4 M, R5 M plus its spike, R6 S, R7 M, R9 M (R3 built
+  2026-11-13; the session's estimate, 2026-11-13).
   Phase 3, V1 (roadmap V.20, V.45).
 
 ## Discarded alternatives

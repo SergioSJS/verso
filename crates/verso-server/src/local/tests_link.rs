@@ -19,12 +19,12 @@ use super::{LocalSettings, lock};
 use crate::db::Role;
 use crate::state::Server;
 
-const NAME: &str = "abstract-simpson-player.trycloudflare.com";
-const ORIGIN: &str = "https://abstract-simpson-player.trycloudflare.com";
+pub(super) const NAME: &str = "abstract-simpson-player.trycloudflare.com";
+pub(super) const ORIGIN: &str = "https://abstract-simpson-player.trycloudflare.com";
 
 /// A request as the tunnel makes it to the link's listener: the link's
 /// `Host`, the client's address appended to `X-Forwarded-For`, HTTPS said.
-fn through(
+pub(super) fn through(
     client: &reqwest::Client,
     method: reqwest::Method,
     port: u16,
@@ -42,14 +42,14 @@ fn through(
 /// connections kept half as long as the listener keeps them
 /// ([`crate::listen::LINK_IDLE`]): never one the listener may be closing
 /// as a request goes out on it (see `tests::network_client`).
-fn tunnel_client() -> reqwest::Client {
+pub(super) fn tunnel_client() -> reqwest::Client {
     reqwest::Client::builder()
         .pool_idle_timeout(crate::listen::LINK_IDLE / 2)
         .build()
         .unwrap()
 }
 
-async fn status_of(r: reqwest::RequestBuilder) -> u16 {
+pub(super) async fn status_of(r: reqwest::RequestBuilder) -> u16 {
     r.send().await.unwrap().status().as_u16()
 }
 
@@ -80,7 +80,10 @@ fn the_link_answers_its_own_name_alone() {
         let state: Value = res.json().await.unwrap();
         assert_eq!(state["secure"], true, "the tunnel's https: {state}");
         assert_eq!(state["local"], true);
-        assert_eq!(state["pairing"], false, "no pairing through the link");
+        // The owner's phone pairs through the link too (ADR 0117 D5), and
+        // the page knows it came by it.
+        assert_eq!(state["pairing"], true, "pairing offered through the link");
+        assert_eq!(state["link"], true);
         for host in [
             format!("127.0.0.1:{port}"),
             format!("127.0.0.1:{}", lab.port),
@@ -204,7 +207,8 @@ fn the_tunnels_address_is_believed_on_the_link_and_nowhere_else() {
 }
 
 /// With *On my network* unticked the link serves alone: no address of the
-/// network, no certificate, no pairing, and a change of network does not
+/// network, no certificate, pairing only once the link has its address
+/// (and then the link's QR, ADR 0117 D5), and a change of network does not
 /// stop it; closing the link stops serving. Neither box is no start.
 #[test]
 fn the_link_serves_alone_when_the_network_box_is_unticked() {
@@ -228,7 +232,11 @@ fn the_link_serves_alone_when_the_network_box_is_unticked() {
             (None, 0, Some(port))
         );
         assert_eq!(status.fingerprint, None);
-        assert!(lab.local.pair_open().is_err(), "pairing is on the network");
+        let refused = lab.local.pair_open().unwrap_err();
+        assert!(
+            refused.contains("internet link on"),
+            "no address yet: {refused}"
+        );
         // The network changes: the link alone does not care.
         *lab.table.0.lock().unwrap() = vec![super::tests::net("127.0.0.2")];
         let id = lock(&lab.local.shared.inner).as_ref().unwrap().id;
@@ -238,6 +246,20 @@ fn the_link_serves_alone_when_the_network_box_is_unticked() {
         let plain = tunnel_client();
         let state = through(&plain, reqwest::Method::GET, port, "/api/state", NAME);
         assert_eq!(status_of(state).await, 200);
+        // The link's own QR: its address, the token in the fragment, no
+        // fingerprint of a certificate the link does not use.
+        let view = lab.local.pair_open().unwrap();
+        assert_eq!(view.certificate, "link");
+        assert_eq!(view.address, NAME);
+        assert!(
+            view.url.starts_with(&format!("{ORIGIN}/pair#t=")),
+            "{}",
+            view.url
+        );
+        let link = view.link.clone().unwrap();
+        assert_eq!((&link.url, &link.qr), (&view.url, &view.qr));
+        assert!(view.choices.is_empty() && view.fingerprint.is_empty());
+        lab.local.pair_close();
         lab.local.link_close();
         assert!(!lab.local.status().unwrap().serving);
     });
@@ -283,30 +305,26 @@ fn a_stop_after_the_link_was_asked_for_starts_nothing() {
 }
 
 /// The link opened beside the network takes nothing from it: a phone
-/// paired before reads on, and pairing is never answered through the link.
+/// paired before reads on, the network's QR is the dialog's still, and the
+/// same window is offered through the link beside it (ADR 0117 D5) — the
+/// link's address with the same token. See `tests_link_pair.rs`.
 #[test]
 fn the_link_beside_the_network_leaves_phones_and_pairing_as_they_were() {
     run(async {
         let mut lab = lab();
         lab.serve();
         let cookie = lab.pair("iPhone", true, Role::Reader).await.unwrap();
-        let port = lab.local.link_open().unwrap();
+        lab.local.link_open().unwrap();
         lab.local.set_link_origin(Some(ORIGIN)).unwrap();
         let (status, _) = lab.get("/api/folders", Some(&cookie)).await;
         assert_eq!(status, 200);
         let view = lab.local.pair_open().unwrap();
-        let plain = tunnel_client();
-        for path in ["/api/pair", "/api/pair/poll"] {
-            let res = through(&plain, reqwest::Method::POST, port, path, NAME)
-                .header("origin", ORIGIN)
-                .json(&json!({ "token": Lab::token(&view), "poll": "p" }));
-            assert_eq!(status_of(res).await, 404, "{path} through the link");
-        }
-        assert!(lab.local.pair_state().asked.is_none());
-        assert!(
-            lab.local.pair_state().open,
-            "the window is the network's still"
+        assert_eq!(view.certificate, "own", "the network's QR first");
+        assert_eq!(
+            view.link.as_ref().map(|l| l.url.clone()),
+            Some(format!("{ORIGIN}/pair#t={}", Lab::token(&view)))
         );
+        assert!(lab.local.pair_state().open);
     });
 }
 

@@ -3201,6 +3201,11 @@ export type LocalAsked = {
 	address: string,
 	/**  When it asked, `YYYY-MM-DDTHH:MM:SSZ`. */
 	asked: string,
+	/**
+	 *  It asked through the internet link (ADR 0117 D5): the address is
+	 *  the one the tunnel forwarded, and the question says so.
+	 */
+	link: boolean,
 };
 
 /**  One line of the log of what happened, kept 365 days. */
@@ -3387,6 +3392,14 @@ export type LocalOwnLogin = {
 	why: string | null,
 };
 
+/**  The pairing window's address through the internet link (ADR 0117 D5). */
+export type LocalPairLink = {
+	/**  `https://<link>/pair#t=<token>`: the token in the fragment. */
+	url: string,
+	/**  Its QR as rows of `1` (dark) and `0`. */
+	qr: string[],
+};
+
 /**  The dialog's state, asked while it is open. */
 export type LocalPairState = {
 	open: boolean,
@@ -3419,9 +3432,17 @@ export type LocalPairing = {
 	fingerprint: string,
 	/**
 	 *  `own` or `files`: with `own`, the dialog says the limit in words
-	 *  (trust on first use, for a network the person trusts).
+	 *  (trust on first use, for a network the person trusts). `link` when
+	 *  the internet link alone serves: the QR is the link's, with no
+	 *  fingerprint.
 	 */
 	certificate: string,
+	/**
+	 *  The same window through the internet link, while the link has an
+	 *  address (ADR 0117 D5): its pairing address with the same one-time
+	 *  token in the fragment, and its QR, for the dialog to show instead.
+	 */
+	link: LocalPairLink | null,
 };
 
 /**  A phone paired with this computer. */

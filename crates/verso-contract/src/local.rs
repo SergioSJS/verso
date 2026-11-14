@@ -310,8 +310,23 @@ pub struct LocalPairing {
     pub expires_in: u32,
     pub fingerprint: String,
     /// `own` or `files`: with `own`, the dialog says the limit in words
-    /// (trust on first use, for a network the person trusts).
+    /// (trust on first use, for a network the person trusts). `link` when
+    /// the internet link alone serves: the QR is the link's, with no
+    /// fingerprint.
     pub certificate: String,
+    /// The same window through the internet link, while the link has an
+    /// address (ADR 0117 D5): its pairing address with the same one-time
+    /// token in the fragment, and its QR, for the dialog to show instead.
+    pub link: Option<LocalPairLink>,
+}
+
+/// The pairing window's address through the internet link (ADR 0117 D5).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct LocalPairLink {
+    /// `https://<link>/pair#t=<token>`: the token in the fragment.
+    pub url: String,
+    /// Its QR as rows of `1` (dark) and `0`.
+    pub qr: Vec<String>,
 }
 
 /// One address the pairing dialog may show.
@@ -337,6 +352,9 @@ pub struct LocalAsked {
     pub address: String,
     /// When it asked, `YYYY-MM-DDTHH:MM:SSZ`.
     pub asked: String,
+    /// It asked through the internet link (ADR 0117 D5): the address is
+    /// the one the tunnel forwarded, and the question says so.
+    pub link: bool,
 }
 
 /// The dialog's state, asked while it is open.

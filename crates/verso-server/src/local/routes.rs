@@ -17,7 +17,9 @@
 //! window at the table (S12), and shares a folder inside a served one with
 //! a person invited, from the same window (ADR 0081), or invites a person
 //! with no account to it by a link (`shares::invite`). An account has its tokens and its passkeys,
-//! a passkey through the internet link alone (S13). A person's new password
+//! a passkey through the internet link alone (S13). The owner's phone pairs
+//! on the network and, since ADR 0117 D5 (R3), through the link too, only
+//! while *Pair a phone* is open in the app. A person's new password
 //! is set from a link the owner made in the app (`players.rs`). There is
 //! no setup, no "forgot the password" or sign-in by mail and no admin
 //! console (D9).
@@ -223,14 +225,15 @@ pub struct Presented {
 }
 
 /// A phone presents the token. Nothing is reachable with no dialog open:
-/// the route answers as an unknown one does. With one open, the phone is
-/// not let in: the laptop is asked (item 6, point 3).
+/// the route answers as an unknown one does, and no code is tried. With
+/// one open, the phone is not let in: the laptop is asked (item 6, point
+/// 3). The same on the network and through the internet link (ADR 0117
+/// D5, decided 2026-11-13): through the link it answers only while the
+/// owner's *Pair a phone* is open in the app, for its two minutes, and its
+/// three attempts are the window's, whatever address the tunnel forwards.
 async fn pair(ctx: Ctx, Json(body): Json<Presented>) -> ApiResult<Response> {
     let policy = local(&ctx)?;
-    // A phone pairs on the network, never through the internet link: there
-    // the route answers as an unknown one does (ADR 0096 items 3 and 6;
-    // ADR 0117 leaves pairing as it was).
-    if ctx.peer.link || !policy.pairing_open(Instant::now()) {
+    if !policy.pairing_open(Instant::now()) {
         return Err(ApiError::not_found());
     }
     // From a page of this server: a page of another site cannot ask.
@@ -246,6 +249,7 @@ async fn pair(ctx: Ctx, Json(body): Json<Presented>) -> ApiResult<Response> {
         &presented,
         &device,
         &ctx.address(),
+        ctx.peer.link,
         Instant::now(),
     )? {
         Redeemed::Asked { poll } => Ok(ok(json!({ "poll": poll, "interval": 2 }))),
@@ -263,9 +267,6 @@ pub struct Poll {
 /// handed over once, in its cookie.
 async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
     let policy = local(&ctx)?;
-    if ctx.peer.link {
-        return Err(ApiError::not_found());
-    }
     if !auth::origin_ok(&ctx.server, &ctx.headers, &ctx.peer) {
         return Err(ApiError::forbidden("not from a page of this server"));
     }

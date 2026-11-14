@@ -56,10 +56,10 @@ test("the link alone serves: its address with Copy and a QR, the hours left with
   await expect(body.getByText("Servindo só pelo link na internet.", { exact: false })).toBeVisible();
   await expect(body.getByText(/Fecha sozinho em 1[12] h \d\d min \(às \d\d:\d\d\)\./)).toBeVisible();
   await expect(body.getByText("Um link rápido muda a cada vez que liga", { exact: false })).toBeVisible();
-  // Locked while serving: where it serves, and pairing (the network's).
+  // Locked while serving: where it serves. Pairing goes through the link
+  // too, once it is up (ADR 0117 D5).
   await expect(net).toBeDisabled();
-  await expect(body.getByRole("button", { name: "Parear um celular" })).toBeDisabled();
-  await expect(body.getByText("Parear um celular é pela sua rede", { exact: false })).toBeVisible();
+  await expect(body.getByRole("button", { name: "Parear um celular" })).toBeEnabled();
   // Copy, and the QR as an image with the address as its name.
   await body.getByRole("button", { name: "Copiar link", exact: true }).click();
   await expect(body.getByText("Link copiado.")).toBeVisible();
@@ -81,6 +81,54 @@ test("the link alone serves: its address with Copy and a QR, the hours left with
   await expect(body.getByText("Desligado.", { exact: false }).first()).toBeVisible();
   await expect(page.locator("#local-mark")).toHaveCount(0);
   await expect(net).toBeEnabled();
+});
+
+test("the owner pairs through the link: its QR and the code, Was it you? says it came by the link, an editor first", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
+  await body.getByRole("checkbox", { name: "Na minha rede" }).uncheck();
+  await body.getByRole("checkbox", { name: "Por um link na internet (Cloudflare, modo de teste)" }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await expect(body.locator(".ls-link-state")).toHaveText("Link no ar.");
+  await body.getByRole("button", { name: "Parear um celular" }).click();
+  const dialog = page.getByRole("dialog", { name: "Parear um celular" });
+  // The link's address — never the token as text — and the same code.
+  await expect(dialog.getByText("https://exemplo-de-mesa.trycloudflare.com/pair", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("BCDF-GHJK")).toBeVisible();
+  await expect(dialog.getByText("Este QR é pelo link na internet", { exact: false })).toBeVisible();
+  await expect(dialog.getByText("Para uma rede em que você confia", { exact: false })).toHaveCount(0);
+  await page.evaluate(() => window.__harness.core.localServer.askAsPhone("Pixel do Sérgio", true));
+  await expect(dialog.getByText("Este pedido veio pelo link na internet", { exact: false })).toBeVisible();
+  await expect(dialog.getByText("203.0.113.9")).toBeVisible();
+  await expect(dialog.getByRole("checkbox", { name: "Pode editar as notas" })).toBeChecked();
+  await dialog.getByRole("button", { name: "Permitir" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(body.getByText("Pixel do Sérgio · edita")).toBeVisible();
+  await body.getByText("O que aconteceu").click();
+  await expect(body.locator(".ls-log-list")).toContainText("Um aparelho apresentou o código pelo link na internet");
+});
+
+test("serving on the network and by the link, the pairing dialog switches to the link's QR and back", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  await body.getByRole("checkbox", { name: /^Vault/ }).check();
+  await body.getByRole("checkbox", { name: "Por um link na internet (Cloudflare, modo de teste)" }).check();
+  await body.getByRole("button", { name: "Ligar o servidor" }).click();
+  await page.getByRole("dialog", { name: "Antes de ligar" }).getByRole("button", { name: "Entendi, ligar" }).click();
+  await expect(body.locator(".ls-link-state")).toHaveText("Link no ar.");
+  await body.getByRole("button", { name: "Parear um celular" }).click();
+  const dialog = page.getByRole("dialog", { name: "Parear um celular" });
+  await expect(dialog.getByText("https://192.168.3.122:51234/pair", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("Este QR é pela sua rede", { exact: false })).toBeVisible();
+  await dialog.getByRole("button", { name: "Mostrar o QR do link na internet" }).click();
+  await expect(dialog.getByText("https://exemplo-de-mesa.trycloudflare.com/pair", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("combobox", { name: "Endereço que o celular vai usar" })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Mostrar o QR da rede" })).toBeFocused();
+  await dialog.getByRole("button", { name: "Mostrar o QR da rede" }).click();
+  await expect(dialog.getByText("https://192.168.3.122:51234/pair", { exact: true })).toBeVisible();
 });
 
 test("the first download of cloudflared says how far it got and can be cancelled; nothing starts after", async ({ app, page }) => {

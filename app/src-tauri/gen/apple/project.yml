@@ -29,7 +29,10 @@ targets:
     sources:
       - path: Sources
       - path: Assets.xcassets
+      # The Rust static library is linked (dependencies below), never
+      # copied into the bundle: as a resource it added 1.2 GB to the .ipa.
       - path: Externals
+        buildPhase: none
       - path: verso-app_iOS
       - path: assets
         buildPhase: resources
@@ -52,6 +55,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
         CFBundleShortVersionString: 1.0.0
         CFBundleVersion: "1.0.0"
     entitlements:
