@@ -94,12 +94,37 @@ pub(crate) async fn open(
             && server.local.is_some()
             && server.db.local_owner().is_ok_and(|a| a.id == account));
     let owner = scope.is_none() && owns;
-    if let Some(c) = lock(&server.clients).get_mut(client) {
-        c.folder = Some((folder.id.clone(), role));
-        c.owner = owner;
-        c.owns = owns;
-        c.scope.clone_from(&scope);
-        let _ = c.tx.send(&said);
+    // Looked at again where the window is attached, under the lock the cut
+    // of a folder that stops being served takes (`local::live`): an open
+    // that passed `access::role` while the folder was served, and finished
+    // after it rested — or after it became served in part, for a phone on
+    // the folder itself — is refused, never attached (review of
+    // 2026-11-14, B1).
+    let refused = {
+        let mut clients = lock(&server.clients);
+        let Some(c) = clients.get_mut(client) else {
+            return Err(verso_service::failed("the connection closed"));
+        };
+        let hidden = c.phone
+            && scope.is_none()
+            && server.local.as_ref().is_some_and(|p| p.hides(&folder.id));
+        if server.rests(&folder.dir) || hidden {
+            true
+        } else {
+            c.folder = Some((folder.id.clone(), role));
+            c.owner = owner;
+            c.owns = owns;
+            c.scope.clone_from(&scope);
+            let _ = c.tx.send(&said);
+            false
+        }
+    };
+    if refused {
+        server.left(&[client.to_owned()]);
+        return Err(ContractError {
+            kind: verso_contract::ErrorKind::NotFound,
+            message: "not found".to_owned(),
+        });
     }
     record_space(server, client).await;
     let info = to_value(info)?;

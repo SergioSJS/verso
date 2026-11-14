@@ -285,13 +285,13 @@ impl super::LocalServer {
     /// it: the explicit way to the whole folder. While serving too, at once
     /// (`live`, ADR 0117 R4).
     pub fn set_whole(&self, folder: &str) -> Result<(), String> {
-        let before = self.settings()?;
-        if !before.folders.iter().any(|f| f == folder) {
-            return Err("tick the folder first".to_owned());
-        }
-        let mut settings = before.clone();
-        settings.parts.remove(folder);
-        self.change_served(&before, &settings)
+        self.change_served(|settings| {
+            if !settings.folders.iter().any(|f| f == folder) {
+                return Err("tick the folder first".to_owned());
+            }
+            settings.parts.remove(folder);
+            Ok(())
+        })
     }
 
     /// Choose which folders inside the served folder at `folder` (its path,
@@ -302,33 +302,39 @@ impl super::LocalServer {
     /// ADR 0117 R4): a part no longer chosen is let go by its windows.
     pub fn set_parts(&self, folder: &str, chosen: &[String]) -> Result<Vec<String>, String> {
         let chosen = clean(chosen)?;
-        let before = self.settings()?;
-        if !before.folders.iter().any(|f| f == folder) {
-            return Err("tick the folder first".to_owned());
-        }
-        let mut settings = before.clone();
-        settings.parts.remove(folder);
-        if chosen.is_empty() {
-            settings.folders.retain(|f| f != folder);
-        } else {
-            settings.parts.insert(folder.to_owned(), chosen.clone());
-        }
-        self.change_served(&before, &settings)?;
+        self.change_served(|settings| {
+            if !settings.folders.iter().any(|f| f == folder) {
+                return Err("tick the folder first".to_owned());
+            }
+            settings.parts.remove(folder);
+            if chosen.is_empty() {
+                settings.folders.retain(|f| f != folder);
+            } else {
+                settings.parts.insert(folder.to_owned(), chosen.clone());
+            }
+            Ok(())
+        })?;
         Ok(chosen)
     }
 
-    /// What is served becomes `settings`, kept, and served now when serving
-    /// is on; when that cannot be (a part chosen is not on the disk), the
-    /// settings go back to `before` and the reason is the `Err`.
+    /// Change what is served with `edit`, keep it, and serve it now when
+    /// serving is on — all under one lock, so that two changes at once never
+    /// write over each other. When the new choice cannot be served (a part
+    /// chosen is not on the disk) the settings go back to what they were
+    /// and the reason is the `Err`.
     pub fn change_served(
         &self,
-        before: &super::LocalSettings,
-        settings: &super::LocalSettings,
+        edit: impl FnOnce(&mut super::LocalSettings) -> Result<(), String>,
     ) -> Result<(), String> {
-        self.set_settings(settings)?;
+        let _one = verso_service::lock(&self.shared.serving_edit);
+        let before = self.settings()?;
+        let mut settings = before.clone();
+        edit(&mut settings)?;
+        self.set_settings(&settings)?;
         self.with_db(|db| write_dropped(db, &[]))?;
         if let Err(why) = self.refolder() {
-            self.set_settings(before)?;
+            // The names given meanwhile are kept: `set_settings` never takes one back.
+            self.set_settings(&before)?;
             let _ = self.refolder();
             return Err(why);
         }

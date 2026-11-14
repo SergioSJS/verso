@@ -77,19 +77,31 @@ impl LocalServer {
             .filter_map(|n| id_of(n))
             .filter(|id| r.policy.hides(id))
             .collect();
+        // The ids before: a folder registered again under a new id
+        // (`reconcile`'s branch for one held by another account) is cut by
+        // the id its windows hold.
+        let ids_before: Vec<(String, String)> = before
+            .iter()
+            .filter_map(|n| Some((n.clone(), id_of(n)?)))
+            .collect();
         let reconciled = parts::reconcile(db, &owner.id, &served)?;
         let hidden_now = reconciled.hidden.clone();
         let dropped = reconciled.dropped.clone();
-        r.policy.set_folders(folders.clone());
         parts::write_dropped(db, &dropped)?;
+        // The hide lock first, then the folders: a folder newly served in
+        // part is never reachable whole in between.
         r.policy.parts.set(reconciled);
+        r.policy.set_folders(folders.clone());
         let server = std::sync::Arc::clone(&r.server);
         drop(running);
         let mut rested = 0;
-        for name in before.iter().filter(|n| !folders.contains_key(*n)) {
-            if let Some(id) = id_of_on(&server, name) {
-                cut(&server, &id, |_| true);
+        for (name, id) in &ids_before {
+            let now = id_of_on(&server, name);
+            if !folders.contains_key(name) {
+                cut(&server, id, |_| true);
                 rested += 1;
+            } else if now.as_deref() != Some(id.as_str()) {
+                cut(&server, id, |_| true);
             }
         }
         for name in folders.keys() {

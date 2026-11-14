@@ -367,6 +367,10 @@ struct Shared {
     events: Sink,
     ifaces: Arc<dyn Interfaces>,
     inner: Mutex<Option<Running>>,
+    /// Held across a change of what is served — read, change, keep, serve
+    /// (`LocalServer::change_served`): two changes at once never write
+    /// over each other (review of 2026-11-14, I1).
+    serving_edit: Mutex<()>,
     last_stop: Mutex<Option<String>>,
     /// Serving listened again by itself since it was last turned on.
     listened_again: AtomicBool,
@@ -416,6 +420,7 @@ impl LocalServer {
                 events,
                 ifaces,
                 inner: Mutex::new(None),
+                serving_edit: Mutex::new(()),
                 last_stop: Mutex::new(None),
                 listened_again: AtomicBool::new(false),
                 resume: AtomicBool::new(false),
@@ -466,6 +471,7 @@ impl LocalServer {
                 events,
                 ifaces,
                 inner: Mutex::new(None),
+                serving_edit: Mutex::new(()),
                 last_stop: Mutex::new(None),
                 listened_again: AtomicBool::new(false),
                 resume: AtomicBool::new(false),
@@ -511,6 +517,15 @@ impl LocalServer {
         for chosen in settings.parts.values() {
             parts::clean(chosen)?;
         }
+        // A folder's name is never taken back (`names`): a writer that read
+        // the settings before a name was given keeps it (review of
+        // 2026-11-14, I1).
+        let mut settings = settings.clone();
+        let kept = self.with_db(|db| Ok(read_settings(db).names))?;
+        for (path, name) in kept {
+            settings.names.entry(path).or_insert(name);
+        }
+        let settings = &settings;
         let text = serde_json::to_string(settings).map_err(|e| e.to_string())?;
         self.with_db(|db| db.set_setting(SETTINGS, &text))?;
         // At once, for new connections; no one connected is cut off.

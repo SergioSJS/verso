@@ -194,10 +194,12 @@ fn what_is_served_changes_while_serving() {
         let opened = call(&mut ws, 1, "open_server_folder", json!({ "id": id })).await;
         assert!(opened.get("ok").is_some(), "{opened}");
 
-        let before = lab.local.settings().unwrap();
-        let mut without = before.clone();
-        without.folders.retain(|f| !f.ends_with("Campanha"));
-        lab.local.change_served(&before, &without).unwrap();
+        lab.local
+            .change_served(|s| {
+                s.folders.retain(|f| !f.ends_with("Campanha"));
+                Ok(())
+            })
+            .unwrap();
         let status = lab.local.status().unwrap();
         assert!(status.serving, "serving stopped");
         assert_eq!(status.port, Some(port));
@@ -213,7 +215,96 @@ fn what_is_served_changes_while_serving() {
         assert!(reads(&lab, &ana, &id, "Sessao.md").await.is_none());
         assert!(server_of(&lab).db.folder(&id).unwrap().is_some());
 
-        lab.local.change_served(&without, &before).unwrap();
+        let path = campanha.to_string_lossy().into_owned();
+        lab.local
+            .change_served(|s| {
+                s.folders.push(path);
+                Ok(())
+            })
+            .unwrap();
         assert!(reads(&lab, &ana, &id, "Sessao.md").await.is_some());
+    });
+}
+
+/// Settings written before names were kept (review of 2026-11-14, B2): a
+/// registration that holds a table and a player is never taken by a
+/// folder whose name the order gives — it may have been another folder's
+/// — while one that holds only the owner's own (a phone's parts) is.
+#[test]
+fn settings_from_before_names_never_hand_a_table_to_another_folder() {
+    run(async {
+        let mut lab = lab();
+        let first = lab.notes.path().join("Campanha");
+        serve_only(&mut lab, &[&first]);
+        let link = table_with_invite(&lab, &first).await;
+        let ana = accept(&lab, &link, "ana@example.org", "Ana").await;
+        let old = server_of(&lab)
+            .db
+            .folder_by_dir("Campanha")
+            .unwrap()
+            .unwrap()
+            .id;
+        // As an older build left it: no names; the first folder unticked
+        // and another of the same name ticked, with serving off.
+        lab.local.stop();
+        let elsewhere = tempfile::tempdir().unwrap();
+        let other = elsewhere.path().join("Campanha");
+        crate::data::ensure_dir(&other).unwrap();
+        crate::data::write_for_tests(&other.join("Outro.md"), "# Outro\nsó da outra\n");
+        lab.local
+            .with_db(|db| {
+                let mut s = super::read_settings(db);
+                s.names.clear();
+                s.folders = vec![other.to_string_lossy().into_owned()];
+                let text = serde_json::to_string(&s).unwrap();
+                db.set_setting(super::SETTINGS, &text)
+            })
+            .unwrap();
+        lab.serve();
+        assert_ne!(
+            lab.local.served_name_for_tests(&other).as_deref(),
+            Some("Campanha"),
+            "the other folder took the table's registration"
+        );
+        assert!(reads(&lab, &ana, &old, "Outro.md").await.is_none());
+        for id in listed(&lab, &ana).await {
+            assert!(reads(&lab, &ana, &id, "Outro.md").await.is_none());
+        }
+    });
+}
+
+#[test]
+fn settings_from_before_names_keep_a_registration_of_the_owner_alone() {
+    run(async {
+        let mut lab = lab();
+        let first = lab.notes.path().join("Campanha");
+        serve_only(&mut lab, &[&first]);
+        let old = server_of(&lab)
+            .db
+            .folder_by_dir("Campanha")
+            .unwrap()
+            .unwrap()
+            .id;
+        lab.local.stop();
+        lab.local
+            .with_db(|db| {
+                let mut s = super::read_settings(db);
+                s.names.clear();
+                let text = serde_json::to_string(&s).unwrap();
+                db.set_setting(super::SETTINGS, &text)
+            })
+            .unwrap();
+        lab.serve();
+        let again = server_of(&lab)
+            .db
+            .folder_by_dir("Campanha")
+            .unwrap()
+            .unwrap()
+            .id;
+        assert_eq!(again, old);
+        assert_eq!(
+            lab.local.served_name_for_tests(&first).as_deref(),
+            Some("Campanha")
+        );
     });
 }

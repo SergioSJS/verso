@@ -25,19 +25,6 @@ fn base_of(path: &Path) -> String {
         .unwrap_or_else(|| "Folder".to_owned())
 }
 
-/// `Campanha (2)` → `Campanha`: the base a name was made unique from.
-fn base_of_name(name: &str) -> &str {
-    if let Some(open) = name.rfind(" (")
-        && name.ends_with(')')
-        && name[open + 2..name.len() - 1]
-            .chars()
-            .all(|c| c.is_ascii_digit())
-    {
-        return &name[..open];
-    }
-    name
-}
-
 /// A name from `base` that none of `taken` has.
 fn unique(base: &str, taken: &HashSet<String>) -> String {
     let mut name = base.to_owned();
@@ -49,34 +36,53 @@ fn unique(base: &str, taken: &HashSet<String>) -> String {
     name
 }
 
+/// Whether the registration named `dir` holds anything of another person:
+/// a member, a share given to someone, a table or a read link. Only one
+/// that holds nothing of anyone but the owner (`owner`) may be taken by a
+/// folder from settings written before names were kept: there is no tie
+/// between a registration and a path to tell whose it was (review of
+/// 2026-11-14, B2).
+fn holds_others(db: &Db, dir: &str, owner: &str) -> bool {
+    let Ok(Some(f)) = db.folder_by_dir(dir) else {
+        return false;
+    };
+    let members = db.members(&f.id).unwrap_or_default();
+    if members.iter().any(|(a, _)| a.id != owner) {
+        return true;
+    }
+    let shared = db.shares_of(&f.id).unwrap_or_default().iter().any(|s| {
+        db.share_people(&s.id)
+            .unwrap_or_default()
+            .iter()
+            .any(|(a, _)| a.id != owner)
+    });
+    shared
+        || !db.campaigns_of(&f.id).unwrap_or_default().is_empty()
+        || !db.read_links_of(&f.id).unwrap_or_default().is_empty()
+}
+
 /// Each ticked folder given a name if it has none, never one another
 /// folder — ticked, unticked or only registered — has. Settings written
-/// before names were kept are given the names their order gave them, the
-/// names their registrations have, unless that order can no longer be
-/// trusted: more registrations of a base than folders ticked of it (one
-/// was unticked while serving was off), when those folders get new names
-/// and none of the old registrations. `true` when a name was given.
+/// before names were kept take the name their order gave only when its
+/// registration holds nothing of anyone but the owner (the phones' parts
+/// of ADR 0096, the only thing a released version kept there): one with
+/// a member, a share given, a table or a read link may have been another
+/// folder's, so the folder gets a new name and that registration rests,
+/// whole, for nobody. `true` when a name was given.
 pub(super) fn assign(db: &Db, settings: &mut LocalSettings) -> Result<bool, String> {
     let registered: HashSet<String> = db.folders()?.into_iter().map(|f| f.dir).collect();
     let mut given = false;
     if settings.names.is_empty() && !settings.folders.is_empty() {
-        let mut ticked_of: HashMap<String, usize> = HashMap::new();
-        for p in &settings.folders {
-            *ticked_of.entry(base_of(Path::new(p))).or_default() += 1;
-        }
-        let mut rows_of: HashMap<&str, usize> = HashMap::new();
-        for d in &registered {
-            *rows_of.entry(base_of_name(d)).or_default() += 1;
-        }
+        let owner = db.local_owner()?.id;
         let mut taken = HashSet::new();
         for p in &settings.folders {
             let base = base_of(Path::new(p));
-            let trusted = rows_of.get(base.as_str()).copied().unwrap_or(0) <= ticked_of[&base];
-            let name = if trusted {
-                unique(&base, &taken)
-            } else {
+            let ordered = unique(&base, &taken);
+            let name = if registered.contains(&ordered) && holds_others(db, &ordered, &owner) {
                 let all: HashSet<String> = taken.union(&registered).cloned().collect();
                 unique(&base, &all)
+            } else {
+                ordered
             };
             taken.insert(name.clone());
             settings.names.insert(p.clone(), name);
@@ -108,17 +114,4 @@ pub(super) fn served(settings: &LocalSettings) -> HashMap<String, PathBuf> {
         .iter()
         .filter_map(|p| Some((settings.names.get(p)?.clone(), PathBuf::from(p))))
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_name_made_unique_has_its_base() {
-        assert_eq!(base_of_name("Campanha (2)"), "Campanha");
-        assert_eq!(base_of_name("Campanha"), "Campanha");
-        assert_eq!(base_of_name("Notas (velhas)"), "Notas (velhas)");
-        assert_eq!(base_of_name("(3)"), "(3)");
-    }
 }

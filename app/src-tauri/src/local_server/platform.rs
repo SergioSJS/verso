@@ -274,21 +274,21 @@ pub(super) async fn tick<R: tauri::Runtime>(
                 "this folder was shared with you on {host}: only its owner serves it"
             ));
         }
-        let before = local.settings()?;
-        let mut settings = before.clone();
         let text = path.to_string_lossy().into_owned();
-        // Ticking it again while it is ticked changes nothing.
-        if ticked && settings.folders.contains(&text) {
-            return rows(&app, &local);
-        }
-        settings.folders.retain(|f| *f != text);
-        // What was chosen inside a folder is forgotten with its untick.
-        if ticked {
-            settings.folders.push(text);
-        } else {
-            settings.parts.remove(&text);
-        }
-        local.change_served(&before, &settings)?;
+        local.change_served(|settings| {
+            // Ticking it again while it is ticked changes nothing.
+            if ticked && settings.folders.contains(&text) {
+                return Ok(());
+            }
+            settings.folders.retain(|f| *f != text);
+            // What was chosen inside a folder is forgotten with its untick.
+            if ticked {
+                settings.folders.push(text);
+            } else {
+                settings.parts.remove(&text);
+            }
+            Ok(())
+        })?;
         rows(&app, &local)
     })
     .await
@@ -692,6 +692,17 @@ fn follow_the_container<R: tauri::Runtime>(app: &tauri::AppHandle<R>, local: &Lo
                 }
             }
         }
+    }
+    // A folder's registered name goes with it (review of 2026-11-14, I2):
+    // else the moved path gets a new name, and its table rests for nobody.
+    let names: Vec<(String, String)> = set
+        .names
+        .iter()
+        .filter_map(|(k, v)| Some((moved(k)??, v.clone())))
+        .collect();
+    for (here, name) in names {
+        changed = true;
+        set.names.insert(here, name);
     }
     if changed {
         folders.dedup();
