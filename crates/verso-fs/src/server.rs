@@ -73,6 +73,28 @@ pub fn make_folder(root: &Path, name: &str) -> io::Result<PathBuf> {
     Ok(path)
 }
 
+/// Move folder `name` from under `from` to under `to`, whole, in one
+/// rename (the same volume: an iOS app's `Library` and `Documents`, ADR
+/// 0119 A5), both directories synced after. `Ok(false)` when there is
+/// nothing to move, or `to` already holds a folder of that name — then
+/// nothing is touched, never merged.
+pub fn move_folder(from: &Path, to: &Path, name: &str) -> io::Result<bool> {
+    let (Some(old), Some(new)) = (folder_path(from, name), folder_path(to, name)) else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "not a folder name",
+        ));
+    };
+    if !old.is_dir() || new.exists() {
+        return Ok(false);
+    }
+    std::fs::create_dir_all(to)?;
+    std::fs::rename(&old, &new)?;
+    crate::os::sync_dir(from)?;
+    crate::os::sync_dir(to)?;
+    Ok(true)
+}
+
 /// The name of the file system `path` is on when it is a network one
 /// (NFS, SMB, AFP, WebDAV, sshfs): the watcher hears nothing there and
 /// SQLite's locks are not to be trusted (ADR 0075 item 3). `None` when it
@@ -213,6 +235,37 @@ pub fn owner_uid(path: &Path) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// ADR 0119 A5: the iOS app's folder moves whole from `Library` to
+    /// `Documents` once; a folder already there is never merged into.
+    #[test]
+    fn a_folder_moves_whole_once_and_never_over_another() {
+        let root = tempfile::tempdir().unwrap();
+        let (lib, docs) = (root.path().join("Library"), root.path().join("Documents"));
+        let made = make_folder(
+            &{
+                std::fs::create_dir_all(&lib).unwrap();
+                lib.clone()
+            },
+            "Verso",
+        )
+        .unwrap();
+        std::fs::write(made.join("Nota.md"), "# Nota\n").unwrap();
+        assert!(move_folder(&lib, &docs, "Verso").unwrap());
+        assert_eq!(
+            std::fs::read_to_string(docs.join("Verso/Nota.md")).unwrap(),
+            "# Nota\n"
+        );
+        assert!(!lib.join("Verso").exists());
+        // Nothing left to move.
+        assert!(!move_folder(&lib, &docs, "Verso").unwrap());
+        // One there already: nothing is touched.
+        make_folder(&lib, "Verso").unwrap();
+        std::fs::write(lib.join("Verso/Outra.md"), "x").unwrap();
+        assert!(!move_folder(&lib, &docs, "Verso").unwrap());
+        assert!(lib.join("Verso/Outra.md").exists() && !docs.join("Verso/Outra.md").exists());
+        assert!(move_folder(&lib, &docs, "../x").is_err());
+    }
 
     #[cfg(unix)]
     #[test]

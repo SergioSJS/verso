@@ -351,7 +351,7 @@ pub(crate) fn set_bars_dark<R: tauri::Runtime>(
 /// The folder a phone or tablet keeps its notes in, in the app's own
 /// storage (Android ADR 0118 item 4.1; iOS ADR 0119 B13).
 #[cfg(mobile)]
-const OWN_FOLDER: &str = "Verso";
+pub(crate) const OWN_FOLDER: &str = "Verso";
 
 /// `<data>/Verso`, made the first time (verso-fs makes it, as a server
 /// makes a folder: ADR 0026 rule 5).

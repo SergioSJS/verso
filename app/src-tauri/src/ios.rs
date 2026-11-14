@@ -9,9 +9,12 @@
 //! names: Tauri's `app_data_dir` (`Library/Application Support/<id>` in
 //! the app's container). `HOME` is the container itself, where an app
 //! writes only in its `Documents`, `Library` and `tmp`, so the desktop's
-//! `~/.config` is not used. The configuration goes in `<data>/config`, the
-//! notes in `<data>/Verso` (B13, decided 2026-11-12), made at the first
-//! start and opened by the first window.
+//! `~/.config` is not used. The configuration goes in `<data>/config`; the
+//! notes in `Documents/Verso` (A5, decided 2026-11-13: *"Sim devem
+//! aparecer"*), which the Files app shows under *On My iPad › Verso*, made
+//! at the first start and opened by the first window. An install from
+//! before kept them in `<data>/Verso` (B13), under `Library`, which Files
+//! never shows: they are moved once, whole.
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -54,9 +57,44 @@ pub(crate) fn setup(app: &tauri::App) {
             data.display()
         ),
     );
-    if let Some(folder) = crate::mobile::own_folder(&data) {
+    if let Some(folder) = crate::mobile::own_folder(&notes_root(app, &data)) {
         crate::lock(&app.state::<crate::App>().initial_folder).push_back(folder);
     }
+}
+
+/// Where the app's own folder lives: `Documents` (A5), with an earlier
+/// install's folder under `<data>` moved there once. When the move fails
+/// the folder stays where it was and opens from there, said in the log —
+/// never an empty folder in its place.
+fn notes_root(app: &tauri::App, data: &std::path::Path) -> PathBuf {
+    let docs = match app.path().document_dir() {
+        Ok(d) => d,
+        Err(e) => {
+            log::write(
+                "ERROR",
+                "host",
+                &format!("iOS: no Documents directory: {e}"),
+            );
+            return data.to_path_buf();
+        }
+    };
+    match verso_fs::server::move_folder(data, &docs, crate::mobile::OWN_FOLDER) {
+        Ok(true) => log::write(
+            "INFO",
+            "host",
+            "iOS: the notes moved to Documents/Verso, where the Files app shows them",
+        ),
+        Ok(false) => {}
+        Err(e) => {
+            log::write(
+                "ERROR",
+                "host",
+                &format!("iOS: the notes could not move to Documents, kept where they were: {e}"),
+            );
+            return data.to_path_buf();
+        }
+    }
+    docs
 }
 
 /// A cloud's secrets in iOS's Protected Data keychain (keyring 4's Apple

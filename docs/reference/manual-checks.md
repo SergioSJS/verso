@@ -54,6 +54,11 @@ picture of the page* means that system fell back to hiding the page.
   the app's memory (Activity Monitor, Task Manager) does not keep
   growing.
 
+### iOS: the notes in the Files app (ADR 0119 A5, 2026-11-13)
+
+- [ ] **On the iPad, an install from before** (A): install the new build over the old one; at the first start the log says *the notes moved to Documents/Verso*; **Files › On My iPad › Verso** lists the notes; the folder opens in Verso with every note; a note edited in another app through Files shows the change when Verso comes back to the screen. The folder switcher's old entry (if any) is said as gone, not opened empty.
+- [ ] **A fresh install** (A): Files shows *Verso* at once, with the welcome lesson.
+
 ### This app is a server: the internet link, invitations and the table (ADR 0117, note 29, 2026-11-04)
 
 The harness answers the link, the own address, the invitations and the seat in memory, and the Rust tests run the real server on a loopback listener; nothing downloaded, ran or talked to `cloudflared` or Cloudflare. Per system, then one line per row of ADR 0117 D9. Follow note 29 as a layperson would.
