@@ -40,7 +40,8 @@
   2026-11-13, later — R6 built (`205cdfb8`), D7 (e) says how; two
   `[OPEN]` details of the build there.
   2026-11-14 — R9 built (`fd543a30`), D8 says how; five `[OPEN]` details
-  of the build there.
+  of the build there. The same day, the review's blocking finding: undoing
+  a moved table takes its players' places with it (D8 item 4, `7522d16b`).
 - Related: [0073](0073-self-hosted-server-first.md), [0074](0074-accounts-and-access-on-the-server.md),
   [0077](0077-the-server-administration-console-and-folder-quotas.md),
   [0079](0079-sync-a-local-folder-with-a-server.md), [0081](0081-sharing-between-people-on-one-universo.md),
@@ -372,20 +373,37 @@ decision left open chosen by the session building it and marked
    chat, rolls, releases, rights and players stay in that host's database,
    untouched, and nothing of them crosses to the new host (the tests). An
    older server, which does not know `moved`, only closes the table.
-4. **Undoing the moved table** is 0110 item 1 as built: the table's row,
+4. **Undoing the moved table** is 0110 item 1 as built — the table's row,
    its access and its rights go; its log becomes the folder's own (kept, as
-   for any undone table); a table made there again starts open, not moved.
+   for any undone table); a table made there again starts open, not moved
+   — and, because it moved, **what the table gave its players goes with
+   it** (`campaign_move.rs`; the review of R9, 2026-11-14: as first built
+   the undo left them ordinary readers of the folder, who then read every
+   note the table had kept from them — a visibility leak, blocking). Every
+   place at or inside the table's folder that is not an owner's is taken
+   out: for a table of the whole folder, the folder's readers and editors
+   and the people of every share in it; for a table of a subfolder, the
+   people of the shares at it or inside it. A place beside the table or
+   above it (a share of another folder, the folder's own grant when the
+   table is a subfolder) was not made by the table and stays. Pending
+   invitations into the table end. Each removal and ending is in the audit
+   (`table_moved_revoke`, `invitation_ended`); the windows of the people
+   taken out are told their place was revoked. The table's window says so
+   before the undo, in both languages. The undo of a table that did not
+   move is unchanged.
 
 `[OPEN]` (smallest choice kept): the notes' audiences, secret names and
 grants are not carried to the new host — every note starts hidden there.
 `[OPEN]` (smallest choice kept): a moved table comes back to its old host
 only by undoing it and making it again; there is no *bring it back*.
-`[OPEN]` (smallest choice kept, **for the maintainer's attention**):
-undoing a moved table on its old host makes the players still there
-ordinary readers of that folder, who then read every note there (0110
-item 1, as for any undo); the table's window says so in words beside
-*Undo table* and keeps the players' card to remove them first, but the
-undo does not take them out by itself.
+~~`[OPEN]`~~ **Closed 2026-11-14 by the smallest safe option, pending the
+maintainer's confirmation** (item 4): undoing a moved table takes out the
+places it gave its players instead of leaving them readers of the folder.
+`[OPEN]` (what that leaves): for a table of a subfolder, a person whose
+place is above it — the folder's own reader grant, or a share of a folder
+that holds the table — keeps that place, made outside the table, and so
+reads the undone table's notes as any reader of the folder does; the
+table's invitation never makes such a place.
 `[OPEN]` (smallest choice kept): the old host does not tell its players
 where the table went, only to ask the game master for a new invitation.
 `[OPEN]` (smallest choice kept): a moved table still counts in
@@ -598,7 +616,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | Changed | The owner pairs through the link (D5, decided 2026-11-04 and 2026-11-13) | **Built** (`2e7a35cb`, R3) | `local/routes.rs`, `local/link_pair.rs`, `dialogs/localServerPairLink.ts`, `web/pages.ts` |
 | To build | The UniVerso's link from the admin console (D4.2, decided 2026-11-04; revises 0077 item 6) | Not built: R5 | `console.rs`, `app/ui/src/web/console.ts` |
 | Changed | A game master who may make folders invites into their own tables (D7 (e), decided 2026-11-04; revises 0081 item 4) | **Built** 2026-11-13 (R6, `205cdfb8`) | `admin/acts.rs` (`Inviter`), `campaign_cmds.rs`, `shares.rs`, `db/invitations.rs` |
-| Changed | Moving a table to the other host (D8, decided 2026-11-04; in V1 2026-11-13) | **Built** 2026-11-14 (R9, `fd543a30`): made there, closed and marked moved here; five details `[OPEN]` in D8 | `local_server/moving.rs`, `campaign_cmds.rs` (`moved`), `db/campaign.rs` (schema 23), `tableMoveCard.ts` |
+| Changed | Moving a table to the other host (D8, decided 2026-11-04; in V1 2026-11-13) | **Built** 2026-11-14 (R9, `fd543a30`): made there, closed and marked moved here; its undo takes its players' places (`7522d16b`); details `[OPEN]` in D8 | `local_server/moving.rs`, `campaign_cmds.rs` (`moved`), `db/campaign.rs` (schema 23), `tableMoveCard.ts` |
 | To build | A UniVerso's own link, reusing the tunnel module (D4.2) | Not built: R5 | `app/src-tauri/src/tunnel/` → a crate |
 | To build | Lessons 22, 23 and the UniVerso's 31 for its link; manual checks; the threat model's rows | Partly (29 and 28 say the folder's page, synced folders, received ones) | `demo-vault*/`, `docs/reference/` |
 
@@ -614,7 +632,7 @@ the `std::fs` exception for `tunnel/files.rs`, ratified by the maintainer on
 | R6 | **Built 2026-11-13** (`205cdfb8`). D7 (e), decided: a game master who may make folders invites people into their own tables. Tests (`tests_gm_invites.rs`): never into another's folder; audited; at most 20 pending; the power taken away ends the pending ones | Opus |
 | R7 | Docs: lessons 22, 23 and the UniVerso's 31 for its link, the walkthrough, manual checks, threat-model rows (a synced folder served, a UniVerso's link); the site's wiki imported again | Sonnet |
 | R8 | The guardrails seen failing; the checks on the three systems; the hostile lab run again (R3 and R6 touch access); the beta installed on the maintainer's OK | Opus |
-| R9 | **Built 2026-11-14** (`fd543a30`). A table moved to the other host (D8, in V1 2026-11-13): the players invited again there; the old host's chat, rolls and grants stay where they were. Tests (`tests_table_move.rs` in `verso-server` and in the app's `tests_local_seat`, both ways; `test/tableMove.test.mjs`; `e2e/table-move.spec.mjs`, to run in Docker): nothing of the old host's log reaches the new one; the old table keeps its log until made a folder again; its players are told it moved; undoing it frees it | Opus |
+| R9 | **Built 2026-11-14** (`fd543a30`). A table moved to the other host (D8, in V1 2026-11-13): the players invited again there; the old host's chat, rolls and grants stay where they were. Tests (`tests_table_move.rs` in `verso-server` and in the app's `tests_local_seat`, both ways; `test/tableMove.test.mjs`; `e2e/table-move.spec.mjs`, to run in Docker): nothing of the old host's log reaches the new one; the old table keeps its log until made a folder again; its players are told it moved; undoing it frees it and leaves its old players nothing of the folder there, a place made outside it kept (`7522d16b`) | Opus |
 
 Order (2026-11-13): R4 → R3 → R6 → R9 → R7 → R8, then R5 with its own
 lessons and checks.
