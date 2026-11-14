@@ -304,6 +304,18 @@ Done: `https://notas.exemplo.com` opens the UniVerso's sign-in page, and offline
 
 ---
 
+### No domain and no open port: the Cloudflare link
+
+The UniVerso itself can open a link on the internet through Cloudflare, with no domain, no certificate and no port opened on the router — the same link as the computer's app ([[29 - A Table over the Internet]]).
+
+- **With the script:** `sh universo.sh link quick` turns on a **quick link**; `sh universo.sh link own` asks for your address and the tunnel's token; `sh universo.sh link off` turns it off. In the script's menu it is item **11**.
+- **With Docker, CasaOS or ZimaOS:** the variable `VERSO_TUNNEL=quick` (or `own`, with `VERSO_TUNNEL_HOSTNAME` and `VERSO_TUNNEL_TOKEN_FILE`) in `universo.env` or the compose file.
+- **In the console:** the administration console's **Server** page has **Turn on a quick link**, **Turn on my own address**, **Extend 12 hours** and **Turn off**. Turning it on and extending ask you to confirm it is you. **The address shows only there**: the log does not write it.
+
+The first time, the UniVerso downloads **cloudflared** (Cloudflare's program, a pinned version checked by its sum) into its data folder; nothing else is installed. A **quick link** is Cloudflare's testing mode: a random name that changes each time it is turned on, **12 hours** (the console extends by 12 more), up to 200 requests at once. Passkeys and the offline copy are tied to its name and end with it. With the link on and no `VERSO_PUBLIC_URL`, invitations and the table's link go out with the link's address.
+
+**Your own address**, which does not change: with a free Cloudflare account and a domain there, in the dashboard (**Zero Trust › Networks › Tunnels**) make a tunnel, copy the **token** shown after `--token`, and under **Public Hostname** point your address at `http://localhost:7341`. Then `sh universo.sh link own` (or the variables). A token pasted in the console lasts only until the server restarts; for good, use the variable.
+
 ## 6. The first admin, and connecting the app
 
 Nobody signs up on their own: the first account is the **admin**'s. With `VERSO_ADMIN_EMAIL` and `VERSO_ADMIN_PASSWORD` empty, the server prints in the log, on startup, a **setup link** that is valid for one hour and one use. To find it:

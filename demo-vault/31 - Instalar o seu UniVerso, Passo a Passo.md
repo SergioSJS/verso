@@ -304,6 +304,18 @@ Pronto: `https://notas.exemplo.com` abre a página de entrada do UniVerso, e o m
 
 ---
 
+### Sem domínio e sem abrir porta: o link da Cloudflare
+
+O próprio UniVerso pode abrir um link na internet pela Cloudflare, sem domínio, sem certificado e sem abrir porta no roteador — o mesmo link do app do computador ([[29 - Mesa pela Internet]]).
+
+- **No script:** `sh universo.sh link quick` liga um **link rápido**; `sh universo.sh link own` pede o seu endereço e o token do túnel; `sh universo.sh link off` desliga. No menu do script é o item **11**.
+- **No Docker, CasaOS ou ZimaOS:** a variável `VERSO_TUNNEL=quick` (ou `own`, com `VERSO_TUNNEL_HOSTNAME` e `VERSO_TUNNEL_TOKEN_FILE`) no `universo.env` ou no compose.
+- **No console:** a página **Servidor** do console de administração tem **Ligar um link rápido**, **Ligar o meu endereço**, **Estender 12 horas** e **Desligar**. Ligar e estender pedem para você confirmar que é você. **O endereço só aparece ali**: o log não o escreve.
+
+Na primeira vez o UniVerso baixa o **cloudflared** (o programa da Cloudflare, versão fixa, conferida pela soma) para a pasta de dados dele; nada mais é instalado. O **link rápido** é o modo de teste da Cloudflare: um nome aleatório que muda a cada vez que liga, **12 horas** (o console estende por mais 12), até 200 pedidos ao mesmo tempo. As chaves de acesso (passkeys) e a cópia sem rede ficam presas ao nome dele e acabam com ele. Com o link ligado e sem `VERSO_PUBLIC_URL`, os convites e o link da mesa saem com o endereço do link.
+
+**O seu endereço**, que não muda: com uma conta grátis da Cloudflare e um domínio dela, no painel (**Zero Trust › Networks › Tunnels**) crie um túnel, copie o **token** que aparece depois de `--token` e, em **Public Hostname**, aponte o seu endereço para `http://localhost:7341`. Depois `sh universo.sh link own` (ou as variáveis). Um token colado no console vale só até o servidor reiniciar; para valer sempre, use a variável.
+
 ## 6. O primeiro admin, e conectar o app
 
 Ninguém se cadastra sozinho: a primeira conta é a do **admin**. Com `VERSO_ADMIN_EMAIL` e `VERSO_ADMIN_PASSWORD` vazios, o servidor imprime no log, ao subir, um **link de configuração** que vale uma hora e uma vez. Para achá-lo:
