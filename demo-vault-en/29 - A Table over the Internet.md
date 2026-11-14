@@ -74,6 +74,14 @@ On the table's card, **Copy the table's link** copies its address to send to pla
 
 **Stop serving** is on the folder's page and in the tree's background menu. First Verso says how many players lose access until you serve it again. **The table, its chat and rolls are kept**: serve the folder again and the same table comes back, with the same people. If the server **stops**, or you stop serving the folder the window sits at, the window goes back to the computer's folder by itself and says so. Next time, Verso opens the computer's folder, never the table.
 
+### Take the table to the other server
+
+A folder served from here that also syncs with a UniVerso is in both places, but **a table lives on one server**. In the table's dialog, **Move to another server › Move this table to …** takes it to the other one (from the computer to the UniVerso, or back). First Verso asks and says what happens:
+
+- **There** the table starts with **every note hidden and no players**: invite them again. The window goes there and opens the new table's dialog.
+- **Here** the table closes to its players. Whoever opens it reads *The table moved to another server. The game master took this table to another server. Ask them for a new invitation.* Its chat, rolls and rights stay here until you **undo** this table.
+- **Undoing the old table** makes it an ordinary folder here and **takes out the players it had**: they lose access to this folder on this server. Whoever has a place in the folder outside the table stays.
+
 ### Share a folder
 
 In the window of the served folder, **Share…** in a folder's menu gives it to a person you invited, with the role **reads** or **edits** (never **owner**). The click in the app counts as your confirmation: no password is asked. The share stays from one session to the next, and you revoke it in the same dialog. It holds in a folder served only in part too: the folders chosen in it are what your phones see, and any folder inside it can be shared or made a table. Players and phones share nothing here.

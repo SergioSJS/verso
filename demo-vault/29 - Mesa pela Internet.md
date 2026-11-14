@@ -74,6 +74,14 @@ No cartão da mesa, **Copiar link da mesa** copia o endereço dela para mandar �
 
 **Parar de servir** fica na página da pasta e no menu do fundo da árvore. Antes, o Verso diz quantas jogadoras perdem o acesso até você servir de novo. **A mesa, o chat e as rolagens ficam guardados**: servindo a pasta outra vez, a mesma mesa volta, com as mesmas pessoas. Se o servidor **parar**, ou você parar de servir a pasta em que a janela está sentada, a janela volta sozinha para a pasta do computador e avisa. Na próxima vez, o Verso abre a pasta do computador, nunca a mesa.
 
+### Levar a mesa para o outro servidor
+
+Uma pasta servida daqui que também sincroniza com um UniVerso está nos dois lugares, mas **uma mesa mora num servidor só**. No diálogo da mesa, **Mudar de servidor › Mudar esta mesa para: …** a leva para o outro (do computador para o UniVerso, ou o contrário). Antes, o Verso pergunta e diz o que acontece:
+
+- **Lá** a mesa nasce com **todas as notas ocultas e sem jogadores**: convide-os de novo. A janela vai para lá e abre o diálogo da mesa nova.
+- **Aqui** a mesa fecha para os jogadores. Quem abrir lê *A mesa mudou de servidor. O mestre levou esta mesa para outro servidor. Peça a ele um convite novo.* O chat, as rolagens e os direitos ficam aqui até você **desfazer** esta mesa.
+- **Desfazer a mesa antiga** a torna uma pasta comum aqui e **tira dela os jogadores que ela tinha**: eles perdem o acesso a esta pasta neste servidor. Quem tem um lugar na pasta por fora da mesa continua.
+
 ### Compartilhar uma pasta
 
 Na janela da pasta servida, **Compartilhar…** no menu de uma pasta a entrega a uma pessoa que você convidou, com o papel **lê** ou **edita** (nunca **dona**). O clique no app vale como a sua confirmação: nenhuma senha é pedida. O compartilhamento fica de uma sessão para a outra, e você o revoga no mesmo diálogo. Vale também numa pasta servida só em parte: as subpastas escolhidas são o que os seus celulares veem, e qualquer subpasta pode ser compartilhada ou virar mesa. Jogadoras e celulares não compartilham nada aqui.
