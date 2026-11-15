@@ -25,6 +25,36 @@ pub struct ServerLogin {
     pub name: String,
 }
 
+/// A computer at home this app is paired with (ADR 0117, "The Verso app
+/// paired"): its sign-in is a [`ServerLogin`] at `url` — a name made of
+/// the pin, which this app resolves itself — and its key's pin, the only
+/// certificate this app accepts there; with the addresses it was last
+/// found at, tried in turn.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Paired {
+    pub url: String,
+    /// SHA-256 of the computer's public key, hexadecimal.
+    pub pin: String,
+    /// IP addresses, the one that answered last first.
+    #[serde(default)]
+    pub addresses: Vec<String>,
+}
+
+/// The computers this app is paired with.
+pub fn paired(config: Option<&Path>) -> Result<Vec<Paired>, CoreError> {
+    Ok(sidecar::read_servers(&dir(config)?).paired)
+}
+
+/// Keep a computer's pin and addresses, replacing what was kept for its
+/// address; its sign-in is kept by [`keep`].
+pub fn keep_paired(config: Option<&Path>, paired: Paired) -> Result<(), CoreError> {
+    let dir = dir(config)?;
+    let mut servers = sidecar::read_servers(&dir);
+    servers.paired.retain(|p| p.url != paired.url);
+    servers.paired.push(paired);
+    sidecar::write_servers(&dir, &servers).map_err(CoreError::Sidecar)
+}
+
 fn dir(config: Option<&Path>) -> Result<PathBuf, CoreError> {
     match config {
         Some(dir) => Ok(dir.to_path_buf()),
@@ -57,6 +87,8 @@ pub fn forget(config: Option<&Path>, url: &str) -> Result<(), CoreError> {
     let dir = dir(config)?;
     let mut servers = sidecar::read_servers(&dir);
     servers.servers.retain(|s| s.url != url);
+    // A paired computer's pin goes with its sign-in.
+    servers.paired.retain(|p| p.url != url);
     sidecar::write_servers(&dir, &servers).map_err(CoreError::Sidecar)
 }
 
@@ -119,5 +151,24 @@ mod tests {
             clean_device_name(&"x".repeat(100)).map(|n| n.chars().count()),
             Some(DEVICE_NAME_MOST)
         );
+    }
+
+    /// A paired computer's pin is kept beside its sign-in, replaced for the
+    /// same address, and forgotten with it.
+    #[test]
+    fn a_paired_computers_pin_is_kept_and_goes_with_its_sign_in() {
+        let config = tempfile::tempdir().unwrap();
+        let at = Some(config.path());
+        let url = "https://verso-0123456789abcdef0123.home.arpa:51234";
+        let p = |pin: &str| Paired {
+            url: url.into(),
+            pin: pin.into(),
+            addresses: vec!["192.168.1.20".into()],
+        };
+        keep_paired(at, p("aa")).unwrap();
+        keep_paired(at, p("bb")).unwrap();
+        assert_eq!(paired(at).unwrap(), vec![p("bb")]);
+        forget(at, url).unwrap();
+        assert!(paired(at).unwrap().is_empty());
     }
 }

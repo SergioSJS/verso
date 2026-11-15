@@ -112,6 +112,9 @@ export type Settings = {
   /** On a phone, the bar of verbs at the bottom is shown (the default);
    *  off, its verbs are in the top bar's sheet alone (2026-11-14). */
   phoneBottomBar: boolean;
+  /** On a phone, a sideways swipe brings the side panels (2026-11-15,
+   *  screen/swipe.ts); off, only their buttons do. */
+  phoneSwipe: boolean;
   /** Organizing (ADR 0060, S1-S4). */
   stickers: boolean;
   stickerInLinks: boolean;
@@ -212,6 +215,7 @@ export const DEFAULTS: Settings = {
   devtools: true,
   previewTabs: true,
   phoneBottomBar: true,
+  phoneSwipe: true,
   stickers: true,
   stickerInLinks: false,
   covers: true,
@@ -393,6 +397,7 @@ export function applySettings(): void {
   // text stands at the same place in Reading and in Edit.
   document.documentElement.classList.toggle("block-handles", Boolean(settings.blockHandles));
   document.documentElement.classList.toggle("phone-bar-on", Boolean(settings.phoneBottomBar));
+  document.documentElement.classList.toggle("phone-swipe-on", Boolean(settings.phoneSwipe));
   const headingFonts: Record<string, string> = {
     serif: '"Fraunces", "Iowan Old Style", Georgia, serif',
     sans: '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',

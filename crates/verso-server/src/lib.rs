@@ -69,6 +69,7 @@ pub mod security_txt;
 pub mod share_board;
 pub mod share_links;
 pub mod share_sync;
+pub mod share_sync_board;
 pub mod shares;
 pub mod signin;
 pub mod state;
@@ -471,6 +472,8 @@ mod tests_audience_review;
 #[cfg(test)]
 mod tests_audience_second;
 #[cfg(test)]
+mod tests_board_leaks;
+#[cfg(test)]
 mod tests_board_players;
 #[cfg(test)]
 mod tests_board_rooms;
@@ -480,6 +483,8 @@ mod tests_board_shares;
 mod tests_board_solo;
 #[cfg(test)]
 mod tests_board_stress;
+#[cfg(test)]
+mod tests_board_walls;
 #[cfg(test)]
 mod tests_bounds;
 #[cfg(test)]
@@ -538,6 +543,10 @@ mod tests_secret;
 mod tests_secret_pins;
 #[cfg(test)]
 mod tests_secret_review;
+#[cfg(test)]
+mod tests_share_board_room;
+#[cfg(test)]
+mod tests_share_board_sync;
 #[cfg(test)]
 mod tests_share_gaps;
 #[cfg(test)]

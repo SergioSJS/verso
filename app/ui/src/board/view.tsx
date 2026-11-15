@@ -20,6 +20,7 @@ import {
   Excalidraw,
   FONT_FAMILY,
   Footer,
+  getFormFactor,
   getSceneVersion,
   MainMenu,
   newElementWith,
@@ -32,13 +33,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type Mouse
 import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { CardLayer, drawQueue, isBarePicture, OutlinePanel, View } from "./cards";
-import { hasSecret, keptIds, mapsOf, pinsOf } from "./maps";
+import { hasSecret, keptIds, mapsOf, pinLabel, pinsOf } from "./maps";
 import { mapActions, readerActions } from "./mapsActions";
 import { pageActions } from "./pageActions";
 import { dropActions } from "./dropActions";
 import { textCardActions } from "./textCard";
 import { MapsPanel } from "./mapsPanel";
 import { MapTools } from "./mapsTools";
+import { type Tracing, tracingOf } from "./tracing";
 import { mapStrings } from "./mapStrings";
 import { PinLayer, usePinPointer, ViewWatch, type Watch } from "./mapsView";
 import { CropDialog, ExportDialog } from "./dialogs";
@@ -74,7 +76,9 @@ import { PT_BR } from "./ptBR";
 import { type BoardState, remeasureTargets, remoteScene, stateOver } from "./roomModel";
 import { relationKeyOk } from "./relation";
 import { InsertMenu, TopRightTools } from "./tools";
-import { BoardHandle, BoardHost, type BoardPane } from "./types";
+import { BoardHandle, BoardHost, type BoardPane, type BoardVerb } from "./types";
+import { boardVerbs, usePhone } from "./phoneVerbs";
+import { PHONE_MEDIA } from "../screen/phone";
 import { ext } from "../paths";
 import { prettyKeys } from "../keyNames";
 import { MAC } from "../platform";
@@ -122,7 +126,7 @@ function Board({
   initial: CanvasDoc;
   /** In a room: the room's elements, drawn as they are (ADR 0082 item 12). */
   roomElements?: readonly El[];
-  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>, addPath: (path: string, clientX?: number, clientY?: number) => void, addText: (text: string, clientX?: number, clientY?: number) => void) => void;
+  bind: (load: (doc: CanvasDoc) => void, focus: () => void, refresh: () => void, find: () => void, flush: () => Promise<void>, addPath: (path: string, clientX?: number, clientY?: number) => void, addText: (text: string, clientX?: number, clientY?: number) => void, verbs: () => BoardVerb[]) => void;
 }): JSX.Element {
   const s = host.strings;
   const api = useRef<Api | null>(null);
@@ -177,6 +181,7 @@ function Board({
   const [cards, setCards] = useState<readonly El[]>([]);
   /** The pins (ADR 0090), drawn by `PinLayer` at one size at any zoom. */
   const [pins, setPins] = useState<readonly El[]>([]);
+  const [tracing, setTracing] = useState<Tracing>("none");
   const cardsKey = useRef("");
   /** Who asked to hear the view move (`ViewWatch`), and the pins' place. */
   const watchers = useRef(new Set<(v: View) => void>());
@@ -386,6 +391,7 @@ function Board({
       },
       (path, x, y) => addPathRef.current(path, x, y),
       (text, x, y) => addTextRef.current(text, x, y),
+      () => verbsRef.current(),
     );
     // In a room: the others' changes come in as the room's, merged over
     // what this window is changing right now (roomModel.ts), and never
@@ -566,6 +572,7 @@ function Board({
   const syncCards = useCallback((els: readonly ExcalidrawElement[]) => {
     const list = (els as unknown as El[]).filter((e) => e.type === "embeddable" && !e.isDeleted && isNode(e));
     cardById.current = new Map(list.map((e) => [e.id, e]));
+    setTracing(tracingOf(els as unknown as El[]));
     const key = list.map((e) => `${e.id}:${String(e["version"])}`).join("|");
     if (key === cardsKey.current) return;
     cardsKey.current = key;
@@ -591,7 +598,9 @@ function Board({
   const [arrowTool, setArrowTool] = useState(false);
   const hintSlot = useHintSlot(container, arrowTool);
   const touchOnly = useMemo(() => typeof window.matchMedia === "function" && !window.matchMedia("(any-pointer: fine)").matches, []);
-  const arrowHint = looseOn ? s.looseOnHint : touchOnly ? s.looseHintTouch : s.looseHint;
+  // On a phone the free arrows are the ⋯ sheet's (board/phoneVerbs.ts).
+  const phone = usePhone();
+  const arrowHint = looseOn ? (phone ? s.looseOnHintPhone : s.looseOnHint) : phone ? s.looseHintPhone : touchOnly ? s.looseHintTouch : s.looseHint;
   const { freeEdges, orbitOnCards, looseFresh, liftDrawn } = useSceneFixes(own, loose);
 
   // The layer lives inside Excalidraw's own root, beside its canvases, so
@@ -962,13 +971,14 @@ function Board({
       viewing={asReader !== null}
       actions={mapAct}
       toggleReader={() => void toggleReader()}
+      tracing={tracing}
     />
   );
   const mapsPanel = (
     <MapsPanel
       ms={ms}
       maps={mapEls.map((m) => ({ id: m.id, label: nodeName(nodeData(m) ?? ({} as CanvasNode), s) }))}
-      pins={pins.map((p) => ({ id: p.id, label: nodeName(nodeData(p) ?? ({} as CanvasNode), s), secret: isSecret(nodeData(p) ?? ({} as CanvasNode)) }))}
+      pins={pins.map((p) => ({ id: p.id, label: pinLabel(nodeData(p) ?? ({} as CanvasNode), s), secret: isSecret(nodeData(p) ?? ({} as CanvasNode)) }))}
       writable={!readOnly && asReader === null}
       onFocus={focusElement}
       onOpenPin={(id) => {
@@ -983,6 +993,11 @@ function Board({
   useMenuName(container, s.boardMenu);
   const toolsBelow = useToolsBelow(container);
   useTidyContextMenu(container);
+  const toggleLoose = (): void => {
+    loose.current = !loose.current;
+    setLooseOn(loose.current);
+    focusBoard();
+  };
   const insertMenu = readOnly ? null : (
     <InsertMenu
       s={s}
@@ -992,13 +1007,30 @@ function Board({
       addPage={host.web ? () => void pageAct.addPage() : undefined}
       takeFiles={takeFiles}
       looseOn={looseOn}
-      toggleLoose={() => {
-        loose.current = !loose.current;
-        setLooseOn(loose.current);
-        focusBoard();
-      }}
+      toggleLoose={toggleLoose}
     />
   );
+  // The same verbs for the phone's ⋯ sheet, as the board is now.
+  const inBoard = (sel: string): HTMLElement | null => container.current?.querySelector<HTMLElement>(sel) ?? null;
+  const verbsRef = useRef<() => BoardVerb[]>(() => []);
+  verbsRef.current = () =>
+    boardVerbs({
+      s,
+      writable: !readOnly && asReader === null,
+      web: Boolean(host.web),
+      looseOn,
+      outlineOn: showOutline,
+      tracing: tracing === "none" ? undefined : { label: ms.tracing, shown: tracing === "shown", toggle: () => mapAct.showTracing(tracing !== "shown") },
+      addText: () => void addText(),
+      addImage: () => inBoard('[data-testid="board-image-picker"]')?.click(),
+      addFile: () => void addFile(),
+      addLink: () => void addLink(),
+      addPage: () => void pageAct.addPage(),
+      toggleLoose,
+      search: () => searchBox.current?.focus(),
+      outline: () => setShowOutline((v) => !v),
+      menu: () => inBoard('[data-testid="main-menu-trigger"]')?.click(),
+    });
 
   // A picture card's crop (ADR 0057 point 10): the dialog over the board;
   // applied, the card's node keeps the crop and the card takes its shape.
@@ -1249,6 +1281,10 @@ function Board({
             UIOptions={{
               canvasActions: { loadScene: false, saveToActiveFile: false, export: false, clearCanvas: false, toggleTheme: false, changeViewBackgroundColor: true, saveAsImage: false },
               tools: { image: false },
+              // A phone's window (the app's own measure) is a phone's board
+              // too, whatever the board's own width: its tools are laid out
+              // for a phone by css/boardphone.css.
+              getFormFactor: (w: number, h: number) => (window.matchMedia?.(PHONE_MEDIA).matches ? "phone" : getFormFactor(w, h)),
             }}
           >
             {toolsBelow && (
@@ -1341,7 +1377,7 @@ function Board({
         {exporting && api.current && <ExportDialog api={api.current} host={host} selected={selected} secretIds={holdsSecret && asReader === null ? secretIds : undefined} onClose={() => setExporting(false)} />}
         {cropping && <CropDialog src={host.fileSrc(cropping.file)} crop={cropping.crop} strings={s} onApply={applyCrop} onClose={() => setCropping(null)} />}
         {showOutline && (
-          <OutlinePanel outline={outline} strings={s} maps={mapsPanel} annotations={annotations} onAnnotations={setAnnotations} onFocus={focusElement} onOpen={openFromOutline} />
+          <OutlinePanel outline={outline} strings={s} maps={mapsPanel} annotations={annotations} onAnnotations={setAnnotations} onFocus={focusElement} onOpen={openFromOutline} onClose={() => setShowOutline(false)} />
         )}
       </div>
     </div>
@@ -1373,13 +1409,15 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string, roomE
   let flush: () => Promise<void> = () => Promise.resolve();
   let addPath: (path: string, x?: number, y?: number) => void = () => undefined;
   let addText: (text: string, x?: number, y?: number) => void = () => undefined;
+  let verbs: () => BoardVerb[] = () => [];
   const root = createRoot(el);
   root.render(
     <Board
       host={host}
       initial={initial}
       roomElements={roomElements}
-      bind={(l, f, r, fd, fl, ap, at) => {
+      bind={(l, f, r, fd, fl, ap, at, vb) => {
+        verbs = vb;
         addPath = ap;
         addText = at;
         load = l;
@@ -1403,6 +1441,7 @@ export function mountBoard(el: HTMLElement, host: BoardHost, text: string, roomE
     addPath: (path, x, y) => addPath(path, x, y),
     addText: (text, x, y) => addText(text, x, y),
     flush: () => flush(),
+    verbs: () => verbs(),
     destroy: () => root.unmount(),
   };
 }

@@ -40,8 +40,9 @@ test("both languages have every word, none empty", () => {
 
 test("the words say what ADR 0117 D9 decided", () => {
   const { pt, en } = A.accountWords;
-  assert.match(pt.appsLead, /Celulares nunca sincronizam/);
-  assert.match(en.appsLead, /Phones never sync/);
+  // Other people's phone apps sync through the link like a computer's (ADR 0117 D19, 2026-11-15).
+  assert.match(pt.appsLead, /O app Verso do celular delas conecta e sincroniza/);
+  assert.match(en.appsLead, /The Verso app on their phone connects and syncs/);
   assert.match(pt.appsTrust, /link na internet/);
   assert.match(pt.appsTrust, /não confia no certificado próprio/);
   assert.match(en.appsTrust, /does not trust this computer's own certificate/);

@@ -403,13 +403,19 @@ pub fn listing(ctx: &Ctx, who: &Who) -> ApiResult<(Vec<Value>, Vec<Value>)> {
         };
         // The folder's bytes count its secret blocks' (ADR 0087): one who
         // only reads it is not told them, as a share's receiver is not.
-        let space = if role.writes() && who.reaches(&f.id).1 {
+        // The role said is the one the credential opens the folder at
+        // (`crate::access::role`): a paired phone's in a folder its account
+        // owns is an editor's or a reader's, never "owner" (ADR 0117; the
+        // maintainer's phone showed *dona*, 2026-11-15).
+        let writes = who.reaches(&f.id).1;
+        let said = crate::access::ceiling(who, writes, role);
+        let space = if said.writes() {
             crate::folders::space(ctx, &f.id)
         } else {
             Value::Null
         };
         folders.push(json!({
-            "id": f.id, "name": f.dir, "role": role, "space": space,
+            "id": f.id, "name": f.dir, "role": said, "space": space,
             "owner": owner, "share": false,
         }));
         if role == Role::Owner && person {

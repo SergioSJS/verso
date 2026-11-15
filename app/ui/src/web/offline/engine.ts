@@ -327,6 +327,14 @@ const concat = (...parts: Uint8Array[]): Uint8Array => {
 
 const NL = 0x0a;
 
+/** The base, the server's tail, then this side's, on a line of its own: a
+ *  newline between them when the server's ends mid-line and this one does
+ *  not start with one (the engine's `joined`, verso-core sync/append.rs). */
+const joined = (prefix: Uint8Array, there: Uint8Array, here: Uint8Array): Uint8Array =>
+  there.length > 0 && there[there.length - 1] !== NL && here.length > 0 && here[0] !== NL
+    ? concat(prefix, there, Uint8Array.of(NL), here)
+    : concat(prefix, there, here);
+
 /** The two appends joined, or null when the change on both sides is not two
  *  appends. `base` is the SHA-256 of the file both sides last agreed on;
  *  its length is found: the one prefix shared by both versions whose hash
@@ -345,7 +353,7 @@ export function appendMerge(base: string, local: Uint8Array, remote: Uint8Array)
     if (!(endsLine || tailsStartLine)) continue;
     hasher.update(local.subarray(hashed, k));
     hashed = k;
-    if (hasher.clone().hex() === base) return concat(local.subarray(0, k), remote.subarray(k), local.subarray(k));
+    if (hasher.clone().hex() === base) return joined(local.subarray(0, k), remote.subarray(k), local.subarray(k));
   }
   return null;
 }
@@ -373,7 +381,7 @@ export function templateMerge(template: string, local: Uint8Array, remote: Uint8
     if (!(oneEmpty || endsLine || tailsStartLine)) continue;
     hasher.update(local.subarray(hashed, k));
     hashed = k;
-    if (hasher.clone().hex() === template) return concat(local.subarray(0, k), there, here);
+    if (hasher.clone().hex() === template) return joined(local.subarray(0, k), there, here);
   }
   return null;
 }

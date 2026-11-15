@@ -23,7 +23,7 @@ test("the desktop apps of other people are listed and ended, said in words; phon
   const body = page.locator(".settings-body");
   const apps = body.getByRole("list", { name: "Apps Verso de outras pessoas" });
   await expect(apps).toContainText("Nenhum app de outra pessoa conectado.");
-  await expect(body.getByText("Celulares nunca sincronizam", { exact: false })).toBeVisible();
+  await expect(body.getByText("O app Verso do celular delas conecta e sincroniza", { exact: false })).toBeVisible();
   await expect(body.getByText("não confia no certificado próprio deste computador", { exact: false })).toBeVisible();
   await expect(body.getByText("Pela sua rede, use a senha: passkeys só pelo link da internet.", { exact: false })).toBeVisible();
   // Ana's Verso signs in through the browser; the section is drawn again.

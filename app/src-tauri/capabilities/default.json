@@ -205,6 +205,7 @@
     "allow-server-copy-open",
     "allow-server-copy-plan",
     "allow-server-copy-make",
+    "allow-server-pair",
     "allow-server-retry",
     "allow-window-server",
     "allow-discover-servers-start",

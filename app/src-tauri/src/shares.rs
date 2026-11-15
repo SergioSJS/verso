@@ -65,7 +65,7 @@ async fn ask(
         Door::Seat(seat) => return ask_seat(seat, method, path, body).await,
     };
     tauri::async_runtime::spawn_blocking(move || {
-        let client = remote::http()?;
+        let client = crate::paired::http_to(&login.url)?;
         let url = format!("{}{path}", login.url);
         let server = login.url;
         let request = match method {

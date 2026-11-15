@@ -1196,9 +1196,10 @@ fn a_join_after_a_local_change_does_not_wait_out_the_settling_pause() {
     let took = t.elapsed();
     d.s.stop();
     assert!(joined["epoch"].as_str().is_some_and(|e| !e.is_empty()));
-    // Generous (see `a_join_in_a_folder_of_500_notes_is_prompt`): the exact
-    // property is in `settle_is_skipped_only_while_a_join_waits`.
-    assert!(took < Duration::from_millis(1500), "joined in {took:?}");
+    // As generous as `a_join_in_a_folder_of_500_notes_is_prompt` (a loaded
+    // Windows VM took 1.58 s here on 2026-11-14 and 2026-11-15 and passed
+    // alone): the exact property is in `settle_is_skipped_only_while_a_join_waits`.
+    assert!(took < Duration::from_millis(2000), "joined in {took:?}");
     let doc = doc();
     apply(&doc, &joined["update"]);
     assert!(text_of(&doc).contains("de novo"), "{}", text_of(&doc));

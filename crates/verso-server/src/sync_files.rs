@@ -133,7 +133,7 @@ pub(super) fn identify(
 
 /// A piece a device sends: its bytes, from a binary message (sync 2) or
 /// from the request's base64 (sync 1).
-pub(super) fn piece_of(args: &mut Value, data: Option<Bytes>) -> Result<Bytes, ContractError> {
+pub(crate) fn piece_of(args: &mut Value, data: Option<Bytes>) -> Result<Bytes, ContractError> {
     if let Some(data) = data {
         return Ok(data);
     }

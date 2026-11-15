@@ -19,6 +19,8 @@ import { focusOnOpen } from "../screen/openFocus";
 import { allFolders, openFolders, revealInTree } from "../tree/tree";
 import { type Given, MAX_TEXT_BYTES, PICTURE, type Plan, plan } from "./detect";
 import { type Chosen, folderName, importMap } from "./importMap";
+import { isTurned } from "./align";
+import { type PictureInfo, pngInfo, svgInfo } from "./picture";
 import { ww } from "./words";
 import { MAX_IMAGE_BYTES } from "../attachName";
 import { t } from "../strings";
@@ -36,12 +38,21 @@ async function base64Of(f: File): Promise<string> {
 /** What the dialog keeps of a chosen file. */
 type Held = { given: Given; chosen: Chosen | null; problem: string | null };
 
+/** What a picture's first bytes say of it: its size and, for an SVG, its
+ *  map's transform (the head of the file holds both). */
+async function pictureOf(f: File): Promise<PictureInfo | null> {
+  if (/\.svg$/i.test(f.name)) return svgInfo(f.name, await f.slice(0, 256 * 1024).text());
+  if (/\.png$/i.test(f.name)) return pngInfo(f.name, new Uint8Array(await f.slice(0, 64).arrayBuffer()));
+  return null;
+}
+
 async function hold(f: File): Promise<Held> {
   const picture = PICTURE.test(f.name);
   const limit = picture ? MAX_IMAGE_BYTES : MAX_TEXT_BYTES;
   if (f.size > limit) return { given: { name: f.name, text: null, size: f.size }, chosen: null, problem: ww.tooBig(f.name) };
   const text = picture || !TEXT.test(f.name) ? null : await f.text();
-  return { given: { name: f.name, text, size: f.size }, chosen: { name: f.name, base64: await base64Of(f) }, problem: null };
+  const info = picture ? await pictureOf(f) : null;
+  return { given: { name: f.name, text, size: f.size, picture: info }, chosen: { name: f.name, base64: await base64Of(f) }, problem: null };
 }
 
 /** Open the dialog; `folder` is where the map's folder goes by default
@@ -104,11 +115,17 @@ export function showWatabouImport(folder: string, files: File[] = []): void {
     if (current.kind === "dungeon") {
       lines.unshift(ww.dungeon(current.title || ww.untitledDungeon, current.keys, current.json !== null));
       if (!current.json) lines.push(ww.noDrawing);
+      else lines.push(current.fit ? ww.pictureLined : current.pictured ? ww.needSvg : ww.bringPicture);
+      if (current.json && current.fit && isTurned(current.fit)) lines.push(ww.turned(current.fit.turned));
     } else if (current.kind === "region") {
       lines.unshift(ww.region(current.title || ww.untitledRegion, current.json.region.towns.length, current.json.region.dangers.length));
     } else if (current.kind === "dwelling") {
       lines.unshift(ww.dwelling(current.title || ww.untitledHouse, current.floors, current.rooms));
+      lines.push(current.fit.size > 0 ? ww.floorsLined(current.fit.size, current.floors) : ww.bringFloors);
+    } else if (current.kind === "settlement") {
+      lines.unshift(ww.settlement(current.title || ww.untitledSettlement));
     } else if (current.why === "two") lines.unshift(ww.two(current.names.join(", ")));
+    else if (current.why === "noPicture") lines.unshift(ww.noPicture(current.generator ?? ""));
     else if (current.why === "other") lines.unshift(ww.other(current.generator ?? ""));
     else if (current.why === "unknown") lines.unshift(ww.unknown(current.names.join(", ")));
     else if (lines.length === 0) lines.push(ww.empty);
@@ -116,7 +133,7 @@ export function showWatabouImport(folder: string, files: File[] = []): void {
     seen.replaceChildren(...lines.map((l) => h("li", "", l)));
     const ok = current.kind !== "none";
     create.disabled = !ok;
-    makes.textContent = ok ? ww.makes(folderName(current, where.value, takenNow()), drawn(current), keptNames(current)) : "";
+    makes.textContent = ok ? ww.makes(folderName(current, where.value, takenNow()), pictured(current) ? "picture" : drawn(current) ? "drawing" : null, keptNames(current)) : "";
     problem.textContent = "";
   };
   const take = async (list: FileList | File[] | null): Promise<void> => {
@@ -178,8 +195,12 @@ export function showWatabouImport(folder: string, files: File[] = []): void {
   else say();
 }
 
-/** Whether an import of `p` makes a board with Verso's drawing. */
-const drawn = (p: Plan): boolean => (p.kind === "dungeon" && p.json !== null) || p.kind === "dwelling";
+/** Whether an import of `p` makes a board: Verso's drawing, or the
+ *  generator's picture. */
+const drawn = (p: Plan): boolean => (p.kind === "dungeon" && p.json !== null) || p.kind === "dwelling" || p.kind === "settlement";
+
+/** Whether that board shows the generator's own picture. */
+const pictured = (p: Plan): boolean => (p.kind === "dungeon" && p.json !== null && p.fit !== null) || (p.kind === "dwelling" && p.fit.size > 0) || p.kind === "settlement";
 
 /** The folder the person last imported a map into, in this window. */
 let lastParent: string | null = null;

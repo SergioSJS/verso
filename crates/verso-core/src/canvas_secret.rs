@@ -35,6 +35,18 @@
 //!
 //! The index flags the same nodes (`index_split`) so that a reader's
 //! search, backlinks and counts do not see a secret pin either.
+//!
+//! What else a reader is not served (fix of 2026-11-15, ADR 0120 "As
+//! built"): the projection is an **allowlist** of the board's keys, not a
+//! denylist. A reader is served `nodes`, `edges` and, of the top-level
+//! `verso`, only `version`, `drawing` and `background` ([`PUBLIC_KEYS`],
+//! [`PUBLIC_VERSO_KEYS`]); any other key — the walls an imported map keeps
+//! (`verso.walls`, ADR 0120 item 3, its secret doors named), a key of a
+//! later Verso or of a plugin — is left out (fails closed). And a drawn
+//! element that is secret itself ([`drawn_is_secret`]: marked
+//! `"verso": {"secret": …}` on it or in its `customData`, or the secret door
+//! the dungeon import drew before it marked them) is left out with its bound
+//! text and what is bound to it; its groups hide nothing else.
 
 use std::borrow::Cow;
 use std::collections::BTreeSet;
@@ -73,6 +85,77 @@ fn all<'a>(of: &'a Json, key: &'a str) -> impl Iterator<Item = &'a Json> {
 #[must_use]
 pub fn node_is_secret(node: &Json) -> bool {
     all(node, "verso").any(flags_secret)
+}
+
+/// The top-level keys of a board a reader is served (the rest is left out).
+pub const PUBLIC_KEYS: [&str; 3] = ["nodes", "edges", "verso"];
+
+/// The keys of a board's top-level `verso` a reader is served: the version
+/// of the key, the drawing (cut as the module says) and the board's
+/// background. Not `walls` (ADR 0120 item 3: an imported map's walls and
+/// doors, secret ones named), nor any key this build does not know.
+pub const PUBLIC_VERSO_KEYS: [&str; 3] = ["version", "drawing", "background"];
+
+/// Whether `n`, a JSON number, is `want`.
+fn number_is(n: &Json, want: f64) -> bool {
+    matches!(n, Json::Number(s) if s.parse::<f64>().is_ok_and(|x| (x - want).abs() < 1e-9))
+}
+
+/// Whether the drawn element is the secret door the dungeon import of ADR
+/// 0120 drew before it marked its secret doors (0.9.0-beta.2 and before):
+/// a line, dashed, of stroke 3 — a width Excalidraw's own menu never gives
+/// (1, 2, 4), so the import is the only one that draws it. Read the way
+/// [`all`] reads: any value of a key written twice counts (fails closed).
+fn imported_secret_door(element: &Json) -> bool {
+    let is = |key: &str, want: &str| all(element, key).any(|v| v.as_str() == Some(want));
+    is("type", "line")
+        && is("strokeStyle", "dashed")
+        && all(element, "strokeWidth").any(|w| number_is(w, 3.0))
+}
+
+/// Whether a drawn element of the board is secret itself: marked
+/// `"verso": {"secret": …}` on it, or in its `customData` (where Excalidraw
+/// keeps what is not its own, and where the dungeon import marks a secret
+/// door), or the secret door an earlier import drew unmarked.
+#[must_use]
+pub fn drawn_is_secret(element: &Json) -> bool {
+    node_is_secret(element)
+        || all(element, "customData")
+            .any(|cd| node_is_secret(cd) || all(cd, "canvas").any(node_is_secret))
+        || imported_secret_door(element)
+}
+
+/// Whether the root holds a key a reader is not served: outside
+/// [`PUBLIC_KEYS`], a `verso` that is no object, or a key of `verso`
+/// outside [`PUBLIC_VERSO_KEYS`].
+fn holds_unserved_key(root: &Json) -> bool {
+    let Json::Object(entries) = root else {
+        return false;
+    };
+    entries.iter().any(|(k, v)| {
+        !PUBLIC_KEYS.contains(&k.as_str())
+            || (k == "verso"
+                && match v {
+                    Json::Object(inner) => inner
+                        .iter()
+                        .any(|(ik, _)| !PUBLIC_VERSO_KEYS.contains(&ik.as_str())),
+                    _ => true,
+                })
+    })
+}
+
+/// The drawn elements of every `verso.drawing` of the root (a key written
+/// twice included).
+fn drawn_of(root: &Json) -> Vec<&Json> {
+    let mut out = Vec::new();
+    for verso in all(root, "verso") {
+        for list in all(verso, "drawing") {
+            if let Json::Array(items) = list {
+                out.extend(items.iter());
+            }
+        }
+    }
+    out
 }
 
 /// The secret callouts of a text node's `text`: none for any other node.
@@ -133,13 +216,18 @@ pub struct Hidden {
     /// decided 2026-10-15), so a reader is served the card's text as a
     /// note's projection.
     pub texts: bool,
+    /// Whether the board holds a key a reader is not served (the module's
+    /// allowlist): `verso.walls`, or any key this build does not know.
+    pub keys: bool,
+    /// Whether some drawn element is secret itself ([`drawn_is_secret`]).
+    pub drawn: bool,
 }
 
 impl Hidden {
     /// Whether nothing is hidden.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty() && !self.anonymous && !self.texts
+        self.nodes.is_empty() && !self.anonymous && !self.texts && !self.keys && !self.drawn
     }
 }
 
@@ -172,6 +260,8 @@ pub fn hidden_of(root: &Json) -> Hidden {
         }
     }
     hidden.groups = shut.difference(&open).map(|g| (*g).to_owned()).collect();
+    hidden.keys = holds_unserved_key(root);
+    hidden.drawn = drawn_of(root).into_iter().any(drawn_is_secret);
     hidden
 }
 
@@ -204,10 +294,14 @@ fn drawn_is_hidden(element: &Json, hidden: &Hidden) -> bool {
     })
 }
 
-/// The drawn elements to hide: those [`drawn_is_hidden`] names, and — to a
-/// fixed point — the bound text and members of what is hidden.
+/// The drawn elements to hide: those [`drawn_is_hidden`] names, the secret
+/// ones ([`drawn_is_secret`]), and — to a fixed point — the bound text and
+/// members of what is hidden, and what is bound to it.
 fn hidden_drawing(drawing: &[Json], hidden: &Hidden) -> Vec<bool> {
-    let mut gone: Vec<bool> = drawing.iter().map(|e| drawn_is_hidden(e, hidden)).collect();
+    let mut gone: Vec<bool> = drawing
+        .iter()
+        .map(|e| drawn_is_hidden(e, hidden) || drawn_is_secret(e))
+        .collect();
     loop {
         let ids: BTreeSet<&str> = drawing
             .iter()
@@ -225,7 +319,14 @@ fn hidden_drawing(drawing: &[Json], hidden: &Hidden) -> Vec<bool> {
                     .filter_map(Json::as_str)
                     .any(|id| ids.contains(id))
             };
-            if by("containerId") || by("frameId") {
+            let bound = ["startBinding", "endBinding"].iter().any(|b| {
+                all(e, b).any(|b| {
+                    all(b, "elementId")
+                        .filter_map(Json::as_str)
+                        .any(|id| ids.contains(id))
+                })
+            });
+            if by("containerId") || by("frameId") || by("under") || bound {
                 gone[i] = true;
                 changed = true;
             }
@@ -262,11 +363,15 @@ fn project_text(node: &mut Json) {
     }
 }
 
-/// `root` without the secret nodes and what belongs to them.
+/// `root` without the secret nodes and what belongs to them, and without
+/// the keys a reader is not served.
 fn project_root(root: &mut Json, hidden: &Hidden) {
     let Json::Object(entries) = root else {
         return;
     };
+    entries.retain(|(k, v)| {
+        PUBLIC_KEYS.contains(&k.as_str()) && (k != "verso" || matches!(v, Json::Object(_)))
+    });
     for (key, value) in entries.iter_mut() {
         match (key.as_str(), value) {
             ("nodes", Json::Array(items)) => {
@@ -284,6 +389,7 @@ fn project_root(root: &mut Json, hidden: &Hidden) {
                 !(touches("fromNode") || touches("toNode"))
             }),
             ("verso", Json::Object(inner)) => {
+                inner.retain(|(k, _)| PUBLIC_VERSO_KEYS.contains(&k.as_str()));
                 for (k, v) in inner.iter_mut() {
                     if k != "drawing" {
                         continue;

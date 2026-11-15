@@ -773,6 +773,10 @@ pub struct ServerAccount {
     pub url: String,
     pub email: String,
     pub name: String,
+    /// A computer at home this device is paired with (ADR 0117, "The Verso
+    /// app paired"): `name` is its owner's, `email` empty, the address a
+    /// name this app resolves itself.
+    pub paired: bool,
 }
 
 /// A sign-in through the browser that ended without this device signed in

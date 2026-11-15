@@ -89,6 +89,9 @@ pub(crate) struct Syncer {
     /// The person asked for a pass (Sync now): a server out of reach is
     /// tried at once, and its wait starts over.
     asked: AtomicBool,
+    /// The phone's network came back since the last try: the next wait
+    /// after a failed one starts short again (`network_back`).
+    net_back: AtomicBool,
     stopped: AtomicBool,
     paused: AtomicBool,
     /// How many deletions the person said yes to, as the pause showed them
@@ -154,6 +157,7 @@ impl Syncer {
             cloud: state.cloud.clone(),
             wake: tokio::sync::Notify::new(),
             asked: AtomicBool::new(false),
+            net_back: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
             paused: AtomicBool::new(state.paused),
             confirmed: AtomicUsize::new(0),
@@ -299,6 +303,21 @@ impl Syncer {
 
     pub(crate) fn poke(&self) {
         self.wake.notify_one();
+    }
+
+    /// The device's network came back (Android's Wi-Fi, background.rs): a
+    /// try now, and a short wait again if it fails — the first try often
+    /// comes before the new network carries anything, and the wait after
+    /// a long time offline had grown to minutes.
+    #[cfg(target_os = "android")]
+    pub(crate) fn network_back(&self) {
+        self.net_back.store(true, Ordering::Relaxed);
+        self.wake.notify_one();
+    }
+
+    /// Whether the network came back since this was last asked (task.rs).
+    pub(crate) fn took_network_back(&self) -> bool {
+        self.net_back.swap(false, Ordering::Relaxed)
     }
 
     /// A pass the person asked for (Sync now).
@@ -511,6 +530,8 @@ pub(crate) fn problem_of(e: &ContractError, cloud: bool) -> &'static str {
         // Offline, because the server did not answer: the window names it.
         ErrorKind::Unreachable => "unreachable",
         ErrorKind::Refused if e.message.starts_with("not signed in") => "not_signed_in",
+        // A computer at home showed another key (paired/mod.rs).
+        ErrorKind::Refused if e.message.starts_with(crate::paired::CHANGED) => "identity_changed",
         // The game master closed the table, or moved it (ADR 0117 R9): sync waits.
         ErrorKind::Refused if e.message.contains(verso_contract::TABLE_MOVED) => "table_moved",
         ErrorKind::Refused if e.message.contains(verso_contract::TABLE_CLOSED) => "table_closed",
@@ -841,14 +862,20 @@ pub(crate) async fn link(ctx: &Ctx, s: &Syncer) -> Result<Link, ContractError> {
             refused("not signed in to the server: sign in again in Settings › Servers")
         })?;
     let (url, token, folder) = (login.url.clone(), login.token.clone(), s.folder.clone());
+    let config = ctx.config.clone();
     let listed = tauri::async_runtime::spawn_blocking(move || {
-        remote::answer(
-            remote::http()?
+        let listed = remote::answer(
+            crate::paired::http_to(&url)?
                 .get(format!("{url}/api/folders"))
-                .bearer_auth(token)
+                .bearer_auth(&token)
                 .send_retrying()
                 .map_err(|e| reach::unsent(&url, &e))?,
-        )
+        )?;
+        // A computer at home says where else it may be found next time.
+        if crate::paired::is_paired_url(&url) {
+            crate::paired::refresh(config.as_deref(), &url, &token);
+        }
+        Ok::<_, ContractError>(listed)
     })
     .await
     .map_err(|e| verso_service::failed(e.to_string()))??;

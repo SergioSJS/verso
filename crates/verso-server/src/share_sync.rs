@@ -58,7 +58,7 @@ pub async fn command(
     Ok((answer, piece))
 }
 
-type Reach = Arc<dyn Fn(&str) -> bool + Send + Sync>;
+use crate::share_sync_board::Reach;
 
 async fn run(
     server: &Arc<Server>,
@@ -102,6 +102,10 @@ async fn run(
             let (mut v, _) =
                 command_in(server, who, client, cmd, (args, None), Arc::clone(&reads)).await?;
             if let Some(files) = v["files"].as_array_mut() {
+                // A board is the device's as it is cut to the share (V.49).
+                boards(server, who, client, scope, (&reads, &writes))
+                    .listed(files)
+                    .await?;
                 files.retain_mut(|f| rel(scope, &mut f["path"]));
             }
             // The share's own head: how many of the folder's changes up to
@@ -113,16 +117,40 @@ async fn run(
             };
             (v, None)
         }
-        "sync_changes" => return Ok((changes(server, who, client, &args, scope).await?, None)),
+        "sync_changes" => {
+            let mut v = changes(server, who, client, &args, scope).await?;
+            boards(server, who, client, scope, (&reads, &writes))
+                .changed(&mut v)
+                .await?;
+            return Ok((v, None));
+        }
         "sync_read" => {
             let p: String = arg(&args, "path")?;
-            args["path"] = json!(scope.to_full(&p)?);
+            let full = scope.to_full(&p)?;
+            if crate::share_sync_board::is_board(&full) {
+                let offset: u64 = arg(&args, "offset")?;
+                return boards(server, who, client, scope, (&reads, &writes))
+                    .read(&full, offset)
+                    .await;
+            }
+            args["path"] = json!(full);
             command_in(server, who, client, cmd, (args, None), reads).await?
         }
         "sync_put" | "sync_delete" => {
             let p: String = arg(&args, "path")?;
             settings_stay(&p)?;
-            args["path"] = json!(scope.to_full_write(&p)?);
+            let full = scope.to_full_write(&p)?;
+            args["path"] = json!(full);
+            if crate::share_sync_board::is_board(&full) {
+                let cx = boards(server, who, client, scope, (&reads, &writes));
+                if cmd == "sync_put" {
+                    return cx.put(args, data).await;
+                }
+                cx.moving(&mut args, "path").await?;
+                return command_in(server, who, client, cmd, (args, None), writes)
+                    .await
+                    .map_err(unsaid);
+            }
             command_in(server, who, client, cmd, (args, data), writes).await?
         }
         "sync_rename" => {
@@ -130,12 +158,53 @@ async fn run(
             let to: String = arg(&args, "to")?;
             settings_stay(&from)?;
             settings_stay(&to)?;
-            args["from"] = json!(scope.to_full_write(&from)?);
+            let full = scope.to_full_write(&from)?;
+            args["from"] = json!(full);
             args["to"] = json!(scope.to_full_write(&to)?);
+            if crate::share_sync_board::is_board(&full) {
+                boards(server, who, client, scope, (&reads, &writes))
+                    .moving(&mut args, "from")
+                    .await?;
+                return command_in(server, who, client, cmd, (args, None), writes)
+                    .await
+                    .map_err(unsaid);
+            }
             command_in(server, who, client, cmd, (args, None), writes).await?
         }
         _ => return Err(verso_service::refused("no such command")),
     })
+}
+
+/// What a board's sync through the share needs (`share_sync_board`).
+fn boards<'a>(
+    server: &'a Arc<Server>,
+    who: &'a Who,
+    client: &'a str,
+    scope: &'a Scope,
+    (reads, writes): (&Reach, &Reach),
+) -> crate::share_sync_board::Cx<'a> {
+    crate::share_sync_board::Cx {
+        server,
+        who,
+        client,
+        scope,
+        reads: Arc::clone(reads),
+        writes: Arc::clone(writes),
+        words: crate::share_sync_board::words(server, who, client),
+    }
+}
+
+/// A board's change refused as changed: the file's own hash, which the
+/// message names, is the owner's — the device asks again.
+fn unsaid(e: ContractError) -> ContractError {
+    if e.kind == verso_contract::ErrorKind::Changed {
+        ContractError {
+            kind: e.kind,
+            message: String::new(),
+        }
+    } else {
+        e
+    }
 }
 
 /// A receiver's own folder settings, `.verso/` at the root of the folder

@@ -99,6 +99,14 @@ describe("the board and its elements", () => {
     assert.deepEqual(outline.loose.map((i) => i.id), ["mapa", "nota"]);
     assert.equal(m.hasSecret(els), true);
     assert.equal(m.hasSecret(els.filter((e) => e.id !== "cripta")), false);
+    // A drawn secret door (the Watabou import's) is a secret too: marked,
+    // or unmarked as the import drew it before.
+    const open = els.filter((e) => e.id !== "cripta");
+    const line = { id: "porta", type: "line", x: 0, y: 0, width: 0, height: 40, strokeStyle: "dashed", strokeWidth: 3 };
+    assert.equal(m.hasSecret([...open, line]), true);
+    assert.equal(m.hasSecret([...open, { ...line, strokeWidth: 2, customData: { verso: { secret: true } } }]), true);
+    assert.equal(m.hasSecret([...open, { ...line, strokeWidth: 2 }]), false);
+    assert.equal(m.hasSecret([...open, { ...line, isDeleted: true }]), false);
   });
 
   test("a note dropped where a map lies finds the map, the topmost", () => {

@@ -32,6 +32,8 @@
   2026-10-12 — item 11's rule is now item 3 of
   [0027](0027-runtime-capabilities.md), revised to it by the maintainer
   that day with 0027's acceptance (*"Ajuste tudo que precisar. Está aprovado os ADRs"*).
+  2026-11-14 — one top bar on a phone (item 6). 2026-11-15 — the side
+  panels follow a sideways swipe on a phone (item 6, at the end).
 
 ## Context
 
@@ -297,8 +299,8 @@ left to the text); he chose the one top bar: *"gostei muito do A"*. Under
   button sits at the right end, under the thumb (the maintainer,
   2026-11-15: *"como ele é muito usado … no alcance do dedão"*). The tabs, the
   note's own row of folder and modes (`.note-head`) and the folder in any
-  other leaf's row are not drawn; a base's, a board's or a data file's modes
-  stay in their row.
+  other leaf's row are not drawn; a base's or a data file's modes stay in
+  their row; a board's are the sheet's (below, 2026-11-15).
 - The count and the name open a **sheet** under the bar
   (`app/ui/src/screen/phoneSheet.ts`): the open tabs (to the front, ×
   closes), the folder path as links, the three modes by name (and *View as a
@@ -316,3 +318,184 @@ left to the text); he chose the one top bar: *"gostei muito do A"*. Under
   goes between Reading and Edit only (Source is in the sheet).
 - Tried in `e2e/phone-top-bar.spec.mjs`, and on the maintainer's phone
   through the harness (`adb reverse`).
+
+**The side panels by a sideways swipe (item 6, 2026-11-15).** The
+maintainer: on the phone, swipe horizontally to bring the side panels, as
+most apps with hidden side drawers do — right to left the right panel, left
+to right the files — especially in portrait, so that the bottom bar need not
+be on to reach them. Built (`app/ui/src/screen/swipeRule.ts`, the decision;
+`app/ui/src/screen/swipe.ts`, the page):
+
+- **Where**: the phone's frame only (`PHONE_MEDIA`, so a phone held
+  sideways too) and a finger only (touch events; a mouse never). A tablet
+  keeps its side bars, which are not drawers, and has no swipe.
+- **Not from the edges.** Android's gesture navigation takes a swipe that
+  starts at the very left or right edge as its own Back, and the page never
+  sees it or sees it cancelled; so the swipe is not an edge swipe. It starts
+  anywhere in the content except a band along each side. On Android the
+  band is the width the system reports for its Back gesture
+  (`WindowInsets.Type.systemGestures()`, read by `MainActivity.kt` each time
+  the insets change and asked by the page at the touch's start through
+  `VersoGestures`) plus 8 px: it follows the Back sensitivity, and with
+  three-button navigation it is the 8 px alone. Where nothing reports it
+  (iOS, a browser) the band is 24 px, and the same rule holds on iOS
+  (Tauri's WKWebView has no back-swipe) — one behaviour, no edge gesture of
+  iOS's own. The swipe can be turned off in the top bar's ⋯ sheet and in
+  Settings › Appearance › Phone, for a phone where it still gets in the way
+  of the system's Back (the maintainer, 2026-11-15).
+- **What counts**: the finger goes 10 px before anything is decided; held
+  still for the long press's 450 ms first (`touch.ts`), it is a long press,
+  never a swipe; it must be clearly sideways — at least twice as far across
+  as down (within about 27°); decided once, for the whole touch. Right to
+  left brings the right panel, left to right the files (only when the bottom
+  bar's *Arquivos* could: not without a folder, not for a file opened
+  without its folder); with one open, the swipe the other way, on it or on
+  the page beside it, closes it, and the same way does nothing.
+- **Following the finger**: once decided the page stops the browser's own
+  move of that touch and the panel follows the finger; let go past 35 % of
+  its width, or flicked (0.35 px/ms over the last 100 ms, at least 24 px),
+  it settles open (or closed); else it slides back. With
+  `prefers-reduced-motion: reduce` it does not follow: it opens (or closes)
+  once the finger has covered the same 35 %, without waiting for the lift.
+  The Table's and the Music tab's right panel, a sheet over the page on a
+  phone, comes in from the right and follows the finger like the others
+  (it rose from the bottom until the maintainer, testing the swipe on
+  2026-11-15: *"o da direita para a esquerda faz a janela surgir de baixo
+  para cima … seria movimento mais natural"* from the right). A move the browser has already taken for a scroll (not
+  cancelable) is left to it.
+- **Never stolen**, decided by one function from the touched element up,
+  not by a list scattered through the views: a text selection on the page
+  (its handles dragged in the editor); a field (`input`, `textarea`,
+  `select`, a slider) — the editor itself is not one, a swipe over a note is
+  the main case; anything that scrolls sideways (overflowing across with
+  `overflow-x` auto or scroll: a wide table, a code block, the kanban, a tab
+  strip, the keyboard's bar, a zoomed PDF, Source mode's long lines);
+  anything whose `touch-action` leaves the page no sideways pan (the board's
+  and the drawing's Excalidraw canvas, a map's MapLibre canvas, the graph,
+  the data graph, the image crop); one list in `swipe.ts` for the canvas-like
+  views by class (`.board-host`, `.excalidraw`, `.graph`, `.graph-stage`,
+  `.dg-stage`, `.base-map`, `.maplibregl-map`) and `data-no-swipe` for any
+  element that opts out; and a dialog, a menu, the top bar's sheet, the 3D
+  dice on screen, a drag or a resize in progress.
+- **The same toggles**: the panels open and close through `toggleSide` and
+  `toggleRight`, the bottom bar's *Arquivos* and *Painel*: the buttons'
+  `aria-expanded` and names, Android's Back (it closes a panel a swipe
+  opened), the tap outside and the Table's unread count work as for a
+  button. Focus does not move; a field typed in loses it when a panel opens,
+  so the on-screen keyboard goes as after a tap on the bar's button.
+- **Accessibility** (item 9): the swipe is an extra; *Arquivos* and *Painel*
+  stay as buttons, in the bottom bar and in the top bar's sheet. Nothing is
+  reached by the gesture alone.
+- **A switch**: *Deslizar para o lado abre os painéis* / *Swipe sideways to
+  open the panels*, in the top bar's sheet beside *Barra inferior sempre
+  visível* (`phoneSwipe`, a setting kept by the window), **on by default**.
+- Chosen in the code (the maintainer's to change): the 24 px edge band, the
+  10 px slop, the 2:1 sideways rule, 35 % or a flick to settle, and closing
+  the Table's sheet with a sideways swipe too.
+- Considered by the author and not taken: an edge-only swipe (Android's
+  Back owns the edges); pointer events (the browser cancels a pointer it
+  takes for a scroll); `touch-action: pan-y` on the work area (every child
+  would lose its own sideways scroll, a table's and a code block's).
+- **What the real phone showed** (2026-11-15, the maintainer's POCO, Brave,
+  gesture navigation; swipes driven through adb and read over DevTools): a
+  slow swipe — a finger's real pace — failed almost every time, and a second
+  swipe soon after the first often did. The browser treats every move of a
+  touch as its own (no longer cancelable) once the first move goes by unheld,
+  and it begins its own pan of a page that scrolls up and down. Three
+  answers, each seen working on the phone afterwards (14 swipes of 14, slow
+  and fast, opening and closing both panels):
+  - the scrollers that roll only up and down — the note's sheet, the files'
+    list, the right panel's body and the Table's log — get
+    `touch-action: pan-y pinch-zoom` while the swipe is on
+    (`html.phone-swipe-on`, css/base.css). A wide table or a code block is its
+    own scroller and keeps its own value, so it still scrolls sideways (seen
+    on the phone: a 1200 px strip scrolled both ways and no panel opened);
+  - a first move still under the 10 px slop that already leans sideways,
+    where a swipe would be taken, is held (`leansToSwipe`); one that leans up
+    or down is let go, so scrolling is untouched (seen: the note scrolls);
+  - beside an open drawer, a clear veil (`.drawer-veil`, `touch-action:
+    none`, under the drawers and the bottom bar) holds the finger for the
+    swipe that closes the drawer, and a tap on it closes the drawer without
+    also pressing a link under it.
+- Tried in `test/swipePanels.test.mjs` (the decision) and
+  `e2e/phone-swipe.spec.mjs` (Chromium, by touch, at 390 × 844); on a real
+  phone, with Android's gesture navigation, in `docs/reference/manual-checks.md`.
+
+**A board on a phone (items 1 and 10, 2026-11-15).** The maintainer, from his
+phone: a board's controls *"badly placed, scattered everywhere, taking space,
+the useful area becomes tiny"* — the clear canvas was about 62 % of the
+screen upright and a band of about 68 px sideways. Three prototypes on the
+real board (one bar replacing the bottom bar; a rail at the right edge; the
+two by orientation); he chose the third, with one column sideways. Built
+(`app/ui/css/boardphone.css`, details in
+[0057](0057-board-json-canvas.md)):
+
+- **Upright**: the drawing tools are one flush bar at the board's foot, and
+  while a board that draws is in front it **takes the bottom bar's place**,
+  even with *Bottom bar always shown* on — the switch says so beneath it
+  (*On a board, the drawing tools take its place*); the bar's verbs are in
+  the sheet. A board that only reads keeps the bottom bar. About 89 % of the
+  screen is canvas.
+- **Sideways**: one column at the right edge, the thumb's, clear of the
+  right safe area, all eight tools sharing the height under the top bar;
+  the bottom bar gives way too. About 79 % of the screen is canvas.
+- **The top bar** holds the board's undo and redo; **the sheet** a *Board*
+  section: Board | Text, what puts something on the board, Loose arrows,
+  the search, the outline, Excalidraw's menu and, at a table, who sees it.
+- Targets stay 44 px (the column's 43 px on a 390 px screen, each 52 px
+  wide). Chosen in the code (the maintainer's to change): the hand tool kept
+  in the column rather than moved to "more".
+- **The side panels' handles** (the maintainer, the same day: on a board
+  the sideways swipe never starts — the canvas keeps the finger — and the
+  bottom bar's Files and Panel are the board's tools now; *"deveria ter
+  esses botões de atalho ali no board"*): while a board, a plugin drawing,
+  the graph, the data graph or a base's map is in front on a phone, a slim
+  tab sits centred on each edge of the screen — 20 px marks, see-through
+  until touched, 44 × 64 px targets — the left one opening the files, the
+  right one the right panel, through the bottom bar's toggles (Back, the tap
+  outside, the buttons' state as for them). A swipe that starts on one, past
+  Android's Back band, drags its panel out as anywhere else. Sideways, the
+  panel's tab stands at the left of the board's column. Hidden while a panel
+  is open, while the board's menus, dialogs or outline lie over the edge,
+  off a phone, and the files' one for a file opened without its folder
+  (`app/ui/src/screen/edgeHandles.ts`, `app/ui/css/edgehandles.css`). The
+  selection's island sits at the bottom, clear of them.
+- Tried in `e2e/board-phone.spec.mjs` (both sizes) and
+  `test/boardPhone.test.mjs`, `test/edgeHandles.test.mjs`; on a real phone in
+  `docs/reference/manual-checks.md`.
+
+**One order on every size (item 6, 2026-11-15).** The maintainer: the board's
+buttons came on the phone in another order than on the desktop; *"seria mais
+intuitivo … ter sempre a mesma sequência"*, for every screen that changes
+shape on a phone. The rule: **the phone shows the desktop's sequence, in the
+desktop's order; what does not fit goes into "more" (or the ⋯ sheet) keeping
+that order** — the phone shows a prefix of the desktop's order, then the
+rest. Applied to the board:
+
+- The tools, bar and column alike: hand, selection, the shapes, the arrows,
+  the pencil, text, eraser, then "more" (Excalidraw's phone toolbar drew
+  hand, selection, pencil, eraser, shapes, arrows, text). Excalidraw's props
+  set no order: its buttons are put back in the desktop's by CSS `order` on
+  their test ids (`app/ui/css/boardphone.css`), the least fragile way — a
+  renamed id leaves the tool in place before "more", never lost; the e2e
+  test reads the order. Where Excalidraw's phone toolbar cannot follow:
+  the desktop's lock is not on it, the sticky note (between text and eraser
+  on the desktop) is in its "more", and its "more" takes no eraser.
+- The sheet's *Board* section, in the desktop's top row: Excalidraw's menu
+  (☰, at the left), the text card and Insert's items (after the tools),
+  then the search and the outline.
+- The selection: Verso's tools of the selected card are the same island,
+  in the same order, on both; Excalidraw's own phone island (colours, then
+  the other properties, then text) follows its desktop panel's sequence.
+
+Applied to the rest of the window (an audit of every group that changes
+shape on a phone, 2026-11-15): the ribbon now has *New note* before the
+palette, as the status bar and the phone's bottom bar have them (the
+maintainer chose that order when the desktop disagreed with itself; a
+ribbon the person reordered keeps their order); the drawer's foot has the
+account before the gear, as the ribbon; the pane's ⋯ menu has *New note*
+after the tabs' entries, as the pane's buttons; the oracle dialog's and the
+world wizard's actions stack top to bottom in their desktop order (they were
+reversed). The phone's top bar keeps its own order (the tabs' button at the
+right end, under the thumb): it has no single desktop row to follow, and the
+maintainer kept it.

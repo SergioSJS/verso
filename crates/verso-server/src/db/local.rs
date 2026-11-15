@@ -99,7 +99,10 @@ impl Db {
     /// A phone paired: a browser session of `owner` with `role`, and its
     /// row, in one transaction — or `Err("full")` when `most` phones are
     /// already paired (ADR 0096 item 13). Returns the session's token, its
-    /// CSRF token and its id.
+    /// CSRF token and its id. `app`: the Verso app paired (ADR 0117, "The
+    /// Verso app paired"), whose session is a device's — a bearer token the
+    /// app keeps, never a cookie — counted among the same phones, with the
+    /// same role and limits.
     pub fn pair_phone(
         &self,
         owner: &str,
@@ -107,6 +110,7 @@ impl Db {
         address: &str,
         role: Role,
         most: usize,
+        app: bool,
     ) -> R<(String, String, String)> {
         let role = match role {
             Role::Reader => "reader",
@@ -131,8 +135,17 @@ impl Db {
         }
         tx.execute(
             "INSERT INTO sessions (id, hash, account, kind, device, csrf, created, last_used, address, proved_at)
-             VALUES (?1, ?2, ?3, 'browser', ?4, ?5, ?6, ?6, ?7, ?6)",
-            params![id, crypto::hash(&token), owner, device, csrf, at, address],
+             VALUES (?1, ?2, ?3, ?8, ?4, ?5, ?6, ?6, ?7, ?6)",
+            params![
+                id,
+                crypto::hash(&token),
+                owner,
+                device,
+                csrf,
+                at,
+                address,
+                if app { "device" } else { "browser" }
+            ],
         )
         .map_err(e)?;
         tx.execute(

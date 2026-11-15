@@ -407,7 +407,7 @@ impl Remote {
         }
         // The same total time as before the resolver (30 s), not the 20 s
         // of a JSON answer.
-        let client = match http_within(std::time::Duration::from_secs(30)) {
+        let client = match crate::paired::http_to_within(&url, std::time::Duration::from_secs(30)) {
             Ok(c) => c,
             Err(e) => return refuse(502, e.message),
         };
@@ -605,6 +605,7 @@ pub(crate) fn server_accounts(state: State<'_, App>) -> Result<Vec<ServerAccount
         .map_err(verso_service::convert)?
         .into_iter()
         .map(|s| ServerAccount {
+            paired: crate::paired::is_paired_url(&s.url),
             url: s.url,
             email: s.email,
             name: s.name,
@@ -630,7 +631,7 @@ pub(crate) async fn server_sign_out<R: tauri::Runtime>(
     let login = login_for(&state, &url)?;
     let token = login.token.clone();
     let _ = tauri::async_runtime::spawn_blocking(move || {
-        http().and_then(|c| {
+        crate::paired::http_to(&login.url).and_then(|c| {
             c.post(format!("{}/api/signout", login.url))
                 .bearer_auth(token)
                 .json(&json!({}))
@@ -640,6 +641,7 @@ pub(crate) async fn server_sign_out<R: tauri::Runtime>(
     })
     .await;
     servers::forget(state.service.config(), &url).map_err(verso_service::convert)?;
+    crate::paired::unload(&url);
     Ok(())
 }
 
@@ -653,7 +655,7 @@ pub(crate) async fn server_folders<R: tauri::Runtime>(
     let login = login_for(&app.state::<App>(), &url)?;
     let body = tauri::async_runtime::spawn_blocking(move || {
         answer(
-            http()?
+            crate::paired::http_to(&login.url)?
                 .get(format!("{}/api/folders", login.url))
                 .bearer_auth(login.token)
                 .send_retrying()
@@ -692,7 +694,7 @@ pub(crate) fn make_folder(
     name: &str,
     unique: bool,
 ) -> Result<Value, ContractError> {
-    let client = http()?;
+    let client = crate::paired::http_to(url)?;
     for n in 1..=99 {
         let wanted = if n == 1 {
             name.to_owned()
@@ -881,6 +883,8 @@ pub(crate) async fn ws_open(
     use tokio_tungstenite::tungstenite::Error as Wire;
     let tls = request.uri().scheme_str() == Some("wss");
     // A phone has no certificate files: the system's verifier instead.
+    // A paired computer: its key alone (paired/mod.rs).
+    let connector = connector.or_else(|| crate::paired::ws_connector(host));
     #[cfg(mobile)]
     let connector = connector.or_else(|| tls.then(crate::mobile::ws_connector).flatten());
     dns::declare(host, tls);

@@ -720,6 +720,8 @@ pre:hover .copy-code-btn, .mermaid-block:hover .copy-code-btn, .copy-code-btn:fo
    room for the four is kept so the controls below do not move under a pointer that is already on its way down. */
 .srv-found-state { min-height: 4.92rem; }
 .srv-said { margin: .7rem 0 0; font-size: .88rem; color: var(--ink-2); }
+/* Pair with a computer at home (ADR 0117 D19): two fields, one under the other. */
+.srv-pair-home .srv-field + .srv-label { margin-top: .8rem; }
 .srv-said:empty { display: none; }
 .srv-code { display: inline-block; margin: 0 .15rem; padding: .05rem .45rem; font: 600 .95rem var(--ui); letter-spacing: .08em; font-variant-numeric: tabular-nums; color: var(--brass-ink); background: var(--brass-wash); border-radius: 5px; }
 .srv-found { padding: 1.2rem 0 1.2rem; border-bottom: 1px solid var(--hair); }

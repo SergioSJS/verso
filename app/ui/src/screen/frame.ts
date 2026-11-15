@@ -27,6 +27,8 @@ import { signedIn } from "../web/api";
 import { installSelectBar } from "../tree/selectBar";
 import { installKeyboard } from "./keyboard";
 import { installRowMore } from "./rowMore";
+import { installEdgeHandles } from "./edgeHandles";
+import { installSwipe } from "./swipe";
 import { installTableChip } from "../tableChip";
 import { st } from "./strings";
 import { barVerbs } from "./verbs";
@@ -165,7 +167,8 @@ function footButton(label: string, iconName: string, run: () => void): HTMLButto
 }
 
 function buildSideFoot(): void {
-  sideFoot.append(footButton(t.settings, "gear", () => settingsDialog.show()), footAccount);
+  // The account, then the gear: the ribbon's order (one order on every size).
+  sideFoot.append(footAccount, footButton(t.settings, "gear", () => settingsDialog.show()));
   footAccount.hidden = true;
   document.querySelector("aside.side")?.append(sideFoot);
 }
@@ -225,6 +228,8 @@ export function installScreen(): void {
   installRowMore();
   installSelectBar();
   installKeyboard();
+  installSwipe();
+  installEdgeHandles();
   onCan(applyCan);
   // What the person may do with files changed: the lock, and the open files
   // not being typed in are read again with the answers (ADR 0113).

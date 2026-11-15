@@ -4,6 +4,9 @@
 
 import { may } from "../access";
 import { can, host } from "../can";
+import { narrow } from "../chrome";
+import { setBottomBar } from "../screen/phoneSheet";
+import { st } from "../screen/strings";
 import { IMPORT_CEILING_MB, importSetting } from "../attachName";
 import { historyStrings } from "./historyStrings";
 import { serverStrings, serversBody } from "./servers";
@@ -717,6 +720,12 @@ export class SettingsDialog {
       ["royal", t.colorRoyal],
       ["amethyst", t.colorAmethyst],
     ], settings.headingColor || "brass", (v) => { settings.headingColor = v as any; saveSettings(); }), lookWords.gallery.moreText);
+    // The phone's own switches, also in the top bar's ⋯ sheet: the bottom
+    // bar, and the sideways swipe that brings the panels (screen/swipe.ts).
+    if (narrow.matches || host() === "mobile") {
+      add("appearance", st.barAlways, st.barAlwaysDesc, () => this.toggle(settings.phoneBottomBar, (v) => setBottomBar(v)), st.phoneGroup);
+      add("appearance", st.swipePanels, st.swipePanelsDesc, () => this.toggle(settings.phoneSwipe, (v) => { settings.phoneSwipe = v; document.documentElement.classList.toggle("phone-swipe-on", v); saveSettings(); }), st.phoneGroup);
+    }
     // The ribbon's buttons, each shown or hidden here as from its menu;
     // the gear stays, so the way back is never hidden with the others.
     for (const b of ribbon?.buttons() ?? []) {

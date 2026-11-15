@@ -55,7 +55,7 @@ export class LocalServerHarness {
   private paired: LocalPhone[] = [];
   private audit: LocalAudit[] = [];
   private open = false;
-  private asked: { device: string; address: string; asked: string; link: boolean } | null = null;
+  private asked: { device: string; address: string; asked: string; link: boolean; app: boolean } | null = null;
   private nextId = 1;
   private cert: Pick<LocalServerStatus, "cert_file" | "key_file" | "host_name"> = { cert_file: null, key_file: null, host_name: null };
   private ticked = new Set<string>();
@@ -278,10 +278,10 @@ export class LocalServerHarness {
   /** A phone presents the token: the dialog is asked "Was it you?" — on
    *  the network, or through the internet link (`link`, ADR 0117 D5), from
    *  the address the tunnel forwarded. */
-  askAsPhone(device = "iPhone de teste", link = false): void {
+  askAsPhone(device = "iPhone de teste", link = false, app = false): void {
     if (!this.open) throw new Error("no pairing window is open");
     const address = link ? "203.0.113.9" : "192.168.1.77";
-    this.asked = { device, address, asked: "2026-10-15T10:00:00Z", link };
+    this.asked = { device, address, asked: "2026-10-15T10:00:00Z", link, app };
     this.log(link ? "pair_asked_link" : "pair_asked", device, address);
   }
 

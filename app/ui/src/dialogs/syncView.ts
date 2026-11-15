@@ -15,7 +15,7 @@ import { ask, promptText } from "../dialog";
 import { diffNode } from "../diff";
 import { h } from "../dom";
 import { errorSentence, fail } from "../errors";
-import { addressOf, reachStrings } from "../reach";
+import { addressOf, isPairedUrl, reachStrings } from "../reach";
 import { type DownWords, placeholderBlock, ranNote, rowNote } from "./syncPlaceholders";
 import { liveHolder, openNote } from "../layout/spaces";
 import { roomSide, syncedSessions } from "../collab";
@@ -304,6 +304,8 @@ function headline(st: SyncStatus, waiting: number): { text: string; tone: "ok" |
   if (st.state === "paused") return { text: s.paused, tone: "quiet" };
   // The server, not the network, did not answer: named, and why it may be.
   if (st.state === "offline" && st.problem === "unreachable" && st.cloud) return { text: `${cloudStrings().unreachable(st.cloud.label)} ${s.serverBack}`, tone: "attention" };
+  // A computer at home away is the copy's ordinary day, said calmly.
+  if (st.state === "offline" && st.problem === "unreachable" && isPairedUrl(st.server)) return { text: reachStrings().homeUnreachable, tone: "attention" };
   if (st.state === "offline" && st.problem === "unreachable") return { text: `${reachStrings().unreachable(addressOf(st.server))} ${s.serverBack}`, tone: "attention" };
   if (st.state === "offline") return { text: s.offline, tone: "quiet" };
   if (st.state === "starting") return { text: s.connecting, tone: "busy" };

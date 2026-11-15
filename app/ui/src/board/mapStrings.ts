@@ -46,6 +46,13 @@ const pt = {
   viewFailed: (why: string) => `Não deu para mostrar o board como um leitor o vê: ${why}. O board inteiro continua aqui.`,
   exportSecret: "Deixar de fora os alfinetes e cartões secretos",
   secretCard: "secreto",
+  /** A room's key on an imported map (ADR 0120). */
+  pinKey: (name: string, key: string) => `Abrir ${name}, número ${key}`,
+  /** The tracing of an imported map (ADR 0120). */
+  tracing: "Mostrar o traçado",
+  tracingTitle: "Mostra o traçado do Verso por cima do desenho do Watabou — salas, paredes e portas — para editar; aperte de novo para esconder",
+  tracingShown: "Traçado do mapa à mostra: as paredes e portas podem ser editadas.",
+  tracingHidden: "Traçado do mapa escondido.",
 };
 
 const en: typeof pt = {
@@ -84,6 +91,11 @@ const en: typeof pt = {
   viewFailed: (why) => `Could not show the board as a reader sees it: ${why}. The whole board is still here.`,
   exportSecret: "Leave out the secret pins and cards",
   secretCard: "secret",
+  pinKey: (name, key) => `Open ${name}, number ${key}`,
+  tracing: "Show the tracing",
+  tracingTitle: "Shows Verso's tracing over Watabou's drawing — rooms, walls and doors — to edit it; press again to hide it",
+  tracingShown: "The map's tracing is shown: its walls and doors can be edited.",
+  tracingHidden: "The map's tracing is hidden.",
 };
 
 export type MapStrings = typeof pt;

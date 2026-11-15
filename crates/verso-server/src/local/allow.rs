@@ -235,6 +235,9 @@ pub const REFUSED: &[&str] = &[
     "server_copy_open",
     "server_copy_plan",
     "server_copy_make",
+    // Pairing this device with a computer at home (ADR 0117, "The Verso
+    // app paired") is the device's own, never a remote phone's.
+    "server_pair",
     "server_prove",
     "server_retry",
     "window_server",
@@ -293,12 +296,6 @@ pub const REFUSED: &[&str] = &[
     "trash_empty",
     "trash_set_days",
     "history_delete",
-    "sync_state",
-    "sync_changes",
-    "sync_read",
-    "sync_put",
-    "sync_delete",
-    "sync_rename",
     "recent_folders",
     "cli_status",
     "open_devtools",
@@ -309,6 +306,16 @@ pub const REFUSED: &[&str] = &[
     "menu_sections",
     "quit_app",
 ];
+
+/// The sync's commands (ADR 0079) that the Verso app paired runs to read
+/// the folders it was given into its copy (ADR 0117, "The Verso app
+/// paired"): at any role, as a reader's sync on a UniVerso. A browser's
+/// phone runs none of them — it keeps no copy — however it was paired.
+pub const APP_READ: &[&str] = &["sync_state", "sync_changes", "sync_read"];
+
+/// The sync's commands that carry the app's changes up: an editor's only.
+/// The server checks the folder's role again, as for every device.
+pub const APP_EDIT: &[&str] = &["sync_put", "sync_delete", "sync_rename"];
 
 /// The prefix of the commands that run this mode itself.
 pub const LOCAL_PREFIX: &str = "local_server_";
@@ -345,7 +352,18 @@ pub const HEARD: &[&str] = &["set_walk_rules", "set_folder_note_name", "log_writ
 /// Whether a phone of `role` may run `cmd`; the refusal says why, in the
 /// contract's own words.
 pub fn check(cmd: &str, role: Role) -> Result<(), ContractError> {
-    match verdict(cmd) {
+    check_as(cmd, role, false)
+}
+
+/// [`check`] for a phone's browser (`app` false) or the Verso app paired
+/// (`app` true), which runs the sync's commands at its role besides.
+pub fn check_as(cmd: &str, role: Role, app: bool) -> Result<(), ContractError> {
+    let verdict = match verdict(cmd) {
+        Verdict::Refuse if app && APP_READ.contains(&cmd) => Verdict::Allow,
+        Verdict::Refuse if app && APP_EDIT.contains(&cmd) => Verdict::Editor,
+        v => v,
+    };
+    match verdict {
         Verdict::Allow => Ok(()),
         Verdict::Editor if role.writes() => Ok(()),
         Verdict::Editor => Err(refused(
@@ -395,6 +413,8 @@ mod tests {
         usize::from(READ.contains(&cmd))
             + usize::from(EDIT.contains(&cmd))
             + usize::from(REFUSED.contains(&cmd))
+            + usize::from(APP_READ.contains(&cmd))
+            + usize::from(APP_EDIT.contains(&cmd))
             + usize::from(cmd.starts_with(LOCAL_PREFIX))
     }
 
@@ -418,7 +438,13 @@ mod tests {
         // Commands the server answers that the desktop's bindings do not
         // list, and one the host has and the window calls.
         let extra = ["pick_folder", "open_initial", "reopen_folder"];
-        for name in READ.iter().chain(EDIT).chain(REFUSED) {
+        for name in READ
+            .iter()
+            .chain(EDIT)
+            .chain(REFUSED)
+            .chain(APP_READ)
+            .chain(APP_EDIT)
+        {
             assert!(
                 all.iter().any(|c| c == name) || extra.contains(name),
                 "{name} is on a list and is no command"
@@ -530,6 +556,46 @@ mod tests {
                 assert!(check(cmd, role).is_err(), "{cmd} as {role:?}");
             }
             assert_eq!(verdict(cmd), Verdict::Refuse, "{cmd}");
+        }
+    }
+
+    /// The Verso app paired syncs its copy at its role; a phone's browser
+    /// syncs nothing; neither runs what acts on the laptop, nor the host's
+    /// own sync commands (turning a folder's sync on, its rights).
+    #[test]
+    fn the_app_syncs_at_its_role_and_a_browser_not_at_all() {
+        for cmd in APP_READ {
+            for role in [Role::Reader, Role::Editor] {
+                assert!(
+                    check_as(cmd, role, true).is_ok(),
+                    "{cmd} as an app {role:?}"
+                );
+                assert!(check(cmd, role).is_err(), "{cmd} as a browser {role:?}");
+            }
+        }
+        for cmd in APP_EDIT {
+            assert!(check_as(cmd, Role::Editor, true).is_ok(), "{cmd}");
+            assert!(
+                check_as(cmd, Role::Reader, true).is_err(),
+                "{cmd} as a reader"
+            );
+            assert!(check(cmd, Role::Editor).is_err(), "{cmd} as a browser");
+        }
+        for cmd in [
+            "folder_sync_start",
+            "sync_rights",
+            "server_copy_make",
+            "local_server_answer",
+            "reveal",
+            "a_command_added_tomorrow",
+        ] {
+            assert!(check_as(cmd, Role::Editor, true).is_err(), "{cmd}");
+        }
+        // What a writing sync command is, the folder commands' own access
+        // says nothing of: the lists here do, and they hold no write as a
+        // reader's.
+        for cmd in APP_READ {
+            assert!(!cmd.contains("put") && !cmd.contains("delete") && !cmd.contains("rename"));
         }
     }
 }

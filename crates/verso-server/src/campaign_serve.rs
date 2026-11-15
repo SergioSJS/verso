@@ -69,9 +69,13 @@ pub fn opened<'v>(ws: &mut Workspace, veil: &'v Veil) -> &'v HashSet<String> {
     })
 }
 
-/// The attachments the note or board at `path` links or embeds, by key.
+/// The attachments the note or board at `path` links or embeds, by key: as
+/// a reader is served it (fix of 2026-11-15) — a note's projection, a board
+/// without its secret pins and with its text cards' secret callouts out —
+/// so that an attachment only a secret pin or a secret callout names is not
+/// released with the note.
 fn opens_of_file(ws: &mut Workspace, path: &str) -> HashSet<String> {
-    let Ok(bytes) = ws.read_file(path) else {
+    let Ok(bytes) = ws.reader_read_file(path) else {
         return HashSet::new();
     };
     if bytes.len() > 4 * 1024 * 1024 {
@@ -199,8 +203,17 @@ pub fn veil_text(
     campaign_text::veil(text, &|t| fate(ws, veil, files, source, t), &veil.lang)
 }
 
+/// What a player is served of a board the veil cannot read: nothing.
+const EMPTY_BOARD: &str = "{\"nodes\":[],\"edges\":[]}\n";
+
 /// A board as the veil leaves it: a card of a hidden note is a locked
 /// text card in its place (ADR 0110 item 4), the text cards as notes.
+///
+/// Fails closed (fix of 2026-11-15): a board serde cannot read — one the
+/// canvas parser takes, such as a number too large for a float — or whose
+/// `nodes` or `edges` are no list is served as an empty board, never as it
+/// is: its secret pins are out by then (the reader's projection), its
+/// cards of hidden notes and the links of its text cards are not.
 fn veil_board(
     ws: &Workspace,
     veil: &Veil,
@@ -209,8 +222,12 @@ fn veil_board(
     json: &str,
 ) -> String {
     let Ok(mut v) = serde_json::from_str::<Value>(json) else {
-        return json.to_owned();
+        return EMPTY_BOARD.to_owned();
     };
+    let listed = |k: &str| v.get(k).is_none_or(Value::is_array);
+    if !v.is_object() || !listed("nodes") || !listed("edges") {
+        return EMPTY_BOARD.to_owned();
+    }
     let lang = &veil.lang;
     if let Some(nodes) = v["nodes"].as_array_mut() {
         for n in nodes {
@@ -236,7 +253,7 @@ fn veil_board(
             }
         }
     }
-    serde_json::to_string(&v).unwrap_or_else(|_| json.to_owned())
+    serde_json::to_string(&v).unwrap_or_else(|_| EMPTY_BOARD.to_owned())
 }
 
 /// The fields of a command's arguments that name a path to read.

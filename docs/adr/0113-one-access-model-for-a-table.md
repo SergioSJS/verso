@@ -1352,3 +1352,77 @@ B8 build above:
    the next pass" of the build is now only for a deletion made outside Verso).
 4. B8 **stays recorded as an amendment** (item 9 = a), not a new ADR
    superseding this section.
+
+### Amended 2026-11-15: what a player is served of a board is an allowlist
+
+A fix, not a new decision (ADR 0120 "Fixed 2026-11-15"; the reading of ADR
+0121, B1): H says a player is served "only the elements they see", and the
+cut honoured that for `nodes`, `edges` and `verso.drawing` but let every
+other key of the file through — `verso.walls`, an imported map's walls with
+its secret doors named, reached every player and reader. The rule, as now
+built in both cuts (`canvas_secret` for whoever reads, `board_sight` for
+whoever edits): **a player or a reader is served a board's keys by an
+allowlist** — `nodes`, `edges`, and of `verso` only `version`, `drawing`,
+`background` — and any other key is the game master's (fails closed). A
+drawn element marked secret (`"verso": {"secret": …}` on it or in its
+`customData`) is *Gone* like a pin, without shutting its groups. The file
+route (`/f/`) sends a board or a note to no player of a table, whatever
+their role in the folder.
+
+### Amended 2026-11-15: five more leaks of a board, each closed failing closed
+
+Fixes, not new decisions: the audit that found the walls found five more
+ways content reached someone outside its table, audience or share. What is
+now enforced (tests: `tests_board_leaks.rs`, `tests_board_shares.rs`,
+`board_sight_tests.rs`, and the canary `zqtwice` of `tests_secret_pins.rs`;
+each seen failing on the code before):
+
+1. **A board file that writes a key twice reaches no player who edits it**
+   (`board_sight::player_reads`). Of `"verso":{"secret":true},"verso":{}`
+   serde and the window's `JSON.parse` keep the last (an open card), a
+   reader's projection counts both (a secret pin); the room is drawn by the
+   game master's window, so it cannot be cut to agree with the projection.
+   Such a file is served a player who edits it as an empty board, the join
+   of its room is refused, and no file made of a player's window is laid
+   over it (`lay_over_text`), until the file is written once without (any
+   save of the game master's window does that). A reader and a player who
+   only sees the board are served the projection, which already counted
+   both.
+2. **A board serde cannot read is served a player as an empty board**
+   (`campaign_serve::veil_board`): one the canvas parser takes and serde
+   does not (a number too large for a float), or whose `nodes` or `edges`
+   are no list. It was served as it was: its secret pins were out by then,
+   its cards of hidden notes and its text cards' links were not.
+3. **A window of a share that is no player of a table is not let into a
+   board's room** (`rpc_collab`): the room holds every card by the owner's
+   paths, those beside the share too, and the only room cut to a share is a
+   table player's shadow (section H). Its window follows the board by its
+   file, re-rooted at the share, and writes it whole (`write_board`, laid
+   over the disk), as a window with no room does; `collab_present` and
+   `collab_leave` stay answered. *Built 2026-11-15 (V.49, ADR 0081 item
+   11):* a window of the share that **edits** the board joins the room
+   through the same **shadow** as a table player (section H), cut by the
+   share alone (no veil: `collab_players::Locks` with none): every card
+   re-rooted at the share, a card of a file beside it a locked marker with
+   the same id, secret pins left out as for a player (they stay the
+   file's), the presence it hears cut to the elements it sees, its edits
+   judged by `board_sight::check` and the file it makes laid over the disk.
+   A table made while such a shadow is open closes it (it joins again as a
+   player); one of the share that only reads still follows the file. The
+   shadow rule of section H is now shared by a player and a share's window.
+4. **A past version of a board read through a share crosses as the board
+   does live** (`history_read`, `share_board::text_out`): its cards
+   re-rooted at the share, a card of a file beside it locked.
+5. **An attachment only a secret pin or a secret callout names is not
+   released with its note or board**: what a released note or board opens
+   is read from what a reader is served of it (`reader_read_file`: a note's
+   projection, a board without its secret pins and with its text cards'
+   secret callouts out), not from the file. A player who edits the note
+   and sees the callout is not shown that attachment either until the game
+   master releases it (fails closed).
+
+Found by the sweep of the same tests and closed with them: a board read as
+a note (`read_note`) through a share is refused — its lines and HTML carried
+the owner's paths as written; and a board that writes `nodes` (or any key)
+twice crosses a share laid anew from the last of each key, never spliced
+from the last list while the first crossed as written.

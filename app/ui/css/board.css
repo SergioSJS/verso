@@ -25,7 +25,16 @@
 .board-canvas .excalidraw .board-ex-tools { display: flex; flex-direction: row; align-items: center; gap: .1rem; padding: .25rem; }
 .board-canvas .excalidraw .board-ex-tools .App-toolbar__divider { margin: 0 .25rem; }
 /* The map's tools may draw nothing: two lines then mark an empty slot — one goes. */
-.board-canvas .excalidraw .board-ex-tools .App-toolbar__divider + .App-toolbar__divider { display: none; }
+.board-canvas .excalidraw .board-ex-tools .App-toolbar__divider + .App-toolbar__divider,
+.board-canvas .excalidraw .board-ex-tools .board-ex-context:empty + .App-toolbar__divider { display: none; }
+/* The island's groups, which a phone lays out apart (boardphone.css), are no boxes here. */
+.board-canvas .excalidraw .board-ex-tools :is(.board-ex-insert, .board-ex-context) { display: contents; }
+/* Excalidraw's picture tool is off on a board (Verso puts pictures on it,
+   `tools: { image: false }`); its phone toolbar drew it anyway. And its
+   "leave view mode" pencil: a board's or a drawing's view mode is the
+   window's (a reader, a drawing to look at), not the person's to leave. */
+.board-canvas .excalidraw [data-testid="toolbar-image"],
+.board-canvas .excalidraw .disable-view-mode, .drawing-host .excalidraw .disable-view-mode { display: none !important; }
 .board-canvas .excalidraw .ToolIcon__icon.is-on { background: var(--color-surface-primary-container); }
 .board-canvas .excalidraw .ToolIcon__icon.is-on svg { color: var(--color-on-primary-container); }
 .board-canvas .excalidraw .board-ex-tools .ToolIcon__icon:disabled { opacity: .35; cursor: default; }
@@ -146,6 +155,7 @@
 .board-card-link .board-card-head { border: 0; padding: 0; }
 .board-card-url { color: var(--ink-2); overflow-wrap: anywhere; font-family: var(--mono); font-size: .76rem; }
 .board-outline { flex: none; width: min(34ch, 40%); overflow: auto; padding: .7rem .9rem 2rem; border-left: 1px solid var(--hair); background: var(--paper-2); font-size: .85rem; }
+.board-outline-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
 .board-outline-heading { margin: 0 0 .5rem; font-family: var(--display); font-size: 1rem; color: var(--heading-color); }
 .board-outline h3 { margin: .9rem 0 .3rem; font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
 .board-outline ul { margin: 0; padding: 0; list-style: none; }

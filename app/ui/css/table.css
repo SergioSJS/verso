@@ -61,10 +61,10 @@ body[data-table-unread] .ribbon-item[data-id="right"]::after {
   position: absolute; top: -.1rem; right: -.1rem; min-width: 1.05rem; height: 1.05rem; padding: 0 .25rem; box-sizing: border-box;
   border-radius: 999px; background: var(--seal); color: var(--paper); font: 700 .65rem/1.05rem var(--ui); text-align: center; pointer-events: none;
 }
-/* The phone: the panel's Mesa tab is a sheet from the bottom (ADR 0107 item 10). */
+/* The phone: the panel's Mesa tab is a sheet over the page (ADR 0107 item 10); it comes in from the right, as the right panel does and as the sideways swipe brings it (the maintainer, 2026-11-15). */
 @media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
   /* The sheet takes the height above the bottom bar (the log is what it is for; fix/phone-table-space, 2026-10-24). */
-  body[data-right-tab="table"] aside.right { top: calc(env(safe-area-inset-top) + .4rem); padding-top: 0; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateY(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
+  body[data-right-tab="table"] aside.right { top: calc(env(safe-area-inset-top) + .4rem); padding-top: 0; bottom: calc(3.4rem + env(safe-area-inset-bottom)); left: 0; right: 0; width: 100%; height: auto; transform: translateX(100%); border: 0; border-top: 1px solid var(--hair); border-radius: 14px 14px 0 0; }
   /* The sheet starts below the status bar, its close at its own top. */
   body[data-right-tab="table"] .right-close { top: 0; }
   body.right-open[data-right-tab="table"] aside.right { transform: none; }

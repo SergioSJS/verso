@@ -246,5 +246,12 @@ export type BoardHandle = {
   /** Save now what the board holds and has not saved: before its tab
    *  closes, the window quits or the folder changes. */
   flush: () => Promise<void>;
+  /** The board's own verbs, for the phone's ⋯ sheet (board/phoneVerbs.ts). */
+  verbs: () => BoardVerb[];
   destroy: () => void;
 };
+
+/** One of the board's verbs in the phone's ⋯ sheet: its name, its icon
+ *  (a path of the board's 16-px icons, board/tools.tsx) and what it does;
+ *  `pressed` for one that is on or off. */
+export type BoardVerb = { id: string; label: string; icon: string; run: () => void; pressed?: boolean };

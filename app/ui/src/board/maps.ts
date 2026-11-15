@@ -12,7 +12,7 @@
 // No Excalidraw here, no React, no contract: the view applies what these
 // say (`view.tsx`, `mapsView.tsx`).
 
-import { type CanvasNode, type El, isMap, isNode, isPin, isSecret, nodeData } from "./model";
+import { type CanvasNode, type El, isMap, isNode, isPin, isSecret, nodeData, nodeName, pinKey } from "./model";
 
 /** The side of a new pin's box on the board, in the board's units: its
  *  place and what is selected when the pin is; the mark itself is drawn at
@@ -71,6 +71,13 @@ export function pinNode(path: string, at: readonly [number, number], id: string)
   };
 }
 
+/** A pin's name in the map's list: its note's, after its key when it is a
+ *  room's key of an imported map ("1 · Swamp Citadel"). */
+export function pinLabel(node: CanvasNode, strings: Parameters<typeof nodeName>[1]): string {
+  const key = pinKey(node);
+  return key !== null ? `${key} · ${nodeName(node, strings)}` : nodeName(node, strings);
+}
+
 /** Where a pin is: the middle of its box. */
 export function pinPoint(e: { x: number; y: number; width: number; height: number }): [number, number] {
   return [e.x + e.width / 2, e.y + e.height / 2];
@@ -81,12 +88,27 @@ export function mapAt(els: readonly El[], x: number, y: number): El | undefined 
   return [...mapsOf(els)].reverse().find((m) => x >= m.x && x <= m.x + m.width && y >= m.y && y <= m.y + m.height);
 }
 
-/** Whether any node of the board is secret. */
+/** Whether a drawn element is secret itself, as the core's projection
+ *  reads it (`canvas_secret::drawn_is_secret`): marked under its
+ *  `customData.verso` — the Watabou import's secret door — or the import's
+ *  unmarked secret door of before (a dashed line of stroke 3). */
+export function drawnIsSecret(e: El): boolean {
+  if (isNode(e)) return false;
+  const v = e.customData?.["verso"];
+  const marked = typeof v === "object" && v !== null && "secret" in v && (v as { secret: unknown }).secret !== false && (v as { secret: unknown }).secret !== null;
+  return marked || (e.type === "line" && e["strokeStyle"] === "dashed" && e["strokeWidth"] === 3);
+}
+
+/** Whether any node of the board is secret, or any drawn element: what a
+ *  reader is not served, so "view as a reader" and the export without
+ *  secrets are offered. */
 export function hasSecret(els: readonly El[]): boolean {
-  return live(els).some((e) => {
-    const n = nodeData(e);
-    return n !== null && isSecret(n);
-  });
+  return (
+    live(els).some((e) => {
+      const n = nodeData(e);
+      return n !== null && isSecret(n);
+    }) || els.some((e) => !e.isDeleted && drawnIsSecret(e))
+  );
 }
 
 /** The ids of everything a canvas document draws: its nodes, its edges

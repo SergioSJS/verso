@@ -585,8 +585,11 @@ async fn handle(
     // A paired phone runs the commands on the allowlist and no other (ADR
     // 0096 item 12): default deny, before anything else looks at the
     // command.
+    // The Verso app paired (a device's session) runs the sync's commands
+    // at its role besides (ADR 0117, "The Verso app paired").
+    let app = matches!(who.via, crate::auth::Via::Device { .. });
     if let Some(role) = who.phone
-        && let Err(refused) = crate::local::allow::check(&r.cmd, role)
+        && let Err(refused) = crate::local::allow::check_as(&r.cmd, role, app)
     {
         crate::local::refused_command(server, &r.cmd);
         return Err(refused);
@@ -1040,6 +1043,13 @@ async fn folder_command(
         .as_str()
         .is_some_and(crate::share_board::is_board)
         .then(|| args["path"].as_str().unwrap_or_default().to_owned());
+    // A board's text crosses a share only re-rooted (`board_out`); a note's
+    // reading of it (its lines, its HTML) would carry the owner's paths as
+    // written, the cards beside the share among them (found by the sweep
+    // of 2026-11-15). A board is read as a board.
+    if board.is_some() && name == "read_note" {
+        return Err(scope.error(refused("a board is read as a board, not as a note")));
+    }
     let args_path = board.clone();
     let args = match &board {
         Some(path) => board_in(server, &key, &scope, name, path, args).await?,

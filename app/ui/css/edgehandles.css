@@ -1,0 +1,46 @@
+/* ---------- The side panels' handles over a canvas, on a phone (2026-11-15) ----------
+   src/screen/edgeHandles.ts: while a board, a drawing, the graph, the data
+   graph or a base's map is in front — views that keep a sideways finger —
+   a slim tab on each edge, centred, opens the files (left) or the right
+   panel (right). The mark is 20 px wide and see-through until touched; the
+   target is 44 × 64 px. Above the canvas (6), under the veil beside an open
+   drawer (7), the drawers (8) and the bottom bar (9). Not drawn while a
+   panel is open, while the board's own menus or outline lie where they
+   are, or off a phone. */
+
+.edge-handle { display: none; }
+
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
+  html.canvas-in-front body:not(.side-open, .right-open) .edge-handle:not([hidden]) {
+    display: block; position: fixed; top: 50%; z-index: 6; width: 44px; height: 64px; margin: -32px 0 0; padding: 0;
+    border: 0; background: none; color: var(--ink-2); touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  /* What of the board lies over its edges: Excalidraw's menus and dialogs, the outline, the picture export. */
+  html.canvas-in-front:has(.leaf:not([hidden]) :is(.excalidraw .dropdown-menu, .excalidraw .context-menu, .excalidraw .Modal, .board-outline, .board-export)) .edge-handle { display: none !important; }
+  .edge-left { left: env(safe-area-inset-left); }
+  .edge-right { right: env(safe-area-inset-right); }
+  /* The tab against the edge, and its chevron pointing in. */
+  .edge-handle::before { content: ""; position: absolute; top: 6px; width: 20px; height: 52px; box-sizing: border-box; background: color-mix(in oklch, var(--paper-2) 80%, transparent); border: 1px solid var(--hair); opacity: .7; transition: opacity .15s, background-color .15s; }
+  .edge-left::before { left: 0; border-left: 0; border-radius: 0 10px 10px 0; }
+  .edge-right::before { right: 0; border-right: 0; border-radius: 10px 0 0 10px; }
+  .edge-handle .icon { position: absolute; top: 25px; width: 14px; height: 14px; opacity: .8; }
+  .edge-left .icon { left: 3px; }
+  .edge-right .icon { right: 3px; }
+  .edge-handle:active::before, .edge-handle:focus-visible::before { opacity: 1; background: var(--paper-2); }
+  .edge-handle:active .icon, .edge-handle:focus-visible .icon { opacity: 1; color: var(--ink); }
+  .edge-handle:focus-visible { outline: none; }
+  .edge-handle:focus-visible::before { outline: 2px solid var(--seal); outline-offset: 1px; }
+}
+
+/* Sideways, a board that draws has its column at the right edge
+   (boardphone.css): the right panel's tab stands at the column's left. */
+@media (max-width: 760px) and (orientation: landscape), (pointer: coarse) and (max-height: 500px) and (orientation: landscape) {
+  html.canvas-in-front:has(.leaf.board-face:not([hidden]) .excalidraw--mobile-toolbar) .edge-right { right: calc(52px + env(safe-area-inset-right)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-handle::before { transition: none; }
+}
+@media (forced-colors: active) {
+  .edge-handle::before { border-color: CanvasText; forced-color-adjust: none; background: Canvas; opacity: 1; }
+}

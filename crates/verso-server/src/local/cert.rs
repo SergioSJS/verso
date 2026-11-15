@@ -185,15 +185,28 @@ pub fn forget(db: &Db) -> Result<(), String> {
 /// The certificate and key a person gave as files (ADR 0096 item 5 (d),
 /// `VERSO_TLS_CERT_FILE` as in ADR 0073 item 6): the fingerprint of the
 /// first certificate in the chain, after the files were read as an
-/// acceptor would read them.
-pub fn from_files(cert: &Path, key: &Path) -> Result<String, String> {
+/// acceptor would read them, and the pin of its key (`pin.rs`).
+pub fn from_files(cert: &Path, key: &Path) -> Result<(String, String), String> {
     crate::tls::acceptor(cert, key)?;
     let first = CertificateDer::pem_file_iter(cert)
         .map_err(|e| e.to_string())?
         .next()
         .ok_or_else(|| "no certificate".to_owned())?
         .map_err(|e| e.to_string())?;
-    Ok(fingerprint(&first))
+    Ok((fingerprint(&first), super::pin::of_cert(&first)?))
+}
+
+/// Every address the certificate of this computer names: the ones it serves
+/// on and the ones it served on since its key was made, at most eight
+/// ([`load_or_make`]). Where a paired Verso app looks for it (ADR 0117,
+/// "The Verso app paired").
+#[must_use]
+pub fn named(db: &Db) -> Vec<IpAddr> {
+    db.setting(SANS)
+        .ok()
+        .flatten()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

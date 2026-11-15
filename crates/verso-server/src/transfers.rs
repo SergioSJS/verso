@@ -78,6 +78,16 @@ pub struct Transfers {
     /// A note a reader's device reads in pieces, by client and path: the
     /// hash of its projection at the first piece (`crate::readers::read`).
     pub(crate) reader_reads: Mutex<HashMap<(String, String), String>>,
+    /// A board a device sends through a share, by client and path: its
+    /// pieces kept until the last, to be laid over the file
+    /// (`crate::share_sync_board`).
+    pub(crate) share_boards: Mutex<HashMap<(String, String), crate::share_sync_board::Up>>,
+    /// By share and path, the text of a board a device of the share last
+    /// wrote: the layout the board is cut in for the share's devices
+    /// (`crate::share_sync_board`), so that a device's own write is not
+    /// heard back as another file. Kept in memory: lost, a device fetches
+    /// the board once more.
+    pub(crate) share_shapes: Mutex<HashMap<(String, String), (String, Instant)>>,
 }
 
 impl Transfers {
@@ -88,6 +98,7 @@ impl Transfers {
         lock(&self.up).retain(|(c, _), _| c != client);
         lock(&self.down).retain(|(c, _), _| c != client);
         lock(&self.reader_reads).retain(|(c, _), _| c != client);
+        lock(&self.share_boards).retain(|(c, _), _| c != client);
         self.prune();
     }
 

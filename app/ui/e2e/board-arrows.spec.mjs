@@ -134,7 +134,7 @@ test("the arrow tool says how to draw a free arrow, and that Setas soltas is on"
 test.describe("on a touch screen, narrow", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
-  test("a free arrow is reached by touch: the hint names no ⌘, and Insert is in the toolbar", async ({ app, page }) => {
+  test("a free arrow is reached by touch: the hint names no ⌘, and Loose arrows is in ⋯ › Board", async ({ app, page }) => {
     // A screen with no fine pointer: no mouse, no keyboard to hold ⌘ on.
     await page.addInitScript(() => {
       const own = window.matchMedia.bind(window);
@@ -142,9 +142,10 @@ test.describe("on a touch screen, narrow", () => {
     });
     await openBoard(app, page);
     await page.locator('.App-toolbar [title^="Flecha"]').first().click();
-    await expect(page.getByTestId("board-arrow-hint")).toHaveText("Seta livre, presa a nenhum cartão: Inserir › Setas soltas");
-    await page.getByTestId("board-tool-insert").click();
-    await expect(page.getByTestId("board-tool-loose")).toBeVisible();
+    // A phone's board keeps its canvas: Insert's items are ⋯ › Board's.
+    await expect(page.getByTestId("board-arrow-hint")).toHaveText("Seta livre, presa a nenhum cartão: ⋯ › Board › Setas soltas");
+    await app.boardVerb("loose", "board-tool-loose");
+    await expect(page.getByTestId("board-arrow-hint")).toHaveText(/Setas soltas ligado.*⋯ › Board/);
   });
 });
 

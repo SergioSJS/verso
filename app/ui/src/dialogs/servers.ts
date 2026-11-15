@@ -27,6 +27,7 @@ import { tm } from "../tableMoveStrings";
 import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 import { focusOnOpen } from "../screen/openFocus";
 import { pickServerFolder } from "./serverCopy";
+import { pairComputerForm, pairedTitle, pairStrings } from "./pairComputer";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -378,7 +379,13 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
         ),
       ]
     : [];
-  box.append(form, ...found, deviceForm(), list);
+  // A computer at home, paired by its code (ADR 0117, "The Verso app
+  // paired"): listed below with the servers once paired.
+  const pairHome = pairComputerForm((a) => {
+    refocus = a.url;
+    void draw();
+  });
+  box.append(form, pairHome, ...found, deviceForm(), list);
   void draw();
   return box;
 }
@@ -429,11 +436,14 @@ function deviceForm(): HTMLElement {
 function serverBlock(a: ServerAccount, redraw: () => Promise<void>): HTMLElement {
   const s = serverStrings();
   const block = h("section", "srv");
-  const host = a.url.replace(/^https?:\/\//, "");
+  const address = a.url.replace(/^https?:\/\//, "");
+  // A computer at home is named for what it is, never by the name the app
+  // reaches it by (ADR 0117, "The Verso app paired").
+  const host = a.paired ? pairedTitle(a) : address;
   const title = h("h3", "srv-host", host);
-  title.id = `srv-${host.replace(/[^a-z0-9]/gi, "-")}`;
+  title.id = `srv-${address.replace(/[^a-z0-9]/gi, "-")}`;
   block.setAttribute("aria-labelledby", title.id);
-  const who = h("p", "srv-who", s.as(a.name, a.email));
+  const who = h("p", "srv-who", a.paired ? pairStrings().who : s.as(a.name, a.email));
   const out = h("button", "btn quiet", s.signOut);
   out.type = "button";
   out.addEventListener("click", () => void commands.serverSignOut(a.url).then(redraw));

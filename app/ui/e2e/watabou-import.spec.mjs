@@ -128,17 +128,110 @@ test("a house of Dwellings: a folder with the note listing its rooms and a board
   for (const l of scene.filter((e) => e.type === "line")) expect(frames.has(l.frameId)).toBe(true);
 });
 
-test("a city's export is named, not imported; nothing is written", async ({ app, page }) => {
+test("a city's export without its picture is not imported, the picture asked for; nothing is written", async ({ app, page }) => {
   await app.open("?vault=empty");
   const before = await app.files();
   const dialog = await importDialog(app, page);
   const city = JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", id: "values", generator: "mfcg" }] });
   await dialog.locator('input[type="file"]').setInputFiles([{ name: "highchurch.json", mimeType: "application/json", buffer: Buffer.from(city) }]);
-  await expect(dialog.locator(".wb-import-seen")).toContainText("gerador “mfcg”");
+  await expect(dialog.locator(".wb-import-seen")).toContainText("O mapa do “Medieval Fantasy City Generator” é o próprio desenho");
   await expect(dialog.getByRole("button", { name: "Importar", exact: true })).toBeDisabled();
   await dialog.getByRole("button", { name: "Cancelar" }).click();
   await expect(dialog).toBeHidden();
   expect(await app.files()).toEqual(before);
+});
+
+test("a dungeon with Watabou's own picture: the picture is the map, the keys pins on it, Verso's tracing hidden until shown @layout", async ({ app, page }) => {
+  await app.open("?vault=empty");
+  const dialog = await importDialog(app, page);
+  await dialog.locator('input[type="file"]').setInputFiles([
+    { name: "swamp_citadel_of_uadjed.json", mimeType: "application/json", buffer: sample("swamp_citadel_of_uadjed.json") },
+    { name: "swamp_citadel_of_uadjed.svg", mimeType: "image/svg+xml", buffer: sample("swamp_citadel_of_uadjed.trimmed.svg") },
+  ]);
+  await expect(dialog.locator(".wb-import-seen")).toContainText("O desenho do próprio Watabou vira o mapa do board, alinhado às salas");
+  await expect(dialog.locator(".wb-import-makes")).toContainText("o board com o desenho do Watabou");
+  // This export came turned (Rotate-to-fit on): imported, and said how to export it square.
+  await expect(dialog.locator(".wb-import-seen")).toContainText("O desenho do Watabou veio girado 30°");
+  await expect(dialog.locator(".wb-import-seen")).toContainText("View › Rotate-to-fit");
+  await dialog.getByRole("button", { name: "Importar", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => app.file(`${DIR}/${DIR}.canvas`)).not.toBeNull();
+  expect(await app.file(`${DIR}/${DIR}.md`)).toContain("> [!warning]\n> O desenho do Watabou veio girado 30°");
+  const board = JSON.parse(await app.file(`${DIR}/${DIR}.canvas`));
+  // The picture is the map, the keys pins on it; the walls on the picture's grid.
+  expect(board.nodes[0]).toEqual(expect.objectContaining({ id: "wb-map", file: `${DIR}/swamp_citadel_of_uadjed.svg`, verso: expect.objectContaining({ map: true, locked: true }) }));
+  expect(board.nodes.filter((n) => n.verso?.pin).map((n) => n.verso.key).sort()).toEqual(["1", "2", "3", "4"]);
+  expect(board.verso.walls.grid).toHaveLength(6);
+  await app.boardReady();
+  // The pins show their numbers, named for the note.
+  await expect(page.locator(".board-pin.is-key")).toHaveCount(4);
+  await expect(page.getByRole("button", { name: `Abrir ${DIR}, número 1` })).toBeVisible();
+  // The tracing: there, unseen; shown by the board's verb, hidden again.
+  const traced = () => page.evaluate(() => window.__VERSO_TEST__.board.getSceneElements().filter((e) => e.customData?.verso?.traced).map((e) => e.opacity));
+  expect((await traced()).length).toBeGreaterThan(20);
+  expect(new Set(await traced())).toEqual(new Set([0]));
+  await app.boardVerb("tracing", "board-tool-tracing");
+  await expect.poll(async () => [...new Set(await traced())]).toEqual([100]);
+  await app.boardVerb("tracing", "board-tool-tracing");
+  await expect.poll(async () => [...new Set(await traced())]).toEqual([0]);
+});
+
+test("a dungeon's map alone (Export as › PNG…) with its JSON: the PNG placed on the rooms by its size, the keys pins on it @layout", async ({ app, page }) => {
+  await app.open("?vault=empty");
+  const dialog = await importDialog(app, page);
+  await dialog.locator('input[type="file"]').setInputFiles([
+    { name: "swamp_citadel_of_uadjed.json", mimeType: "application/json", buffer: sample("swamp_citadel_of_uadjed.json") },
+    // Cut down from a real export at 40 px a cell to 10: 43 × 43 cells, 430 × 430.
+    { name: "swamp_citadel_of_uadjed.png", mimeType: "image/png", buffer: sample("swamp_citadel_of_uadjed.map10.png") },
+  ]);
+  await expect(dialog.locator(".wb-import-seen")).toContainText("alinhado às salas");
+  await expect(dialog.locator(".wb-import-seen")).not.toContainText("girado");
+  await dialog.getByRole("button", { name: "Importar", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => app.file(`${DIR}/${DIR}.canvas`)).not.toBeNull();
+  const board = JSON.parse(await app.file(`${DIR}/${DIR}.canvas`));
+  expect(board.nodes[0]).toEqual(expect.objectContaining({ id: "wb-map", file: `${DIR}/swamp_citadel_of_uadjed.png`, x: 0, y: 0, width: 43 * 40, height: 43 * 40 }));
+  expect(board.verso.walls.grid).toEqual([40, 0, 0, 40, 960, 840]);
+  // Key 1 at (10, -6.5) of the JSON: (34 · 40, 14.5 · 40) on the board, its pin's middle.
+  const one = board.nodes.find((n) => n.verso?.key === "1");
+  expect([one.x + one.width / 2, one.y + one.height / 2]).toEqual([1360, 580]);
+  await app.boardReady();
+  await expect(page.locator(".board-pin.is-key")).toHaveCount(4);
+  expect(await app.file(`${DIR}/${DIR}.md`)).not.toContain("[!warning]");
+});
+
+test("a dungeon exported square (Rotate-to-fit off): no word about turning, the map square to the board", async ({ app, page }) => {
+  await app.open("?vault=empty");
+  const dialog = await importDialog(app, page);
+  await dialog.locator('input[type="file"]').setInputFiles([
+    { name: "swamp_citadel_of_uadjed.json", mimeType: "application/json", buffer: sample("swamp_citadel_of_uadjed.json") },
+    { name: "swamp_citadel_of_uadjed.svg", mimeType: "image/svg+xml", buffer: sample("swamp_citadel_of_uadjed.square.trimmed.svg") },
+  ]);
+  await expect(dialog.locator(".wb-import-seen")).toContainText("alinhado às salas");
+  await expect(dialog.locator(".wb-import-seen")).not.toContainText("girado");
+  await dialog.getByRole("button", { name: "Importar", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => app.file(`${DIR}/${DIR}.canvas`)).not.toBeNull();
+  const board = JSON.parse(await app.file(`${DIR}/${DIR}.canvas`));
+  const [a, b, c, d] = board.verso.walls.grid;
+  expect([a, b, c, d]).toEqual([40, 0, 0, 40]);
+  expect(await app.file(`${DIR}/${DIR}.md`)).not.toContain("[!warning]");
+});
+
+test("a village with its picture: a folder with the note and a board whose map is the picture", async ({ app, page }) => {
+  await app.open("?vault=empty");
+  const dialog = await importDialog(app, page);
+  await dialog.locator('input[type="file"]').setInputFiles([
+    { name: "gertwharf.json", mimeType: "application/json", buffer: sample("gertwharf.values.json") },
+    { name: "gertwharf.png", mimeType: "image/png", buffer: sample("gertwharf.small.png") },
+  ]);
+  await expect(dialog.locator(".wb-import-seen")).toContainText("“Gertwharf”: o desenho do Watabou vira o mapa de um board");
+  await dialog.getByRole("button", { name: "Importar", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => app.files()).toEqual(expect.arrayContaining(["Gertwharf/Gertwharf.md", "Gertwharf/Gertwharf.canvas", "Gertwharf/gertwharf.png", "Gertwharf/gertwharf.json"]));
+  const board = JSON.parse(await app.file("Gertwharf/Gertwharf.canvas"));
+  expect(board.nodes[0]).toEqual(expect.objectContaining({ file: "Gertwharf/gertwharf.png", verso: { map: true, locked: true } }));
+  expect(await app.file("Gertwharf/Gertwharf.md")).toContain('generator: "village-generator"');
 });
 
 test("a generated map's note: the generator embedded at the seed Verso drew, the seed in the properties", async ({ app, page }) => {

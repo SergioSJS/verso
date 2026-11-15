@@ -10,6 +10,7 @@
 // there (`exists` is answered, and a name taken moves on).
 
 import { fitName } from "../attachName";
+import { isTurned } from "./align";
 import { type ContractError, commands } from "../bindings";
 import { textBase64 } from "../files";
 import { placeFile } from "../placeFile";
@@ -17,7 +18,7 @@ import { type Plan } from "./detect";
 import { dungeonBoard } from "./draw";
 import { houseBoard } from "./drawHouse";
 import { houseNote } from "./houseNote";
-import { dungeonNote, regionNote } from "./notes";
+import { dungeonNote, regionNote, settlementBoard, settlementNote } from "./notes";
 import { ww } from "./words";
 
 /** A file the person chose, with its bytes as base64. */
@@ -28,7 +29,7 @@ export type Made = { folder: string; note: string; board: string | null } | { fa
 /** The folder's name for a map: its title made fit for a file, then
  *  "Title 2", "Title 3"… while `parent` holds one of that name. */
 export function folderName(p: Plan, parent = "", taken: ReadonlySet<string> = new Set()): string {
-  const fallback = p.kind === "region" ? ww.untitledRegion : p.kind === "dwelling" ? ww.untitledHouse : ww.untitledDungeon;
+  const fallback = p.kind === "region" ? ww.untitledRegion : p.kind === "dwelling" ? ww.untitledHouse : p.kind === "settlement" ? ww.untitledSettlement : ww.untitledDungeon;
   const base = p.kind === "none" ? fallback : fitName(p.title) || fallback;
   const at = (n: string): string => `${parent ? `${parent}/` : ""}${n}`.toLowerCase();
   let name = base;
@@ -60,7 +61,16 @@ export async function importMap(p: Plan, files: Chosen[], parent: string, name: 
   const pictures = p.pictures.map((n) => placed.get(n)).filter((x): x is string => typeof x === "string");
   const stem = `${dir}/${name}`;
   let board: string | null = null;
-  const doc = p.kind === "dungeon" && p.json ? dungeonBoard(p.json.dungeon, `${stem}.md`) : p.kind === "dwelling" ? houseBoard(p.json.house, p.title || ww.untitledHouse, ww.house, `${stem}.md`) : null;
+  const shownPath = (name: string): string | null => placed.get(name) ?? null;
+  const dungeonPicture = p.kind === "dungeon" && p.fit ? shownPath(p.fit.shown.name) : null;
+  const doc =
+    p.kind === "dungeon" && p.json
+      ? dungeonBoard(p.json.dungeon, `${stem}.md`, p.fit && dungeonPicture ? { path: dungeonPicture, fit: p.fit } : null)
+      : p.kind === "dwelling"
+        ? houseBoard(p.json.house, p.title || ww.untitledHouse, ww.house, `${stem}.md`, p.fit, (f) => shownPath(f.shown.name))
+        : p.kind === "settlement" && shownPath(p.shown.name)
+          ? settlementBoard(shownPath(p.shown.name) ?? "", p.shown, `${stem}.md`)
+          : null;
   if (doc) {
     const text = await commands.boardText(JSON.stringify(doc));
     if (text.status !== "ok") return { failed: text.error };
@@ -70,10 +80,12 @@ export async function importMap(p: Plan, files: Chosen[], parent: string, name: 
   }
   const noteText =
     p.kind === "dungeon"
-      ? dungeonNote({ json: p.json?.dungeon ?? null, md: p.md?.text ?? null, board, jsonFile, pictures })
+      ? dungeonNote({ json: p.json?.dungeon ?? null, md: p.md?.text ?? null, board, jsonFile, pictures, turned: p.fit && board && isTurned(p.fit) ? ww.turned(p.fit.turned) : null })
       : p.kind === "dwelling"
         ? houseNote({ house: p.json.house, title: p.title || ww.untitledHouse, board, jsonFile, pictures }, ww.house)
-        : regionNote(p.json.region, ww.note, jsonFile, pictures);
+        : p.kind === "settlement"
+          ? settlementNote({ title: p.title || ww.untitledSettlement, generator: p.generator, version: p.version, board, jsonFile, pictures })
+          : regionNote(p.json.region, ww.note, jsonFile, pictures);
   const note = await commands.createNote(stem, noteText);
   if (note.status !== "ok") return { failed: note.error };
   return { folder: dir, note: note.data.path, board };

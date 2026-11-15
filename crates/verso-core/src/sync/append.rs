@@ -28,7 +28,8 @@ pub fn merges_by_append(path: &str) -> bool {
 /// side added something — one alone is a change of one side, not this);
 /// and the join is at a line boundary — `k` is 0, or the base ends with a
 /// newline, or both tails start with one. The result is the base, the
-/// server's tail (`remote`), then this computer's (`local`).
+/// server's tail (`remote`), then this computer's (`local`), on a line of its
+/// own ([`joined`]).
 #[must_use]
 pub fn append_merge(base: &str, local: &[u8], remote: &[u8]) -> Option<Vec<u8>> {
     use sha2::{Digest, Sha256};
@@ -59,10 +60,30 @@ pub fn append_merge(base: &str, local: &[u8], remote: &[u8]) -> Option<Vec<u8>> 
         if hex == base {
             let (prefix, here) = local.split_at(k);
             let there = remote.get(k..)?;
-            return Some([prefix, there, here].concat());
+            return Some(joined(prefix, there, here));
         }
     }
     None
+}
+
+/// The base, the server's tail, then this computer's. This computer's tail
+/// starts a line of its own: when the server's ends without a newline and
+/// this one does not start with one, a newline is put between them — two
+/// people's last lines glued into one ("…sem rede.Linha do Mac…", seen on a
+/// phone and a computer on 2026-11-15) are neither one's text.
+fn joined(prefix: &[u8], there: &[u8], here: &[u8]) -> Vec<u8> {
+    let glue = !there.is_empty()
+        && !there.ends_with(b"\n")
+        && !here.is_empty()
+        && !here.starts_with(b"\n");
+    let mut out = Vec::with_capacity(prefix.len() + there.len() + here.len() + 1);
+    out.extend_from_slice(prefix);
+    out.extend_from_slice(there);
+    if glue {
+        out.push(b'\n');
+    }
+    out.extend_from_slice(here);
+    out
 }
 
 /// The longest prefix [`template_merge`] hashes in search of the
@@ -106,7 +127,7 @@ pub fn template_merge(template: &str, local: &[u8], remote: &[u8]) -> Option<Vec
             .map(|b| format!("{b:02x}"))
             .collect();
         if hex == template {
-            return Some([local.get(..k)?, there, here].concat());
+            return Some(joined(local.get(..k)?, there, here));
         }
     }
     None
@@ -148,7 +169,16 @@ mod tests {
             base: "a\n",
             local: "a\nb\nc\n",
             remote: "a\nx\n\ny",
-            merged: Some("a\nx\n\nyb\nc\n"),
+            merged: Some("a\nx\n\ny\nb\nc\n"),
+        },
+        Case {
+            name: "the server's tail ends mid-line: this side's starts a line of its own",
+            base: "# Nota\n\nConflito.\n",
+            local: "# Nota\n\nConflito.\nLinha do Mac, ao mesmo tempo.\n",
+            remote: "# Nota\n\nConflito.\n\nLinha do POCO, sem rede.",
+            merged: Some(
+                "# Nota\n\nConflito.\n\nLinha do POCO, sem rede.\nLinha do Mac, ao mesmo tempo.\n",
+            ),
         },
         Case {
             name: "an empty note, written on both sides",
@@ -263,7 +293,8 @@ mod tests {
 
     proptest! {
         /// The result holds exactly the base and both tails, the server's
-        /// first: nothing lost, nothing added, nothing twice.
+        /// first: nothing lost, nothing twice, and nothing added but the one
+        /// newline that keeps this side's tail off the server's last line.
         #[test]
         fn base_then_both_tails(
             base in lines(),
@@ -273,7 +304,8 @@ mod tests {
             let local = format!("{base}{here}");
             let remote = format!("{base}{there}");
             let merged = append_merge(&hash(base.as_bytes()), local.as_bytes(), remote.as_bytes());
-            prop_assert_eq!(merged, Some(format!("{base}{there}{here}").into_bytes()));
+            let glue = if !there.ends_with('\n') && !here.starts_with('\n') { "\n" } else { "" };
+            prop_assert_eq!(merged, Some(format!("{base}{there}{glue}{here}").into_bytes()));
         }
 
         /// Two devices made the same periodic note offline from one

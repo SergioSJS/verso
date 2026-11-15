@@ -1,6 +1,6 @@
-# Verso dialect spec — v0.52
+# Verso dialect spec — v0.53
 
-- Version: v0.52 · 2026-11-01
+- Version: v0.53 · 2026-11-15
 - Source: `docs/BRIEFING.md` §11, §5.2, §4
 - ADRs: [0030](../adr/0030-base-dialect-obsidian-compatible.md) (compatible base),
   [0031](../adr/0031-fixtures-as-contract.md) (fixtures),
@@ -529,7 +529,16 @@ How Verso extends JSON Canvas and persists the board: `DECIDED` on
    - A file node of a note marked `"verso": {"pin": true}` is a pin: the
      window draws it at one size on the screen at any zoom, at the middle
      of its box, and a click opens its note. The pins of a map are in its
-     group (`verso.groups`), so moving the map moves them.
+     group (`verso.groups`), so moving the map moves them. A pin with
+     `"key": "<text>"` beside `pin` (up to 8 characters) is a room's number
+     of an imported map ([ADR 0120](../adr/0120-maps-from-watabous-generators.md),
+     revised 2026-11-15): drawn as that number, named after it.
+   - An element of `verso.drawing` whose `customData.verso.traced` is
+     `true` is part of a map's tracing (ADR 0120): the drawing an import
+     lays over the generator's picture, hidden (`opacity` 0, `locked`)
+     until a writer shows it. Its `customData.verso.secret`, when set, is
+     the import's secret door, left out of what a reader or a player is
+     served.
    - A node marked `"verso": {"secret": true}` is not served to those who
      may only read the board on a UniVerso (ADR 0087's rule, applied to a
      board): the reader is served the board without that node, the edges
@@ -1850,3 +1859,4 @@ the parser was chosen.
 | v0.50 | 2026-10-22 | §6: one row and an example, the fenced block ```` ```roll ```` — a roll of the Table kept in a note ([ADR 0107](../adr/0107-the-table-a-shared-roll-and-chat-log.md) "As built", roll block; the maintainer's option A of 2026-10-22). Verso draws a fixed card; Obsidian reads a code block; the parser does not change. No fixture. No question closed. (The header above still reads v0.48 while the history reaches v0.49: a contradiction already in the document, left for the maintainer.) |
 | v0.51 | 2026-10-31 | The maintainer's answers to the list of 2026-10-31 (*"O restante ta aprovado"*). **Confirmed, nothing changed**, since each was already decided and the list had read sentences that are history: Q5's limit of 32 levels of nesting (decided 2026-10-21), Q9's per-block visibility by `[!secret]` (decided 2026-10-14), Q8's case-only rename as it is (ADR 0070 item 3), and Q3's four provisional facts of v0.30 (replaced by the observation of v0.31, closed in v0.32). **Kept `[OPEN]` until a real case**: Q6's embedded HTML beyond its decision (options B and C), Q17's limits, and §5.1's accepted forms of `tags` and `aliases`. **Q17, one ceiling `DECIDED`** (his B7 = a): a note above 16 MiB stays out of the index, syncing as a file, and shows a notice (to be built). No fixture added or changed; a fixture of the ceiling would be approved separately. The header's version, left at v0.48 by v0.49 and v0.50, catches up |
 | v0.52 | 2026-11-01 | §5.6: an embed of a sound file is rendered as a player ([ADR 0116](../adr/0116-music-and-sound-at-the-table-heard-by-everyone.md), amendment of 2026-11-01, the maintainer's request), as Obsidian renders it; `![](…)` of a sound file too, by Q20. Rendering only: the parser does not change. No fixture added or changed; no question closed |
+| v0.53 | 2026-11-15 | §5.11 item 6: a pin's `key` and a drawn element's `customData.verso.traced` (and `secret`), for the Watabou import's picture, numbered pins and hidden tracing ([ADR 0120](../adr/0120-maps-from-watabous-generators.md), item 2 revised 2026-11-15). No fixture (a canvas is not parsed by the dialect). No question closed |

@@ -309,15 +309,66 @@ carried a recommendation; the maintainer decided. Open items answered
     `read_text`, `write_text`, `write_board`, `board_preview`,
     `read_file_text` and `links` of a board do the same; the revision is
     always that of the bytes on disk, and only the `file` strings of the
-    text are rewritten (invariant 7). `[OPEN]` *(2026-10-31: whether it waits
-    for after V1 is to be discussed with the maintainer on 2026-11-02. Decided
-    2026-11-01, 13 = b: **into V1**, after the terminal and the music are polished; not built)*: the
-    **sync** of a share to a device still carries a board's bytes as they are
-    on the server
-    (owner paths), and a share window without a table still joins the
-    board's whole room, whose cards it writes by the share's paths: both
-    need the same re-rooting and, for sync, a hash of the bytes the device
-    holds that is not the server's.
+    text are rewritten (invariant 7). *(2026-10-31: whether it waits for
+    after V1 was to be discussed with the maintainer on 2026-11-02; decided
+    2026-11-01, 13 = b: **into V1**, after the terminal and the music are
+    polished.)* The **sync** of a share to a device carried a board's bytes
+    as they are on the server (owner paths), and a share window without a
+    table joined the board's whole room, whose cards it writes by the
+    share's paths: both needed the same re-rooting and, for sync, a hash of
+    the bytes the device holds that is not the server's.
+    *Fixed 2026-11-15 (the room's half closed failing closed, before V.49
+    was built):* a share window without a table was no longer let into the
+    board's room and followed the board by its file, re-rooted, writing it
+    whole (`write_board`, laid over the disk). A **past version** of a board
+    read through a share (`history_read`) is re-rooted as the board is live,
+    a card beside the share locked; a board is not read as a note
+    (`read_note`) through a share; and a board whose file writes a key twice
+    is laid anew from the last of each key on the way out, never spliced
+    (ADR 0113, "Amended 2026-11-15: five more leaks").
+    *Built 2026-11-15 (V.49, the maintainer: "no hack, pull V.49 in";
+    `d849174e`, `c36fa5e4`, `2879cd93`):*
+    - **The share's sync carries the board cut to the share**
+      (`crates/verso-server/src/share_sync_board.rs`): on every path by
+      which a receiver's device gets a board — the manifest
+      (`sync_state`), the changes (`sync_changes`), the read (`sync_read`)
+      — it is the board as a window of the share reads it
+      (`share_board::text_out`, over the reader's projection for one who
+      reads only), named by the hash and size of that cut; on the way in
+      (`sync_put`) the device's text is held whole (16 MB at most), its
+      base judged against the cut of the file now, laid over the file
+      (`share_board::text_in`: the owner's paths, the cards beside the
+      share as the file has them) and written by the ordinary put over the
+      file's own hash, so a change landing between is refused as changed
+      (invariant 11). `sync_delete` and `sync_rename` name the cut's hash,
+      which the server turns into the file's own; a board is not renamed
+      through a share (by sync or by a window) into a name that is no
+      board, whose bytes would cross as they are; a refusal never names the
+      file's own hash. A change the owner makes only to what the share does
+      not see gives the same cut, so the device hears a change of the hash
+      it holds and does nothing; the device's own write is not heard back
+      as another file — the server keeps, in memory, the layout of the
+      text a device of the share last wrote (`share_board::shaped_like`: the
+      device's bytes when they read as the cut does, its key order
+      otherwise), so a restart costs a device at most one more fetch of
+      the board. The owner's devices, and any sync of the whole folder,
+      hold the file as it is.
+    - **A share window without a table joins the board's room through a
+      shadow** (`collab_players.rs`, the table player's shadow of ADR 0113
+      section H, cut by the share alone): cards re-rooted by
+      `share_board::element_out`/`element_in`, a card beside the share a
+      locked marker, the presence it hears cut to the elements it sees, its
+      edits judged element by element, the file it makes laid over the
+      disk. What `a57b305a` refused is answered again through the shadow; a
+      window of the share that only reads still follows the board by its
+      file. The Verso app of a synced device of the share joins the same
+      way (its room commands go over the sync's session, ADR 0082). *Chosen
+      in the code:* the share's shadow leaves secret pins out, as a
+      player's does (they stay in the file and in its re-rooted read): the
+      shadow judges by one rule; and a table made while a share's shadow is
+      open closes it, its windows joining again as players.
+    Tests: `tests_share_board_sync.rs`, `tests_share_board_room.rs`, and
+    the shadow and leak tests of `tests_board_shares.rs`.
 12. **Rooms** ([0073](0073-self-hosted-server-first.md) item 7). A note
     open through a share and through the owner's folder is **one room**:
     the room's place is the owner's folder key and the full path, which
@@ -483,4 +534,5 @@ answered the list: *"12. A 13. B 14. B - Mas vamos fazer depois, quero terminal 
   share carrying a board's bytes as they are on the server, and a share
   window without a table joining the board's whole room, **move into V1**,
   ordered after the terminal and the music are polished. `[DECIDED
-  2026-11-01, not built]`; the roadmap carries the row (V.49).
+  2026-11-01]`; **built 2026-11-15** (item 11, "Built 2026-11-15"; the
+  roadmap's row V.49).

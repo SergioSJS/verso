@@ -330,8 +330,9 @@
     font-size: 0.82rem;
     justify-content: center;
   }
+  /* Stacked in the desktop's order, top to bottom (ADR 0076: one order on every size). */
   .world-actions {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: stretch;
     gap: 0.6rem;
   }

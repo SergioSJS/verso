@@ -119,7 +119,7 @@ const LESSONS = [
       "3. Mova um cartão: a seta vai junto, mirando o mesmo ponto.\n" +
       "4. Duplo clique na seta escreve um rótulo.\n" +
       "5. Na coluna da esquerda, Tipo de seta: reta, curva, cotovelo, e as Pontas.\n" +
-      "6. Seta livre, presa a nada: segure ⌘ ao desenhar — ou, no toque, Inserir › Setas soltas.\n" +
+      "6. Seta livre, presa a nada: segure ⌘ ao desenhar — ou, no toque, Inserir › Setas soltas (no celular, ⋯ › Board › Setas soltas).\n" +
       "Entre dois cartões, a seta é uma conexão do canvas, que o Obsidian também mostra.",
     challenge: "Desafio: ligue Projeto Beta a Pesquisa e Descobertas e escreva “usa” na seta.",
     practice(b, x, y, f) {
@@ -179,7 +179,7 @@ const LESSONS = [
     title: "🗒️ Cartões do Verso",
     color: VIOLET,
     text:
-      "Inserir, na barra de ferramentas, põe coisas no board: imagem ou PDF, nota ou arquivo, texto, link. Ou solte uma imagem aqui, ou arraste da árvore.\n" +
+      "Inserir, na barra de ferramentas, põe coisas no board: imagem ou PDF, nota ou arquivo, texto, link (no celular, em ⋯ › Board). Ou solte uma imagem aqui, ou arraste da árvore.\n" +
       "• Duplo clique entra num cartão; mais um clique edita a nota ali mesmo. Esc sai.\n" +
       "• ↗ abre o arquivo numa aba; ⇄ troca o arquivo do cartão.\n" +
       "• Fundo e Preenchimento pintam o cartão.",

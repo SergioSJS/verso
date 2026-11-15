@@ -355,6 +355,10 @@ pub struct LocalAsked {
     /// It asked through the internet link (ADR 0117 D5): the address is
     /// the one the tunnel forwarded, and the question says so.
     pub link: bool,
+    /// The Verso app asks, not a browser (ADR 0117, "The Verso app
+    /// paired"): it keeps a copy of what it is given, and the question
+    /// says so.
+    pub app: bool,
 }
 
 /// The dialog's state, asked while it is open.

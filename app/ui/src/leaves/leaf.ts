@@ -99,6 +99,17 @@ export abstract class Leaf {
     this.el.addEventListener("focusin", () => this.pane.activate(this, false));
   }
 
+  /** The phone's ⋯ sheet (screen/phoneSheet.ts): this tab's own section,
+   *  between its folder and the app's verbs — a board's verbs; `done`
+   *  closes the sheet. None by default. */
+  sheetSection(_done: () => void): HTMLElement | null {
+    return null;
+  }
+  /** The phone's top bar (screen/phoneHead.ts): this tab's own undo and
+   *  redo buttons, which the bar's press — a board's. None by default. */
+  phoneHistory(): { undo: HTMLButtonElement; redo: HTMLButtonElement } | null {
+    return null;
+  }
   setTitle(title: string): void {
     this.tabName.textContent = title;
     // A pinned tab shows its icon alone: the tip names it.

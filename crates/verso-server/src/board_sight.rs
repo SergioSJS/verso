@@ -17,7 +17,15 @@
 //!   has — never the file's path, its name, its colour, its text;
 //! - **Gone**: nothing at all, not even a tombstone — a secret pin (ADR
 //!   0090 item 5) and what belongs to it: the edges that touch it, the
-//!   drawn elements bound to it, in it or grouped only with secret pins.
+//!   drawn elements bound to it, in it or grouped only with secret pins;
+//!   and a drawn element secret itself (`canvas_secret::drawn_is_secret`:
+//!   marked so, or the secret door of an imported dungeon, ADR 0120) with
+//!   what is bound to it — its groups hide nothing else.
+//!
+//! The file a player is served keeps only the keys a reader's projection
+//! keeps (`canvas_secret::PUBLIC_KEYS`, `PUBLIC_VERSO_KEYS`): an allowlist,
+//! so `verso.walls` and any key Verso does not know never reach a player
+//! (fix of 2026-11-15).
 //!
 //! The same function answers the other way: [`check`] judges an edit of the
 //! player's — a set of entries put and removed — against what they see,
@@ -88,15 +96,19 @@ fn is_secret(v: &Value) -> bool {
 /// key written twice counted, not only the last), marks a node secret.
 fn secret_as_the_file_reads_it(json: &str) -> bool {
     use verso_core::canvas::{Canvas, Json};
-    // The flag is a key spelled `secret`: an element that does not hold the
-    // word, and writes no escape that could spell it, cannot carry one. The
-    // parse below (a copy of the whole element) is for the rest.
-    if !json.contains("secret") && !json.contains('\\') {
+    // The flag is a key spelled `secret`, and an imported secret door is
+    // `dashed`: an element that holds neither word, and writes no escape
+    // that could spell one, is neither. The parse below (a copy of the whole
+    // element) is for the rest.
+    if !json.contains("secret") && !json.contains("dashed") && !json.contains('\\') {
         return false;
     }
     let Ok(c) = Canvas::parse(json) else {
         return false;
     };
+    if verso_core::canvas_secret::drawn_is_secret(&c.root) {
+        return true;
+    }
     let each = |of: &Json, key: &str| -> Vec<Json> {
         match of {
             Json::Object(e) => e
@@ -272,7 +284,12 @@ fn see_as(entries: &Entries, lock: &dyn Fn(&str) -> Option<String>, want_shown: 
     for (key, id, v) in &parsed {
         if is_secret(v) || secret_as_the_file_reads_it(&entries[*key]) {
             gone.insert((*id).to_owned());
-            shut.extend(groups(v).into_iter().map(str::to_owned));
+            // A pin shuts the groups only it holds; a secret drawn element
+            // (a stroke of a drawing, as the import's secret door is) hides
+            // itself, not the strokes it moves with.
+            if is_node(v) {
+                shut.extend(groups(v).into_iter().map(str::to_owned));
+            }
         }
     }
     for (_, id, v) in &parsed {
@@ -419,19 +436,63 @@ pub fn shape_canvas_seen(
     if let Some(Value::Array(items)) = out.pointer_mut("/verso/drawing") {
         items.retain(|v| class(v) == Class::Open);
     }
+    keep_public_keys(&mut out);
     out
+}
+
+/// `canvas` with only the keys a player may be served: an allowlist
+/// (`canvas_secret::PUBLIC_KEYS`, `PUBLIC_VERSO_KEYS`), so that a key it does
+/// not name — `verso.walls`, or one a later Verso or a plugin writes — is
+/// left out (fails closed). A `verso` that is no object is left out too.
+pub fn keep_public_keys(canvas: &mut Value) {
+    use verso_core::canvas_secret::{PUBLIC_KEYS, PUBLIC_VERSO_KEYS};
+    let Some(top) = canvas.as_object_mut() else {
+        return;
+    };
+    top.retain(|k, v| PUBLIC_KEYS.contains(&k.as_str()) && (k != "verso" || v.is_object()));
+    if let Some(verso) = top.get_mut("verso").and_then(Value::as_object_mut) {
+        verso.retain(|k, _| PUBLIC_VERSO_KEYS.contains(&k.as_str()));
+    }
+}
+
+/// What a player is served of a board that cannot be cut: nothing.
+const EMPTY: &str = "{\"nodes\":[],\"edges\":[]}\n";
+
+/// The board file `text` as the player's cut reads it, or `None` when the
+/// cut cannot be trusted with it (fails closed): not a canvas, not an
+/// object, or an object in it writes a key twice. Of a key written twice
+/// serde keeps the last, as the game master's window does when it draws
+/// the file into the room, and a reader's projection counts both
+/// (`canvas_secret`): `"verso":{"secret":true},"verso":{}` is a secret pin
+/// to one and an open card to the other. Such a file is served a player as
+/// an empty board, its room is not theirs to join, and no save of theirs is
+/// laid over it, until it is written once without (fix of 2026-11-15).
+#[must_use]
+pub fn player_reads(text: &str) -> Option<Value> {
+    let canvas = verso_core::canvas::Canvas::parse(text).ok()?;
+    if canvas.root.writes_a_key_twice() {
+        return None;
+    }
+    serde_json::from_str::<Value>(text)
+        .ok()
+        .filter(Value::is_object)
+}
+
+/// Whether the board file `text` is a canvas that writes a key twice in
+/// some object (see [`player_reads`]).
+#[must_use]
+pub fn writes_a_key_twice(text: &str) -> bool {
+    verso_core::canvas::Canvas::parse(text).is_ok_and(|c| c.root.writes_a_key_twice())
 }
 
 /// The text of the board file `whole` as a player who edits it is served it:
 /// [`shape_canvas`], laid over the file in its own layout (every token that
-/// did not change kept). Fails closed: a file that is not a canvas is served
-/// as an empty one.
+/// did not change kept). Fails closed: a file the cut cannot read
+/// ([`player_reads`]) is served as an empty board.
 #[must_use]
 pub fn shaped_text(whole: &str, lock: &dyn Fn(&str) -> Option<String>) -> String {
     use verso_core::canvas::Canvas;
-    const EMPTY: &str = "{\"nodes\":[],\"edges\":[]}\n";
-    let (Ok(canvas), Ok(value)) = (Canvas::parse(whole), serde_json::from_str::<Value>(whole))
-    else {
+    let (Ok(canvas), Some(value)) = (Canvas::parse(whole), player_reads(whole)) else {
         return EMPTY.to_owned();
     };
     laid_over(&canvas, &shape_canvas(&value, lock))
@@ -442,15 +503,15 @@ pub fn shaped_text(whole: &str, lock: &dyn Fn(&str) -> Option<String>) -> String
 #[must_use]
 pub fn shaped_text_from(whole: &str, shaped: &Value) -> String {
     match verso_core::canvas::Canvas::parse(whole) {
-        Ok(canvas) => laid_over(&canvas, shaped),
-        Err(_) => "{\"nodes\":[],\"edges\":[]}\n".to_owned(),
+        Ok(canvas) if !canvas.root.writes_a_key_twice() => laid_over(&canvas, shaped),
+        _ => EMPTY.to_owned(),
     }
 }
 
 fn laid_over(canvas: &verso_core::canvas::Canvas, shaped: &Value) -> String {
     match verso_core::canvas::Canvas::parse(&shaped.to_string()) {
         Ok(new) => canvas.merged(new.root).write(),
-        Err(_) => "{\"nodes\":[],\"edges\":[]}\n".to_owned(),
+        Err(_) => EMPTY.to_owned(),
     }
 }
 
@@ -639,6 +700,20 @@ pub fn lay_over(
         return None;
     }
     Some(out)
+}
+
+/// [`lay_over`] of the board file `disk` as it is on disk: `None` as well
+/// when the player's cut cannot read it ([`player_reads`]) — a file that
+/// writes a key twice could hold a secret pin serde does not see, and the
+/// file made of the player's window would drop it.
+#[must_use]
+pub fn lay_over_text(
+    disk: &str,
+    player: &Value,
+    lock: &dyn Fn(&str) -> Option<String>,
+    sees_file: &dyn Fn(&str) -> bool,
+) -> Option<Value> {
+    lay_over(&player_reads(disk)?, player, lock, sees_file)
 }
 
 /// One change to a room's entries.

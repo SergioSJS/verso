@@ -165,7 +165,7 @@ app/
 ### Mandatory tutorial & user-facing updates ([ADR 0058](docs/adr/0058-demo-vault-as-tutorial.md))
 Every change a user can see must update:
 1. **Bilingual UI strings:** Add both pt-BR and EN entries in `app/ui/src/strings.ts` ([ADR 0035](docs/adr/0035-cross-cutting-requirements.md)).
-2. **Changelog:** Add an entry under `## Unreleased` in `CHANGELOG.md`, in English only; `docs/pt-BR/CHANGELOG.md` gets the entries translated when a version is cut ([ADR 0008](docs/adr/0008-documentation-language.md) item 2a).
+2. **Changelog:** Add an entry under `## Unreleased` in `CHANGELOG.md` and its Portuguese translation under `## Não lançado` in `docs/pt-BR/CHANGELOG.md`, in the same change ([ADR 0008](docs/adr/0008-documentation-language.md) item 2a, withdrawn 2026-11-15: Verso has public releases).
 3. **The demo vault tutorials (`demo-vault/` and `demo-vault-en/`):**
    - Add or update the lesson note in both `demo-vault/` (pt-BR) and `demo-vault-en/` (EN), paired in `scripts/demo-vault/names.mjs`.
    - Update `scripts/demo-vault/tour.mjs` (and `scripts/demo-vault/treino.mjs` for board features).

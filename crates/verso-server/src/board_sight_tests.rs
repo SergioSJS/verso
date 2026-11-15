@@ -238,6 +238,93 @@ fn the_file_of_a_board_is_shaped_the_same_way() {
     assert!(!shaped.to_string().contains("zqpin"));
 }
 
+/// A dungeon as the import of 0.9.0-beta.2 drew it: the floor, the secret
+/// door as a dashed line of stroke 3 (unmarked), a stroke marked secret,
+/// all in the drawing's one group; its walls under `verso`, and keys Verso
+/// does not know.
+fn dungeon() -> Value {
+    json!({
+        "nodes": [ { "id": "n1", "type": "text", "text": "sala", "x": 0, "y": 0, "width": 1, "height": 1 } ],
+        "edges": [],
+        "zqtop": { "plan": 1 },
+        "verso": { "version": 1, "background": "#fdf6e3", "zqverso": 2,
+            "drawing": [
+                { "id": "floor", "type": "rectangle", "groupIds": ["wb-dungeon"], "strokeStyle": "solid", "strokeWidth": 1 },
+                { "id": "zqdoor", "type": "line", "groupIds": ["wb-dungeon"], "strokeStyle": "dashed", "strokeWidth": 3 },
+                { "id": "zqmarked", "type": "line", "groupIds": ["wb-dungeon"], "customData": { "verso": { "secret": true } } },
+                { "id": "zqlabel", "type": "text", "text": "zqlabeltext", "containerId": "zqmarked" },
+            ],
+            "walls": { "version": 1, "doors": [ { "kind": "secret", "zqwall": true } ] } },
+    })
+}
+
+const DUNGEON_LEAKS: [&str; 7] = [
+    "zqtop", "zqverso", "zqwall", "walls", "zqdoor", "zqmarked", "zqlabel",
+];
+
+#[test]
+fn a_player_is_served_only_the_keys_of_a_board_a_reader_is() {
+    let shaped = shape_canvas(&dungeon(), &none);
+    let text = shaped.to_string();
+    for leak in DUNGEON_LEAKS {
+        assert!(!text.contains(leak), "{leak} reached a player: {text}");
+    }
+    let drawn: Vec<&str> = shaped["verso"]["drawing"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|d| d["id"].as_str())
+        .collect();
+    // The floor is grouped with the secret door and stays: a secret stroke
+    // hides itself, not the strokes it moves with.
+    assert_eq!(drawn, ["floor"]);
+    assert_eq!(shaped["verso"]["background"], "#fdf6e3");
+    assert_eq!(shaped["verso"]["version"], 1);
+    assert_eq!(shaped["nodes"][0]["id"], "n1");
+    // The text in the file's own layout says the same.
+    let laid = shaped_text(&dungeon().to_string(), &none);
+    for leak in DUNGEON_LEAKS {
+        assert!(!laid.contains(leak), "{leak} in the text: {laid}");
+    }
+    // A `verso` that is no object is not served either.
+    let odd = shape_canvas(&json!({ "nodes": [], "verso": "zqodd" }), &none);
+    assert!(odd.get("verso").is_none(), "{odd}");
+}
+
+#[test]
+fn the_secret_door_in_a_room_is_gone_and_its_group_stays_open() {
+    let mut items: Vec<Value> = dungeon()["verso"]["drawing"].as_array().unwrap().clone();
+    items.push(card("c1", "Livre.md"));
+    let s = see(&room(&items), &none);
+    assert_eq!(s.class["floor"], Class::Open);
+    for id in ["zqdoor", "zqmarked", "zqlabel"] {
+        assert_eq!(s.class[id], Class::Gone, "{id}");
+    }
+    assert!(s.shut.is_empty(), "{:?}", s.shut);
+    let shown: String = s.shown.values().cloned().collect();
+    for leak in ["zqdoor", "zqmarked", "zqlabel"] {
+        assert!(!shown.contains(leak), "{leak}: {shown}");
+    }
+    // A player does not draw one, nor change the floor into one.
+    let mut door = items[1].clone();
+    door["id"] = json!("mine");
+    door["version"] = json!(1);
+    door["versionNonce"] = json!(7);
+    let (k, v) = entry(&door);
+    let disk = BTreeMap::new();
+    assert!(
+        check(
+            &[Op::Put(k, v)],
+            &room(&items),
+            &s,
+            &disk,
+            &none,
+            &sees_file
+        )
+        .is_err()
+    );
+}
+
 #[test]
 fn a_players_canvas_never_writes_over_what_they_do_not_see() {
     let disk = json!({
@@ -660,4 +747,61 @@ fn elements_that_share_an_id_are_laid_over_unless_one_is_hidden_from_the_player(
     ], "edges": [] });
     let lock = |f: &str| (f == "oculta.md").then(|| "trancado".to_owned());
     assert!(lay_over(&hidden, &player, &lock, &|_| true).is_none());
+}
+
+/// Boards whose files write a key twice, each read by serde (the last of
+/// the two) as an open card where a reader's projection sees a secret pin
+/// (B of the audit of 2026-11-15).
+const TWICE: [&str; 4] = [
+    r#"{"nodes":[{"id":"zqtwice","type":"text","text":"zqtwicetext","verso":{"secret":true},"verso":{}}],"edges":[]}"#,
+    r#"{"nodes":[{"id":"zqtwice","type":"text","text":"zqtwicetext","verso":{"secret":true,"secret":false}}],"edges":[]}"#,
+    r#"{"nodes":[{"id":"zqtwice","type":"text","text":"zqtwicetext","verso":{"secret":true}}],"nodes":[],"edges":[]}"#,
+    r#"{"nodes":[],"edges":[],"verso":{"version":1,"drawing":[{"id":"zqtwice","type":"line","customData":{"verso":{"secret":true}},"customData":{}}]}}"#,
+];
+
+#[test]
+fn a_board_that_writes_a_key_twice_is_served_a_player_as_an_empty_one() {
+    for board in TWICE {
+        // What a reader is served: the projection counts both.
+        let reader = verso_core::canvas_secret::project(board).into_owned();
+        assert!(!reader.contains("zqtwice"), "{reader}");
+        // What a player who edits it is served: nothing of it either.
+        let shown = shaped_text(board, &none);
+        assert!(!shown.contains("zqtwice"), "{board}: {shown}");
+        assert!(player_reads(board).is_none(), "{board}");
+        assert!(writes_a_key_twice(board), "{board}");
+        // The shaped text of an already shaped canvas fails closed too.
+        let from = shaped_text_from(board, &json!({ "nodes": [], "edges": [] }));
+        assert!(!from.contains("zqtwice"), "{from}");
+    }
+    // A board that writes each key once is served as before.
+    let once = r#"{"nodes":[{"id":"a","type":"text","text":"x","verso":{"secret":true}},{"id":"b","type":"text","text":"y"}],"edges":[]}"#;
+    assert!(!writes_a_key_twice(once));
+    let shown = shaped_text(once, &none);
+    assert!(
+        shown.contains("\"b\"") && !shown.contains("\"a\""),
+        "{shown}"
+    );
+}
+
+#[test]
+fn a_players_save_is_never_laid_over_a_file_that_writes_a_key_twice() {
+    // The player was shown the pin as an open card (serde's reading) and
+    // drops it: laid over the file serde reads, the pin would be lost.
+    let player = json!({ "nodes": [], "edges": [] });
+    for board in &TWICE[..3] {
+        let serde_read: Value = serde_json::from_str(board).unwrap();
+        let old = lay_over(&serde_read, &player, &none, &|_| true);
+        assert!(
+            old.is_none_or(|v| !v.to_string().contains("zqtwice")),
+            "the read serde makes drops the pin: the case this guards"
+        );
+        assert!(
+            lay_over_text(board, &player, &none, &|_| true).is_none(),
+            "{board}"
+        );
+    }
+    // A file that writes each key once is laid over as before.
+    let once = r#"{"nodes":[{"id":"a","type":"text","text":"x"}],"edges":[]}"#;
+    assert!(lay_over_text(once, &player, &none, &|_| true).is_some());
 }

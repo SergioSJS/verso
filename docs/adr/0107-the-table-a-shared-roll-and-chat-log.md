@@ -195,7 +195,9 @@ author's recommendation, accepted as built on 2026-10-28 (see "Status").
 
 10. **Where the panel goes.** `[DECIDED 2026-10-21]` **A panel of the
     side area** (option A), like Backlinks or Outline, which the user may
-    move as any panel; on the phone, a sheet from the bottom. Not taken: a
+    move as any panel; on the phone, a sheet over the page that comes in from
+    the right as the right panel does (rose from the bottom until 2026-11-15,
+    when the maintainer found a right-to-left swipe raising it odd). Not taken: a
     bar along the bottom (B), a floating drawer (C).
 
 11. **Each roller's own dice.** `[DECIDED 2026-10-21]` Everyone has

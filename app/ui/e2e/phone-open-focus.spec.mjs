@@ -38,7 +38,7 @@ test("opened by a tap on a touch screen, Settings and the palette focus no field
   // By a tap on a phone (its bottom bar and drawer): no field, no keyboard; the dialog holds the focus.
   if (!(await page.locator(".bottom-bar").isVisible())) return;
   await page.locator(".bottom-bar .bar-files").click();
-  await page.locator(".side-foot-item").first().click();
+  await page.locator(".side-foot-item:visible").last().click();
   await expect(page.locator(".settings-search")).toBeVisible();
   expect(await field()).toBe(!isTouch);
   if (isTouch) await expect(page.locator(".quick.settings")).toBeFocused();

@@ -10,6 +10,7 @@
 import { fitName } from "../attachName";
 import type { Dungeon, DungeonText } from "./dungeon";
 import { dungeonBody } from "./dungeon";
+import type { PictureInfo } from "./picture";
 import { type Danger, type Region, type Town, generatorOf } from "./region";
 
 /** Verso's words in a note, in the interface's language. */
@@ -69,7 +70,7 @@ const base = (path: string): string => path.split("/").pop() ?? path;
 /** The dungeon's note: its properties, then the generator's Markdown when
  *  it came (else the same made from the JSON), then the pictures that came
  *  with it. `board` and `json` are the paths the import made. */
-export function dungeonNote(o: { json: Dungeon | null; md: DungeonText | null; board: string | null; jsonFile: string | null; pictures: string[] }): string {
+export function dungeonNote(o: { json: Dungeon | null; md: DungeonText | null; board: string | null; jsonFile: string | null; pictures: string[]; turned?: string | null }): string {
   const props = frontMatter([
     ["generator", "one-page-dungeon"],
     ["generator_version", o.json?.version ?? null],
@@ -81,7 +82,9 @@ export function dungeonNote(o: { json: Dungeon | null; md: DungeonText | null; b
   ]);
   const body = o.md ? o.md.text.replace(/\r\n?/g, "\n") : o.json ? dungeonBody(o.json) : "";
   const pictures = o.pictures.map((p) => `![[${base(p)}]]`).join("\n\n");
-  return `${props}${body.trimEnd()}\n${pictures ? `\n${pictures}\n` : ""}`;
+  // Verso's own word, when the picture came turned: how to export it square.
+  const turned = o.turned ? `\n> [!warning]\n> ${o.turned}\n` : "";
+  return `${props}${body.trimEnd()}\n${pictures ? `\n${pictures}\n` : ""}${turned}`;
 }
 
 /** The region's note: its properties, the towns and the dangers as links
@@ -152,4 +155,35 @@ export function placeNamed(r: Region, name: string): { town: Town } | { danger: 
   if (town) return { town };
   const danger = r.dangers.find((d) => is(d.name));
   return danger ? { danger } : null;
+}
+
+/** A village's or a city's note (ADR 0120, revised 2026-11-15): its
+ *  properties, its name, and its pictures. The GeoJSON has no name: the
+ *  title is the file's, as a house's. */
+export function settlementNote(o: { title: string; generator: string; version: string | null; board: string | null; jsonFile: string | null; pictures: string[] }): string {
+  const props = frontMatter([
+    ["generator", o.generator],
+    ["generator_version", o.version],
+    ["map", o.board ? `[[${base(o.board)}]]` : null],
+    ["export", o.jsonFile ? `[[${base(o.jsonFile)}]]` : null],
+    ["credit", CREDIT],
+  ]);
+  const pictures = o.pictures.map((p) => `![[${base(p)}]]`).join("\n\n");
+  return `${props}# ${o.title}\n${pictures ? `\n${pictures}\n` : ""}`;
+}
+
+/** The width a village's or a city's picture is laid at on the board. */
+export const SETTLEMENT_WIDTH = 2000;
+
+/** A village's or a city's board: its picture as the map (ADR 0090), the
+ *  note as a card beside it. */
+export function settlementBoard(path: string, picture: PictureInfo, notePath: string): { nodes: Record<string, unknown>[]; edges: never[] } {
+  const height = Math.round((SETTLEMENT_WIDTH * picture.height) / picture.width);
+  return {
+    nodes: [
+      { id: "wv-map", type: "file", file: path, x: 0, y: 0, width: SETTLEMENT_WIDTH, height, verso: { map: true, locked: true } },
+      { id: "wv-note", type: "file", file: notePath, x: SETTLEMENT_WIDTH + 80, y: 0, width: 480, height: 480 },
+    ],
+    edges: [],
+  };
 }

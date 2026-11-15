@@ -14,7 +14,7 @@ import type { MapInfo } from "../bindings";
 import { type View } from "./cards";
 import { fitted, levelFor, nearestFirst, pinPoint, tilesIn, TileCache, type TileRef } from "./maps";
 import { type MapStrings } from "./mapStrings";
-import { type CanvasNode, type El, isSecret, nodeData, nodeName } from "./model";
+import { type CanvasNode, type El, isSecret, nodeData, nodeName, pinKey } from "./model";
 import { BoardHost } from "./types";
 
 /** The board's view as it moves: a function that calls back with each new
@@ -256,14 +256,17 @@ export function PinLayer({
         const name = nodeName(node, host.strings);
         const sticker = host.sticker !== undefined && !missing;
         const secret = isSecret(node);
+        // A room's key of an imported map (ADR 0120): its number, on the
+        // picture's own number, and no name beside it.
+        const key = pinKey(node);
         return (
           <button
             key={p.id}
             type="button"
-            className={`board-pin${selected.includes(p.id) ? " is-selected" : ""}${secret ? " is-secret" : ""}${missing ? " is-missing" : ""}`}
+            className={`board-pin${key !== null ? " is-key" : ""}${selected.includes(p.id) ? " is-selected" : ""}${secret ? " is-secret" : ""}${missing ? " is-missing" : ""}`}
             data-pin={p.id}
             data-preview-path={missing ? undefined : file}
-            aria-label={strings.pinOpen(name) + (secret ? ` (${strings.secretCard})` : "")}
+            aria-label={(key !== null ? strings.pinKey(name, key) : strings.pinOpen(name)) + (secret ? ` (${strings.secretCard})` : "")}
             onClick={(e) => open(p.id, e.metaKey || e.ctrlKey)}
             onKeyDown={(e) => {
               if (remove && (e.key === "Delete" || e.key === "Backspace")) {
@@ -274,9 +277,9 @@ export function PinLayer({
             }}
           >
             <span className="board-pin-mark" aria-hidden="true">
-              {sticker ? <Sticker host={host} file={file} /> : <PinIcon />}
+              {key !== null ? key : sticker ? <Sticker host={host} file={file} /> : <PinIcon />}
             </span>
-            <span className="board-pin-label">{name}</span>
+            {key === null && <span className="board-pin-label">{name}</span>}
             {secret && <SecretBadge node={node} strings={strings} served={served} />}
           </button>
         );

@@ -15,6 +15,7 @@ import { isBarePicture } from "./cards";
 import { flagged, keptIds, mapAt, mapGroup, mapsOf, pinNode } from "./maps";
 import { mapStrings } from "./mapStrings";
 import { type CanvasDoc, type CanvasNode, type El, fromElements, isMap, isSecret, nodeData, nodeName, parseCanvas, toElements } from "./model";
+import { isTraced, tracingLook } from "./tracing";
 import { BoardHost } from "./types";
 import { randomId } from "./util";
 import { Api } from "./view";
@@ -136,6 +137,15 @@ export function mapActions({ api, host, touched, center, dragFrom }: MapDeps) {
         captureUpdate: done ? CaptureUpdateAction.IMMEDIATELY : CaptureUpdateAction.NEVER,
       });
       if (done) from.delete(id);
+    },
+    /** The map's tracing shown to edit, or hidden again (ADR 0120): one
+     *  step, undone as one. */
+    showTracing(show: boolean): void {
+      const a = api.current;
+      if (!a) return;
+      touched.current = true;
+      a.updateScene({ elements: scene().map((e) => (isTraced(e) ? newElementWith(e, tracingLook(show)) : e)), captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+      host.status(show ? ms.tracingShown : ms.tracingHidden);
     },
   };
 }

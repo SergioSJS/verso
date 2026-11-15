@@ -280,6 +280,45 @@ for the maintainer to confirm. The button takes no key (Excalidraw's tool keys
 are untouched). The new card's `dice:` codes roll as in any text card
 (ADR 0088).
 
+**A board on a phone (2026-11-15).** The maintainer, from his Android phone:
+the board/text toggle on a row of its own, Excalidraw's menu and Verso's four
+tools on another, undo and redo on a third, the drawing tools in a padded card
+over the app's bottom bar — *"the button experience is quite bad; badly
+placed, scattered everywhere, taking space, the useful area becomes tiny"*.
+Three prototypes on the real board; he chose C with one change (one column
+sideways). Under the phone's measure (`PHONE_MEDIA`, ADR 0076; Excalidraw's
+form factor follows it through `UIOptions.getFormFactor`):
+
+- The canvas keeps **only the drawing tools**, in the desktop toolbar's order
+  (hand, selection, shapes, arrows, pencil, text, eraser, more): held upright, one flush bar at
+  the board's foot, in the place of the app's bottom bar while a board that
+  draws is in front; held sideways, one column at the right edge (clear of
+  the right safe area), all eight tools in it, sharing the height under the
+  top bar (43 px each on a 390 px screen). Excalidraw shows its text tool
+  outside "more" only on a toolbar at least 316 px wide: the toolbar keeps
+  that width, see-through, its tools at the column's edge.
+- **Board | Text**, then, in the desktop's order (ADR 0076, one order on
+  every size), Excalidraw's menu (*Export, background and help*), the
+  **Text card**, Insert's items (picture or PDF, note or file, link, web
+  page), **Loose arrows**, the **search** and the **outline** move to a
+  **Board** section of the top bar's ⋯ sheet, with *Who sees* at a table
+  (`app/ui/src/board/phoneVerbs.ts`, `app/ui/src/leaves/boardSheet.ts`).
+  The text face keeps its row, the way back to the board.
+- **Undo and redo** are the top bar's (pressing Excalidraw's own, off as
+  they are).
+- What acts on a **selection** — Excalidraw's style island, and Verso's open,
+  swap, crop, page, map and relation tools in the top-right island — shows
+  only while there is one; the search's field shows once used; the outline
+  lies over the board with its own close.
+- Fixed with it: Excalidraw's "leave view mode" pencil (the window holds the
+  view mode of a reader's board and of a plugin drawing) and its picture tool
+  (off on a board) are not drawn; a plugin drawing's bar is one row on a
+  phone.
+- On a phone the files and the right panel are a tab on each edge of the
+  board (ADR 0076), the swipe never starting on its canvas.
+- Desktop and tablet are unchanged. Tried in `e2e/board-phone.spec.mjs` and
+  `test/boardPhone.test.mjs`; the stylesheet is `app/ui/css/boardphone.css`.
+
 ## Consequences
 
 - ADR 0040 is decided by point 2; ADR 0024's semantic layer by point 4; ADR

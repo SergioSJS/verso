@@ -18,6 +18,9 @@ export type ScreenStrings = {
   barBack: string;
   barCommands: string;
   barPanel: string;
+  /** The side panels' handles over a canvas (edgeHandles.ts). */
+  edgeFiles: string;
+  edgePanel: string;
   /** The phone's one top bar (2026-11-14): the open tabs behind a count,
    *  the note's name and folder, a mode button; the rest in a sheet. */
   openTabs: (n: number) => string;
@@ -30,6 +33,16 @@ export type ScreenStrings = {
   sheetVerbs: string;
   closeTab: (name: string) => string;
   barAlways: string;
+  /** Under the bar's switch while a board that draws is open: its tools take the bar's place. */
+  barBoardNote: string;
+  /** Whether a sideways swipe brings the side panels (screen/swipe.ts). */
+  swipePanels: string;
+  /** Settings › Appearance, under the phone group: what the swipe does and
+   *  when to turn it off. */
+  swipePanelsDesc: string;
+  barAlwaysDesc: string;
+  /** Settings › Appearance: the group of the phone's own switches. */
+  phoneGroup: string;
   showBar: string;
   hideBar: string;
   /** The pane switcher of a split layout on a phone (item 2). */
@@ -130,6 +143,8 @@ const pt: ScreenStrings = {
   barBack: "Voltar",
   barCommands: "Comandos",
   barPanel: "Painel",
+  edgeFiles: "Abrir os arquivos",
+  edgePanel: "Abrir o painel da direita",
   openTabs: (n) => (n === 1 ? "1 aba aberta" : `${n} abas abertas`),
   headTitle: (name) => `${name} — abas, caminho e modo`,
   modeToEdit: "Leitura. Tocar para editar",
@@ -140,6 +155,11 @@ const pt: ScreenStrings = {
   sheetVerbs: "Ações",
   closeTab: (name) => `Fechar ${name}`,
   barAlways: "Barra inferior sempre visível",
+  barBoardNote: "Num board, as ferramentas de desenho ficam no lugar dela.",
+  swipePanels: "Deslizar para o lado abre os painéis",
+  swipePanelsDesc: "Arraste da direita para a esquerda para o painel da direita e da esquerda para a direita para os arquivos, começando longe da borda. Desligue se o gesto se confunde com o Voltar do celular.",
+  barAlwaysDesc: "Arquivos, Buscar, Nova nota e o resto ficam embaixo. Desligada, eles ficam no ⋯ da barra de cima.",
+  phoneGroup: "Celular",
   showBar: "Mostrar a barra inferior",
   hideBar: "Ocultar a barra inferior",
   paneSwitch: (i, n) => `Painel ${i} de ${n}`,
@@ -219,6 +239,8 @@ const en: ScreenStrings = {
   barBack: "Back",
   barCommands: "Commands",
   barPanel: "Panel",
+  edgeFiles: "Open the files",
+  edgePanel: "Open the right panel",
   openTabs: (n) => (n === 1 ? "1 open tab" : `${n} open tabs`),
   headTitle: (name) => `${name} — tabs, path and mode`,
   modeToEdit: "Reading. Tap to edit",
@@ -229,6 +251,11 @@ const en: ScreenStrings = {
   sheetVerbs: "Actions",
   closeTab: (name) => `Close ${name}`,
   barAlways: "Bottom bar always shown",
+  barBoardNote: "On a board, the drawing tools take its place.",
+  swipePanels: "Swipe sideways to open the panels",
+  swipePanelsDesc: "Swipe right to left for the right panel and left to right for the files, starting away from the edge. Turn it off if the gesture gets mixed up with the phone's Back.",
+  barAlwaysDesc: "Files, Search, New note and the rest stay at the bottom. Off, they are in the top bar's ⋯.",
+  phoneGroup: "Phone",
   showBar: "Show the bottom bar",
   hideBar: "Hide the bottom bar",
   paneSwitch: (i, n) => `Pane ${i} of ${n}`,

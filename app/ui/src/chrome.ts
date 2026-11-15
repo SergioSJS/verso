@@ -41,6 +41,9 @@ export function paintExpanded(): void {
   // The table's unread count follows whether the right panel is on screen (ADR 0107 item 13).
   dispatchEvent(new Event("verso:table-visibility"));
   toggleSideButton.setAttribute("aria-expanded", String(sideShown()));
+  // The phone's bottom bar (and the edge tab) open the same drawer: they say
+  // whether it is out, as the panel's buttons do below.
+  for (const b of document.querySelectorAll<HTMLElement>(".bar-files")) b.setAttribute("aria-expanded", String(sideShown()));
   const shown = rightShown();
   // Named for what a press does now, with its keys: "Mostrar painel da
   // direita (⌘⌥→)". The same name on every control that toggles it.

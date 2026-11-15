@@ -57,8 +57,12 @@ pub async fn file(ctx: Ctx, Path((folder, path)): Path<(String, String)>) -> Api
         scope,
     );
     // One who is told the projections is sent no note, under any name: a
-    // link to one is refused as the note is (ADR 0087 item 4).
-    let reads_only = door.projects();
+    // link to one is refused as the note is (ADR 0087 item 4). Nor is a
+    // player of a table, whatever their role in the folder: a board is cut
+    // for them (its walls, its secret pins, the cards of what they do not
+    // see) and a note veiled, which the bytes on disk are not (fix of
+    // 2026-11-15: a folder's editor at a table was sent a board whole).
+    let reads_only = door.projects() || door.veiled();
     // A file a table's game master has not released is not there to a
     // player: not found, as a file that does not exist (ADR 0110 item 4).
     if door.veiled() {

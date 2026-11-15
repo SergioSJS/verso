@@ -9,7 +9,11 @@
 // and the walls kept beside them for the table's vision to come (ADR 0120
 // item 3). Pure: the elements are partial, the board restores them.
 
+import { PIN_BOX } from "../board/maps";
+import type { Fit } from "./align";
 import type { Cell, Door, Dungeon } from "./dungeon";
+import { type Affine, apply, compose } from "./picture";
+import { asTracing, placeDrawn, placeSeg } from "./trace";
 
 /** One cell of the dungeon on the board, in pixels: twice Excalidraw's
  *  grid step, so the rooms sit on the board's grid when it is on. */
@@ -54,13 +58,18 @@ export function doorKind(type: number): DoorKind {
 /** The walls as they are stored (ADR 0120 item 3, the author's format):
  *  segments in the board's pixels, the same space as the drawing, so they
  *  lie on its lines; doors as the segment across their way with the
- *  generator's number. Nothing reads them yet. */
+ *  generator's number. Nothing reads them yet, and a UniVerso serves them
+ *  to nobody but the game master (a secret door is named in them). */
 export type Walls = {
   version: 1;
   generator: "one-page-dungeon";
   cell: number;
   lines: [number, number, number, number][];
   doors: { line: [number, number, number, number]; type: number; kind: DoorKind }[];
+  /** Where a cell `(x, y)` of the generator's JSON is on the board, as an
+   *  SVG matrix `[a, b, c, d, e, f]`: written when the drawing lies over the
+   *  generator's picture, turned with it. */
+  grid?: number[];
 };
 
 export type DungeonDrawing = {
@@ -68,6 +77,8 @@ export type DungeonDrawing = {
   walls: Walls;
   /** The drawing's box on the board. */
   box: { x: number; y: number; width: number; height: number };
+  /** The keys' numbers and where they are on the board. */
+  keys: { ref: string; x: number; y: number }[];
 };
 
 const key = (x: number, y: number): string => `${x},${y}`;
@@ -184,8 +195,10 @@ const round = (n: number): number => Math.round(n * 100) / 100;
 
 /** The drawing of a dungeon, its top-left corner at the board's (0, 0),
  *  every element in one group so that it moves as one; `id` prefixes the
- *  elements' ids. */
-export function drawDungeon(d: Dungeon, id = "wb"): DungeonDrawing {
+ *  elements' ids. With `place` (where the generator's picture puts a cell
+ *  on the board, `align.ts`), the drawing is moved and turned onto the
+ *  picture and made its tracing, hidden (`trace.ts`). */
+export function drawDungeon(d: Dungeon, id = "wb", place: Affine | null = null): DungeonDrawing {
   const cells = floorCells(d);
   const minX = Math.min(...d.rects.map((r) => r.x));
   const minY = Math.min(...d.rects.map((r) => r.y));
@@ -227,10 +240,11 @@ export function drawDungeon(d: Dungeon, id = "wb"): DungeonDrawing {
   for (const w of runs(d.water, (c) => cells.has(key(c.x, c.y)))) {
     base("rectangle", px(w.x), py(w.y), w.w * CELL, w.h * CELL, { strokeColor: "transparent", backgroundColor: WATER, strokeWidth: 1 });
   }
-  // Columns, in the middle of their cells.
+  // Columns, on the grid's corners, where the generator draws them (seen
+  // over its picture, 2026-11-15: a column's point is a corner, not a cell).
   for (const c of d.columns) {
     const s = CELL * 0.5;
-    base("ellipse", px(c.x) + (CELL - s) / 2, py(c.y) + (CELL - s) / 2, s, s, { backgroundColor: INK, strokeWidth: 1 });
+    base("ellipse", px(c.x) - s / 2, py(c.y) - s / 2, s, s, { backgroundColor: INK, strokeWidth: 1 });
   }
   // The walls: the outline of the floor, one closed line per outline.
   const lines: Walls["lines"] = [];
@@ -289,10 +303,32 @@ export function drawDungeon(d: Dungeon, id = "wb"): DungeonDrawing {
       autoResize: true,
     });
   }
+  const keys = d.keys.filter((k) => Number.isFinite(k.x) && Number.isFinite(k.y) && k.ref !== "").map((k) => ({ ref: k.ref, x: round((k.x - minX) * CELL), y: round((k.y - minY) * CELL) }));
+  const walls: Walls = { version: 1, generator: "one-page-dungeon", cell: CELL, lines, doors };
+  const box = { x: 0, y: 0, width: (maxX - minX) * CELL, height: (maxY - minY) * CELL };
+  const cellsAt = place;
+  if (!cellsAt) return { elements, walls, box, keys };
+  // The drawing's own space (a cell is CELL pixels, from the dungeon's
+  // corner) to the board's, through the generator's cells.
+  const m = compose(cellsAt, [1 / CELL, 0, 0, 1 / CELL, minX, minY]);
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const r of d.rects) {
+    for (const [cx, cy] of [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.h], [r.x + r.w, r.y + r.h]] as const) {
+      const [x, y] = apply(cellsAt, cx, cy);
+      xs.push(x);
+      ys.push(y);
+    }
+  }
   return {
-    elements,
-    walls: { version: 1, generator: "one-page-dungeon", cell: CELL, lines, doors },
-    box: { x: 0, y: 0, width: (maxX - minX) * CELL, height: (maxY - minY) * CELL },
+    // The title is the picture's own: the tracing keeps the rooms.
+    elements: asTracing(placeDrawn(d.title ? elements.slice(0, -1) : elements, m)),
+    walls: { ...walls, lines: lines.map((l) => placeSeg(l, m)), doors: doors.map((x) => ({ ...x, line: placeSeg(x.line, m) })), grid: cellsAt.map((v) => Math.round(v * 1e4) / 1e4) },
+    box: { x: round(Math.min(...xs)), y: round(Math.min(...ys)), width: round(Math.max(...xs) - Math.min(...xs)), height: round(Math.max(...ys) - Math.min(...ys)) },
+    keys: keys.map((k) => {
+      const [x, y] = apply(m, k.x, k.y);
+      return { ref: k.ref, x: round(x), y: round(y) };
+    }),
   };
 }
 
@@ -328,7 +364,10 @@ function drawDoor(kind: DoorKind, door: Door, cx: number, cy: number, base: Make
       box(long, thin, { backgroundColor: FLOOR });
       return box(long * 0.4, thin * 0.4, { backgroundColor: INK, strokeWidth: 1 });
     case "secret":
-      return across({ strokeStyle: "dashed", strokeWidth: 3 });
+      // The game master's alone: marked secret, so a UniVerso leaves it out
+      // of what a player or a reader is served (the cut of the drawing,
+      // `canvas_secret::drawn_is_secret`). Its group is not shut by it.
+      return across({ strokeStyle: "dashed", strokeWidth: 3, customData: { verso: { secret: true } } });
     case "portcullis":
       return across({ strokeStyle: "dotted", strokeWidth: 3 });
     case "arch": {
@@ -349,15 +388,35 @@ function drawDoor(kind: DoorKind, door: Door, cx: number, cy: number, base: Make
   }
 }
 
+/** The group of a map's picture and its pins (ADR 0090 item 3). */
+export const MAP_GROUP = "wb-map-pins";
+
 /** The board of an imported dungeon: the drawing, the walls kept under
  *  `verso`, and the dungeon's note as a card beside it — the keys the
- *  numbers stand for, and the drawing's text equivalent (ADR 0035). */
-export function dungeonBoard(d: Dungeon, notePath: string | null): { nodes: Record<string, unknown>[]; edges: never[]; verso: Record<string, unknown> } {
-  const drawing = drawDungeon(d);
+ *  numbers stand for, and the drawing's text equivalent (ADR 0035). With
+ *  the generator's picture (`picture`, the file the import placed, and
+ *  where it goes), the picture is the board's map, the drawing its hidden
+ *  tracing, and each numbered key a pin on the picture's own number that
+ *  opens the note. */
+export function dungeonBoard(d: Dungeon, notePath: string | null, picture: { path: string; fit: Fit } | null = null): { nodes: Record<string, unknown>[]; edges: never[]; verso: Record<string, unknown> } {
+  const drawing = drawDungeon(d, "wb", picture?.fit.cells ?? null);
   const nodes: Record<string, unknown>[] = [];
+  let right = drawing.box.x + drawing.box.width;
+  if (picture) {
+    const b = picture.fit.box;
+    nodes.push({ id: "wb-map", type: "file", file: picture.path, x: b.x, y: b.y, width: b.width, height: b.height, verso: { map: true, locked: true, groups: [MAP_GROUP] } });
+    right = Math.max(right, b.x + b.width);
+    if (notePath) {
+      drawing.keys.forEach((k, i) => {
+        nodes.push({ id: `wb-key-${i + 1}`, type: "file", file: notePath, x: Math.round(k.x - PIN_BOX / 2), y: Math.round(k.y - PIN_BOX / 2), width: PIN_BOX, height: PIN_BOX, verso: { pin: true, key: k.ref, groups: [MAP_GROUP] } });
+      });
+    }
+  }
   if (notePath) {
-    const height = Math.max(12 * CELL, Math.min(drawing.box.height, 22 * CELL));
-    nodes.push({ id: "wb-note", type: "file", file: notePath, x: drawing.box.width + 2 * CELL, y: 0, width: 12 * CELL, height });
+    const top = picture ? picture.fit.box.y : 0;
+    const tall = picture ? picture.fit.box.height : drawing.box.height;
+    const height = Math.max(12 * CELL, Math.min(tall, 22 * CELL));
+    nodes.push({ id: "wb-note", type: "file", file: notePath, x: Math.round(right + 2 * CELL), y: top, width: 12 * CELL, height });
   }
   return { nodes, edges: [], verso: { version: 1, drawing: drawing.elements, walls: drawing.walls } };
 }

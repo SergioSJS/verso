@@ -116,6 +116,20 @@ export class App {
     });
   }
 
+  /** Whether the window is a phone's (screen/phone.ts PHONE_MEDIA). */
+  isPhone() {
+    return this.page.evaluate(() => matchMedia("(max-width: 760px), (pointer: coarse) and (max-height: 500px)").matches);
+  }
+
+  /** A board's own verb (board/phoneVerbs.ts): on a phone from the top
+   *  bar's ⋯ sheet, its "Board" section; elsewhere the board's button
+   *  `testId`. */
+  async boardVerb(verb, testId) {
+    if (!(await this.isPhone())) return this.page.getByTestId(testId).click();
+    await this.page.locator(".pane.focused .phone-title").click();
+    await this.page.locator(`.phone-sheet-board [data-verb="${verb}"]`).click();
+  }
+
   /** The board's live elements, in their order, with what a test reads. */
   scene() {
     return this.page.evaluate(() =>

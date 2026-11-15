@@ -102,7 +102,11 @@ unicode-normalization = "0.1"
 # - if-addrs (MIT OR BSD-3-Clause): the machine's interface addresses and
 #   netmasks (items 3, 10), which std cannot list; it is already mdns-sd's own
 #   dependency, so it adds no crate to the tree.
+# - ring (Apache-2.0 AND ISC): HMAC-SHA256 of the Verso app's pairing
+#   proofs (`local/pin.rs`); already in the tree through rustls and rcgen. It
+#   replaces writing HMAC by hand over sha2.
 rcgen = { version = "0.14", default-features = false, features = ["ring", "pem"] }
+ring = "0.17"
 qrcode = { version = "0.14", default-features = false }
 mdns-sd = { version = "0.21", default-features = false }
 if-addrs = "0.15"

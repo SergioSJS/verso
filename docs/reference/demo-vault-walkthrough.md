@@ -1031,6 +1031,51 @@ hand, on a phone and an iPad, the server's window in the browser.
    again. With no tab open the row stays with the
    folder's name. On a wide window, the tabs and the note's row as before.
    Level: H; E: `phone-top-bar.spec.mjs` (three tests).
+1b. The sideways swipe (2026-11-15, `app/ui/src/screen/swipe.ts`): at
+   390 × 844, in note 04, draw a finger across the text from right to left:
+   the right panel follows it and stays once let go past about a third (or
+   flicked), *Painel* now says it is open; from left to right beside it, it
+   goes. Left to right brings the files; right to left on the drawer takes
+   them away. Back closes a panel a swipe opened. Nothing opens from the
+   screen's edge (24 px), on an up-and-down scroll, on a short slow move, after
+   a long press, on selected text, on a wide table or code block that scrolls
+   sideways, on a board, a drawing, a map, the graph or the data graph. The
+   sheet's *Deslizar para o lado abre os painéis* turns it off (the buttons
+   still open the panels) and it stays off after a reload. With reduced
+   motion the panel does not follow: it opens once the finger has gone far
+   enough. Level: H; U: `swipePanels.test.mjs`; E: `phone-swipe.spec.mjs`
+   (Chromium only: Playwright moves a finger there).
+1c. A board on a phone (2026-11-15, `app/ui/css/boardphone.css`, note 29's
+   board item): at 390 × 844, open *Board de Demonstração*: no row above the
+   canvas (no Board | Texto, no ☰, no island of four buttons); at the foot one
+   bar, in the desktop toolbar's order — mão, seleção, retângulo, seta, lápis,
+   texto, borracha, ⋮ — where the bottom bar was; the top bar shows *Desfazer* and *Refazer*, off until a
+   rectangle is drawn, then undoing and redoing it. Selecting a shape shows
+   its colours and stroke over the bar's right end; nothing selected, they go.
+   The sheet (tap the name) has a **Board** part, in the desktop's order:
+   Board | Texto, Exportar, fundo e ajuda (Excalidraw's menu, on the board),
+   Cartão de texto, Imagem ou PDF…, Nota ou arquivo…, Link…, Página web…,
+   Setas soltas, Buscar no board (its field at the top right, counting),
+   Sumário (over the board, × closes it); under *Barra inferior sempre visível*, *Num board, as ferramentas
+   de desenho ficam no lugar dela.* Texto shows the JSON with its own row,
+   whose Board comes back. At 844 × 390 on a touch screen: the eight tools are
+   one column at the right edge, the board as tall as the screen under the top
+   bar. A reader's board (`?side=server&role=reader`) keeps the bottom bar and
+   its sheet's Board part has only Buscar, Sumário and the menu; no pencil at
+   the top right. *Desenho do Excalidraw* has one row over it: *Desenho do
+   Obsidian, só para ver*, Converter em board, Ver o texto. Level: H; U:
+   `boardPhone.test.mjs`; E: `board-phone.spec.mjs`.
+1d. The side panels' tabs over a canvas (2026-11-15,
+   `app/ui/src/screen/edgeHandles.ts`): on that board at 390 × 844, a slim
+   tab at the middle of each edge (*Abrir os arquivos*, *Abrir o painel da
+   direita*); the left one opens the files, the right one the right panel,
+   and both go while one is open; a tap beside the drawer closes it and they
+   are back. A swipe that starts on the right tab, a few pixels in from the
+   edge, drags the panel out. Sideways, the right tab stands at the left of
+   the tools' column. They show on *Desenho do Excalidraw*, the graph, a
+   data file's diagram and a base's map; not on a note; not while the
+   board's Sumário is open. Level: H; U: `edgeHandles.test.mjs`; E:
+   `board-phone.spec.mjs` ("the side panels' handles").
 2. A layout split on a wide window, then narrowed: one pane at a time and a
    switcher "2/2" in the tab bar; the panes are listed and chosen from it; the
    split commands are absent from the palette and from a tab's menu; widened
@@ -1260,7 +1305,18 @@ rest below and in `manual-checks.md`.
    note open in a room kept as it was; by hand with two browsers). The
    receiver's status bar counts the share's notes, and a base through the
    share counts, sums and lists only notes inside it (the server's Rust
-   test, `tests_shares.rs`, "a receivers counts are the shares").
+   test, `tests_shares.rs`, "a receivers counts are the shares"). A board
+   of the share whose cards name a note of the share and a note of the
+   owner's outside it (V.49, ADR 0081 item 11): the receiver's window, the
+   copy her desktop app syncs, and the board live all show the first card
+   by its path in the share and the other as a locked card that names
+   nothing; she moves the first card on her synced copy and the owner's
+   board has it moved, with the outside card where it was and no new
+   download on her side; the owner moves only the outside card and her copy
+   does not change; with the owner in the board, she draws and he sees it at
+   once, and the other way (the server's Rust tests,
+   `tests_share_board_sync.rs`, `tests_share_board_room.rs`; two devices by
+   hand, `manual-checks.md`).
 11. Editing together in a synced folder ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 31's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,
@@ -1552,14 +1608,48 @@ the folder `Campanha Fractal/` beside it ([ADR
    frame per floor, side by side, the stairs at the same spot in each, rooms
    named as in the note (*Room 1*, *Room 2* where a floor has two), the
    windows over the outer walls, the entrance's arrow, a spiral stair as a
-   round tower. A city's JSON is named, not
-   imported. ⌘⇧P › *Novo mapa gerado…*: pick a generator, the seed drawn (or
+   round tower. A city's JSON alone is not imported: the dialog asks
+   for its picture.
+   **Watabou's own drawing** (item 2, revised 2026-11-15): export the
+   dungeon again with *Export as › SVG* and *Save as PNG* too and drop the
+   four files: the dialog adds *O desenho do próprio Watabou vira o mapa do
+   board, alinhado às salas…* and *o board com o desenho do Watabou*. The
+   board's map is the generator's picture (parchment, hatching, the keys'
+   boxes); a round pin with each number sits exactly on the picture's own
+   number — hover: the note's preview; click: the note opens. The map
+   tools' *Mostrar o traçado* shows Verso's tracing in blue: every wall on
+   the picture's walls, the columns on the picture's columns; press again:
+   hidden; ⌘Z undoes each. The recommended export: *Export as › PNG…*
+   (Shift+E, cell size 70) and *Export as › JSON* alone: the dialog says
+   *alinhado às salas* with no word about turning; the map (no title, no
+   numbers, transparent round it) lies square at the board's origin and
+   the four numbered pins sit in rooms 1–4. A *Save as PNG* page with the
+   JSON and no SVG: *Este PNG não se encaixa nas salas do JSON…*, Verso's
+   drawing. Exported with *View › Rotate-to-fit* on
+   (the generator's default), the dialog adds *O desenho do Watabou veio
+   girado N°…* naming that menu, and the note ends with the same warning;
+   exported with it off: no such line, the map square to the board.
+   Drop only the JSON and the PNG: *Para o desenho
+   do Watabou ficar alinhado às salas, solte também o SVG…* and the board
+   is Verso's drawing. A house with each floor's *Export › as SVG* (and
+   *as PNG*): each frame shows that floor's picture, the room names the
+   generator's; *Mostrar o traçado* lines the walls up on every floor. A
+   village (*Export as › JSON* and *› PNG*): a folder with the note
+   (`generator: village-generator`) and a board whose map is the picture.
+   On a phone (390 × 844): ⋯ › Board › *Mostrar o traçado* does the same;
+   the numbered pins stay tappable. ⌘⇧P › *Novo mapa gerado…*: pick a generator, the seed drawn (or
    typed), *Criar nota*: the note embeds the generator (asked about once)
-   with `seed` in its properties. Level: H (the import, the drawing, the
-   region, the generated note); A (the generator's *Export* inside the note
-   saving into the folder, `docs/reference/manual-checks.md`); E:
+   with `seed` in its properties. A dungeon with a secret door (a dashed
+   line across a way): on the board's map menu, *Ver como leitor* — the
+   dashed line is gone, the rest of the drawing stays; on a UniVerso table,
+   a player who opens the board (and her synced copy of the file) has no
+   secret door and no `walls` (fix of 2026-11-15). Level: H (the import,
+   the drawing, the region, the generated note); A (the generator's
+   *Export* inside the note saving into the folder, the player's view on a
+   UniVerso, `docs/reference/manual-checks.md`); E:
    `watabou-import.spec.mjs`; U: `test/watabou.test.mjs`,
-   `test/watabouHouse.test.mjs`.
+   `test/watabouHouse.test.mjs`, `test/watabouPicture.test.mjs`; S: `tests_board_walls.rs`,
+   `crates/verso-core/tests/canvas_walls.rs`.
 
 ## 15. Structured data as a diagram (note 16, the sample files)
 
@@ -2127,3 +2217,15 @@ Review findings I1–I6, M1, M2 and #4 of 2026-11-15, on `fix/beta-0.9-feedback`
 4. **A server of another version** (A): on reconnecting to a server two contract versions apart, the window says *O servidor está numa versão diferente deste app: atualize o que estiver atrás.*, not *conecte de novo*. Level: A; E: `e2e/sign-in-ends.spec.mjs`, host test `a_version_refused_is_not_a_session_ended`.
 5. **The iOS folder switcher** (A, the iPad or iPhone app): the folder switcher's *Neste celular* lists the folders in Verso's Documents and has no *Abrir outra pasta…*; Android's still has it and walks the phone's storage. Level: A; E: `e2e/phone-ios.spec.mjs` (`?host=ios` and `?host=mobile`).
 6. **An unreadable sync state** (H, desktop): with Verso closed, cut a folder's `sync-<key>.json` in the app's settings folder short; open the folder: Settings › Sincronizar says *Estado da sincronização ilegível* and names the file kept aside; the status bar says it too; turning sync on again compares both sides from the start and deletes nothing. Level: H; E: host test `an_unreadable_state_is_said_with_the_file_set_aside`.
+
+## The Verso app paired with a computer at home (notes 28, 29 and 30, 2026-11-15)
+
+ADR 0117, "The Verso app paired". Notes 28 (scenario 2: the browser with no copy, the app with its own) and 29 (*O App Verso Pareado* / *The Verso App Paired*) say it; note 30 says another person's app still connects only through the link. The form, the refusals, the paired computer's name and the away status run in the harness (`e2e/pair-computer.spec.mjs`, to run in Docker); the pairing, the pin and a copy synced both ways run against a real local server in the host's tests (`app/src-tauri/src/paired/tests.rs`) and the server's (`crates/verso-server/src/local/tests_pair_app.rs`).
+
+1. On a phone (`?host=mobile`), **Ajustes › Servidores**: under **Conectar**, the form **Parear com um computador de casa** says where on the computer the address and the code are; type an address with no port: *digite o endereço como o computador mostra, com a porta…*, with **Tentar de novo**. Level: H; E: `e2e/pair-computer.spec.mjs` ("a wrong code, an address with no port…").
+2. A wrong code: *O código não confere…*; the computer refusing: *O computador disse não…*; nothing is listed. Level: H; E: the same test; S: host test `a_wrong_code_or_a_refusal_pairs_nothing`.
+3. The right code (the harness's `BCDF-GHJK`): *Agora confirme no computador…*, then *Pareado…*; the computer is listed as **Computador de casa · Sérgio**, never by a `home.arpa` name, with *Pareado: este aparelho guarda cópias…*; **Abrir aqui** on its folder asks where to keep the copy and **Baixar e abrir** makes it. Level: H; E: `e2e/pair-computer.spec.mjs` ("a phone pairs by the computer's address and code…"); S: host test `a_computer_paired_by_its_code_syncs_a_copy_both_ways`.
+4. Away from home (a sync status *offline*, *unreachable*, of the paired computer): the status bar says *Longe do computador de casa: a cópia funciona sem ele*; a changed identity says *a identidade do computador de casa mudou…*. Level: H; E: `e2e/pair-computer.spec.mjs` ("away from home…"); S: host tests `the_pinned_key_is_accepted_under_any_certificate_and_no_other_key_is`, `a_replaced_identity_ends_the_pairing_in_words`.
+5. On the computer, **Ajustes › Transformar em servidor › Parear um celular**: under the address and the code, a line says how the Verso app pairs; when the app asks, the heading is *Foi você quem digitou este código no app Verso?* with *É o app Verso, não o navegador…*. Level: H; E: `e2e/pair-computer.spec.mjs` ("the computer's dialog tells about the app…").
+6. The lessons: note 28's scenario 2 has two ways and its diagram two arrows (the browser's one way, the app's both ways with a copy); note 29's *O App Verso Pareado* steps exist in the app as written (**Ajustes › Servidores › Parear com um computador de casa**, **Abrir aqui**, **Baixar e abrir**). Level: H; E: `node scripts/demo-vault.mjs check`.
+7. The site's wiki is made from these vaults (ADR 0058 points 16–18): import it again in `versomd-site`; notes 28 and 29's pages show the new sections and the diagram. Level: A.

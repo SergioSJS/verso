@@ -74,7 +74,11 @@ export function buildDrawingBar(this: NoteLeaf): void {
   convert.title = boardText.convertTitle;
   convert.addEventListener("click", () => void convertToBoard(this.path));
   this.drawingToggle.addEventListener("click", () => this.setDrawingShown(!this.drawingShown));
-  this.drawingBar.append(h("span", "drawing-bar-label", boardText.drawing), convert, this.drawingToggle);
+  // On a phone the sentence gives way to its short form, the bar one row
+  // (css/boardphone.css); the whole sentence stays its title.
+  const short = h("span", "drawing-bar-short", boardText.drawingShort);
+  short.title = boardText.drawing;
+  this.drawingBar.append(h("span", "drawing-bar-label", boardText.drawing), short, convert, this.drawingToggle);
 }
 
 /** A drawing of the Excalidraw plugin opens on its drawing; its text is

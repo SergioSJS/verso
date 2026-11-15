@@ -10,8 +10,10 @@
 // board's drawing that the person edits like any other; and the walls kept
 // under `verso.walls`, as the dungeon's are (item 3). Pure.
 
+import { type FloorPicture, HOUSE_MARGIN } from "./align";
 import { CELL, type Drawn, FLOOR, INK, LINE_HEIGHT, SANS, WATER, runs } from "./draw";
 import { type HCell, type HEdge, type HFloor, type House, type Side, across, cellKey, roomByCell, roomLabels } from "./dwelling";
+import { asTracing } from "./trace";
 
 /** What a door of the house is drawn as: the generator's `REGULAR` is a
  *  door, `DOORWAY` (or no type) a gap in the wall, `NULL` a wall left out
@@ -46,6 +48,8 @@ export type HouseDrawing = {
   elements: Drawn[];
   /** One frame (a group of the canvas) per floor. */
   frames: { id: string; type: "group"; label: string; x: number; y: number; width: number; height: number }[];
+  /** A floor's picture of the generator, where it goes on the board. */
+  pictures: { level: number; floor: FloorPicture; box: { x: number; y: number; width: number; height: number } }[];
   walls: HouseWalls;
   box: { x: number; y: number; width: number; height: number };
 };
@@ -95,31 +99,51 @@ function wrap(text: string, width: number, size: number): string[] {
 }
 
 /** The drawing of a house; `id` prefixes the ids of its elements and
- *  frames. */
-export function drawHouse(house: House, title: string, words: HouseDrawWords, id = "wh"): HouseDrawing {
+ *  frames. A floor with its picture of the generator (`pictures`, by level,
+ *  `align.ts`) has the picture in its frame and its drawing made the
+ *  picture's hidden tracing (`trace.ts`); the frames then keep the
+ *  pictures' margin round the house. */
+export function drawHouse(house: House, title: string, words: HouseDrawWords, id = "wh", pictures: ReadonlyMap<number, FloorPicture> = new Map()): HouseDrawing {
   const all = house.floors.flatMap((f) => f.rooms.flatMap((r) => r.cells));
   const minI = Math.min(...all.map((c) => c.i));
   const minJ = Math.min(...all.map((c) => c.j));
   const maxI = Math.max(...all.map((c) => c.i));
   const maxJ = Math.max(...all.map((c) => c.j));
   // A cell of margin round the house, inside each frame: the entrance's
-  // arrow and a spiral stair stand outside the walls.
-  const frameW = (maxJ - minJ + 3) * CELL;
-  const frameH = (maxI - minI + 3) * CELL;
+  // arrow and a spiral stair stand outside the walls. With the
+  // generator's pictures, theirs.
+  const margin = pictures.size > 0 ? HOUSE_MARGIN : 1;
+  const baseW = (maxJ - minJ + 1 + 2 * margin) * CELL;
+  const baseH = (maxI - minI + 1 + 2 * margin) * CELL;
+  // Each picture's box, from the floor's origin: where its corner falls on
+  // the house's grid, at CELL pixels a cell.
+  const boxOf = (f: FloorPicture): { x: number; y: number; width: number; height: number } => {
+    const [a, , , , e, ff] = f.cellToPicture;
+    return { x: round((-e / a - minJ + margin) * CELL), y: round((-ff / a - minI + margin) * CELL), width: round((f.picture.width / a) * CELL), height: round((f.picture.height / a) * CELL) };
+  };
+  const placed = [...pictures.values()].map(boxOf);
+  const left = Math.min(0, ...placed.map((b) => b.x));
+  const top = Math.min(0, ...placed.map((b) => b.y));
+  const frameW = Math.max(baseW, ...placed.map((b) => b.x + b.width)) - left;
+  const frameH = Math.max(baseH, ...placed.map((b) => b.y + b.height)) - top;
   const gapX = 2 * CELL;
   const elements: Drawn[] = [];
   const frames: HouseDrawing["frames"] = [];
+  const shown: HouseDrawing["pictures"] = [];
   const walls: HouseWalls = { version: 1, generator: "dwellings", cell: CELL, lines: [], doors: [], windows: [], floors: [] };
   let n = 0;
 
   house.floors.forEach((floor, k) => {
-    const ox = k * (frameW + gapX);
+    const fx = k * (frameW + gapX);
+    // The floor's grid starts `margin` cells in from the frame's corner.
+    const ox = fx - left;
+    const oy = -top;
     const frameId = `${id}-floor-${floor.level < 0 ? `b${-floor.level}` : floor.level}`;
     const group = [`${frameId}-drawing`];
-    frames.push({ id: frameId, type: "group", label: words.floor(floor.level), x: ox, y: 0, width: frameW, height: frameH });
-    walls.floors.push({ level: floor.level, frame: frameId, box: [ox, 0, frameW, frameH] });
-    const px = (j: number): number => round(ox + (j - minJ + 1) * CELL);
-    const py = (i: number): number => round((i - minI + 1) * CELL);
+    frames.push({ id: frameId, type: "group", label: words.floor(floor.level), x: fx, y: 0, width: round(frameW), height: round(frameH) });
+    walls.floors.push({ level: floor.level, frame: frameId, box: [fx, 0, round(frameW), round(frameH)] });
+    const px = (j: number): number => round(ox + (j - minJ + margin) * CELL);
+    const py = (i: number): number => round(oy + (i - minI + margin) * CELL);
     const make = (type: string, x: number, y: number, width: number, height: number, o: Record<string, unknown>): Drawn => {
       const e: Drawn = {
         id: `${id}-${n++}`,
@@ -145,7 +169,14 @@ export function drawHouse(house: House, title: string, words: HouseDrawWords, id
     };
     const line = (x1: number, y1: number, x2: number, y2: number, o: Record<string, unknown>): Drawn =>
       make("line", x1, y1, Math.abs(x2 - x1), Math.abs(y2 - y1), { points: [[0, 0], [round(x2 - x1), round(y2 - y1)]], startArrowhead: null, endArrowhead: null, ...o });
+    const from = elements.length;
     drawFloor(house, floor, k === house.floors.findIndex((f) => f.level === 0), { px, py, make, line, words, walls });
+    const picture = pictures.get(floor.level);
+    if (picture) {
+      elements.splice(from, elements.length - from, ...asTracing(elements.slice(from)));
+      const b = boxOf(picture);
+      shown.push({ level: floor.level, floor: picture, box: { x: round(ox + b.x), y: round(oy + b.y), width: b.width, height: b.height } });
+    }
   });
 
   // The house's name over its floors.
@@ -179,8 +210,8 @@ export function drawHouse(house: House, title: string, words: HouseDrawWords, id
       autoResize: true,
     });
   }
-  const width = house.floors.length * frameW + (house.floors.length - 1) * gapX;
-  return { elements, frames, walls, box: { x: 0, y: 0, width, height: frameH } };
+  const width = round(house.floors.length * frameW + (house.floors.length - 1) * gapX);
+  return { elements, frames, pictures: shown, walls, box: { x: 0, y: 0, width, height: round(frameH) } };
 }
 
 type Pen = {
@@ -352,9 +383,21 @@ function drawFloor(house: House, floor: HFloor, ground: boolean, pen: Pen): void
  *  walls under `verso`, and the house's note as a card beside the floors —
  *  its rooms listed floor by floor, the drawing's text equivalent (ADR
  *  0035). */
-export function houseBoard(house: House, title: string, words: HouseDrawWords, notePath: string | null): { nodes: Record<string, unknown>[]; edges: never[]; verso: Record<string, unknown> } {
-  const drawing = drawHouse(house, title, words);
+export function houseBoard(
+  house: House,
+  title: string,
+  words: HouseDrawWords,
+  notePath: string | null,
+  pictures: ReadonlyMap<number, FloorPicture> = new Map(),
+  pathOf: (p: FloorPicture) => string | null = () => null,
+): { nodes: Record<string, unknown>[]; edges: never[]; verso: Record<string, unknown> } {
+  const usable = new Map([...pictures].filter(([, f]) => pathOf(f) !== null));
+  const drawing = drawHouse(house, title, words, "wh", usable);
   const nodes: Record<string, unknown>[] = [...drawing.frames];
+  // Each floor's picture, the map of its frame (ADR 0090), under the rest.
+  for (const p of drawing.pictures) {
+    nodes.push({ id: `wh-map-${p.level < 0 ? `b${-p.level}` : p.level}`, type: "file", file: pathOf(p.floor), ...p.box, verso: { map: true, locked: true } });
+  }
   if (notePath) {
     const height = Math.max(12 * CELL, Math.min(drawing.box.height, 22 * CELL));
     nodes.push({ id: "wh-note", type: "file", file: notePath, x: drawing.box.width + 2 * CELL, y: 0, width: 12 * CELL, height });

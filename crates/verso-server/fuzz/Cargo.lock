@@ -2647,7 +2647,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "verso-contract"
-version = "0.9.0-beta.2"
+version = "0.9.0-beta.3"
 dependencies = [
  "serde",
  "specta",
@@ -2655,7 +2655,7 @@ dependencies = [
 
 [[package]]
 name = "verso-core"
-version = "0.9.0-beta.2"
+version = "0.9.0-beta.3"
 dependencies = [
  "png",
  "regex",
@@ -2670,7 +2670,7 @@ dependencies = [
 
 [[package]]
 name = "verso-dialect"
-version = "0.9.0-beta.2"
+version = "0.9.0-beta.3"
 dependencies = [
  "pulldown-cmark",
  "saphyr",
@@ -2679,7 +2679,7 @@ dependencies = [
 
 [[package]]
 name = "verso-fs"
-version = "0.9.0-beta.2"
+version = "0.9.0-beta.3"
 dependencies = [
  "fs4",
  "ignore",
@@ -2693,7 +2693,7 @@ dependencies = [
 
 [[package]]
 name = "verso-index"
-version = "0.9.0-beta.2"
+version = "0.9.0-beta.3"
 dependencies = [
  "flate2",
  "rusqlite",
@@ -2705,7 +2705,7 @@ dependencies = [
 
 [[package]]
 name = "verso-server"
-version = "0.9.0-beta.2"
+version = "0.9.0-beta.3"
 dependencies = [
  "argon2",
  "axum",
@@ -2721,6 +2721,7 @@ dependencies = [
  "qrcode",
  "rcgen",
  "reqwest",
+ "ring",
  "rusqlite",
  "rustls-pki-types",
  "serde",
@@ -2754,7 +2755,7 @@ dependencies = [
 
 [[package]]
 name = "verso-service"
-version = "0.9.0-beta.2"
+version = "0.9.0-beta.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -2764,7 +2765,7 @@ dependencies = [
 
 [[package]]
 name = "verso-tunnel"
-version = "0.9.0-beta.2"
+version = "0.9.0-beta.3"
 dependencies = [
  "flate2",
  "nix",

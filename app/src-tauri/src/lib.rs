@@ -30,13 +30,13 @@ use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use verso_contract::{
-    AppInfo, Backlink, BaseQuery, BaseResult, BlockKind, Can, Capabilities, CliState, CollabJoin,
-    CollabOracle, CollabRoll, CollabState, CollabUpdate, ContractError, DiceRoll, Edge, ErrorKind,
-    FileEntry, Focus, FocusesSummary, FolderBlocks, FolderChanged, FolderDataFile, FolderDataKind,
-    FolderDataList, FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit,
-    IndexProgress, IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus, Mentions,
-    MissingLink, MovedEntries, NoteText, ObsidianPeriodic, Opened, OracleAsk, OracleDraw, Renamed,
-    ServerAccount, Tag, TextFile, Trashed, UpdateProgress, WebNote, Written,
+    AppInfo, Backlink, BaseQuery, BaseResult, BlockKind, Can, Capabilities, CliState, CollabOracle,
+    CollabRoll, CollabState, CollabUpdate, ContractError, Edge, ErrorKind, FileEntry, Focus,
+    FocusesSummary, FolderBlocks, FolderChanged, FolderDataFile, FolderDataKind, FolderDataList,
+    FolderDataWritten, FolderInfo, FolderLayer, FolderSettings, FolderSpace, Hit, IndexProgress,
+    IndexSummary, Link, MapInfo, McpAdded, McpClientState, McpStatus, Mentions, MissingLink,
+    MovedEntries, NoteText, ObsidianPeriodic, Opened, Renamed, ServerAccount, Tag, TextFile,
+    Trashed, UpdateProgress, WebNote, Written,
 };
 use verso_core::{CoreError, Workspace};
 use verso_service::{OpError, Service, lock, no_folder, ops, refused};
@@ -49,6 +49,7 @@ mod boards;
 mod campaign;
 mod cli;
 mod cloud;
+mod collab_here;
 mod compat;
 mod device;
 mod discover;
@@ -67,6 +68,7 @@ mod menu;
 mod menu_spec;
 mod mobile;
 mod notes;
+mod paired;
 #[cfg(target_os = "android")]
 mod phone;
 mod protocol;
@@ -655,110 +657,6 @@ fn folder_space<R: tauri::Runtime>(
     with(&state, &window, ops::folder_space)
 }
 
-/* ---------- Simultaneous editing: the server's (ADR 0073 item 7) ---------- */
-
-fn not_here() -> ContractError {
-    refused("simultaneous editing is a server's; this app writes its notes itself")
-}
-
-/// Join a note for editing with others: on a server only.
-#[tauri::command]
-#[specta::specta]
-fn collab_join(path: String) -> Result<CollabJoin, ContractError> {
-    let _ = path;
-    Err(not_here())
-}
-
-/// An edit made in this window, for the others.
-#[tauri::command]
-#[specta::specta]
-fn collab_update(path: String, update: String) -> Result<(), ContractError> {
-    let _ = (path, update);
-    Err(not_here())
-}
-
-/// Where this window's cursor is, for the others.
-#[tauri::command]
-#[specta::specta]
-fn collab_awareness(path: String, update: String) -> Result<(), ContractError> {
-    let _ = (path, update);
-    Err(not_here())
-}
-
-/// This window leaves the note.
-#[tauri::command]
-#[specta::specta]
-fn collab_leave(path: String) -> Result<(), ContractError> {
-    let _ = path;
-    Err(not_here())
-}
-
-/// Write the shared note now (⌘S): its revision on disk.
-#[tauri::command]
-#[specta::specta]
-fn collab_save(path: String) -> Result<String, ContractError> {
-    let _ = path;
-    Err(not_here())
-}
-
-/// Whether someone is in the note's room now (ADR 0082): a write that is
-/// not a keystroke — a base's cell, a PDF's quote, the tree's label —
-/// joins the room to be made there. On a server, or a synced folder's
-/// link, only.
-#[tauri::command]
-#[specta::specta]
-fn collab_present(path: String) -> Result<bool, ContractError> {
-    let _ = path;
-    Err(not_here())
-}
-
-/// A board's file, as this window's converter makes it of the room's state
-/// `at` (a Yjs state vector, base64): the room writes the one made of the
-/// state it holds (ADR 0082 item 12). On a server, or a synced folder's
-/// link, only.
-#[tauri::command]
-#[specta::specta]
-fn collab_canvas(path: String, at: String, json: String) -> Result<(), ContractError> {
-    let _ = (path, at, json);
-    Err(not_here())
-}
-
-/// A shared note that changed on disk while edits waited: keep the disk's
-/// text (`disk`) or write the shared one over it (`mine`).
-#[tauri::command]
-#[specta::specta]
-fn collab_resolve(path: String, keep: String) -> Result<String, ContractError> {
-    let _ = (path, keep);
-    Err(not_here())
-}
-
-/// Dice rolled in the note's room by the server, heard by the others in
-/// it (ADR 0088 item 4): on a server, or a synced folder's link, only;
-/// here the window rolls itself.
-#[tauri::command]
-#[specta::specta]
-fn collab_roll(
-    path: String,
-    notation: String,
-    source: Option<String>,
-    styles: Option<verso_contract::DiceStyles>,
-    secret: Option<bool>,
-    occurrence: Option<u32>,
-) -> Result<DiceRoll, ContractError> {
-    let _ = (path, notation, source, styles, secret, occurrence);
-    Err(not_here())
-}
-
-/// An oracle question, spark or table drawn in the note's room by the
-/// server, heard by the others in it (ADR 0102 item 5): on a server, or a
-/// synced folder's link, only; here the window draws itself.
-#[tauri::command]
-#[specta::specta]
-fn collab_oracle(path: String, ask: OracleAsk) -> Result<OracleDraw, ContractError> {
-    let _ = (path, ask);
-    Err(not_here())
-}
-
 /* ---------- The command line and MCP, from the settings (ADR 0054) ---------- */
 
 /// The commands, once, for the handler, the bindings and the tests. A
@@ -873,16 +771,16 @@ macro_rules! commands_for {
                 reindex::<$runtime>,
                 capabilities::<$runtime>,
                 folder_space::<$runtime>,
-                collab_join,
-                collab_update,
-                collab_awareness,
-                collab_leave,
-                collab_save,
-                collab_resolve,
-                collab_present,
-                collab_canvas,
-                collab_roll,
-                collab_oracle,
+                collab_here::collab_join,
+                collab_here::collab_update,
+                collab_here::collab_awareness,
+                collab_here::collab_leave,
+                collab_here::collab_save,
+                collab_here::collab_resolve,
+                collab_here::collab_present,
+                collab_here::collab_canvas,
+                collab_here::collab_roll,
+                collab_here::collab_oracle,
                 table::table_join,
                 table::table_leave,
                 table::table_look,
@@ -932,6 +830,7 @@ macro_rules! commands_for {
                 server_copy::server_copy_open::<$runtime>,
                 server_copy::server_copy_plan::<$runtime>,
                 server_copy::server_copy_make::<$runtime>,
+                paired::pair::server_pair::<$runtime>,
                 server_retry::<$runtime>,
                 window_server::<$runtime>,
                 discover_servers_start,
@@ -1273,6 +1172,8 @@ pub fn run(initial_folder: Option<PathBuf>) -> Result<(), Box<dyn std::error::Er
             // window's settings (`set_history_days`).
             {
                 let state = app.state::<App>();
+                // The computers at home this app is paired with: their keys.
+                paired::load(state.service.config());
                 let name = device::name(state.service.config());
                 state
                     .service

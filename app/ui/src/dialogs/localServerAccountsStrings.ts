@@ -10,7 +10,7 @@
 
 const pt = {
   appsTitle: "Apps Verso de outras pessoas",
-  appsLead: "Quem você convidou pode conectar o próprio Verso a este servidor (Ajustes › Servidores) e sincronizar a pasta compartilhada com a pessoa. Celulares nunca sincronizam: usam a janela no navegador.",
+  appsLead: "Quem você convidou pode conectar o próprio Verso a este servidor (Ajustes › Servidores) e sincronizar a pasta compartilhada com a pessoa. O app Verso do celular delas conecta e sincroniza do mesmo jeito; o navegador do celular abre a janela sem guardar cópia. Os seus próprios celulares pareiam em Celulares pareados.",
   appsTrust: "Use o endereço do link na internet para isso: pela sua rede, o Verso de outra pessoa não confia no certificado próprio deste computador e não conecta.",
   appsNone: "Nenhum app de outra pessoa conectado.",
   app: (device: string, account: string): string => `${device} — ${account}`,
@@ -29,7 +29,7 @@ const pt = {
 
 const en: typeof pt = {
   appsTitle: "Other people's Verso apps",
-  appsLead: "Someone you invited can connect their own Verso to this server (Settings › Servers) and sync the folder shared with them. Phones never sync: they use the window in the browser.",
+  appsLead: "Someone you invited can connect their own Verso to this server (Settings › Servers) and sync the folder shared with them. The Verso app on their phone connects and syncs the same way; a phone's browser opens the window and keeps no copy. Your own phones pair under Paired phones.",
   appsTrust: "Use the internet link's address for that: on your network, another person's Verso does not trust this computer's own certificate and does not connect.",
   appsNone: "No app of another person is connected.",
   app: (device, account) => `${device} — ${account}`,

@@ -16,6 +16,7 @@ import { h } from "../dom";
 import { folderName } from "../folder";
 import { icon } from "../icons";
 import type { Pane } from "../layout/pane";
+import { Leaf } from "../leaves/leaf";
 import { NoteLeaf } from "../leaves/note";
 import { folderLine, openSheet } from "./phoneSheet";
 import { st } from "./strings";
@@ -29,22 +30,52 @@ export class PhoneHead {
   private readonly title = h("button", "phone-title");
   private readonly name = h("span", "phone-title-name");
   private readonly where = h("span", "phone-title-path");
+  /** Who else is here, live: the tab's own mark (liveWho.ts) said again
+   *  under its name, since a phone hides the row it stands in. */
+  private readonly live = h("span", "live-mark phone-live");
+  private readonly line = h("span", "phone-title-line");
+  /** The tab whose live mark is watched. */
+  private liveOf: HTMLElement | null = null;
+  private readonly liveWatch = new MutationObserver(() => this.paintLive());
   private readonly mode = h("button", "phone-mode");
+  /** A board's undo and redo (2026-11-15): pressing Excalidraw's own,
+   *  which the phone's board keeps out of sight (css/boardphone.css). */
+  private readonly undo = h("button", "phone-hist phone-undo");
+  private readonly redo = h("button", "phone-hist phone-redo");
+  /** The tab whose undo and redo are watched (Leaf.phoneHistory). */
+  private history: Leaf | null = null;
+  private historyFrame = 0;
+  private readonly historyWatch = new MutationObserver(() => {
+    if (this.historyFrame) return;
+    this.historyFrame = requestAnimationFrame(() => {
+      this.historyFrame = 0;
+      this.paintHistory();
+    });
+  });
   /** The note whose mode buttons are watched, and the mode drawn. */
   private watched: NoteLeaf | null = null;
   private drawn = "";
   private readonly modeWatch = new MutationObserver(() => this.paint());
 
   constructor(private readonly pane: Pane) {
-    for (const b of [this.count, this.title, this.mode]) b.type = "button";
+    for (const b of [this.count, this.title, this.mode, this.undo, this.redo]) b.type = "button";
+    for (const [b, label, mark, which] of [[this.undo, st.undo, "undo", "undo"], [this.redo, st.redo, "redo", "redo"]] as const) {
+      b.setAttribute("aria-label", label);
+      b.title = label;
+      b.append(icon(mark));
+      b.hidden = true;
+      b.addEventListener("click", () => this.pane.active?.phoneHistory()?.[which].click());
+    }
     this.count.setAttribute("aria-haspopup", "dialog");
     this.title.setAttribute("aria-haspopup", "dialog");
     this.count.append(this.countN);
-    this.title.append(this.name, this.where);
+    this.line.append(this.where, this.live);
+    this.live.hidden = true;
+    this.title.append(this.name, this.line);
     this.count.addEventListener("click", () => openSheet(pane, this.count));
     this.title.addEventListener("click", () => openSheet(pane, this.title));
     this.mode.addEventListener("click", () => this.toggleMode());
-    this.el.append(this.title, this.mode);
+    this.el.append(this.title, this.mode, this.undo, this.redo);
     // A tab opened, closed, renamed or brought to the front.
     new MutationObserver(() => this.paint()).observe(pane.tabList, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["aria-selected", "title"] });
     // A folder opened: its name, while no tab is open.
@@ -56,6 +87,9 @@ export class PhoneHead {
   dispose(): void {
     removeEventListener("verso:folder-shown", this.repaint);
     this.modeWatch.disconnect();
+    this.historyWatch.disconnect();
+    this.liveWatch.disconnect();
+    cancelAnimationFrame(this.historyFrame);
   }
 
   /** What the bar says now. A text is replaced only when it changes:
@@ -80,6 +114,22 @@ export class PhoneHead {
       if (note) this.modeWatch.observe(note.modes, { subtree: true, attributes: true, attributeFilter: ["aria-pressed"] });
       this.watched = note;
     }
+    // A board: its undo and redo, watched while it is in front (its face
+    // turned, Excalidraw's buttons drawn or turned off).
+    if (leaf !== this.history) {
+      this.historyWatch.disconnect();
+      this.history = leaf && leaf.phoneHistory !== Leaf.prototype.phoneHistory ? leaf : null;
+      if (this.history) this.historyWatch.observe(this.history.el, { subtree: true, childList: true, attributes: true, attributeFilter: ["disabled", "class"] });
+    }
+    this.paintHistory();
+    // A note's, a text file's or a board's live mark, followed while it is in front.
+    const liveMark = leaf?.el.querySelector<HTMLElement>(".live-mark:not(.phone-live)") ?? null;
+    if (liveMark !== this.liveOf) {
+      this.liveWatch.disconnect();
+      if (liveMark) this.liveWatch.observe(liveMark, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["hidden", "title", "data-live"] });
+      this.liveOf = liveMark;
+    }
+    this.paintLive();
     this.mode.hidden = note === null;
     if (!note) return;
     const reading = note.mode === "preview";
@@ -91,6 +141,26 @@ export class PhoneHead {
     if (this.drawn !== mark) {
       this.drawn = mark;
       this.mode.replaceChildren(icon(mark));
+    }
+  }
+
+  /** The live mark under the name: the same words and state as the tab's
+   *  own (its title holds the whole line). */
+  private paintLive(): void {
+    const mark = this.liveOf;
+    const line = mark && !mark.hidden ? mark.title || mark.textContent || "" : "";
+    this.live.hidden = line === "";
+    if (this.live.textContent !== line) this.live.textContent = line;
+    const kind = mark?.dataset["live"] ?? "";
+    if (this.live.dataset["live"] !== kind) this.live.dataset["live"] = kind;
+  }
+
+  /** The board's undo and redo shown, and off as Excalidraw's are. */
+  private paintHistory(): void {
+    const hist = this.history?.phoneHistory() ?? null;
+    for (const [b, own] of [[this.undo, hist?.undo], [this.redo, hist?.redo]] as const) {
+      b.hidden = !own;
+      if (own && b.disabled !== own.disabled) b.disabled = own.disabled;
     }
   }
 

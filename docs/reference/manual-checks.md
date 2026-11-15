@@ -20,6 +20,22 @@ in the real app.
 
 ## Not yet checked
 
+### A board on a phone: the tools' bar upright, one column sideways (feat/phone-home-and-board, 2026-11-15)
+
+- [ ] **Android, upright** (A, the installed beta on the maintainer's phone): open a board (*Panorama - Série Ironsworn.canvas*): nothing over the canvas but the drawing tools at the foot, in the bottom bar's place, above Android's navigation bar; draw, undo and redo from the top bar; select a card or a shape: its tools show, then go. ⋯ › Board: each verb works — a text card asks its text, *Imagem ou PDF…* opens the system's picker, *Buscar no board* raises the keyboard with the field visible above it, *Sumário* covers the board and its × closes it, *Exportar, fundo e ajuda* opens Excalidraw's menu on the board, *Texto* and back.
+- [ ] **Android, sideways, both rotations** (A): the eight tools in one column at the right edge; with the camera cut-out on the right (turned the other way), the column clears it; every tool takes a tap; the extra tools' ⋮ menu opens whole on the screen.
+- [ ] **A reader's board and a table's board** (A, a player of the maintainer's table): the bottom bar stays; ⋯ › Board has Buscar, Sumário and the menu; at a table, *who sees* is in the Board part for the game master.
+- [ ] **iPhone sideways** (A, the AltStore build): the column clears the notch and the home indicator; each tool still takes a tap (about 40 px tall there).
+- [ ] **The same order as the desktop** (A): the phone's bar and column read hand, selection, rectangle, arrow, pencil, text, eraser, ⋮ — as the Mac's toolbar from the hand on — and ⋯ › Board starts with *Exportar, fundo e ajuda*, as the ☰ is at the left on the Mac.
+- [ ] **The tabs on the edges** (A, the maintainer's Android phone, gesture navigation on): on a board, a drawing, the graph and a map, a tap on the left tab opens the files and on the right one the panel; a swipe starting on a tab a finger's width in from the edge drags the drawer, one from the very edge is still Android's Back; sideways, the right tab sits left of the tools' column and clear of the camera cut-out; neither covers a tool, the selection's island or a card's buttons where it matters.
+
+### The sideways swipe for the side panels on a phone (feat/phone-home-and-board, 2026-11-15)
+
+- [ ] **Android gesture navigation** (A, the installed beta on the maintainer's phone, gesture navigation on): a swipe from the very left or right edge is still Android's Back (it closes a sheet, a drawer, then leaves the app) and never opens a panel; a swipe that starts a finger's width inside the screen, across a note, brings the right panel (right to left) or the files (left to right), following the finger, and the other way closes it. Try it in portrait and landscape, in Reading and in Edit (with the keyboard up and down), with the bottom bar hidden. Then raise the Back sensitivity to its highest (Android Settings › System › Gestures › System navigation › ⚙): a swipe starting inside the wider band is still Back, never a panel. With three-button navigation, a swipe that starts close to the edge opens the panel. Turning **Swipe sideways to open the panels** off in Settings › Appearance › Phone stops it, and the ⋯ sheet's switch shows the same state.
+- [ ] **What keeps the finger** (A, the same phone): selecting text in Edit and dragging its handles sideways opens nothing; a wide table and a code block scroll sideways; the kanban scrolls column by column; a board, a drawing, a map, the graph and the data graph pan and draw; a PDF zoomed in pans; the keyboard's bar scrolls. A vertical scroll of a long note never opens a panel.
+- [ ] **iPhone or iPad app and Safari** (A): the same swipes work with no edge behaviour of their own (the WebView has no back-swipe), and a vertical scroll that drifts sideways still scrolls.
+- [ ] **TalkBack and VoiceOver** (A): with the reader on, the panels open from *Arquivos* and *Painel* as before; the swipe is not needed for anything.
+
 ### The updater's channel and words, Android's allow-installs step, ⌘O (fix/beta-0.9-feedback, 2026-11-15)
 
 `cargo test -p verso-app update` covers the release picked (`update::pick`) and that nothing downloads while a phone does not allow installs; `app/ui/test/updateWords.test.mjs` the words of every code. What the tests do not see is the real update.
@@ -1103,6 +1119,20 @@ in a note long enough to scroll.
   the share was revoked and when (`873921a`). Both at a phone's width too. The console's folder page lists the
   share with its people; the audit log has each step with its path.
 
+- [ ] **A shared board on two devices, cut to the share** (V.49, ADR 0081
+  item 11): Sérgio shares *Sub* with Ana, *edita*; a board in *Sub* has a
+  card of a note in *Sub* and one of a note outside it. On Ana's computer
+  (the installed app, the share synced to a folder of hers) open the
+  synced `.canvas` in a text editor: the first card names the note by its
+  path inside the share, the other is a locked text card, and nothing names
+  a folder of Sérgio's beside *Sub*. Ana moves the first card in her app:
+  Sérgio's board has it moved and the outside card untouched, and Ana's
+  status bar does not fetch the board back. Sérgio moves only the outside
+  card: Ana's synced copy does not change. Then both open the board at once
+  (Ana in her app, Sérgio in his window): each sees the other's moves live,
+  Ana's presence shows, and the outside card stays locked for her. In the
+  server's log, no `ERROR`.
+
 - [ ] **A revoked share's sync turns off with a notice** (ADR 0081 item 8,
   `873921a`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
   removes her in *Compartilhar…*. Within seconds Ana's app shows a notice
@@ -1692,6 +1722,10 @@ Built on `feat/watabou-import`. The import, the drawing, the region and the gene
 4. **The drawing in the app** (A): the imported board in light and dark themes: the floor, walls and numbers readable in both; double-click the drawing, move a room: it moves; the board's outline (accessible view) lists the note card.
 5. **A house of Dwellings in the app** (A, `feat/watabou-dwellings`; the browser harness runs the import, `watabou-import.spec.mjs`): export a house with a basement and a spiral stair (Dwellings, tags `tall,spiral,basement`) as JSON and import it: one frame per floor, named *Porão (B)*, *Térreo (GF)*…; in light and dark themes the walls, windows and room names readable; drag a floor's frame: its drawing moves with it; the board's outline lists the floors' frames and the note card; on a phone (390 × 844) the board opens and the note's room list reads in full.
 6. **A town's note embeds its generator** (A): in an imported region's note, click a town: the new note shows the city or village generator inside it, after asking once for `watabou.github.io`, at the town's seed.
+7. **A player is not shown the walls nor the secret doors** (A, a UniVerso table, fix of 2026-11-15; the server's tests run every path, `tests_board_walls.rs`): as the game master, import a One Page Dungeon that has a secret door (a dashed line across a way; regenerate until one shows) into the table's folder and release its board. On a player's phone and in a player's browser, open the board: no dashed line where the game master sees one, the rest of the dungeon whole; the player's synced copy of the `.canvas` (desktop app, the folder on disk) holds no `"walls"`. Then a board imported **before** this build (already in the folder, door unmarked): the same.
+8. **A board through a share, in a folder with no table, has no live room** (A, a UniVerso, fix of 2026-11-15; the server's tests run every path, `tests_board_shares.rs`, `tests_board_leaks.rs`): share a sub-folder holding a board, whose cards name a note inside the share and one beside it, to a second account as *edits*. With the owner's window on the board, open it in the second account's browser: it opens, the card beside the share locked, no presence of the owner in it; move a card and wait for the save: no error, and the owner's window shows the move once the file is saved (not live); the locked card is still the owner's on disk. Its history (⋯ › History) shows past versions with the card beside the share locked.
+
+9. **Watabou's own drawing in the app** (A, item 2 revised 2026-11-15; the browser harness runs the import with a cut-down SVG, `watabou-import.spec.mjs`, and the alignment was seen in screenshots of the harness in Docker): from the generators' real pages, export a One Page Dungeon with *Export as › PNG…* (Shift+E, 70) and JSON and import it: the map square at the origin, transparent round it, the pins in their rooms; then the whole page (JSON, SVG, *Save as PNG*, Markdown) and import it: the PNG drawn from tiles, sharp when zoomed in, its own fonts; the numbered pins on the picture's numbers at every zoom; *Mostrar o traçado* shows the walls on the picture's walls, in light and dark themes; hide it, quit and reopen: still hidden. A dungeon with only its SVG: the picture shown (its text in the system's fonts). A Dwellings house with a basement, each floor exported as SVG and PNG: each floor's picture in its frame. A village with JSON and PNG (a large PNG, ~20 MB): cut into tiles, the board opens without a stall. On the phone (Android app): the same dungeon, pins tappable, ⋯ › Board › *Mostrar o traçado*.
 
 ## A server's folder picked in the app: its copy on the device (2026-11-15)
 
@@ -1711,3 +1745,15 @@ Review findings I6 and #4 of 2026-11-15. The hold between two files runs in the 
 1. **Android, Wi-Fi only** (A): Settings › Sincronizar › background sync on, *só no Wi-Fi*; start the first sync of a big server folder on Wi-Fi, leave Verso off the screen, turn Wi-Fi off: the download stops before its next file (the server's log, or the phone's data counter, shows nothing more crosses), and the sync says *pausada*; Wi-Fi back: it goes on from where it stopped.
 2. **Android, charging only** (A): the same with *só carregando*, unplugging the charger.
 3. **iPad or iPhone** (A): the folder switcher has no *Abrir outra pasta…*; the palette's *Abrir pasta* says, in a notice, that the app opens only the folders in its Documents.
+
+## The Verso app paired with a computer at home (ADR 0117, 2026-11-15)
+
+The pairing's proofs, the pin, a copy synced both ways and a replaced identity run against a real local server on loopback in the host's tests (`app/src-tauri/src/paired/tests.rs`) and the server's (`crates/verso-server/src/local/tests_pair_app.rs`); the form in the harness (`e2e/pair-computer.spec.mjs`). What only devices on a real home network can try:
+
+1. **Android, paired at home** (A, the Mac serving a folder on its Wi-Fi, the phone on the same Wi-Fi): on the Mac, **Parear um celular**; on the phone, **Ajustes › Servidores › Parear com um computador de casa**, the address and the code as shown: the Mac asks *Foi você quem digitou este código no app Verso?*; **Permitir** (editor): the phone lists **Computador de casa · <name>**; **Abrir aqui** on the folder, **Dentro do app**, **Baixar e abrir**: the notes open. No certificate warning anywhere.
+2. **Away and back** (A): airplane mode on the phone, close Verso, open it: the copy opens, the status says *Longe do computador de casa…*; edit a note. Airplane mode off at home with the Mac serving: within the sync's wait (or **Sincronizar agora**) the edit is on the Mac's disk; an edit on the Mac comes to the phone. With the Mac not serving: the same calm status, no error notices piling up.
+3. **The Mac on its other network** (A, a laptop with cable and Wi-Fi): pair on the Wi-Fi; plug the cable, turn the Wi-Fi off, turn serving on again: the phone finds the Mac at the cable's address (both were served on, so both are tried). Then make the router give the Mac a new address (or use another network the phone has never seen the Mac on): the phone says the computer does not answer; pair again: the same copy stays bound, nothing downloaded again, and the Mac's phone list shows one phone, not two.
+4. **Replace this computer's identity** (A): on the Mac; the phone's next sync says *a identidade do computador de casa mudou… Pareie de novo* and sends nothing; pairing again works.
+5. **iPad or iPhone** (A, the AltStore build): the same pairing and copy; the copy is in Verso's Documents in Files; iOS lets the app sync only while it is on the screen.
+6. **Another computer as the app** (A): the Windows or Linux app pairs with the Mac the same way, **Escolher onde e baixar…** making its copy.
+7. **Someone in the middle** (A, optional, a lab network): a TLS-intercepting proxy between the phone and the Mac: nothing is paired — *O código não confere…* when the proxy passes the request on (the Mac counts one of the window's three tries and shows no *Foi você?*), *a resposta não veio do computador que mostra este código…* when it answers in the Mac's place.
