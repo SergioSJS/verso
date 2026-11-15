@@ -183,14 +183,17 @@ export function embedTitle(target: string): string {
 
 export class BlockWidget extends WidgetType {
   /** Whether an embedded note gets its edit button: the setting as it is
-   *  when drawn, so a change of it draws the block again. */
-  readonly editable: boolean;
+   *  when drawn, so a change of it draws the block again. Not `editable`:
+   *  that is WidgetType's own getter, and true makes CodeMirror leave the
+   *  block's DOM editable (no `contenteditable=false`), which drew the
+   *  line breaks between an embedded note's blocks as empty lines. */
+  readonly canEdit: boolean;
   constructor(readonly block: Block, readonly opts: LiveOptions, readonly html: string | null | undefined) {
     super();
-    this.editable = block.kind === "embed" && opts.editEmbed !== undefined && opts.canEditEmbed?.() !== false;
+    this.canEdit = block.kind === "embed" && opts.editEmbed !== undefined && opts.canEditEmbed?.() !== false;
   }
   override eq(other: BlockWidget): boolean {
-    return other.block.kind === this.block.kind && other.block.text === this.block.text && other.html === this.html && other.editable === this.editable;
+    return other.block.kind === this.block.kind && other.block.text === this.block.text && other.html === this.html && other.canEdit === this.canEdit;
   }
   toDOM(view: EditorView): HTMLElement {
     const el = document.createElement("div");
@@ -406,7 +409,7 @@ export class BlockWidget extends WidgetType {
       frame.append(body);
       el.append(frame);
 
-      if (this.opts.editEmbed && this.editable) {
+      if (this.opts.editEmbed && this.canEdit) {
         const labels = this.opts.embedLabels;
         const edit = document.createElement("button");
         edit.type = "button";
