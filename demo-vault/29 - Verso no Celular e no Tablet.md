@@ -1,7 +1,7 @@
 ---
 title: Verso no Celular e no Tablet
 date: 2026-10-09
-updated: 2026-11-10
+updated: 2026-11-15
 tags:
   - celular
   - tablet
@@ -24,6 +24,7 @@ Numa tela com menos de 760 px de largura:
 - **O botão de abas** (ou um toque no nome da nota) abre uma folha logo abaixo da barra: as **abas abertas** (um toque traz a aba para a frente, o **×** fecha), o **caminho** da nota (cada pasta abre a vista dela), os três modos com nome — **Leitura**, **Editar** e **Fonte** — e seis ações: **Arquivos** (a gaveta com a árvore), **Buscar**, **Nova nota**, **Voltar**, **Comandos** (a paleta) e **Painel** (a gaveta da direita: estrutura, links, tags, favoritos, focos, calendário — e a Mesa e a música, quando ligadas). Um toque fora da folha, ou o Voltar do Android, fecha.
 - **A barra de baixo** repete essas seis ações e vem ligada. Para dar a tela toda ao texto, desligue **Barra inferior sempre visível**, no fim da folha, ou use **⋯ › Ocultar a barra inferior**; o mesmo **⋯** a traz de volta, e a escolha fica guardada.
 - **A árvore é uma gaveta**: abre por **Arquivos** e fecha com um toque fora dela.
+- **Deslize para o lado para abrir as gavetas**, sem precisar da barra de baixo: passe o dedo pela nota da esquerda para a direita e os **arquivos** entram; da direita para a esquerda, o **painel da direita**. A gaveta acompanha o dedo; solte depois de mais ou menos um terço (ou num gesto rápido) e ela fica; antes disso, volta. Deslize ao contrário — sobre a gaveta ou ao lado dela — para fechar. Comece longe da borda da tela: no Android, deslizar a partir da borda é o Voltar do sistema. O que já usa o dedo de lado fica com ele: um texto selecionado, os campos, tabelas largas e códigos que rolam para o lado, o kanban, os boards, os desenhos, os mapas, o grafo, o grafo de dados e um PDF ampliado. Para desligar: **Deslizar para o lado abre os painéis**, na folha do botão de abas.
 - **Um painel por vez**: um layout dividido em [[10 - Abas, Painéis, Espaços de Trabalho e Janelas|painéis lado a lado]] mostra uma só, com um botão **1/2** na barra do alto que troca de painel. O layout fica guardado e volta inteiro numa tela mais larga.
 - **As ferramentas de um painel estreito** cabem num botão **…**: voltar, nova nota, as abas e as **Ações da aba…**.
 - **Um aviso que importa** — um salvamento que falhou, a conexão com o servidor — aparece no alto do painel, com o sino das **Notificações** ao lado; os avisos das notificações aparecem no alto também.
@@ -140,7 +141,7 @@ O que muda em relação ao Android:
 
 ## Leitores de Tela
 
-Com o VoiceOver (iPhone e iPad) ou o TalkBack (Android), tocar duas vezes e segurar faz o mesmo que segurar: abre o menu. Cada botão novo tem nome, em português e em inglês.
+Com o VoiceOver (iPhone e iPad) ou o TalkBack (Android), tocar duas vezes e segurar faz o mesmo que segurar: abre o menu. Deslizar para o lado é um atalho a mais: **Arquivos** e **Painel** continuam como botões. Cada botão novo tem nome, em português e em inglês.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: Verso on Phone and Tablet
 date: 2026-10-09
-updated: 2026-11-10
+updated: 2026-11-15
 tags:
   - phone
   - tablet
@@ -24,6 +24,7 @@ On a screen less than 760 px wide:
 - **The tabs button** (or a tap on the note's name) opens a sheet just under the bar: the **open tabs** (a tap brings a tab to the front, the **×** closes it), the note's **path** (each folder opens its view), the three modes by name — **Reading**, **Edit** and **Source** — and six actions: **Files** (the drawer with the tree), **Search**, **New note**, **Back**, **Commands** (the palette) and **Panel** (the right drawer: outline, links, tags, bookmarks, focuses, calendar — and the Table and the music, when on). A tap outside the sheet, or Android's Back, closes it.
 - **The bottom bar** repeats those six actions and is on. To give the whole screen to the text, turn off **Bottom bar always shown**, at the end of the sheet, or use **⋯ › Hide the bottom bar**; the same **⋯** brings it back, and the choice is kept.
 - **The tree is a drawer**: it opens with **Files** and closes with a tap outside it.
+- **Swipe sideways to open the drawers**, without the bottom bar: draw a finger across the note from left to right and the **files** come in; from right to left, the **right panel**. The drawer follows the finger; let go past about a third of the way (or with a quick flick) and it stays; before that, it goes back. Swipe the other way — on the drawer or beside it — to close it. Start away from the screen's edge: on Android, a swipe from the edge is the system's Back. What already uses a sideways finger keeps it: selected text, fields, wide tables and code that scroll sideways, the kanban, boards, drawings, maps, the graph, the data graph and a zoomed PDF. To turn it off: **Swipe sideways to open the panels**, in the tabs button's sheet.
 - **One pane at a time**: a layout split into [[10 - Tabs, Panes, Workspaces and Windows|side-by-side panes]] shows just one, with a **1/2** button in the top bar that switches panes. The layout is kept and comes back whole on a wider screen.
 - **The tools of a narrow pane** fit in a **…** button: back, new note, the tabs and the **Tab actions…**.
 - **A warning that matters** — a save that failed, the connection to the server — shows at the top of the pane, with the **Notifications** bell beside it; the notifications' warnings show at the top too.
@@ -140,7 +141,7 @@ What differs from Android:
 
 ## Screen Readers
 
-With VoiceOver (iPhone and iPad) or TalkBack (Android), a double tap and hold does the same as holding: it opens the menu. Every new button has a name, in Portuguese and in English.
+With VoiceOver (iPhone and iPad) or TalkBack (Android), a double tap and hold does the same as holding: it opens the menu. The sideways swipe is an extra: **Files** and **Panel** stay as buttons. Every new button has a name, in Portuguese and in English.
 
 ---
 
