@@ -11,7 +11,12 @@
   relayed by the main session; no other words of his are recorded. Later
   the same day, to the four `[OPEN]` questions below (Q1–Q4), accepting the
   four recommendations: *"ok para watabou"*; the answers' detail (what
-  Dwellings' drawing and note hold) came relayed by the main session.
+  Dwellings' drawing and note hold) came relayed by the main session. On
+  2026-11-15, relayed by the main session, on the imported maps: *"It
+  brought a lot of information, nice — but it looks very bad. Square,
+  blocky, without the old-school feel the Watabou map image itself shows.
+  If we import this kind of map, we should bring the image that goes on
+  top."* (item 2, revised).
 - Status in the briefing: not present
 - Builds on: [0056](0056-embedded-web-pages.md) (revised by item 6),
   [0057](0057-board-json-canvas.md) (the board's drawing),
@@ -47,6 +52,11 @@ nothing.
    exact, editable, in the board's look — not pins over Watabou's picture.
    The note holds the title, the story and the numbered keys, the same
    numbers as the drawing.
+   *Revised by the maintainer on 2026-11-15* (Source): **the generator's
+   own picture is the map**, lined up with the JSON; Verso's drawing stays
+   in the board as its hidden tracing, shown to edit; the numbered keys are
+   pins over the picture. Without the picture, the drawing as before. How
+   it is built: "The generator's picture" below.
 3. **The walls are stored on import**, though nothing reads them yet; the
    table's vision and fog come later (0110). The format is the author's
    (below).
@@ -247,6 +257,95 @@ import the folder of the tab in front. Remembered for the window's session
 only. A folder's **New** menu still offers that folder. The author's
 reading.
 
+### The generator's picture (2026-11-15) — the author's reading
+
+**What each generator exports** (read off each generator's own menu,
+2026-11-15, in a browser in Docker; samples kept outside the repository,
+heads of two in `app/ui/test/watabou/`):
+
+| Generator | Export menu | The picture |
+|---|---|---|
+| One Page Dungeon (v1.2.7) | *Save as PNG*; *Export as* › PNG…, SVG, JSON, VOX, Markdown | the whole page — title, story, the keys' boxes, the map **turned to fit** (*View › Rotate-to-fit*, on by default) — at the window's size; the PNG the same picture about 3.5 times larger |
+| Dwellings (v1.4.x) | *Export* › as PNG, as SVG, as JSON, Advanced… | **one floor**, the one shown, on the whole house's grid with three cells of margin; files named `<house>_gf`, `_1f`, `_b`…; *Advanced…* lays several floors out as a table in one picture |
+| Village Generator (v1.6.9), City Generator | *Export as* › PNG, SVG, JSON | the settlement; its JSON is GeoJSON with no name (the file is named after it) |
+
+**Terms.** Watabou's FAQ (watabou.github.io/faq.html, read 2026-11-15),
+*Is it really free?*: *"The generators are obviously free to use. And
+basically you can do with generated images whatever you like: You can use
+maps created by the generator(s) as you like: copy, modify, include in your
+commercial rpg adventures etc. Attribution is appreciated, but not
+required... Please note that I strongly disapprove abusing this "license"
+by selling generated maps."* Verso brings the picture the person exported
+into the person's own folder, beside the note that credits Watabou
+(`credit`); nothing of his code or pictures ships with Verso. Item 7's
+permission concerns embedding the generators, not this.
+
+**Where the cells are on the picture** (`picture.ts`, `align.ts`). Every
+SVG export puts its map in the first group with a `transform`; the import
+reads the file's head for the root's size and that transform:
+
+- **One Page Dungeon**: `translate(…) rotate(θ) scale(s)`, the map's own
+  units 30 to a cell (a room of 6 × 7 cells is 180 × 210 units). A cell
+  `(x, y)` of the JSON is at `T · R(θ) · s · 30 · (x, y)` of the SVG; the
+  board lays the picture at `k = 40 / (30 s)` board pixels to an SVG unit,
+  so a cell stays 40 px as Verso's drawing has it. Checked against the
+  generator's own page: the JSON's key "1" at (10, −6.5) falls at (948.6,
+  512.2) of a 1400 × 1000 window, where the page draws its "1"; every room
+  of the sample drawn over the 4846-pixel PNG lies on its picture
+  (2026-11-15). **A PNG alone does not say the turn**: without the SVG the
+  board keeps Verso's drawing, and the dialog asks for the SVG.
+- **Dwellings**: `scale(D) translate(m m)`, a cell `(j, i)` at
+  `D · (j + m, i + m)`; a floor's picture is known by the generator's
+  suffix in its name (`_gf` 0, `_1f` 1, `_b` −1) — or is the one floor of a
+  house of one. A PNG without its SVG is placed by its size (the house's
+  grid plus three cells of margin each way, the same scale both ways) and
+  refused when it does not fit. The *Advanced…* table of floors is kept as
+  a picture but not placed.
+- **The picture shown**: the PNG of the same export when it came (the
+  generator's own rendering, its fonts in it, and cut into tiles by the
+  board, 0090 item 4) — the same proportions as the SVG; else the SVG (its
+  text then in the system's fonts: an SVG shown as a picture loads no web
+  font).
+
+**The dungeon's board**: the picture is a map card (0090:
+`verso.map`, `locked`, grouped with its pins) at the board's origin;
+**each numbered key is a pin** on the picture's own number, a file card of
+the dungeon's note marked `"verso": {"pin": true, "key": "1"}` — drawn as
+a roundel with the number, named *"Open <note>, number 1"*, listed in the
+map's pins as *"1 · <note>"* — and the note's card beside the picture.
+Verso's drawing is turned and moved onto the picture (`trace.ts`: a
+line's points moved, any other element turned round its middle), its
+title left to the picture's; then made the **tracing**: blue (`#1971c2`),
+no floor fill, `opacity` 0, `locked`, marked `"customData": {"verso":
+{"traced": true}}` — a secret door keeps its `secret` mark beside it. The
+walls (`verso.walls`) are written on the picture, turned with it, and gain
+`"grid": [a, b, c, d, e, f]`, the matrix from the JSON's cells to the
+board, for the table's vision to come.
+
+**A house's board**: each floor with its picture has it as its frame's
+map, the frame grown to the picture (three cells of margin round the
+house on every floor), that floor's drawing its tracing; a floor without
+one is drawn as before. No pins: the rooms' names are on the picture.
+
+**A village or a city** (a GeoJSON whose `values` names `vg` or `mfcg`)
+**is now imported with its picture**: a folder with the note
+(`generator: village-generator` or `city-generator`, `generator_version`,
+`map`, `export`, `credit`, the title from the file's name, the pictures),
+the exports, and a board whose map is the picture (2000 px wide), the note
+beside. Without a picture it is not imported and the dialog asks for it.
+Any other GeoJSON generator stays named, not imported.
+
+**Show the tracing** (`board/tracing.ts`): offered to whoever may write
+the board when it holds a tracing — a map tool beside *Pin a note here…*
+and a verb of the phone's ⋯ sheet, Board section, both pressed while
+shown. One step shows every traced element (`opacity` 100, unlocked, to be
+edited) or hides it again; one undo each. It is the elements' own state,
+saved in the file, so whoever has the board open sees it shown while the
+game master edits.
+
+**Columns** (a fix seen over the picture): a column of the JSON stands on
+a corner of the grid, not in a cell; drawn there.
+
 ## Consequences
 
 - Verso writes Watabou's generated maps into the folder as Markdown, JSON
@@ -262,7 +361,15 @@ reading.
 
 ## Discarded alternatives
 
-- **Pins over Watabou's picture** (the report's option): set aside by item 2.
+- **Pins over Watabou's picture** (the report's option): set aside by item 2
+  on 2026-11-12; taken by item 2's revision of 2026-11-15.
+- **Turning the picture instead of the drawing** (2026-11-15, the author):
+  a card on the board cannot be turned (JSON Canvas has no angle), and the
+  picture's title and notes would read askew; the drawing is turned.
+- **Hiding the tracing per viewer** (2026-11-15, the author): a view-only
+  switch would have to keep the hidden elements out of the scene and put
+  them back on every save; the elements' own opacity is saved like any
+  edit, and Obsidian, which draws no `verso.drawing`, is untouched.
 - **One note per town and danger at import** (the report's question 7):
   set aside by item 4.
 - **Capturing the export by a script injected into his page** (the report,
@@ -285,6 +392,14 @@ that were `[OPEN]` here, each as recommended:
 
 The mechanism under every item is the author's, built under these
 decisions and labelled as such above.
+
+**Revised 2026-11-15** (item 2): the generator's picture is the map, built
+on `feat/phone-home-and-board`. Chosen in the code, for the maintainer to
+confirm: villages and cities imported with their picture (the importer's
+first generators widened); a floor's picture known by Dwellings' suffix in
+its name (the exports' own content is still what says what a JSON or
+Markdown file is); the tracing's shown/hidden state saved in the file; the
+PNG shown over the SVG when both came.
 
 ### Fixed 2026-11-15: the walls and the secret doors were served to players
 
