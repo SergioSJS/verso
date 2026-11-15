@@ -244,7 +244,10 @@ Accepted (2026-10-10, Status).
    changed on both sides since the base and both changes are pure appends
    to its end — the base's bytes a prefix of both versions, at a line
    boundary — the two tails are joined instead of a conflict copy: the
-   server's tail first, then this computer's. The result is written here
+   server's tail first, then this computer's, which starts a line of its
+   own: a newline is put between them when the server's tail ends mid-line
+   (2026-11-15, a phone's offline line and the computer's were glued into
+   one on the maintainer's devices). The result is written here
    (invariant 11) and sent, and the sync's log says "merged" (item 13:
    nothing silent). Any other change on both sides stays a conflict copy.
    This is the first step of [0073](0073-self-hosted-server-first.md) item
