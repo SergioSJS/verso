@@ -60,6 +60,7 @@ No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore s�
 
 - **O kanban** de uma [[14 - Visualização de Bases e Dados|base]] passa uma coluna por vez, deixando ver a beirada da próxima; segure um cartão para movê-lo, ou use **Mover para a coluna…** no menu dele.
 - **O [[15 - Visualização de Grafo e Conexões|grafo]]**: os ajustes ficam num painel fechado, aberto pelo botão **Ajustes do grafo**; a pinça amplia e dois dedos deslocam.
+- **Um [[20 - Board e Relações|board]]** dá a tela ao desenho. Com o celular em pé, as ferramentas de desenho (mão, seleção, lápis, borracha, retângulo, seta, texto e o `⋮` das outras) ficam numa barra só, embaixo, **no lugar da barra de baixo** — mesmo com **Barra inferior sempre visível** ligada; as ações dela continuam na folha do botão de abas. Com o celular deitado, as ferramentas viram **uma coluna na beirada direita**, e o board fica com a altura toda. **Desfazer** e **refazer** ficam na barra do alto. O resto do board está na folha do botão de abas, na parte **Board**: **Board | Texto**, **Cartão de texto**, **Imagem ou PDF…**, **Nota ou arquivo…**, **Link…**, **Página web…**, **Setas soltas**, **Buscar no board**, **Sumário** (que abre por cima do board e fecha no ×) e **Exportar, fundo e ajuda**. O que age sobre uma seleção — cores, traço, Abrir, Recortar — só aparece enquanto algo está selecionado. Um board que você só lê guarda a barra de baixo.
 - **A pinça** amplia a página inteira, como em qualquer site — menos no grafo, num board e num PDF, que a usam para si.
 
 ---

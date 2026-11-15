@@ -60,6 +60,7 @@ On the tablet (760 to 1180 px) the side bars stay, and the tree's rows are talle
 
 - **The kanban** of a [[14 - Bases and Data Views|base]] moves one column at a time, letting you see the edge of the next; hold a card to move it, or use **Move to column…** in its menu.
 - **The [[15 - Graph View and Connections|graph]]**: the settings live in a closed panel, opened by the **Graph settings** button; pinch zooms in and two fingers pan.
+- **A [[20 - Board and Relations|board]]** gives the screen to the drawing. With the phone upright, the drawing tools (hand, selection, pencil, eraser, rectangle, arrow, text and the `⋮` of the others) are one bar at the foot, **in the place of the bottom bar** — even with **Bottom bar always shown** on; its actions are still in the tabs button's sheet. With the phone on its side, the tools become **one column at the right edge**, and the board keeps the whole height. **Undo** and **redo** are in the top bar. The rest of the board is in the tabs button's sheet, in its **Board** part: **Board | Text**, **Text card**, **Picture or PDF…**, **Note or file…**, **Link…**, **Web page…**, **Loose arrows**, **Search the board**, **Outline** (which opens over the board and closes with its ×) and **Export, background and help**. What acts on a selection — colours, stroke, Open, Crop — shows only while something is selected. A board you only read keeps the bottom bar.
 - **Pinch** zooms the whole page, as on any site — except on the graph, a board and a PDF, which use it for themselves.
 
 ---
