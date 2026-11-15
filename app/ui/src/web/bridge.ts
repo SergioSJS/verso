@@ -560,7 +560,7 @@ async function local(cmd: string, a: Record<string, unknown>): Promise<{ answere
       return done({ url: location.origin, folder: folderId ?? "" });
     case "server_accounts": {
       const me = signedIn();
-      return done(me ? [{ url: location.origin, email: me.email, name: me.name }] : []);
+      return done(me ? [{ url: location.origin, email: me.email, name: me.name, paired: false }] : []);
     }
     case "server_folders": {
       try {
