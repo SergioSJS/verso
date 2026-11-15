@@ -313,7 +313,7 @@ const STOPS = [
     tip:
       "Um bloco ```statblock desenha uma ficha com o layout que você escolhe com `layout:`; os dados rolam num clique, e os contadores gravam o número na nota. O editor de layout fica em Ajustes › RPG & Mesa Solo › Fichas e Templates. " +
       "Um callout > [!oracle] responde perguntas de sim/não com chances e faíscas, e a resposta é escrita no destaque; repetir a pergunta acumula respostas. " +
-      "O assistente de novo projeto mostra a árvore antes de escrever e deixa desmarcar o que você não quer. Importar mapa do Watabou… traz uma masmorra do One Page Dungeon com um desenho do Verso, salas numeradas como na nota, uma casa do Dwellings com um quadro por andar, e uma região do Perilous Shores numa nota só. Em Ajustes › RPG & Mesa Solo › Dados e RPG, cada ferramenta tem a sua chave. " +
+      "O assistente de novo projeto mostra a árvore antes de escrever e deixa desmarcar o que você não quer. Importar mapa do Watabou… traz uma masmorra do One Page Dungeon com o próprio desenho do Watabou como mapa e as salas numeradas em alfinetes, uma casa do Dwellings com um quadro por andar, uma vila ou cidade com o seu desenho, e uma região do Perilous Shores numa nota só. Em Ajustes › RPG & Mesa Solo › Dados e RPG, cada ferramenta tem a sua chave. " +
       "À direita, uma campanha de exemplo do Fractal: o mundo, uma ficha, três Desafios encaixados e o diário de uma sessão com o oráculo.",
   },
   {
