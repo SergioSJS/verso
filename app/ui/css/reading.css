@@ -541,7 +541,8 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
   cursor: pointer;
   transition: opacity .15s;
 }
-.preview pre .code-fold-btn .icon { width: 12px; height: 12px; transition: transform .2s var(--ease-out); }
+/* As a heading's fold: open points down, folded points right. */
+.preview pre .code-fold-btn .icon { width: 12px; height: 12px; transform: rotate(90deg); transition: transform .2s var(--ease-out); }
 .preview pre .code-fold-btn:hover { background: var(--paper-3); color: var(--ink); }
 .preview pre:hover .code-fold-btn,
 .preview pre.code-folded .code-fold-btn,
@@ -549,7 +550,7 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
   opacity: 1;
 }
 .preview pre.code-folded .code-fold-btn { color: var(--seal); }
-.preview pre.code-folded .code-fold-btn .icon { transform: rotate(-90deg); }
+.preview pre.code-folded .code-fold-btn .icon { transform: rotate(0deg); }
 .preview pre.code-folded code {
   display: none !important;
 }

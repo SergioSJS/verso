@@ -160,9 +160,12 @@ test("nothing stands past the window's edge, wide or narrow, with a side bar ope
     if (right) await app.key("Mod+Alt+ArrowRight");
     const out = await page.evaluate(() => ({ W: window.innerWidth, scroll: document.documentElement.scrollWidth }));
     expect(out.scroll, `${w}px${right ? ", right bar open" : ""}`).toBeLessThanOrEqual(out.W);
-    // The mode's buttons and the tab bar's own buttons stay on screen.
-    for (const sel of [".leaf:not([hidden]) .modes", ".pane .tabs"]) {
-      const r = await page.locator(sel).first().boundingBox();
+    // The mode's buttons and the tab bar's own buttons stay on screen; on a
+    // phone the modes fold into the one top bar (2026-11-14), which is measured.
+    for (const sel of [".leaf:not([hidden]) .modes", ".pane .tabs", ".pane .phone-head"]) {
+      const loc = page.locator(sel).first();
+      if (!(await loc.isVisible())) continue;
+      const r = await loc.boundingBox();
       expect(r.x + r.width, `${sel} at ${w}px`).toBeLessThanOrEqual(w + 1);
     }
   }
@@ -177,7 +180,7 @@ test("an SVG with no size of its own shows, in Leitura and in Editar, selected o
   await page.evaluate(`${view}.dispatch({ selection: { anchor: 0, head: ${view}.state.doc.length } })`);
   await expect.poll(async () => Math.min(...(await sizes()))).toBeGreaterThan(200);
   // Leitura.
-  await page.locator(".leaf:not([hidden]) .modes button", { hasText: "Leitura" }).click();
+  await app.mode("Leitura");
   await expect.poll(sizes).toHaveLength(2);
   await expect.poll(async () => Math.min(...(await sizes()))).toBeGreaterThan(200);
 });

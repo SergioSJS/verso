@@ -343,7 +343,7 @@ const STOPS = [
       ["n-mesanet", "29 - Mesa pela Internet.md", 600],
     ],
     tip:
-      "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar, Comandos e Painel; um layout dividido mostra um painel por vez. " +
+      "No celular, uma barra só no alto: o botão com o número de abas abre a folha com as abas, o caminho, os modos e Arquivos, Buscar, Nova nota, Voltar, Comandos e Painel; um layout dividido mostra um painel por vez. " +
       "Tocar numa pasta a abre ou fecha, e a página dela abre pelo botão no fim da linha. Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link. Com HTTPS, Ajustes › Sem rede deixa uma pasta abrir e editar sem conexão, e o que mudou sobe quando a rede volta. " +
       "Sem servidor montado: Ajustes › Transformar em servidor liga o seu próprio computador como servidor — na rede de casa para parear celulares, e/ou por um link da Cloudflare (modo de teste) para jogar com quem está longe; a nota 29 traz os passos, os convites, sentar à mesa e o endereço próprio.",
   },

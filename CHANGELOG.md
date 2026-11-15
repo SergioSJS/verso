@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+### Changed
+
+- On a phone, one bar at the top in place of three: the note's name over its folder, a mode button (Reading ↔ Edit), the pane's ⋯, a button with the number of open tabs at the right end (under the thumb) and the bell. The tabs button (or the name) opens a sheet with the open tabs, the note's path, the three modes by name, the six actions of the bottom bar and a switch to keep that bar. The bottom bar stays on by default; turning it off (the sheet's switch, or ⋯ › Hide the bottom bar) gives the text about 100 px more of the screen.
+
 ### Fixed
 
 - Reading mode: a code block's fold button is the same size as its copy and diagram buttons, and the three sit in one evenly spaced row instead of the fold button overlapping the copy button.

@@ -314,7 +314,7 @@ export class NoteLeaf extends Leaf {
     };
     // A writer's "view as a reader" of a note with secret blocks (ADR 0087).
     this.modes.append(this.readerView.button);
-    const head = h("header", "leaf-head");
+    const head = h("header", "leaf-head note-head");
     head.append(this.crumbs, this.modes);
     // Drawn, not said: the Save button beside it and the tab say it.
     this.dirtyMark.setAttribute("aria-hidden", "true");

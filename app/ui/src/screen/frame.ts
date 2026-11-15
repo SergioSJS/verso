@@ -29,6 +29,7 @@ import { installKeyboard } from "./keyboard";
 import { installRowMore } from "./rowMore";
 import { installTableChip } from "../tableChip";
 import { st } from "./strings";
+import { barVerbs } from "./verbs";
 
 /* ---------- The bottom bar (item 6) ---------- */
 const bar = h("nav", "bottom-bar");
@@ -81,6 +82,8 @@ function buildBar(): void {
   // The panel at the right (backlinks, outline, tags…) opens from here on
   // a phone: a visible verb with a name, not a gesture to guess.
   document.querySelector("main.work")?.append(bar);
+  // The top bar's sheet offers the same verbs (phoneSheet.ts).
+  barVerbs.push(...bar.querySelectorAll<HTMLButtonElement>(".bottom-bar-item"));
   paintExpanded();
   paintBar();
   // The words fit their buttons at any text size (fitBar).

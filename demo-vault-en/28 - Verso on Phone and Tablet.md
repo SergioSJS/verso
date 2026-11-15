@@ -20,9 +20,11 @@ Verso opens in the browser of your phone and tablet, served by `verso serve` —
 
 On a screen less than 760 px wide:
 
-- **The bottom bar** has six verbs: **Files** (the drawer with the tree), **Search**, **New note**, **Back**, **Commands** (the palette) and **Panel** (the right drawer: outline, links, tags, bookmarks, focuses, calendar — and the Table and the music, when on). The side ribbon and the desktop status bar go away.
+- **One bar, at the top**: the **note's name** with its folder under it, the **mode** button (the book in Reading, the pencil in Edit: a tap switches between the two), the pane's **⋯**, the button with the **number of open tabs** — at the right end, where the thumb reaches — and the **Notifications** bell. The rest of the screen is the text's. The side ribbon and the desktop status bar go away.
+- **The tabs button** (or a tap on the note's name) opens a sheet just under the bar: the **open tabs** (a tap brings a tab to the front, the **×** closes it), the note's **path** (each folder opens its view), the three modes by name — **Reading**, **Edit** and **Source** — and six actions: **Files** (the drawer with the tree), **Search**, **New note**, **Back**, **Commands** (the palette) and **Panel** (the right drawer: outline, links, tags, bookmarks, focuses, calendar — and the Table and the music, when on). A tap outside the sheet, or Android's Back, closes it.
+- **The bottom bar** repeats those six actions and is on. To give the whole screen to the text, turn off **Bottom bar always shown**, at the end of the sheet, or use **⋯ › Hide the bottom bar**; the same **⋯** brings it back, and the choice is kept.
 - **The tree is a drawer**: it opens with **Files** and closes with a tap outside it.
-- **One pane at a time**: a layout split into [[10 - Tabs, Panes, Workspaces and Windows|side-by-side panes]] shows just one, with a **1/2** button in the tab bar that switches panes. The layout is kept and comes back whole on a wider screen.
+- **One pane at a time**: a layout split into [[10 - Tabs, Panes, Workspaces and Windows|side-by-side panes]] shows just one, with a **1/2** button in the top bar that switches panes. The layout is kept and comes back whole on a wider screen.
 - **The tools of a narrow pane** fit in a **…** button: back, new note, the tabs and the **Tab actions…**.
 - **A warning that matters** — a save that failed, the connection to the server — shows at the top of the pane, with the **Notifications** bell beside it; the notifications' warnings show at the top too.
 

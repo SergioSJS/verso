@@ -20,9 +20,11 @@ O Verso abre no navegador do celular e do tablet, servido pelo `verso serve` —
 
 Numa tela com menos de 760 px de largura:
 
-- **A barra de baixo** tem seis verbos: **Arquivos** (a gaveta com a árvore), **Buscar**, **Nova nota**, **Voltar**, **Comandos** (a paleta) e **Painel** (a gaveta da direita: estrutura, links, tags, favoritos, focos, calendário — e a Mesa e a música, quando ligadas). A fita lateral e a barra de status do computador saem.
+- **Uma barra só, no alto**: o **nome da nota** com a pasta dela embaixo, o botão de **modo** (o livro na Leitura, o lápis no Editar: um toque troca entre os dois), o **⋯** do painel, o botão com o **número de abas abertas** — na ponta direita, onde o polegar alcança — e o sino das **Notificações**. O resto da tela é do texto. A fita lateral e a barra de status do computador saem.
+- **O botão de abas** (ou um toque no nome da nota) abre uma folha logo abaixo da barra: as **abas abertas** (um toque traz a aba para a frente, o **×** fecha), o **caminho** da nota (cada pasta abre a vista dela), os três modos com nome — **Leitura**, **Editar** e **Fonte** — e seis ações: **Arquivos** (a gaveta com a árvore), **Buscar**, **Nova nota**, **Voltar**, **Comandos** (a paleta) e **Painel** (a gaveta da direita: estrutura, links, tags, favoritos, focos, calendário — e a Mesa e a música, quando ligadas). Um toque fora da folha, ou o Voltar do Android, fecha.
+- **A barra de baixo** repete essas seis ações e vem ligada. Para dar a tela toda ao texto, desligue **Barra inferior sempre visível**, no fim da folha, ou use **⋯ › Ocultar a barra inferior**; o mesmo **⋯** a traz de volta, e a escolha fica guardada.
 - **A árvore é uma gaveta**: abre por **Arquivos** e fecha com um toque fora dela.
-- **Um painel por vez**: um layout dividido em [[10 - Abas, Painéis, Espaços de Trabalho e Janelas|painéis lado a lado]] mostra uma só, com um botão **1/2** na barra de abas que troca de painel. O layout fica guardado e volta inteiro numa tela mais larga.
+- **Um painel por vez**: um layout dividido em [[10 - Abas, Painéis, Espaços de Trabalho e Janelas|painéis lado a lado]] mostra uma só, com um botão **1/2** na barra do alto que troca de painel. O layout fica guardado e volta inteiro numa tela mais larga.
 - **As ferramentas de um painel estreito** cabem num botão **…**: voltar, nova nota, as abas e as **Ações da aba…**.
 - **Um aviso que importa** — um salvamento que falhou, a conexão com o servidor — aparece no alto do painel, com o sino das **Notificações** ao lado; os avisos das notificações aparecem no alto também.
 

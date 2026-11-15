@@ -37,6 +37,8 @@ import { TextLeaf } from "../leaves/textfile";
 import { MenuItem, showMenu } from "../menu";
 import { Kind, kindOf } from "../paths";
 import { periodicMenu } from "../periodic/notes";
+import { PhoneHead } from "../screen/phoneHead";
+import { setBottomBar } from "../screen/phoneSheet";
 import { st } from "../screen/strings";
 import { settings } from "../settings";
 import { t } from "../strings";
@@ -59,6 +61,7 @@ export class Pane {
   /** The pane left the layout: what it listens to on the page goes. */
   dispose(): void {
     this.stopEmptyHint();
+    this.phone.dispose();
   }
   readonly leaves: Leaf[] = [];
   readonly tabsDivider = h("div", "tabs-divider");
@@ -87,6 +90,8 @@ export class Pane {
   readonly switcher = button("ghost pane-switch", st.paneSwitch(1, 1));
   /** A pane under 520 px folds its tools into this one (ADR 0076 item 2). */
   readonly fold = button("ghost iconic pane-fold", st.paneTools, "more");
+  /** On a phone, the one top bar in place of the tabs (screen/phoneHead.ts). */
+  readonly phone: PhoneHead;
 
   constructor() {
     // The tabs are the tablist; the pane's tools sit beside it, outside.
@@ -154,7 +159,8 @@ export class Pane {
       this.foldMenu(r.left, r.bottom + 4);
     });
     this.tools.append(this.backButton, this.forwardButton, all, orient, plus, max, close, this.fold);
-    this.tabs.append(this.switcher, this.tabList, this.tools);
+    this.phone = new PhoneHead(this);
+    this.tabs.append(this.switcher, this.phone.el, this.tabList, this.tools, this.phone.count);
     this.tabs.addEventListener("dblclick", (e) => {
       // Without the system's title bar the bar's empty space is the title
       // bar: a double click maximizes the window there (ADR 0072).
@@ -412,6 +418,8 @@ export class Pane {
       sep,
       [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
       [t.hideTabs, () => this.setTabsHidden(true), "collapse"],
+      // On a phone the bar of verbs at the bottom comes and goes from here too.
+      ...(narrow.matches ? [[settings.phoneBottomBar ? st.hideBar : st.showBar, () => setBottomBar(!settings.phoneBottomBar), "panelRight"] as MenuItem] : []),
       ...(many && !narrow.matches ? [[layout().maximized === this ? t.restore : t.maximize, () => layout().toggleMaximize(this), "maximize"] as MenuItem] : []),
       [t.closePane, () => void this.closeAll(), "close"],
     ]);
@@ -489,6 +497,7 @@ export class Pane {
     layout().focus(this);
     showOutline(leaf);
     markCurrent();
+    this.phone.paint();
     dispatchEvent(new CustomEvent("verso:leaf-active", { detail: leaf }));
     leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
     // Again once its name is drawn: a tab just made is narrow until then, and

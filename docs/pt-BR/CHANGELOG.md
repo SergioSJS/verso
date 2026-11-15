@@ -12,7 +12,13 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Alterado
+
+- No celular, uma barra só no alto no lugar de três: o nome da nota sobre a pasta dela, um botão de modo (Leitura ↔ Editar), o ⋯ do painel, um botão com o número de abas abertas na ponta direita (ao alcance do polegar) e o sino. O botão de abas (ou o nome) abre uma folha com as abas abertas, o caminho da nota, os três modos com nome, as seis ações da barra de baixo e um interruptor para manter essa barra. A barra de baixo continua ligada por padrão; desligá-la (o interruptor da folha, ou ⋯ › Ocultar a barra inferior) dá ao texto cerca de 100 px a mais da tela.
+
+### Corrigido
+
+- Modo Leitura: o botão de recolher de um bloco de código tem o mesmo tamanho dos botões de copiar e de diagrama, e os três ficam numa fileira com o mesmo espaço entre eles, em vez do botão de recolher encostar no de copiar.
 
 ## 0.9.0-beta.1 — 2026-11-14
 

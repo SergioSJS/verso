@@ -278,3 +278,41 @@ and when a folder is shown. Tried in
 table is not shown the folder's lock (they edit some files), and the notice on
 an attempt names the note (*You only read this note*), not the folder. Outside
 a table this paragraph holds.
+
+**One top bar on a phone (item 6, revised 2026-11-14).** The maintainer, on
+his phone with 0.9.0-beta.1: *"to achando a area util muito pequena, temos
+vários pixels separado para abas, quase o triplo de pixels separados para
+caminho do arquivo, e 3 botões de modo. ai em baixo vários pixels separados
+para operações … talvez uma barra unica superior com botão que agrupa abas,
+ativa e desativa barra inferior e demais botões"*. Four drafts were drawn
+(one top bar; bars that hide while reading; everything in one bottom bar;
+the current layout measured: 153 px of controls, about 72% of the screen
+left to the text); he chose the one top bar: *"gostei muito do A"*. Under
+760 px:
+
+- The pane's tab row becomes **one bar of 44 px**: the note's name over its
+  folder, one **mode button** (in a note: Reading turns to Edit, Edit or
+  Source back to Reading, through the note's own mode buttons), the pane's
+  **⋯**, a button with the number of open tabs and the bell. The tabs'
+  button sits at the right end, under the thumb (the maintainer,
+  2026-11-15: *"como ele é muito usado … no alcance do dedão"*). The tabs, the
+  note's own row of folder and modes (`.note-head`) and the folder in any
+  other leaf's row are not drawn; a base's, a board's or a data file's modes
+  stay in their row.
+- The count and the name open a **sheet** under the bar
+  (`app/ui/src/screen/phoneSheet.ts`): the open tabs (to the front, ×
+  closes), the folder path as links, the three modes by name (and *View as a
+  reader* when the note offers it), the bottom bar's six verbs, and a switch
+  *Bottom bar always shown*. A tap outside, Escape and Android's Back close
+  it.
+- The **bottom bar of (a) stays, on by default** (`phoneBottomBar`, a
+  setting kept by the window; the maintainer, 2026-11-14: *"o padrao da
+  barra inferior deve ser habilitado"*); the sheet's switch and the pane's
+  **⋯ › Hide the bottom bar / Show the bottom bar** take it away and bring it
+  back. With it off,
+  the top bar stays even with no tab open — the way to the verbs — showing
+  the folder's name.
+- Default chosen in the code (the maintainer's to change): the mode button
+  goes between Reading and Edit only (Source is in the sheet).
+- Tried in `e2e/phone-top-bar.spec.mjs`, and on the maintainer's phone
+  through the harness (`adb reverse`).

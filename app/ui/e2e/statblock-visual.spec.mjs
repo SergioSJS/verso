@@ -213,7 +213,7 @@ async function setup(app, page, size, scheme) {
 
 async function openCase(app, page, c, mode = "Leitura") {
   await app.quickOpen(c.note);
-  await page.locator(".leaf:not([hidden]) .modes button", { hasText: mode }).first().click();
+  await app.mode(mode);
   // The card after the note's marker, in the pane that shows it.
   const marker = page.locator("p, .cm-line", { hasText: `Marcador ${c.id}.` }).filter({ visible: true }).first();
   await expect(marker).toBeVisible();

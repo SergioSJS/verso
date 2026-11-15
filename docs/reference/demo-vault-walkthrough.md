@@ -1016,6 +1016,21 @@ hand, on a phone and an iPad, the server's window in the browser.
    drawer with the search field, Comandos the palette; Voltar steps back in
    the pane. Level: H; E: `responsive.spec.mjs`, "the frame follows the
    screen" and "the phone's bar".
+1a. One top bar (ADR 0076 item 6, revised 2026-11-14): with the bottom bar
+   hidden (⋯ › *Ocultar a barra inferior*; it is on by default), open note
+   04: the pane's top is one row of 44 px —
+   "04 - Escrevendo no Editor" over "demo-vault", the book (*Leitura. Tocar
+   para editar*), ⋯, a box "1" (*1 aba aberta*) and the bell — and the text
+   starts under it: no tab row, no row of folder and modes, no bottom bar.
+   The book turns the note to Editar (a pencil now) and back. A tap on "1"
+   or on the name drops the sheet: the tab (×closes it), the path's
+   folders, Leitura / Editar / Fonte, Arquivos, Buscar, Nova nota, Voltar,
+   Comandos, Painel, and *Barra inferior sempre visível*; a tap outside,
+   Escape or Android's Back closes it; Arquivos opens the drawer. The switch
+   brings the bottom bar back and it stays after a reload; ⋯ hides it
+   again. With no tab open the row stays with the
+   folder's name. On a wide window, the tabs and the note's row as before.
+   Level: H; E: `phone-top-bar.spec.mjs` (three tests).
 2. A layout split on a wide window, then narrowed: one pane at a time and a
    switcher "2/2" in the tab bar; the panes are listed and chosen from it; the
    split commands are absent from the palette and from a tab's menu; widened

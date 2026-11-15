@@ -122,7 +122,8 @@ test("a split layout on a phone: one pane at a time, a switcher, the layout kept
   await expect(menu.getByRole("menuitem")).toHaveCount(2);
   await menu.getByRole("menuitem", { name: /Painel 1: 01 - Guia/ }).click();
   await expect(page.locator(".pane:visible")).toHaveCount(1);
-  await expect(page.locator('.pane:visible .tab[aria-selected="true"]')).toContainText("01 - Guia");
+  // The tab in front, named in the one top bar (the tabs fold into it, 2026-11-14).
+  await expect(page.locator(".pane:visible .phone-title-name")).toHaveText(/01 - Guia/);
   // On a phone the split commands are absent: from the palette and from a tab.
   await app.key("Mod+Shift+p");
   // A touch screen's field waits for a tap (screen/openFocus.ts).
@@ -130,7 +131,9 @@ test("a split layout on a phone: one pane at a time, a switcher, the layout kept
   await page.keyboard.type("Dividir");
   await expect(page.locator(".quick.palette:not([hidden]) .quick-list li")).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await page.locator('.pane:visible .tab[aria-selected="true"]').click({ button: "right" });
+  // The tab's own menu, through the pane's ⋯ (what a long press on the tab opened).
+  await page.locator(".pane:visible .pane-fold").click();
+  await menu.getByRole("menuitem", { name: "Ações da aba…" }).click();
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Dividir à direita" })).toHaveCount(0);
   await page.keyboard.press("Escape");

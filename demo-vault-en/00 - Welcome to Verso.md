@@ -105,7 +105,7 @@ Dice, statblocks, oracles and the game table, alone or with other people.
 
 Verso on the phone, on a server of your own, over the internet and synced with a cloud.
 
-- [[28 - Verso on Phone and Tablet]] — The bottom bar, one pane at a time, holding as right-click, a link's card, the keyboard bar and screen readers.
+- [[28 - Verso on Phone and Tablet]] — One bar at the top and the tabs sheet, one pane at a time, holding as right-click, a link's card, the keyboard bar and screen readers.
 - [[29 - A Table over the Internet]] — Verso on your computer turns into a server: a Cloudflare link (testing mode) or your own address, invitations, sitting at the table, read links and who gets in how.
 - [[30 - Verso on a Server]] — `verso serve`: installing, accounts by invitation, owner, editors and readers, editing together and the connected desktop app.
 - [[31 - Installing Your UniVerso, Step by Step]] — From zero to a server of your own, for someone who has never set one up: the compose file or the install script, the first admin, HTTPS (optional, for offline use and notifications), the backup.
