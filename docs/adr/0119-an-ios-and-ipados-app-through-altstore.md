@@ -689,6 +689,26 @@ iOS suspende"*):
   closed window's scene connected, so the two-second check, which acts
   only on a disconnected scene, had nothing to close yet — a stopgap
   until tao 0.36's `Destroyed`.
+- **Phase 1's source JSON (B3) built, 2026-11-15** (site repo `7df4595`):
+  `https://versomd.com/altstore/source.json` answers 200 as
+  `application/json` with `Access-Control-Allow-Origin: *`; the icon is
+  `https://versomd.com/altstore/icon.png`. The site makes it at build
+  time from the same GitHub releases its download page lists (the fallback
+  copy `releases.json` when GitHub is out of reach): the newest release
+  with an `-ios.ipa`, giving `downloadURL` (the release asset, public),
+  `size`, `date`, and `version`/`buildVersion` by `iosVersion` of
+  `scripts/release.mjs` (0.9.0-beta.3 is `0.9.0` / `90003`). Bundle id
+  `com.versomd.app`; the permissions are the two `UsageDescription` keys
+  of the built `.ipa`'s `Info.plist` and no entitlements. `npm run check`
+  in the site validates it against AltStore's "Make a Source" fields.
+  No screenshots yet (iPad screenshots with width and height are to come
+  from the iPad). It moves with the releases: refresh `releases.json` and
+  redeploy the site after each release. **Found while building it:** the
+  beta.3 `.ipa`'s `Info.plist` says `CFBundleShortVersionString` and
+  `CFBundleVersion` `1.0.0`, not the `0.9.0` / `90003` the sources hold
+  (A16); AltStore requires the source's version and build to match the
+  `.ipa`, so the install through the source is unproven until the release
+  build carries the right numbers.
 
 ## Consequences
 
