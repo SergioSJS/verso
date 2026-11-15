@@ -70,6 +70,14 @@ test("the board's main-menu button has a name for a screen reader @layout", asyn
   await app.open();
   await app.quickOpen("Tour do Verso");
   const menu = page.locator(".board-canvas .main-menu-trigger").first();
-  await expect(menu).toBeVisible();
-  await expect(menu).toHaveAccessibleName("Menu do board");
+  await expect(menu).toHaveAttribute("aria-label", "Menu do board");
+  if (await app.isPhone()) {
+    // A phone's board keeps its canvas: the menu is ⋯ › Board's, and opens on the board.
+    await expect(menu).toBeHidden();
+    await app.boardVerb("menu", "");
+    await expect(page.locator(".board-canvas .main-menu")).toBeVisible();
+  } else {
+    await expect(menu).toBeVisible();
+    await expect(menu).toHaveAccessibleName("Menu do board");
+  }
 });

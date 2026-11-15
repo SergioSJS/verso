@@ -128,11 +128,25 @@ async function wholeAndApart(page) {
 test.describe("in a tall, narrow window", () => {
   test.use({ viewport: { width: 440, height: 1000 } });
 
-  test("Excalidraw's toolbar and Verso's tools both fit, apart", async ({ app, page }) => {
+  // A phone's window (2026-11-15): the tools are one bar at the board's
+  // foot, every one inside it; Verso's are ⋯ › Board's.
+  test("Excalidraw's toolbar is one bar at the foot, whole; Verso's tools are in ⋯ › Board", async ({ app, page }) => {
     await openBoard(app);
     await expect(page.locator(".excalidraw--mobile")).toHaveCount(1);
-    await wholeAndApart(page);
-    await expect(page.getByTestId("board-tool-insert")).toBeVisible();
+    const canvas = await page.locator(".board-canvas").boundingBox();
+    const bar = await page.locator(".board-canvas .App-bottom-bar").boundingBox();
+    expect(Math.round(bar.y + bar.height)).toBe(Math.round(canvas.y + canvas.height));
+    expect(Math.round(bar.width)).toBe(Math.round(canvas.width));
+    const items = page.locator(".App-toolbar .ToolIcon, .App-toolbar .App-toolbar__extra-tools-trigger");
+    for (let i = 0; i < (await items.count()); i++) {
+      const b = await items.nth(i).boundingBox();
+      if (!b || b.width === 0) continue;
+      expect(b.x).toBeGreaterThanOrEqual(canvas.x);
+      expect(b.x + b.width).toBeLessThanOrEqual(canvas.x + canvas.width);
+    }
+    await expect(page.getByTestId("board-tool-insert")).toBeHidden();
+    await page.locator(".pane.focused .phone-title").click();
+    await expect(page.locator('.phone-sheet-board [data-verb="image"]')).toBeVisible();
   });
 });
 

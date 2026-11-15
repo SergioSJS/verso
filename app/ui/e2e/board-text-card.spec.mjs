@@ -34,11 +34,17 @@ async function fillPrompt(page, text) {
 
 test("the toolbar's text card button adds a Markdown card whose dice code is a die @layout", async ({ app, page }) => {
   await openBoard(app, page);
-  const button = page.getByRole("button", { name: "Cartão de texto" }).first();
-  await expect(button).toBeVisible();
-  await button.focus();
-  await expect(button).toBeFocused();
-  await page.keyboard.press("Enter");
+  if (await app.isPhone()) {
+    // A phone's board keeps its canvas: the button is ⋯ › Board's.
+    await expect(page.getByTestId("board-tool-textcard")).toBeHidden();
+    await app.boardVerb("text", "board-tool-textcard");
+  } else {
+    const button = page.getByRole("button", { name: "Cartão de texto" }).first();
+    await expect(button).toBeVisible();
+    await button.focus();
+    await expect(button).toBeFocused();
+    await page.keyboard.press("Enter");
+  }
   await fillPrompt(page, "Ataque: `dice: 1d20`");
   await expect(page.locator(".board-card-slot")).toHaveCount(2);
   await expect(page.getByRole("button", { name: "Rolar 1d20" })).toBeVisible();
@@ -46,7 +52,7 @@ test("the toolbar's text card button adds a Markdown card whose dice code is a d
 
 test("cancelling the text card's text leaves no card @layout", async ({ app, page }) => {
   await openBoard(app, page);
-  await page.getByRole("button", { name: "Cartão de texto" }).first().click();
+  await app.boardVerb("text", "board-tool-textcard");
   await expect(page.locator(".prompt-field")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.locator(".prompt-field")).toHaveCount(0);
