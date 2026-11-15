@@ -32,7 +32,7 @@ const pt = {
   persistGranted: "O navegador prometeu não apagar esta cópia por falta de espaço.",
   persistDenied: "O navegador não prometeu guardar esta cópia: se faltar espaço no aparelho, ele pode apagá-la. Isso é mais provável no iPhone e no iPad; instalar a página na tela de início (Compartilhar › Adicionar à Tela de Início) aumenta a chance. As mudanças que ainda não subiram é que correm risco, então deixe o aparelho conectar de vez em quando.",
   persistUnknown: "Este navegador não diz se vai manter a cópia.",
-  encryption: "A cópia neste aparelho não é cifrada: o armazenamento do navegador é tão seguro quanto o aparelho desbloqueado. Sair da conta apaga a cópia.",
+  encryption: "A cópia neste aparelho não é cifrada: o armazenamento do navegador é tão seguro quanto o aparelho desbloqueado. Sair da conta apaga a cópia. Se o servidor encerrar a sessão, só as mudanças que não subiram ficam neste navegador, até você entrar de novo ou sair.",
   kept: (files: number, size: string) => `${files} arquivos guardados, ${size}.`,
   waiting: (n: number) => (n === 0 ? "Nada esperando para subir." : n === 1 ? "1 mudança espera para subir." : `${n} mudanças esperam para subir.`),
   last: (when: string) => `Última vez que conferiu com o servidor: ${when}.`,
@@ -51,8 +51,26 @@ const pt = {
       : `${n === 1 ? "1 mudança" : `${n} mudanças`} ainda não subiu${n === 1 ? "" : "ram"}. Sair apaga a cópia deste aparelho e ${n === 1 ? "essa mudança se perde" : "essas mudanças se perdem"}. Sair mesmo?`,
   signOutYes: "Sair e apagar a cópia",
   turnOffYes: "Apagar a cópia",
-  wipedByServer: (n: number) =>
-    n === 0 ? "O servidor encerrou esta sessão: as pastas guardadas neste aparelho foram apagadas." : `O servidor encerrou esta sessão: as pastas guardadas neste aparelho foram apagadas, com ${n === 1 ? "1 mudança" : `${n} mudanças`} que ainda não tinha${n === 1 ? "" : "m"} subido.`,
+  heldByServer: (n: number) =>
+    n === 0
+      ? "O servidor encerrou esta sessão: as pastas guardadas neste aparelho foram apagadas."
+      : `O servidor encerrou esta sessão. ${n === 1 ? "1 mudança que ainda não tinha subido ficou guardada" : `${n} mudanças que ainda não tinham subido ficaram guardadas`} neste navegador: entre de novo com a mesma conta e ${n === 1 ? "ela é enviada" : "elas são enviadas"}. O resto das pastas guardadas foi apagado deste aparelho.`,
+  heldSending: (n: number) =>
+    n === 1
+      ? "1 mudança guardada quando a sessão terminou está sendo enviada; o servidor confere se ainda cabe."
+      : `${n} mudanças guardadas quando a sessão terminou estão sendo enviadas; o servidor confere cada uma.`,
+  otherTitle: "Mudanças de outra conta",
+  otherLead: (n: number) =>
+    `Este navegador guarda ${n === 1 ? "1 mudança" : `${n} mudanças`} de outra conta, que não ${n === 1 ? "subiu" : "subiram"} quando a sessão dela terminou. Elas nunca são enviadas pela sua conta nem aparecem nas suas pastas. Você pode baixá-las como arquivos, para entregar a quem as fez, ou descartá-las.`,
+  otherDownload: "Baixar como arquivos",
+  otherDiscard: "Descartar",
+  otherLater: "Agora não",
+  otherDownloaded: "Baixado. Quando não precisar mais delas neste navegador, descarte.",
+  otherDiscardAsk: (n: number) => `Descartar ${n === 1 ? "1 mudança" : `${n} mudanças`} de outra conta? Não dá para recuperar.`,
+  otherDiscardYes: "Descartar mesmo",
+  otherZip: "verso-mudancas-guardadas.zip",
+  otherDeletedName: "apagados.txt",
+  otherDeletedHead: "Arquivos que foram apagados neste navegador e não subiram:",
   // The status and the notices.
   nowOffline: "Sem rede: você edita as notas guardadas neste aparelho; o que mudar sobe quando a rede voltar.",
   backOnline: "A rede voltou.",
@@ -99,7 +117,7 @@ const en: typeof pt = {
   persistGranted: "The browser promised not to delete this copy when space runs short.",
   persistDenied: "The browser did not promise to keep this copy: if the device runs short of space it may delete it. That is likelier on iPhone and iPad; installing the page on the home screen (Share › Add to Home Screen) improves the odds. It is the changes not yet sent that are at risk, so let the device connect now and then.",
   persistUnknown: "This browser does not say whether it will keep the copy.",
-  encryption: "The copy on this device is not encrypted: the browser's storage is as safe as the unlocked device. Signing out deletes the copy.",
+  encryption: "The copy on this device is not encrypted: the browser's storage is as safe as the unlocked device. Signing out deletes the copy. If the server ends the session, only the changes that did not go up stay in this browser, until you sign in again or sign out.",
   kept: (files: number, size: string) => `${files} files kept, ${size}.`,
   waiting: (n: number) => (n === 0 ? "Nothing waiting to go up." : n === 1 ? "1 change is waiting to go up." : `${n} changes are waiting to go up.`),
   last: (when: string) => `Last checked with the server: ${when}.`,
@@ -118,8 +136,26 @@ const en: typeof pt = {
       : `${n === 1 ? "1 change has" : `${n} changes have`} not gone up yet. Signing out deletes this device's copy and ${n === 1 ? "that change is lost" : "those changes are lost"}. Sign out anyway?`,
   signOutYes: "Sign out and delete the copy",
   turnOffYes: "Delete the copy",
-  wipedByServer: (n: number) =>
-    n === 0 ? "The server ended this session: the folders kept on this device were deleted." : `The server ended this session: the folders kept on this device were deleted, with ${n === 1 ? "1 change" : `${n} changes`} that had not gone up.`,
+  heldByServer: (n: number) =>
+    n === 0
+      ? "The server ended this session: the folders kept on this device were deleted."
+      : `The server ended this session. ${n === 1 ? "1 change that had not gone up is" : `${n} changes that had not gone up are`} kept in this browser: sign in again with the same account and ${n === 1 ? "it is" : "they are"} sent. The rest of the kept folders was deleted from this device.`,
+  heldSending: (n: number) =>
+    n === 1
+      ? "1 change kept when the session ended is being sent; the server checks it still fits."
+      : `${n} changes kept when the session ended are being sent; the server checks each one.`,
+  otherTitle: "Another account's changes",
+  otherLead: (n: number) =>
+    `This browser keeps ${n === 1 ? "1 change" : `${n} changes`} of another account that did not go up when its session ended. They are never sent by your account, nor shown in your folders. You can download them as files, to hand to whoever made them, or discard them.`,
+  otherDownload: "Download as files",
+  otherDiscard: "Discard",
+  otherLater: "Not now",
+  otherDownloaded: "Downloaded. When this browser no longer needs them, discard them.",
+  otherDiscardAsk: (n: number) => `Discard ${n === 1 ? "1 change" : `${n} changes`} of another account? They cannot be recovered.`,
+  otherDiscardYes: "Discard them",
+  otherZip: "verso-kept-changes.zip",
+  otherDeletedName: "deleted.txt",
+  otherDeletedHead: "Files deleted in this browser that did not go up:",
   nowOffline: "Offline: you are editing the notes kept on this device; what changes goes up when the network returns.",
   backOnline: "The network is back.",
   backSent: (n: number) => (n === 1 ? "Back online: 1 change sent." : `Back online: ${n} changes sent.`),

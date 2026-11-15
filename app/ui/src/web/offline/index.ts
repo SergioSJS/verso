@@ -6,6 +6,8 @@
 // the syncer and the in-memory store, with no browser in sight.
 
 export * from "./engine";
+export * from "./held";
 export * from "./sha256";
 export * from "./store";
 export * from "./sync";
+export * from "./zip";
