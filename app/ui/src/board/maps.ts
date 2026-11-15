@@ -81,12 +81,27 @@ export function mapAt(els: readonly El[], x: number, y: number): El | undefined 
   return [...mapsOf(els)].reverse().find((m) => x >= m.x && x <= m.x + m.width && y >= m.y && y <= m.y + m.height);
 }
 
-/** Whether any node of the board is secret. */
+/** Whether a drawn element is secret itself, as the core's projection
+ *  reads it (`canvas_secret::drawn_is_secret`): marked under its
+ *  `customData.verso` — the Watabou import's secret door — or the import's
+ *  unmarked secret door of before (a dashed line of stroke 3). */
+export function drawnIsSecret(e: El): boolean {
+  if (isNode(e)) return false;
+  const v = e.customData?.["verso"];
+  const marked = typeof v === "object" && v !== null && "secret" in v && (v as { secret: unknown }).secret !== false && (v as { secret: unknown }).secret !== null;
+  return marked || (e.type === "line" && e["strokeStyle"] === "dashed" && e["strokeWidth"] === 3);
+}
+
+/** Whether any node of the board is secret, or any drawn element: what a
+ *  reader is not served, so "view as a reader" and the export without
+ *  secrets are offered. */
 export function hasSecret(els: readonly El[]): boolean {
-  return live(els).some((e) => {
-    const n = nodeData(e);
-    return n !== null && isSecret(n);
-  });
+  return (
+    live(els).some((e) => {
+      const n = nodeData(e);
+      return n !== null && isSecret(n);
+    }) || els.some((e) => !e.isDeleted && drawnIsSecret(e))
+  );
 }
 
 /** The ids of everything a canvas document draws: its nodes, its edges

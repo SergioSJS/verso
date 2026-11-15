@@ -177,6 +177,29 @@ describe("Verso's drawing of the dungeon", () => {
     assert.equal(draw.doorKind(1), "door");
   });
 
+  test("a secret door is drawn marked secret, the game master's alone; nothing else is", () => {
+    const small = dungeon.readDungeon({
+      title: "S",
+      rects: [{ x: 0, y: 0, w: 3, h: 1 }],
+      doors: [
+        { x: 1, y: 0, dir: { x: 1, y: 0 }, type: 6 },
+        { x: 2, y: 0, dir: { x: 1, y: 0 }, type: 1 },
+      ],
+    });
+    const out = draw.drawDungeon(small);
+    const marked = out.elements.filter((e) => e.customData?.verso?.secret === true);
+    assert.equal(marked.length, 1);
+    assert.equal(marked[0].type, "line");
+    assert.equal(marked[0].strokeStyle, "dashed");
+    // Still in the drawing's group, so it moves with the dungeon.
+    assert.deepEqual(marked[0].groupIds, ["wb-dungeon"]);
+    assert.ok(!drawn.elements.some((e) => e.customData), "the citadel has no secret door, and nothing marked");
+    // The mark survives the board reading and writing the drawing.
+    const doc = draw.dungeonBoard(small, null);
+    const back = model.fromElements(model.toElements(doc).map((e) => ({ isDeleted: false, ...e })), doc);
+    assert.equal(back.verso.drawing.filter((e) => e.customData?.verso?.secret === true).length, 1);
+  });
+
   test("two cells meeting at a corner keep their own walls; a hole has its own", () => {
     assert.equal(draw.outline(new Set(["0,0", "1,1"])).length, 2);
     for (const loop of draw.outline(new Set(["0,0", "1,1"]))) assert.equal(loop.length, 5);

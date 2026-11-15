@@ -54,7 +54,8 @@ export function doorKind(type: number): DoorKind {
 /** The walls as they are stored (ADR 0120 item 3, the author's format):
  *  segments in the board's pixels, the same space as the drawing, so they
  *  lie on its lines; doors as the segment across their way with the
- *  generator's number. Nothing reads them yet. */
+ *  generator's number. Nothing reads them yet, and a UniVerso serves them
+ *  to nobody but the game master (a secret door is named in them). */
 export type Walls = {
   version: 1;
   generator: "one-page-dungeon";
@@ -328,7 +329,10 @@ function drawDoor(kind: DoorKind, door: Door, cx: number, cy: number, base: Make
       box(long, thin, { backgroundColor: FLOOR });
       return box(long * 0.4, thin * 0.4, { backgroundColor: INK, strokeWidth: 1 });
     case "secret":
-      return across({ strokeStyle: "dashed", strokeWidth: 3 });
+      // The game master's alone: marked secret, so a UniVerso leaves it out
+      // of what a player or a reader is served (the cut of the drawing,
+      // `canvas_secret::drawn_is_secret`). Its group is not shut by it.
+      return across({ strokeStyle: "dashed", strokeWidth: 3, customData: { verso: { secret: true } } });
     case "portcullis":
       return across({ strokeStyle: "dotted", strokeWidth: 3 });
     case "arch": {
