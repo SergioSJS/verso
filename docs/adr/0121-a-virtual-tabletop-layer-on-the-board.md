@@ -105,7 +105,7 @@ confirmed in the PR of its step, as 0110 did for its phase 2.
 
 ### Q0. What a scene is — the central structural question
 
-`[OPEN] Q0`. The fog, the grid, the walls and the tokens need a *place*: a
+`[DECIDED 2026-11-15] Q0` — **(a)**, a scene element (a `group` with `verso.scene`) plus its play view; (b) stays the fallback (the maintainer, note *decisoes-2026-11-15*, 1.1: *"A"*). The fog, the grid, the walls and the tokens need a *place*: a
 region whose contents follow one fog and one sight. Three shapes were
 considered; the first two are the maintainer's, the third is this ADR's
 first draft.
@@ -239,7 +239,7 @@ table at the end.
      concurrency check of invariant 11; the write is refused for an account
      without *Edits* on the note (M7).
 
-5. **Who moves a token.** `[OPEN] Q3`. Recommended: **the account that may
+5. **Who moves a token.** `[DECIDED 2026-11-15] Q3` — the maintainer, rejecting the contradiction reading: *"elementos dentro de uma cena têm permissões restritas, não faz sentido ficar tudo liberado; o objetivo é restringir e a pessoa mexer apenas o seu token referente à sua ficha/nota; não é contradição, é adequação a essa nova necessidade"* — inside a scene, permissions are restricted: a player moves **only their own token, the one tied to their sheet/note**; K.6 is not contradicted but adapted for scenes (a scene's own rule, (ii) in the terms below, stated in 0113 as an amendment when built). The analysis written before the answer follows. Recommended: **the account that may
    edit the token's note** (the character sheet granted to its player, 0110
    item 12 as amended; 0113 grants), with no owner field and no new store —
    **as an amendment to 0113 section B**, not a use of it (I2): a new action
@@ -532,7 +532,7 @@ T0 to T9 can each ship alone; none is free of secrecy work: T3 and T4 depend
 on Q14 and Q12, T6 on Q15, T9 on T0. T10 to T12 are the big block, in that
 order because each one's secrecy rests on the one before.
 
-`[OPEN] Q1` **when**. Recommended: **after V1**, as its own phase, T0–T7
+`[DECIDED 2026-11-15] Q1` **when** — **inside V1** (the maintainer, 1.2: *"B"*; roadmap row V.55). The recommendation was after V1, as its own phase, T0–T7
 first. The top-level part of T0 is a fix of today's leak and is not waiting
 for this ADR (Context). V1 already carries its blockers and V.43, on which
 T7 depends.
@@ -598,7 +598,7 @@ per wall, off: the wall does not block players).
 
 ## Status
 
-**Proposed (2026-11-15), revised the same day.** For the maintainer, each
+**Proposed (2026-11-15), revised the same day; Q0, Q1 and Q3 decided by the maintainer the same day** (Q0 (a); Q1 inside V1, roadmap V.55; Q3 a player moves only their own token). The rest, being read by the maintainer, each
 with a recommendation in the Decision:
 
 - **Q0** what a scene is — (a) a scene element (a `group` with
