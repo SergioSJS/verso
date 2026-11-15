@@ -6,7 +6,10 @@
 //
 // Shared files, kept once, in `demo-vault/`: everything under `assets/`
 // (images, the PDF, the SVGs, the theme). The English vault embeds them
-// from there; `demo-vault-en/` has no copy.
+// from there; `demo-vault-en/` has no copy. The exception is a picture of
+// the interface, which has words in it: each one has its own English twin
+// under `demo-vault-en/assets/` (named below), made by `node
+// scripts/demo-vault.mjs shots` (roadmap V.31, B6).
 
 /** Portuguese path -> English path. */
 export const NAMES = {
@@ -75,6 +78,10 @@ export const NAMES = {
   "Templates/Semanal.md": "Templates/Weekly.md",
   "Tipos/Lugar.md": "Types/Place.md",
   "Tipos/Personagem.md": "Types/Character.md",
+  // Screenshots of the interface: the English twins (not shared).
+  "assets/servidor-primeiro-acesso.png": "assets/server-first-access.png",
+  "assets/servidor-aprovar-aparelho.png": "assets/server-approve-device.png",
+  "assets/servidor-app-conectado.png": "assets/server-app-connected.png",
   "Web/Cartão de visita.html": "Web/Business Card.html",
   "Web/jsoncanvas.org.md": "Web/jsoncanvas.org.md",
   "projetos/Pesquisa e Descobertas.md": "projects/Research and Findings.md",
@@ -83,7 +90,8 @@ export const NAMES = {
 };
 
 /** Whether a Portuguese-vault file is shared with the English one. */
-export const shared = (p) => p.startsWith("assets/");
+const OWN_ENGLISH = new Set(Object.values(NAMES));
+export const shared = (p) => p.startsWith("assets/") && NAMES[p] === undefined && !OWN_ENGLISH.has(p);
 
 /** The English path of a Portuguese-vault path (a shared one is the same). */
 export const english = (p) => (shared(p) ? p : NAMES[p]);

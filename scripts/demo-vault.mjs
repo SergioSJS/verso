@@ -17,6 +17,12 @@
 //     already lists keep their order, a new file goes at the end, a file
 //     no longer in the folder leaves it. What `check` would refuse in the
 //     vault itself is said, not refused: the author fixes it next.
+//   node scripts/demo-vault.mjs shots
+//     Makes the English twins of the interface's screenshots
+//     (`demo-vault-en/assets/server-*.png`, named in names.mjs), in Docker:
+//     scripts/demo-vault-shots.sh runs app/ui/e2e/demo-vault-shots.spec.mjs
+//     in Playwright's Linux image, the window in English. Run it after any
+//     change to a screen they show; then `build`.
 //   node scripts/demo-vault.mjs check
 //     Nothing to build — the boards are their modules' and the embed is the
 //     folder's — and the vault holds together (`problems`): every link of
@@ -453,7 +459,11 @@ if (command === "build") {
   const said = problems(only ?? "en");
   for (const line of said) console.error(line);
   console.log(`${said.length} problems`);
+} else if (command === "shots") {
+  // The English screenshots, made in Docker (scripts/demo-vault-shots.sh).
+  // They are files of the vault: add and `build` after.
+  execFileSync("bash", [join(root, "scripts", "demo-vault-shots.sh")], { stdio: "inherit" });
 } else {
-  console.error("usage: node scripts/demo-vault.mjs build|check|links [pt|en]");
+  console.error("usage: node scripts/demo-vault.mjs build|check|links [pt|en] | shots");
   process.exit(2);
 }

@@ -12,6 +12,8 @@ test release.
 
 ## Unreleased
 
+- **The English tutorial has English screenshots.** The server lesson's three pictures (first start, approving a device, the app connected) were the Portuguese ones in both vaults; `node scripts/demo-vault.mjs shots` now makes the English ones in Docker, from the window in English, so they are made again after any change to those screens.
+
 - **The iPad and iPhone build carries the release's version.** The `.ipa` said `1.0.0` instead of the version AltStore's source states; the release now builds it with the version and build number derived from the workspace version, and fails if the built `.ipa` disagrees.
 
 - **The Mac beta installed from this checkout is signed with a fixed local certificate.** Run `scripts/mac/local-signing-cert.sh` once (it makes "Verso Local Signing" in your login keychain, trusted for code signing only; `--remove` undoes it) and `scripts/install-beta.sh` signs every build with it, so macOS keeps the folder and Keychain permissions it gave the beta instead of asking again after each install. Without the certificate the script signs ad hoc, as before, and says so. Releases are unchanged.

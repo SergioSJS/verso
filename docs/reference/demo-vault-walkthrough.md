@@ -98,7 +98,9 @@ point 13).
 4. With the window in English, import into an empty folder. Expect: the
    English vault of `demo-vault-en/` (file names such as `00 - Welcome to
    Verso.md` and `Verso Tour.canvas`) plus the shared `assets/` of
-   `demo-vault/`, no Portuguese note; the English welcome note opens, the
+   `demo-vault/` (the server lesson's three screenshots are English ones,
+   `assets/server-*.png`, made by `node scripts/demo-vault.mjs shots`), no
+   Portuguese note; the English welcome note opens, the
    tour opens with its stops in English, and a translated note opens from it.
    The palette's "Import the demo content in Portuguese (Português)" writes
    the Portuguese vault instead (and, in a Portuguese window, "Importar cofre

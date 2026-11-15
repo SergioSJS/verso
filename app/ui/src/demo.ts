@@ -57,13 +57,17 @@ export const DEMO_LANG: DemoLang = LOCALE === "pt-BR" ? "pt" : "en";
 /** The first note of each, the one the import opens. */
 const WELCOME: Record<DemoLang, string> = { pt: "00 - Bem-vindo ao Verso.md", en: "00 - Welcome to Verso.md" };
 
+/** The Portuguese screenshots of the interface: the English tutorial has
+ *  its own (`scripts/demo-vault/names.mjs`), so these are not joined to it. */
+const PT_SHOTS = new Set(["assets/servidor-primeiro-acesso.png", "assets/servidor-aprovar-aparelho.png", "assets/servidor-app-conectado.png"]);
+
 /** The files of a language's tutorial. The English one is a chunk of its
  *  own, loaded only when it is imported; the images, the PDF and the theme
  *  are kept once, in the Portuguese embed, and joined here. */
 async function demoFiles(lang: DemoLang): Promise<DemoVaultFile[]> {
   if (lang === "pt") return DEMO_VAULT_FILES;
   const { DEMO_VAULT_EN_FILES } = await import("./demoVaultEn");
-  return [...DEMO_VAULT_EN_FILES, ...DEMO_VAULT_FILES.filter((f) => f.path.startsWith("assets/"))];
+  return [...DEMO_VAULT_EN_FILES, ...DEMO_VAULT_FILES.filter((f) => f.path.startsWith("assets/") && !PT_SHOTS.has(f.path))];
 }
 
 /** Populate the current vault with sample notes, bases, and templates, in
