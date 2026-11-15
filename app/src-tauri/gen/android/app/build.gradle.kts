@@ -30,6 +30,21 @@ val releaseKey = listOf(
 ).associateWith { System.getenv(it).orEmpty() }
 val hasReleaseKey = releaseKey.values.all { it.isNotEmpty() }
 
+// The app's version from the workspace's Cargo.toml, its one source
+// (release.mjs prepare sets it): Android showed 1.0 / code 1 on every
+// release, since tauri.conf.json names no version (2026-11-14). The code
+// follows iOS's build number (release.mjs iosVersion, ADR 0119 A16):
+// 0.9.0-beta.1 -> 90001, 0.9.0 -> 90099, so every later version is higher.
+val appVersion: String = file("../../../../../Cargo.toml").readLines()
+    .dropWhile { it.trim() != "[workspace.package]" }
+    .firstOrNull { it.startsWith("version = ") }
+    ?.substringAfter('"')?.substringBefore('"')
+    ?: error("no version in Cargo.toml's [workspace.package]")
+val appVersionCode: Int = Regex("""^(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?$""")
+    .matchEntire(appVersion)?.destructured
+    ?.let { (maj, min, pat, beta) -> ((maj.toInt() * 100 + min.toInt()) * 100 + pat.toInt()) * 100 + (beta.toIntOrNull() ?: 99) }
+    ?: error("$appVersion: not a version Android can be given")
+
 android {
     compileSdk = 36
     namespace = "com.versomd.app"
@@ -58,8 +73,8 @@ android {
         manifestPlaceholders["appLabel"] = if (beta) "Verso Beta" else "Verso"
         minSdk = 29
         targetSdk = 36
-        versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
-        versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
+        versionCode = appVersionCode
+        versionName = appVersion
     }
     buildTypes {
         getByName("debug") {

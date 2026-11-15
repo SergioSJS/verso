@@ -23,6 +23,10 @@ versão de teste.
 - A propriedade `image` de uma nota tipada escrita como wikilink (`"[[mapa.png|Apelido]]"`) aparece como um link com o apelido, que abre a imagem, em vez do texto `[[…]]` cru.
 - Mudar um schema (por exemplo, acrescentar `layout: infobox`) agora redesenha na hora as notas abertas do tipo, quer o schema tenha sido salvo aqui, quer tenha mudado por fora; antes, uma nota aberta ficava com o layout antigo até ser aberta de novo.
 - No modo Fonte, uma seleção dentro de uma linha (uma palavra, parte de uma linha) aparece: a linha do cursor não é mais pintada por cima dela.
+- Android: Ajustes › Apps mostra a versão real do Verso (dizia 1.0), e o lançamento recusa um APK que não traga a versão.
+- Android: Voltar fecha a busca na nota ou a busca da leitura e fica no Verso, em vez de também sair do app.
+- No celular deitado, as ferramentas do painel continuam recolhidas no ⋯ (apareciam como botões pequenos de computador), e as abas verticais mantêm a barra do alto como uma fileira.
+- No celular, menus e sugestões não ficam mais sob a barra de status nem sob a barra de navegação.
 
 ## 0.9.0-beta.1 — 2026-11-14
 

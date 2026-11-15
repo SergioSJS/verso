@@ -23,6 +23,10 @@ test release.
 - A typed note's `image` property written as a wikilink (`"[[map.png|Alias]]"`) shows as a link named by its alias, which opens the picture, instead of the raw `[[…]]` text.
 - Changing a schema (say, adding `layout: infobox`) now redraws the open notes of its type at once, whether the schema was saved here or changed outside; before, an open note kept its old layout until it was opened again.
 - In Fonte, a selection inside one line (a word, part of a line) shows: the caret's line is no longer painted over it.
+- Android: Settings › Apps shows Verso's real version (it said 1.0), and the release refuses an APK that does not carry its version.
+- Android: Back closes the find bar in a note or the reading search and stays in Verso, instead of also leaving the app.
+- On a phone held sideways, the pane's tools stay folded in ⋯ (they showed as small desktop buttons), and vertical tabs keep the one top bar a row.
+- On a phone, menus and suggestions keep clear of the status bar and the navigation bar.
 
 ## 0.9.0-beta.1 — 2026-11-14
 

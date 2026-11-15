@@ -14,6 +14,14 @@
   .pane .tabs > .phone-tabs, .phone-mode, .pane .tabs .pane-fold, .notify-bell-phone { color: var(--ink-2); }
   .phone-mode .icon, .pane .tabs .pane-fold .icon, .notify-bell-phone .icon { width: 20px; height: 20px; }
   .pane .tabs .pane-tools { opacity: 1; margin-bottom: 0; }
+  /* A phone held sideways is wider than 520 px, where the pane's tools
+     unfold: on a phone they stay in ⋯ (22px buttons otherwise). */
+  .pane-tools > :not(.pane-fold) { display: none; }
+  .pane-tools > .pane-fold { display: inline-flex; }
+  /* Vertical tabs are a desktop's: on a phone the one bar stays a row. */
+  .pane.vertical { flex-direction: column; }
+  .pane.vertical .tabs { flex-direction: row; align-items: center; width: auto; height: 44px; min-height: 44px; max-height: 44px; border-right: 0; border-bottom: 1px solid var(--hair); padding: 0 48px 0 0; overflow: hidden; }
+  .pane.vertical .tabs-divider { display: none; }
   .pane .tabs .pane-fold { min-width: 44px; min-height: 44px; }
   .phone-tabs[aria-expanded="true"] { background: var(--paper-3); }
   .phone-tabs[aria-expanded="true"] .phone-tabs-n { border-color: var(--seal); color: var(--seal); }

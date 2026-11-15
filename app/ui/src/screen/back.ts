@@ -37,8 +37,12 @@ export function goBack(): boolean {
   const target = !menu.hidden && menu.isConnected ? (menu.contains(at) ? (at as HTMLElement) : menu)
     : top ? (top.contains(at) ? (at as HTMLElement) : top)
     : at instanceof HTMLElement ? at : document.body;
-  target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }));
-  if (openMark() !== before) return true;
+  // A handler that took the Escape (the find bar in a note, the reading
+  // search, a board's selection) closed something too, though no dialog
+  // or menu counted: Back pressed there once both closed the bar and left
+  // the app (2026-11-15).
+  const taken = !target.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }));
+  if (taken || openMark() !== before) return true;
   // A dialog that did not close on Escape stays, and so does the app.
   if (top || !menu.hidden) return true;
   const body = document.body.classList;
