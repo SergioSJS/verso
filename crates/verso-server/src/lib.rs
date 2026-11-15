@@ -471,6 +471,8 @@ mod tests_audience_review;
 #[cfg(test)]
 mod tests_audience_second;
 #[cfg(test)]
+mod tests_board_leaks;
+#[cfg(test)]
 mod tests_board_players;
 #[cfg(test)]
 mod tests_board_rooms;
