@@ -19,6 +19,9 @@ test release.
 ### Fixed
 
 - Reading mode: a code block's fold button is the same size as its copy and diagram buttons, and the three sit in one evenly spaced row instead of the fold button overlapping the copy button.
+- A typed note's `image` property written as a wikilink (`"[[map.png|Alias]]"`) shows as a link named by its alias, which opens the picture, instead of the raw `[[…]]` text.
+- Changing a schema (say, adding `layout: infobox`) now redraws the open notes of its type at once, whether the schema was saved here or changed outside; before, an open note kept its old layout until it was opened again.
+- In Fonte, a selection inside one line (a word, part of a line) shows: the caret's line is no longer painted over it.
 
 ## 0.9.0-beta.1 — 2026-11-14
 

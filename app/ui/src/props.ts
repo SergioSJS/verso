@@ -627,8 +627,13 @@ export class PropertiesView {
     key.append(icon(d ? (KIND_ICON[d.kind] ?? "text") : iconOf(p.key, p.value)), h("span", "prop-key-text", label));
     const value = h("div", "prop-value");
     const isList = p.value.kind === "list" || (p.value.kind === "empty" && LIST_KEYS.has(p.key.toLowerCase()));
-    if (d && d.kind === "link" && d.fits) {
-      row.classList.add("links");
+    // An `image` written as a wikilink is a link too: its name, followed to
+    // the picture (the maintainer, 2026-11-15: the raw `[[…]]` showed); a
+    // path or an address stays a field.
+    const imageLink = d?.kind === "image" && d.fits && p.value.kind === "text" && linkParts(p.value.value) !== null;
+    if (d && ((d.kind === "link" && d.fits) || imageLink)) {
+      // The infobox groups the links under its rule; the picture's row keeps its place.
+      if (!imageLink) row.classList.add("links");
       this.linkValue(value, p, fixed, label);
     } else if (isList) this.listEditor(value, p.key, p.value.kind === "list" ? p.value.value : [], fixed);
     else if (p.value.kind === "checkbox") {

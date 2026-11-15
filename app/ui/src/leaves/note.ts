@@ -26,7 +26,7 @@ import { blockHandles } from "../blocks/view";
 import { blockBar } from "../screen/blockbar";
 import { type CardEditing } from "../board/types";
 import { bookmarks, toggleBookmark } from "../bookmarks";
-import { afterFileChange, tellOutcomes } from "../changes";
+import { afterFileChange, retypeOpen, tellOutcomes } from "../changes";
 import { refreshBestiary } from "../statblock/bestiary";
 import { narrow, toggleSide } from "../chrome";
 import { button, h, ui } from "../dom";
@@ -1325,6 +1325,7 @@ export class NoteLeaf extends Leaf {
    *  exactly that; what was typed meanwhile is saved next. */
   private written(w: Written, mine: string): void {
     if (this.gone) this.setGone(false);
+    if ((this.note?.schema_blocks.length ?? 0) + w.note.schema_blocks.length > 0) retypeOpen(this.path);
     this.refresh(w.note);
     if (this.editorText() === mine) this.setDirty(false);
     // A statblock that inherits from this note draws again (ADR 0099 item 1).

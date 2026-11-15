@@ -335,6 +335,11 @@ html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
 .editor.source .cm-scroller { font-family: var(--mono); font-size: calc(.9rem * var(--note-scale, 1)); line-height: 1.6; }
 .editor.source .cm-gutters { display: flex; background: none; border: 0; color: var(--ink-3); font-size: .78rem; }
 .editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2) !important; }
+/* The drawn selection lies under the lines: the active line's paint hid a
+   selection inside that one line (a word, part of a line), while one over
+   several lines showed (the maintainer, 2026-11-15). With text selected the
+   active line is not painted. */
+.editor.source .cm-editor:has(.cm-evenSelection .cm-selectionBackground) .cm-activeLine { background: none !important; }
 
 /* Reading mode line numbers & fold gutter */
 .preview {

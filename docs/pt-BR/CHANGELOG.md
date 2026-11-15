@@ -19,6 +19,9 @@ versão de teste.
 ### Corrigido
 
 - Modo Leitura: o botão de recolher de um bloco de código tem o mesmo tamanho dos botões de copiar e de diagrama, e os três ficam numa fileira com o mesmo espaço entre eles, em vez do botão de recolher encostar no de copiar.
+- A propriedade `image` de uma nota tipada escrita como wikilink (`"[[mapa.png|Apelido]]"`) aparece como um link com o apelido, que abre a imagem, em vez do texto `[[…]]` cru.
+- Mudar um schema (por exemplo, acrescentar `layout: infobox`) agora redesenha na hora as notas abertas do tipo, quer o schema tenha sido salvo aqui, quer tenha mudado por fora; antes, uma nota aberta ficava com o layout antigo até ser aberta de novo.
+- No modo Fonte, uma seleção dentro de uma linha (uma palavra, parte de uma linha) aparece: a linha do cursor não é mais pintada por cima dela.
 
 ## 0.9.0-beta.1 — 2026-11-14
 
