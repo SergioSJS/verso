@@ -20,7 +20,8 @@ test release.
 
 ### Changed
 
-- **A board on a phone gives the screen to the drawing.** Held upright, the drawing tools are one bar at the foot, in the place of the bottom bar while a board you can draw on is open (its actions stay in the top bar's sheet); held sideways, they are one column at the right edge and the board keeps the whole height. Undo and redo are in the top bar. Board | Text, the text card, Insert's items, loose arrows, the board's search, the outline and the board's menu are in a **Board** part of the top bar's sheet. What acts on a selection shows only while something is selected, and the outline opens over the board with its own close. A board you only read keeps the bottom bar; a plugin drawing's bar is one row. Desktop and tablet are unchanged.
+- **A board on a phone gives the screen to the drawing.** Held upright, the drawing tools are one bar at the foot, in the place of the bottom bar while a board you can draw on is open (its actions stay in the top bar's sheet); held sideways, they are one column at the right edge and the board keeps the whole height. Undo and redo are in the top bar. Board | Text, the text card, Insert's items, loose arrows, the board's search, the outline and the board's menu are in a **Board** part of the top bar's sheet. What acts on a selection shows only while something is selected, and the outline opens over the board with its own close. A board you only read keeps the bottom bar; a plugin drawing's bar is one row. The tools and the sheet's Board part come in the same order as on the desktop. Desktop and tablet are unchanged.
+- On a phone, a board, a drawing, the graph, the data graph and a map show a slim tab on each edge of the screen: the left one opens the files, the right one the right panel — the sideways swipe does not start on them, as the finger draws or pans there.
 
 ## 0.9.0-beta.2 — 2026-11-15
 

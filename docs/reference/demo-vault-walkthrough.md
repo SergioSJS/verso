@@ -1048,15 +1048,15 @@ hand, on a phone and an iPad, the server's window in the browser.
 1c. A board on a phone (2026-11-15, `app/ui/css/boardphone.css`, note 29's
    board item): at 390 × 844, open *Board de Demonstração*: no row above the
    canvas (no Board | Texto, no ☰, no island of four buttons); at the foot one
-   bar — mão, seleção, lápis, borracha, retângulo, seta, texto, ⋮ — where the
-   bottom bar was; the top bar shows *Desfazer* and *Refazer*, off until a
+   bar, in the desktop toolbar's order — mão, seleção, retângulo, seta, lápis,
+   texto, borracha, ⋮ — where the bottom bar was; the top bar shows *Desfazer* and *Refazer*, off until a
    rectangle is drawn, then undoing and redoing it. Selecting a shape shows
    its colours and stroke over the bar's right end; nothing selected, they go.
-   The sheet (tap the name) has a **Board** part: Board | Texto, Cartão de
-   texto, Imagem ou PDF…, Nota ou arquivo…, Link…, Página web…, Setas soltas,
-   Buscar no board (its field at the top right, counting), Sumário (over the
-   board, × closes it), Exportar, fundo e ajuda (Excalidraw's menu, on the
-   board); under *Barra inferior sempre visível*, *Num board, as ferramentas
+   The sheet (tap the name) has a **Board** part, in the desktop's order:
+   Board | Texto, Exportar, fundo e ajuda (Excalidraw's menu, on the board),
+   Cartão de texto, Imagem ou PDF…, Nota ou arquivo…, Link…, Página web…,
+   Setas soltas, Buscar no board (its field at the top right, counting),
+   Sumário (over the board, × closes it); under *Barra inferior sempre visível*, *Num board, as ferramentas
    de desenho ficam no lugar dela.* Texto shows the JSON with its own row,
    whose Board comes back. At 844 × 390 on a touch screen: the eight tools are
    one column at the right edge, the board as tall as the screen under the top
@@ -1065,6 +1065,17 @@ hand, on a phone and an iPad, the server's window in the browser.
    the top right. *Desenho do Excalidraw* has one row over it: *Desenho do
    Obsidian, só para ver*, Converter em board, Ver o texto. Level: H; U:
    `boardPhone.test.mjs`; E: `board-phone.spec.mjs`.
+1d. The side panels' tabs over a canvas (2026-11-15,
+   `app/ui/src/screen/edgeHandles.ts`): on that board at 390 × 844, a slim
+   tab at the middle of each edge (*Abrir os arquivos*, *Abrir o painel da
+   direita*); the left one opens the files, the right one the right panel,
+   and both go while one is open; a tap beside the drawer closes it and they
+   are back. A swipe that starts on the right tab, a few pixels in from the
+   edge, drags the panel out. Sideways, the right tab stands at the left of
+   the tools' column. They show on *Desenho do Excalidraw*, the graph, a
+   data file's diagram and a base's map; not on a note; not while the
+   board's Sumário is open. Level: H; U: `edgeHandles.test.mjs`; E:
+   `board-phone.spec.mjs` ("the side panels' handles").
 2. A layout split on a wide window, then narrowed: one pane at a time and a
    switcher "2/2" in the tab bar; the panes are listed and chosen from it; the
    split commands are absent from the palette and from a tab's menu; widened

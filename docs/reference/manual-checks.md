@@ -26,6 +26,8 @@ in the real app.
 - [ ] **Android, sideways, both rotations** (A): the eight tools in one column at the right edge; with the camera cut-out on the right (turned the other way), the column clears it; every tool takes a tap; the extra tools' ⋮ menu opens whole on the screen.
 - [ ] **A reader's board and a table's board** (A, a player of the maintainer's table): the bottom bar stays; ⋯ › Board has Buscar, Sumário and the menu; at a table, *who sees* is in the Board part for the game master.
 - [ ] **iPhone sideways** (A, the AltStore build): the column clears the notch and the home indicator; each tool still takes a tap (about 40 px tall there).
+- [ ] **The same order as the desktop** (A): the phone's bar and column read hand, selection, rectangle, arrow, pencil, text, eraser, ⋮ — as the Mac's toolbar from the hand on — and ⋯ › Board starts with *Exportar, fundo e ajuda*, as the ☰ is at the left on the Mac.
+- [ ] **The tabs on the edges** (A, the maintainer's Android phone, gesture navigation on): on a board, a drawing, the graph and a map, a tap on the left tab opens the files and on the right one the panel; a swipe starting on a tab a finger's width in from the edge drags the drawer, one from the very edge is still Android's Back; sideways, the right tab sits left of the tools' column and clear of the camera cut-out; neither covers a tool, the selection's island or a card's buttons where it matters.
 
 ### The sideways swipe for the side panels on a phone (feat/phone-home-and-board, 2026-11-15)
 
