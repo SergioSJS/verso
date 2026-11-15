@@ -38,6 +38,14 @@ if [ "$(id -u)" = 0 ]; then
   fi
   for dir in /data /folders; do
     [ -d "$dir" ] || continue
+    # The mount's own directory, writable by everyone but owned by root (a
+    # NAS panel makes it 0777): the server writes in it, yet cannot restrict
+    # it to itself — the index and the version history set their directory
+    # to 0700 — and the history stayed in memory (ZimaOS, 2026-11-15). The
+    # directory itself goes to 1000:1000; nothing under it is touched here.
+    if [ "$(stat -c %u "$dir")" = 0 ] && su -s /bin/sh universo -c 'test -w "$0" && test -x "$0"' "$dir" 2>/dev/null; then
+      chown -h 1000:1000 "$dir" && echo "universo: $dir (owned by root, open to all) given to 1000:1000" >&2
+    fi
     if ! su -s /bin/sh universo -c 'test -w "$0" && test -x "$0"' "$dir" 2>/dev/null; then
       echo "universo: $dir is not writable by uid 1000: giving the entries root owns under it to 1000:1000, once" >&2
       # -xdev: not into another file system mounted below. find follows no

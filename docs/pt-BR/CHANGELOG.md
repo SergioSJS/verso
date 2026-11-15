@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Corrigido
+
+- UniVerso no Docker: uma pasta de dados que o sistema deixou aberta a todos mas do root (o 0777 do painel de um NAS) passa ao usuário do servidor ao iniciar, e o histórico de versões fica guardado no disco, e não só na memória.
 
 ## 0.9.0-beta.2 — 2026-11-15
 

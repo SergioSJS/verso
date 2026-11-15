@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- UniVerso in Docker: a data folder the host made open to everyone but owned by root (a NAS panel's 0777) is given to the server's user at start, so the version history is kept on disk instead of only in memory.
 
 ## 0.9.0-beta.2 — 2026-11-15
 
