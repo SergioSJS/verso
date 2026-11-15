@@ -162,10 +162,16 @@ test("with the server down the question says so and tries again; a copy made bef
   const q = question(app);
   await expect(q.getByRole("alert")).toContainText(SAID);
   await expect(q.getByRole("button", { name: "Escolher onde e baixar…" })).toBeDisabled();
+  // The window on the server would fail too: not offered while out of reach.
+  await expect(q.getByRole("button", { name: "Abrir só no servidor, sem cópia" })).toBeDisabled();
+  await expect(q.getByRole("button", { name: "Cancelar" })).toBeEnabled();
   // Back: "Tentar de novo" sizes it.
   await page.evaluate(() => window.__harness.serverDown(null));
   await q.getByRole("button", { name: "Tentar de novo" }).click();
   await expect(q.locator(".copy-size")).toHaveText("3 arquivos · 2,4 MB");
+  await expect(q.getByRole("alert")).toHaveCount(0);
+  await expect(q.getByRole("button", { name: "Escolher onde e baixar…" })).toBeEnabled();
+  await expect(q.getByRole("button", { name: "Abrir só no servidor, sem cópia" })).toBeEnabled();
   await q.getByRole("button", { name: "Cancelar" }).click();
   await expect(q).toBeHidden();
   // A copy is here and the server is down again (airplane mode): the pick

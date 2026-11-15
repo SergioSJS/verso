@@ -17,6 +17,7 @@
 
 import { listen } from "@tauri-apps/api/event";
 import { commands, type ContractError, type CopyPlace, type ServerCopyPlan, type SyncStatus } from "../bindings";
+import { host } from "../can";
 import { h } from "../dom";
 import { errorSentence } from "../errors";
 import { currentFolder } from "../folder";
@@ -84,7 +85,10 @@ export function askServerCopy(url: string, f: PickedFolder): void {
   remote.setAttribute("aria-describedby", "copy-remote-note");
   const remoteNote = h("p", "copy-note", sc.remoteOnlyNote);
   remoteNote.id = "copy-remote-note";
-  const go = button("save", sc.download, () => void download());
+  // Named for this device from the start — a desktop chooses where in the
+  // system's dialog — so that while the folder is measured, or could not
+  // be, the button is there, disabled, with the words it will have.
+  const go = button("save", host() === "mobile" ? sc.download : sc.chooseAndDownload, () => void download());
   go.disabled = true;
   const actions = h("div", "confirm-actions");
   actions.append(cancel, remote, go);
@@ -119,9 +123,13 @@ export function askServerCopy(url: string, f: PickedFolder): void {
       if (!open) return;
       if (r.status !== "ok") {
         sizeLine.textContent = "";
+        // Out of reach, the window on the server would fail as well: not
+        // offered as if it worked, until a try reaches the server again.
+        remote.disabled = r.error.kind === "unreachable";
         sayFailure(failure, r.error, measure, errorSentence);
         return;
       }
+      remote.disabled = false;
       plan = r.data;
       sizeLine.textContent = plan.files === 0 ? sc.sizeEmpty : sc.size(plan.files, size(plan.bytes));
       drawPlaces(plan.places);
