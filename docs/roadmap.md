@@ -125,16 +125,16 @@ The following items gate the official release of V1 (they do not block local com
 
 | # | Item | Reference | Status |
 |---|---|---|---|
-| V.9 | Security penetration test of lab server | [ADR 0083](adr/0083-security-hardening-of-universo.md) item 16 | Pending before announcement |
+| V.9 | Security penetration test of lab server | [ADR 0083](adr/0083-security-hardening-of-universo.md) item 16 | **Done** (the maintainer, 2026-11-15: *"penteste já foi"*; hostile lab, item 19: [`review/2026-11-13-hostile-lab.md`](review/2026-11-13-hostile-lab.md)) |
 | V.48 | The security contact address exists (`security.txt`, `SECURITY.md`) | [ADR 0083](adr/0083-security-hardening-of-universo.md) item 15 | The maintainer creates it and sends it (decided 2026-10-31, B2); only the announcement waits on it |
-| V.10 | Validation of server bounds on 1-core 1 GB host | [ADR 0083](adr/0083-security-hardening-of-universo.md) item 18 | Pending |
-| V.11 | Windows code signing (via SignPath Foundation) | [ADR 0095](adr/0095-mac-notarization-and-windows-code-signing.md) | Pending public repository |
-| V.12 | Repository made public at `SergioSJS/verso` | [ADR 0004](adr/0004-project-name-verso.md) | Pending maintainer decision |
+| V.10 | Validation of server bounds on 1-core 1 GB host | [ADR 0083](adr/0083-security-hardening-of-universo.md) item 18 | **Done**: [`review/2026-11-13-load-vm107.md`](review/2026-11-13-load-vm107.md) (VM 107, 1 core, 1 GB); the maintainer's own servers run on 1 GB |
+| V.11 | Windows code signing (via SignPath Foundation) | [ADR 0095](adr/0095-mac-notarization-and-windows-code-signing.md) | Pending; the repository is public, so it is no longer waiting on that |
+| V.12 | Repository made public at `SergioSJS/verso` | [ADR 0004](adr/0004-project-name-verso.md) | **Done** (public; checked 2026-11-15) |
 | V.13 | Screen reader accessibility pass (automated landmarks and labels built; live VoiceOver/NVDA pass in manual checks) | [`docs/review/accessibility.md`](review/accessibility.md), [`docs/reference/manual-checks.md`](reference/manual-checks.md) | Automated pass built; live reader check gates V1 release |
 | V.14 | One month of real use with zero data loss | [ADR 0012](adr/0012-files-are-source-of-truth.md) | In daily use by maintainer |
 | V.15 | App manual verification checklist | [`docs/reference/manual-checks.md`](reference/manual-checks.md) | Gates V1 release only |
 | V.21 | Mac Intel app package | [ADR 0095](adr/0095-mac-notarization-and-windows-code-signing.md) | Pending |
-| V.22 | Linux ARM64 app package | [ADR 0071](adr/0071-linux-port.md) | Pending public repository |
+| V.22 | Linux ARM64 app package | [ADR 0071](adr/0071-linux-port.md) | Pending; the repository is public, so it is no longer waiting on that (the server's ARM64 packages already ship) |
 | V.49 | A shared board with the owner's paths: a share's sync carries a board with the share's paths, and a share window without a table joins the board's room by them | [ADR 0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 | Decided into V1 2026-11-01; not built; after the terminal and the music are polished |
 | V.50 | Merge by block of offline edits (two people who edited one note offline are merged, not copied) | [ADR 0082](adr/0082-live-co-editing-of-a-synced-folder.md), [ADR 0073](adr/0073-self-hosted-server-first.md) item 10 | Decided into V1 2026-11-01; its own ADR still to be written; not built; after the terminal and the music are polished |
 | V.51 | The other placeholder providers (Dropbox, Google Drive on macOS) never read as a deletion | [ADR 0043](adr/0043-placeholder-guard.md) | Decided into V1 2026-11-01; not built; after the terminal and the music are polished |
