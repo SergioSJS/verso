@@ -46,9 +46,15 @@ test("the folder switcher groups this computer, mine and shared with me", async 
   const shared = box.getByRole("region", { name: "Compartilhados comigo" });
   await expect(shared).toContainText("Campanha (Ana)");
   await expect(shared).toContainText("edita");
-  // A share opens as a folder of its own (item 6).
+  // A share opens as a folder of its own (item 6): in the app, through its
+  // copy here, asked for first (the maintainer, 2026-11-15); the window on
+  // the server alone is the other way.
   await shared.getByRole("button", { name: /Campanha \(Ana\)/ }).click();
   await expect(box).toBeHidden();
+  await expect.poll(async () => (await app.calls("server_copy_open")).at(-1)).toMatchObject({ url: "https://notas.casa", folder: "s1" });
+  const question = app.page.getByRole("dialog", { name: /^Abrir “/ });
+  await question.getByRole("button", { name: "Abrir só no servidor, sem cópia" }).click();
+  await expect(question).toBeHidden();
   await expect.poll(async () => (await app.calls("server_open")).at(-1)).toMatchObject({ url: "https://notas.casa", folder: "s1" });
   // Escape closes it, the focus back on the button.
   await app.page.locator("#open").click();

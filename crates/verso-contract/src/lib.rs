@@ -76,6 +76,8 @@ mod picked;
 pub use picked::{
     FilesDropped, FilesOver, PickSkip, PickedFile, PickedFiles, RecentFolder, SkippedPick,
 };
+mod server_copy;
+pub use server_copy::{CopyPlace, ServerCopyPlan};
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
 mod loose;

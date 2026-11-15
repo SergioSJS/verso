@@ -336,7 +336,7 @@ No app Verso, abra os ajustes (**Verso › Ajustes…**, ⌘, no macOS; **Ctrl+,
 
 ![[assets/servidor-aprovar-aparelho.png|320]]
 
-O app passa a dizer *Conectado como* o seu nome. Um servidor novo ainda não tem pastas, e **não há nada a criar antes**: com a pasta que você quer guardar aberta no app, clique em **Sincronizar ‘sua pasta’**. O app faz a pasta no servidor, com o mesmo nome, e já sincroniza; os seus arquivos ficam como estão e nenhum é apagado. Se o servidor já tem pastas, elas aparecem na lista, cada uma com **Abrir aqui** e **Sincronizar** (para ligar a sua a uma que já existe). O código vale 10 minutos; passou, clique em **Conectar** de novo.
+O app passa a dizer *Conectado como* o seu nome. Um servidor novo ainda não tem pastas, e **não há nada a criar antes**: com a pasta que você quer guardar aberta no app, clique em **Sincronizar ‘sua pasta’**. O app faz a pasta no servidor, com o mesmo nome, e já sincroniza; os seus arquivos ficam como estão e nenhum é apagado. Se o servidor já tem pastas, elas aparecem na lista, cada uma com **Abrir aqui** (baixa uma cópia dela para este aparelho, que abre mesmo sem internet — o app pergunta onde guardar e mostra o tamanho antes) e **Sincronizar** (para ligar a sua a uma que já existe). O código vale 10 minutos; passou, clique em **Conectar** de novo.
 
 ![[assets/servidor-app-conectado.png|560]]
 

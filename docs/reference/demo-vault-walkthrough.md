@@ -2084,3 +2084,14 @@ On a server, with a table whose player (a reader invited to that one folder, who
 1. The player opens `/` (or signs in afresh in a private window): the window opens their folder at once, never *Escolha uma pasta deste servidor*. A link to a folder of the server they are not in opens their folder too. Level: H; E: `e2e-server/link-landing.spec.mjs` ("a player with one folder lands in it").
 2. The player opens `/?folder=<the table's id>&note=<the hidden note's path>` (and the same with a path that does not exist, or `../x.md`): their folder opens with no tab for it, no message names it, and the address bar keeps only `?folder=`. A note they see, in the same kind of link, opens as a tab. Level: H; E: `e2e-server/link-landing.spec.mjs` ("a link to a note a player may not open").
 3. An account with no folder that may not create folders lands on *Escolha uma pasta deste servidor* with *Escolher uma pasta* and no *Importar cofre de exemplo*. An admin with no folder still has both. Level: H; E: `e2e-server/server.spec.mjs` ("an invited reader"), `test/landing.test.mjs`.
+
+## A server's folder picked in the app: its copy here (notes 28 and 30, 2026-11-15)
+
+Signed in to a UniVerso that has a folder (the harness: `e2e/server-copy.spec.mjs` signs it in to one):
+
+1. In the folder switcher, the server's folder (or **Abrir aqui** in Settings › Servers): a dialog *Abrir “<pasta>”* says the copy opens offline, its size (*3 arquivos · 2,4 MB*) and, on a desktop, that you choose where; **Cancelar** closes it with nothing made. Level: H; E: `e2e/server-copy.spec.mjs` ("on a desktop the pick asks…").
+2. **Escolher onde e baixar…** (a desktop): the system's dialog; cancelled, the question stays; chosen, the window shows the copy and the dialog says *Baixando: k de n arquivos…*, then *Pronto: n arquivos estão neste aparelho*; the status bar says *Sincronizada*. Level: H for the dialog's text and progress, A for the system's dialog; E: `e2e/server-copy.spec.mjs` ("…the next pick opens it", "the download's progress is said file by file").
+3. The same folder picked again: it opens at once, no question. Level: H; E: the same test.
+4. On Android (`?host=mobile`): **Dentro do app** (checked) and **Celular/Documents**, each with what it means; Celular/Documents without the access asks for it first (**Permitir acesso**). On iOS (`?host=ios`): one place, Verso's Documents, said. Level: H; E: `e2e/server-copy.spec.mjs` (the Android and iOS tests); A on the devices (`manual-checks.md`, "A server's folder picked in the app").
+5. **Abrir só no servidor, sem cópia**: the folder opens on the server, said as online only. Level: H; E: `e2e/server-copy.spec.mjs` ("the window on the server alone…").
+6. The server down: the question says it could not reach the server, with **Tentar de novo**; a copy made before opens all the same. Level: H; E: `e2e/server-copy.spec.mjs` ("with the server down…"); A in airplane mode (`manual-checks.md`).

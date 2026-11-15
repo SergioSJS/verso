@@ -6,7 +6,8 @@
 // answer K of 2026-10-09): the settings' "Servers" section signs in
 // through the browser — the server's page approves this device, nobody
 // pastes a token (ADR 0074 item 8) — lists the servers signed in to, opens
-// one of their folders in this window, and signs out. It also names this
+// one of their folders in this window (through its copy on this device, the
+// maintainer, 2026-11-15: serverCopy.ts), and signs out. It also names this
 // computer (ADR 0079 item 8, decided 2026-10-11).
 
 import { listen } from "@tauri-apps/api/event";
@@ -25,6 +26,7 @@ import { cp as cp2 } from "../campaignStrings";
 import { tm } from "../tableMoveStrings";
 import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 import { focusOnOpen } from "../screen/openFocus";
+import { pickServerFolder } from "./serverCopy";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -66,11 +68,11 @@ const pt = {
   noneYet: "Nenhum servidor ainda. Com um UniVerso, suas pastas ficam no navegador, no celular e em outros computadores.",
   role: (r: string): string => (r === "owner" ? "dona" : r === "editor" ? "edita" : "só lê"),
   openHere: "Abrir aqui",
-  openHereNamed: (name: string) => `Abrir ${name} nesta janela, online`,
+  openHereNamed: (name: string) => `Abrir ${name} nesta janela, com uma cópia neste aparelho que abre sem internet`,
   // The two actions of a folder's row, said once above the rows (the
   // names in `[ ]` stand out); each row's button is short, its accessible
   // name whole.
-  pair: (local: string): Said => [["Abrir aqui"], " troca a pasta desta janela pela do servidor, online. ", ["Sincronizar"], " mantém ", [local], ", a pasta deste computador aberta agora, igual à do servidor."],
+  pair: (local: string): Said => [["Abrir aqui"], " baixa a pasta do servidor para este aparelho e a abre nesta janela; a cópia abre mesmo sem internet. ", ["Sincronizar"], " mantém ", [local], ", a pasta deste computador aberta agora, igual à do servidor."],
   sync: "Sincronizar",
   syncNamed: (local: string, there: string) => `Sincronizar ${local} com ${there}`,
   syncedWithThis: (local: string) => `sincronizada com ${local}`,
@@ -118,8 +120,8 @@ const en: typeof pt = {
   noneYet: "No server yet. With a UniVerso, your folders are in the browser, on the phone and on other computers.",
   role: (r: string): string => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
   openHere: "Open here",
-  openHereNamed: (name: string) => `Open ${name} in this window, online`,
-  pair: (local: string): Said => [["Open here"], " swaps this window's folder for the server's, online. ", ["Sync"], " keeps ", [local], ", this computer's folder open now, the same as the server's."],
+  openHereNamed: (name: string) => `Open ${name} in this window, with a copy on this device that opens offline`,
+  pair: (local: string): Said => [["Open here"], " downloads the server's folder to this device and opens it in this window; the copy opens offline too. ", ["Sync"], " keeps ", [local], ", this computer's folder open now, the same as the server's."],
   sync: "Sync",
   syncNamed: (local: string, there: string) => `Sync ${local} with ${there}`,
   syncedWithThis: (local: string) => `synced with ${local}`,
@@ -577,7 +579,8 @@ function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
   failure.hidden = true;
   const openIt = (): void => {
     busy(open, true);
-    void openServerFolder(a.url, f.id, false, (e) => sayFailure(failure, e, openIt, errorSentence)).then((done) => {
+    // Its copy here, made first when there is none (serverCopy.ts).
+    void pickServerFolder(a.url, f, (e) => sayFailure(failure, e, openIt, errorSentence)).then((done) => {
       busy(open, false);
       if (done) clearFailure(failure);
     });

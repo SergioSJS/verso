@@ -365,6 +365,16 @@ the date; what stays `[OPEN]` is listed in the Status.
    server sends in the WebSocket handshake; a browser whose window came
    from another version reloads, and the desktop app connecting to a server
    of another version is told to update, the app or the server).
+   *Revised 2026-11-15 (the maintainer, after the Android app 0.9.0-beta.1:
+   a folder opened from his UniVerso through the folder picker would not
+   open again in airplane mode; his decision, as relayed that day: *"On ALL apps (desktop, Android, iOS): picking a UniVerso folder downloads the whole folder into a local folder, binds it to the server folder with the existing sync engine (ADR 0079), and opens the local copy. Offline, the local copy opens; sync resumes when the network returns."*)
+   — "connect to a server" no longer opens the server's folder in the
+   window by default: picking one of its folders, in every app, makes a
+   copy on this device bound by [0079](0079-sync-a-local-folder-with-a-server.md)'s
+   sync and opens that copy (0079 item 14, revised the same day). The
+   window as a client of a remote core stays, as the second choice of the
+   same question (*"Abrir só no servidor, sem cópia"*, online only), and
+   for a browser.*
 3. **Files stay the source of truth, on the server's disk**
    ([0012](0012-files-are-source-of-truth.md)): a folder of `.md`, `.canvas`
    and attachments that Obsidian could open. `verso-fs` runs on the server as

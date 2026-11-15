@@ -274,6 +274,12 @@ Accepted (2026-10-10, Status).
     is copied to the other; a file on both with the same hash is agreed;
     with different hashes it is a conflict (item 8). The space is shown
     before it starts (0075 item 5), and it can be cancelled.
+    *2026-11-15 — a copy of a server's folder (item 14, revised) is a
+    first sync into a folder made empty for it: every file is downloaded,
+    nothing is deleted or sent, no conflict can arise. Its size — the
+    files and bytes the server's `sync_state` lists for the account, so a
+    reader's count leaves out what it may not read — is shown before the
+    copy is made, in the question that makes it.*
 12. **Limits**: the server's quota (0077) applies — a file refused is
     listed and the rest syncs. A file larger than the server's message limit
     is sent and fetched **in pieces** (decided on 2026-10-10, Status): each
@@ -292,6 +298,50 @@ Accepted (2026-10-10, Status).
     online, as today. Offline on the phone is the PWA's later step
     (0073 item 12).
     *2026-11-08 — "phone" here is the window served to a phone's browser; the native Android app of [0118](0118-a-native-android-app-from-the-same-core-and-ui.md) has the desktop app's role: it syncs, and may host.*
+    *2026-11-15 — revised in place (the maintainer, after the Android app
+    0.9.0-beta.1: a folder "RPG" synced from his Obsidian to his UniVerso,
+    opened in the app from the folder picker, would not open again in
+    airplane mode; his decision, as relayed that day: *"On ALL apps (desktop, Android, iOS): picking a UniVerso folder downloads the whole folder into a local folder, binds it to the server folder with the existing sync engine (ADR 0079), and opens the local copy. Offline, the local copy opens; sync resumes when the network returns."*).
+    **Every app — desktop, Android, iOS — works on a copy**: picking a
+    server's folder (the folder switcher, Settings › Servers *Abrir aqui*)
+    asks where the copy goes, says its size (files and MB), makes a new
+    folder named after the server's, opens it, binds it to the server's
+    folder with this ADR's sync and starts it, the window saying the
+    download's progress from `sync-status`. Where it goes is asked then:
+    on Android **inside the app** (the private storage, beside its `Verso`
+    folder; deleted with the app, which the question says) or
+    **Phone/Documents** (shared storage, through 0118 item 4.4's *All files
+    access*, asked first); on iOS the app's **Documents** (0119 A5, shown
+    by Files); on a desktop a folder the person chooses with the system's
+    dialog, the copy made inside it. Once a copy is here, picking that
+    server folder again opens it with nothing asked — offline too. The
+    window on the server's folder, without a copy and online only, stays
+    as the second choice of the same question: *"Abrir só no servidor, sem
+    cópia"* / *"Open on the server only, no copy"*. A browser served by a
+    UniVerso is unchanged (0092 keeps its own offline). Built in
+    `app/src-tauri/src/server_copy.rs` (`server_copy_open`,
+    `server_copy_plan`, `server_copy_make`; the place crosses as
+    `CopyPlace`, never a path — 0026 rule 4) and
+    `app/ui/src/dialogs/serverCopy.ts`; no server change. Defaults chosen
+    in the code, not decided by the maintainer:*
+    - *a copy never takes a folder that stands there already — it may be
+      another vault of the same name, and a first sync into it would send
+      its notes up — but `name (2)`, `name (3)`…; a character no folder may
+      have is made `-`;*
+    - *the copy of a server's folder is any folder of this device whose
+      sync with it is on (paused counts) and is still there, the freshest
+      first — the person's own folder synced with it included; a sync
+      turned off is no copy (its notes may be behind), so the pick asks
+      again;*
+    - *Android's first place offered is inside the app; Phone/Documents is
+      `Documents` at the top of the shared storage, made if absent; on iOS
+      the copy sits in `Documents/<name>` beside `Documents/Verso`;*
+    - *the desktop's dialog cancelled leaves the question open, nothing
+      made; no free-space check before the download;*
+    - *a desktop window remembered on a server's folder from before still
+      reopens there at the next start (it is what was picked then); a table
+      moved to its UniVerso (0117 R9) still takes the window to the
+      server's folder.*
 
 ## Consequences
 

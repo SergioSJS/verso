@@ -31,6 +31,12 @@ verso-contract = { path = "../../crates/verso-contract" }
 # The open folders and the contract's commands over them, shared with
 # `verso serve` (ADR 0073 item 2, decided 2026-10-09).
 verso-service = { path = "../../crates/verso-service" }
+# The folder a copy of a server's folder is downloaded into, made the way a
+# server makes one (`verso_fs::server::make_folder`, src/server_copy.rs; the
+# maintainer, 2026-11-15) on every app — before only the phones' own folder
+# (src/android.rs, src/ios.rs) and the tests. The workspace's crate, in the
+# tree already under verso-core; it replaces nothing of ours.
+verso-fs = { path = "../../crates/verso-fs" }
 # The adapters of sync with a cloud (ADR 0104 item 3, C.17): WebDAV and S3
 # over the remote trait of verso-core. Host-side: neither verso-core nor
 # verso-fs depends on it.
@@ -184,8 +190,7 @@ libc = "0.2"
 [target.'cfg(target_os = "android")'.dependencies]
 # The Android app (Phase 0): its own folder is made in its private storage
 # the way a server makes one (`verso_fs::server::make_folder`, src/android.rs)
-# — the workspace's crate, a dev-dependency here already.
-verso-fs = { path = "../../crates/verso-fs" }
+# through verso-fs, a dependency of every app above.
 # The system's certificate check for TLS needs the app's context once
 # (src/android.rs `init_tls`): reqwest's verifier (MIT OR Apache-2.0, in the
 # tree already through reqwest) and the `jni` it speaks (0.22, MIT OR
@@ -218,8 +223,7 @@ keyring-core = "1"
 # feature (keyring's v1 `Entry` refuses iOS, and the crate does not build
 # there without it), set on keyring-core. All in the tree already, at the
 # same versions (MIT OR Apache-2.0; rustls Apache-2.0 OR ISC OR MIT); they
-# replace nothing of ours.
-verso-fs = { path = "../../crates/verso-fs" }
+# replace nothing of ours. verso-fs is every app's, above.
 rustls-platform-verifier = "0.7"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 apple-native-keyring-store = { version = "1", features = ["protected"] }
@@ -290,9 +294,9 @@ procfs = { version = "0.17", default-features = false }
 
 [dev-dependencies]
 # The tests read back what a command wrote through the one crate that reads
-# a folder (ADR 0029: std::fs stays out of this crate, tests included). In
-# the tree already, under verso-core; it replaces nothing of ours.
-verso-fs = { path = "../../crates/verso-fs" }
+# a folder (ADR 0029: std::fs stays out of this crate, tests included):
+# verso-fs, a dependency of every app above.
+
 # The fakes of a WebDAV server and an S3 service the sync tests run against
 # (ADR 0104, Consequences: no test reaches a real provider).
 verso-cloud = { path = "../../crates/verso-cloud", features = ["fake"] }
