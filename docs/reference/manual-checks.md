@@ -20,6 +20,14 @@ in the real app.
 
 ## Not yet checked
 
+### The updater's channel and words, Android's allow-installs step, ⌘O (fix/beta-0.9-feedback, 2026-11-15)
+
+`cargo test -p verso-app update` covers the release picked (`update::pick`) and that nothing downloads while a phone does not allow installs; `app/ui/test/updateWords.test.mjs` the words of every code. What the tests do not see is the real update.
+
+- [ ] **macOS beta** (A, macOS): with a newer final and a newer beta published, **Baixar e atualizar** installs the beta, never the final. The success line reads in the window's language. File › Open Folder shows ⌘O and opens the folder dialog.
+- [ ] **Android** (A, phone): on a phone that never allowed installs from Verso, **Baixar e atualizar** opens Android's *Install unknown apps* page at once, before any download, and the card says to allow and tap again (*Nada foi baixado ainda*). Allowed, the next tap downloads and Android's install prompt opens; dismiss it and tap again: the prompt comes back without a second download.
+- [ ] **After an update** (A, any desktop): the "Nova versão" notification of the version now running is gone from the bell's list.
+
 ### A UniVerso's own Cloudflare link (ADR 0117 D4 item 2, R5, feat/r5-universo-link, 2026-11-14)
 
 The Rust tests run a stand-in `cloudflared`; the spike
@@ -94,9 +102,9 @@ picture of the page* means that system fell back to hiding the page.
 - [ ] **On the iPad, an install from before** (A): install the new build over the old one; at the first start the log says *the notes moved to Documents/Verso*; **Files › On My iPad › Verso** lists the notes; the folder opens in Verso with every note; a note edited in another app through Files shows the change when Verso comes back to the screen. The folder switcher's old entry (if any) is said as gone, not opened empty.
 - [ ] **A fresh install** (A): Files shows *Verso* at once, with the welcome lesson.
 
-### This app is a server: the internet link, invitations and the table (ADR 0117, note 29, 2026-11-04)
+### This app is a server: the internet link, invitations and the table (ADR 0117, note 30, 2026-11-04)
 
-The harness answers the link, the own address, the invitations and the seat in memory, and the Rust tests run the real server on a loopback listener; nothing downloaded, ran or talked to `cloudflared` or Cloudflare. Per system, then one line per row of ADR 0117 D9. Follow note 29 as a layperson would.
+The harness answers the link, the own address, the invitations and the seat in memory, and the Rust tests run the real server on a loopback listener; nothing downloaded, ran or talked to `cloudflared` or Cloudflare. Per system, then one line per row of ADR 0117 D9. Follow note 30 as a layperson would.
 
 - [ ] **The download of `cloudflared` on each system** (A, macOS, Windows, Linux): with the link box ticked the first time, the panel says it is downloading (about 40 MB), the checksum passes and **Link no ar.** shows. On macOS the downloaded binary runs with no Gatekeeper prompt; on Windows no SmartScreen or firewall prompt blocks it; on Linux it runs from the data directory. Turn the link off and on again: no second download.
 - [ ] **The child dies with the app** (A, each system): with the link on, quit Verso; no `cloudflared` stays in `ps` / Activity Monitor / Task Manager. On Windows also end the app from Task Manager: the Job Object takes `cloudflared` with it. On macOS/Linux kill the app with `kill -9`: the child exits by itself once it sees the app gone.
@@ -126,6 +134,7 @@ D9, one line per row (A, with the link on and a real player in a browser, unless
 - [ ] **The phone offline**: a player through the link can make a folder available offline; at the next quick link that copy belongs to the old origin.
 - [ ] **Trash and version history**: delete a note as an editor and restore it; the history lists the player's edit with their name.
 - [ ] **The web window on a phone**: cold load through the link on mobile data, at 390 x 844: every panel reachable, no sideways scroll, within Cloudflare's 200 requests at once.
+- [ ] **One top bar in the Android app** (2026-11-14; A, the installed beta on a phone): a note opens under one row (name over folder, mode, ⋯, tabs count at the right, bell) with the bottom bar shown (the default); the tabs button's sheet works by finger, closes with Android's Back, and its switch hides and brings back the bottom bar, above the gesture bar (nothing under it); with the bar hidden, the drawers and the toasts reach the bottom edge without going under the gesture bar.
 - [ ] **Read links**: turn **Ligar os links de leitura** on, make a link from the seated window, open it in a private window through the link with no account; turn it off and reload: it closes. A link to a folder inside the vault opens that folder alone, whole or in part.
 - [ ] **Passkeys and tokens**: on the network the password only and no passkey button; through the quick link a passkey is made and signs in, and is gone at the next link; a personal token made in the browser lists a folder and writes nothing when it reads only.
 - [ ] **Sign-in by mail and "forgot the password"**: no mail is sent; in **Pessoas convidadas**, **Nova senha** for a real player gives a link; sent by hand and opened on their phone through the link, it sets the new password once (a second open says it is used), the old password is refused after, and their open window was signed out when the link was made. **Encerrar sessões** drops their open browser and their desktop app at once; **Remover** (after the question) leaves them unable to sign in, and their desktop app and token open nothing.
@@ -1554,7 +1563,7 @@ them; if they still happen, a step that makes them happen is enough.
   appears for the first folder's note, and none covers the table's chat in
   the first (macOS, Windows, Linux; the web has one folder per page).
 - [ ] Shared table, player in the browser, game master on the desktop app: the player's pasted, dropped and chosen images on the board reach the desktop without a reload, an animated GIF keeps animating on both, and a player who does not edit the board gets the notice (macOS, Windows, Linux).
-- [ ] The guided installer on a real Oracle Cloud Always Free machine (E2.1.Micro 1 GB, and an A1 ARM64), following note 33 of the demo vault: the menu, the swap offer, the VCN security-list steps it prints, `sh universo.sh firewall`, HTTPS with an sslip.io name (Let's Encrypt itself; the automated check only uses Caddy's internal CA), the first admin, and the address opened on a phone. Also DuckDNS with a real token and a rate-limited sslip.io (nip.io offered).
+- [ ] The guided installer on a real Oracle Cloud Always Free machine (E2.1.Micro 1 GB, and an A1 ARM64), following note 34 of the demo vault: the menu, the swap offer, the VCN security-list steps it prints, `sh universo.sh firewall`, HTTPS with an sslip.io name (Let's Encrypt itself; the automated check only uses Caddy's internal CA), the first admin, and the address opened on a phone. Also DuckDNS with a real token and a rate-limited sslip.io (nip.io offered).
 
 - [ ] The container's memory limit (B9) on a real 1 GB server: `docker stats universo` shows a limit of 768 MiB; send a note far bigger than that and see the container restart by itself while the machine and its SSH session stay up.
 - [ ] The trash's size cap (B11) on a real server: with `VERSO_TRASH_MAX=50MB`, delete a few large files from a desktop folder synced to it; the oldest leave the server's trash first, the folder's own files stay, and the console's folder page shows the trash under 50 MB.
@@ -1683,3 +1692,22 @@ Built on `feat/watabou-import`. The import, the drawing, the region and the gene
 4. **The drawing in the app** (A): the imported board in light and dark themes: the floor, walls and numbers readable in both; double-click the drawing, move a room: it moves; the board's outline (accessible view) lists the note card.
 5. **A house of Dwellings in the app** (A, `feat/watabou-dwellings`; the browser harness runs the import, `watabou-import.spec.mjs`): export a house with a basement and a spiral stair (Dwellings, tags `tall,spiral,basement`) as JSON and import it: one frame per floor, named *Porão (B)*, *Térreo (GF)*…; in light and dark themes the walls, windows and room names readable; drag a floor's frame: its drawing moves with it; the board's outline lists the floors' frames and the note card; on a phone (390 × 844) the board opens and the note's room list reads in full.
 6. **A town's note embeds its generator** (A): in an imported region's note, click a town: the new note shows the city or village generator inside it, after asking once for `watabou.github.io`, at the town's seed.
+
+## A server's folder picked in the app: its copy on the device (2026-11-15)
+
+The maintainer's decision of 2026-11-15 (ADR 0079 item 14, revised): picking a UniVerso's folder in the app makes a copy on the device, synced, that opens offline. The question, the size, the progress, the second pick and the server down run in the browser harness (`e2e/server-copy.spec.mjs`); the copy's download and its first sync run against a real server in the host's tests (`app/src-tauri/src/server_copy/tests.rs`). What only a device in hand can try:
+
+1. **Android, airplane mode** (A, the app on the phone signed in to a UniVerso with a folder of some notes and a picture, such as the maintainer's *RPG*): in the folder switcher tap the folder: the question says *n arquivos · x MB*, **Dentro do app** checked; **Baixar e abrir**: *Baixando: k de n arquivos…*, then *Pronto*; the notes and the picture open. Turn airplane mode on, close Verso (swipe it away), open it again: the copy opens with its notes; edit one. Pick the folder in the switcher again: it opens at once, no question. Airplane mode off: the edit reaches the server (seen from a browser) within a few seconds; an edit made in the browser comes down.
+2. **Android, Phone/Documents** (A): pick another server folder, choose **Celular/Documents**: without *All files access*, the question asks for it — **Permitir acesso**, turn it on, Back, **Baixar e abrir**; the copy is in *Documents/<name>* in the Files app and opens in Obsidian; the switcher lists it as *Celular/Documents*. Uninstall Verso: the Phone/Documents copy stays; the inside-the-app one goes (said in the question).
+3. **iPad or iPhone, offline** (A, the AltStore build): pick a server folder: the question names Verso's Documents, **Baixar e abrir** downloads it; in Files it is under *On My iPad › Verso › <name>* beside *Verso*. Airplane mode, quit the app from the switcher, open it: the copy opens; an edit there syncs when the network is back. Then reinstall or refresh through AltStore (the container moves): say whether the copy still opens and still syncs — a known gap (ADR 0119 item 8's note of 2026-11-15).
+4. **Desktop, offline** (A, macOS, then Windows and Linux): pick a server folder in the switcher: **Escolher onde e baixar…** opens the system's folder dialog; choose a parent: a folder named after the server's is made inside it (`name (2)` when one stands there already — an Obsidian vault of the same name is untouched); the window opens it and the dialog says the progress. Turn the network off, quit Verso and open it again: the copy opens; Settings › Sync says it syncs and is offline. Network back: changes cross both ways.
+5. **A reader's copy** (A, an account that only reads a table with a hidden note): pick the table's folder on any app: the size counts only what the reader sees, and the copy holds no hidden note, in the app nor on the disk.
+6. **The window on the server alone** (A): in the question, **Abrir só no servidor, sem cópia**: the folder opens online, nothing is made on the device; offline it does not open, as before.
+
+## Sync held off Wi-Fi mid-pass, and the iOS folder switcher (2026-11-15)
+
+Review findings I6 and #4 of 2026-11-15. The hold between two files runs in the host's tests (`sync::task::tests::a_hold_met_during_a_pass_stops_it_before_the_next_file`), with the phone's conditions stood in; only a phone in hand tells them for real:
+
+1. **Android, Wi-Fi only** (A): Settings › Sincronizar › background sync on, *só no Wi-Fi*; start the first sync of a big server folder on Wi-Fi, leave Verso off the screen, turn Wi-Fi off: the download stops before its next file (the server's log, or the phone's data counter, shows nothing more crosses), and the sync says *pausada*; Wi-Fi back: it goes on from where it stopped.
+2. **Android, charging only** (A): the same with *só carregando*, unplugging the charger.
+3. **iPad or iPhone** (A): the folder switcher has no *Abrir outra pasta…*; the palette's *Abrir pasta* says, in a notice, that the app opens only the folders in its Documents.

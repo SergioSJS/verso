@@ -105,7 +105,7 @@ print the VCN steps of section 2. `sh universo.sh https` takes your own
 domain, a free name made from the machine's address (`150-230-1-2.sslip.io`,
 nothing to buy), or DuckDNS, and `sh universo.sh admin` makes the first
 admin with a hidden password, so the commands of sections 4 and 5 are only
-the by-hand version. The tutorial for a first-timer is note 34 of the demo
+the by-hand version. The tutorial for a first-timer is note 35 of the demo
 vault; what each guided command does is in [the install
 guide](server-install.md), "The installer script". The guided parts were
 tested in an Ubuntu 24.04 container under systemd

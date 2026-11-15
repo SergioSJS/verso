@@ -7,7 +7,7 @@
 // host: `files-over` and `files-dropped` come as events, `take_dropped`
 // answers like the picker (`pickNext`). The real drag is checked in the app.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const FILES = { "Zeta/Alfa.md": "a\n", "Beta.md": "beta original\n" };
 
@@ -64,7 +64,7 @@ test("a drop on the tree's empty part goes to the root; a file past the limit is
 test("a drop on a note is taken in from its bytes, as the browser's drop was", async ({ app, page }) => {
   await app.open();
   await app.quickOpen("04 - Escrevendo");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   const editor = page.locator(".cm-content").first();
   await editor.click();
   await choose(page, [{ name: "capa.png", text: "png-bytes" }], false);

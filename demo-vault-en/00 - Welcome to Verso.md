@@ -21,7 +21,7 @@ pinned: true
 > [!TIP] Start with the tour
 > Open the [[Verso Tour.canvas|Verso Tour]]: a board with Verso's features, stop by stop, with this vault's notes inside the cards. To learn how to draw on boards, follow the [[Board Training.canvas|Board Training]].
 >
-> To follow a link: one click in **Reading** mode, or `⌘` + click in **Edit** mode — on the phone, tap the link and then **Open** ([[28 - Verso on Phone and Tablet]]).
+> To follow a link: one click in **Reading** mode, or `⌘` + click in **Edit** mode — on the phone, tap the link and then **Open** ([[29 - Verso on Phone and Tablet]]).
 
 ---
 
@@ -105,22 +105,23 @@ Dice, statblocks, oracles and the game table, alone or with other people.
 
 Verso on the phone, on a server of your own, over the internet and synced with a cloud.
 
-- [[28 - Verso on Phone and Tablet]] — The bottom bar, one pane at a time, holding as right-click, a link's card, the keyboard bar and screen readers.
-- [[29 - A Table over the Internet]] — Verso on your computer turns into a server: a Cloudflare link (testing mode) or your own address, invitations, sitting at the table, read links and who gets in how.
-- [[30 - Verso on a Server]] — `verso serve`: installing, accounts by invitation, owner, editors and readers, editing together and the connected desktop app.
-- [[31 - Installing Your UniVerso, Step by Step]] — From zero to a server of your own, for someone who has never set one up: the compose file or the install script, the first admin, HTTPS (optional, for offline use and notifications), the backup.
-- [[32 - Installing the server on a NAS or a VPS]] — The server on a NAS (CasaOS, ZimaOS, others with Docker) or on a VPS: the compose file or the installer, HTTPS, the public address, backups and the trash's limits.
-- [[33 - UniVerso on a Free Oracle Server]] — The route for someone who has never set up a server: a free Oracle machine, the installer's menu, HTTPS with a free name, the first admin and the phone.
-- [[34 - Syncing with a Cloud]] — A folder kept the same as a folder in a Nextcloud (WebDAV) or an S3 bucket you already have, with no server: the form, the S3 key limited to one folder, the password in the keychain and what to expect.
+- [[28 - How Will You Use Verso]] — The ways to use Verso and UniVerso, each with a drawing of where the files live, what to install in what order and what works offline: on the computer only, with the phone at home, without a server, with your own UniVerso, at an RPG table, as a family or team and alongside Obsidian.
+- [[29 - Verso on Phone and Tablet]] — One bar at the top and the tabs sheet, one pane at a time, holding as right-click, a link's card, the keyboard bar and screen readers.
+- [[30 - A Table over the Internet]] — Verso on your computer turns into a server: a Cloudflare link (testing mode) or your own address, invitations, sitting at the table, read links and who gets in how.
+- [[31 - Verso on a Server]] — `verso serve`: installing, accounts by invitation, owner, editors and readers, editing together and the connected desktop app.
+- [[32 - Installing Your UniVerso, Step by Step]] — From zero to a server of your own, for someone who has never set one up: the compose file or the install script, the first admin, HTTPS (optional, for offline use and notifications), the backup.
+- [[33 - Installing the server on a NAS or a VPS]] — The server on a NAS (CasaOS, ZimaOS, others with Docker) or on a VPS: the compose file or the installer, HTTPS, the public address, backups and the trash's limits.
+- [[34 - UniVerso on a Free Oracle Server]] — The route for someone who has never set up a server: a free Oracle machine, the installer's menu, HTTPS with a free name, the first admin and the phone.
+- [[35 - Syncing with a Cloud]] — A folder kept the same as a folder in a Nextcloud (WebDAV) or an S3 bucket you already have, with no server: the form, the S3 key limited to one folder, the password in the keychain and what to expect.
 
 ### VII. Advanced
 
 The terminal and AI agents, settings, help and living alongside Obsidian.
 
-- [[35 - Terminal, CLI and AI Agents]] — A terminal of this computer in a tab (turning it on, opening it, the keys and what a program run there does to the files), the `verso` command to search from the terminal, the folder in AI agents through MCP, and the buttons that find Claude Code, Gemini CLI and the other AI tools.
-- [[36 - Settings, Appearance and Shortcuts]] — Theme, palette, fonts, language and your own shortcuts.
-- [[37 - Help, Updates and Diagnostics]] — Updates, reporting a problem and the console.
-- [[38 - Compatibility with Obsidian]] — For anyone coming from Obsidian or using both: the same folder, nothing rewritten on open, what works the same, what Verso adds, what does not exist and how to try it.
+- [[36 - Terminal, CLI and AI Agents]] — A terminal of this computer in a tab (turning it on, opening it, the keys and what a program run there does to the files), the `verso` command to search from the terminal, the folder in AI agents through MCP, and the buttons that find Claude Code, Gemini CLI and the other AI tools.
+- [[37 - Settings, Appearance and Shortcuts]] — Theme, palette, fonts, language and your own shortcuts.
+- [[38 - Help, Updates and Diagnostics]] — Updates, reporting a problem and the console.
+- [[39 - Compatibility with Obsidian]] — For anyone coming from Obsidian or using both: the same folder, nothing rewritten on open, what works the same, what Verso adds, what does not exist and how to try it.
 
 ---
 

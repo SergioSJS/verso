@@ -11,7 +11,8 @@
 import { commands, type ServerFolder } from "../bindings";
 import { can, host } from "../can";
 import { asDialog, closed, opened } from "../dialogs/a11y";
-import { openServerFolder, serverStrings } from "../dialogs/servers";
+import { serverStrings } from "../dialogs/servers";
+import { pickServerFolder } from "../dialogs/serverCopy";
 import { openSettingsSection } from "../dialogs/sync";
 import { h } from "../dom";
 import { icon } from "../icons";
@@ -19,7 +20,7 @@ import { errorSentence } from "../errors";
 import { attempt } from "../reach";
 import { currentFolder, folderName } from "../folder";
 import { flash } from "../notify";
-import { openFolderBy, openFolderDialog } from "../open";
+import { openFolderBy, openFolderDialog, opensAnotherFolder } from "../open";
 import { roleWord, sh } from "../shareStrings";
 import { hiddenFolderKeys, hideFolder, visibleRecents } from "./hiddenFolders";
 
@@ -136,10 +137,12 @@ function group(id: string, title: string): { section: HTMLElement; list: HTMLULi
   return { section, list };
 }
 
-/** Open a server's folder or share in this window. */
+/** Open a server's folder or share in this window: in a browser, the
+ *  server's; in the app, its copy on this device, made first when there is
+ *  none (the maintainer, 2026-11-15: serverCopy.ts). */
 function openThere(url: string, f: ServerFolder): void {
-  if (host() === "server") void openFolderBy(() => commands.serverOpen(url, f.id));
-  else void openServerFolder(url, f.id);
+  if (!can("local_folders")) void openFolderBy(() => commands.serverOpen(url, f.id));
+  else void pickServerFolder(url, f);
 }
 
 /** Show the switcher under `anchor`. */
@@ -157,8 +160,9 @@ export async function openFolderSwitcher(anchor: HTMLElement): Promise<void> {
   if (local) {
     // The action first and apart: it is not one of the folders below it.
     const actions = h("ul", "switcher-actions");
-    actions.append(entry({ label: sh.openOther, action: true, icon: "folderOpen", run: () => void openFolderDialog() }));
-    local.section.insertBefore(actions, local.list);
+    // Not on iOS, whose folders are its Documents' alone, all listed below.
+    if (opensAnotherFolder()) actions.append(entry({ label: sh.openOther, action: true, icon: "folderOpen", run: () => void openFolderDialog() }));
+    if (actions.children.length > 0) local.section.insertBefore(actions, local.list);
     const recents = await commands.recentFolders();
     const list = local.list;
     const draw = (): void => {

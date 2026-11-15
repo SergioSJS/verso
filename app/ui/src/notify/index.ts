@@ -20,7 +20,7 @@ import { h, ui } from "../dom";
 import { icon } from "../icons";
 import { currentFolder, folderName } from "../folder";
 import { settings } from "../settings";
-import { Book, type ActionRef, type Entry, type Level, type Outcome, type Raise, modeOf } from "./core";
+import { Book, type ActionRef, type Entry, type Level, type Outcome, type Raise, modeOf, updatePassed } from "./core";
 import { Centre } from "./centre";
 import { notifyStrings } from "./strings";
 import { checkSystem, systemSend } from "./system";
@@ -110,6 +110,16 @@ export function stateOf(key: string): string | undefined {
  *  conflict copy went): its toast goes, and the next change is raised. */
 export function settle(key: string, state: string, persist = false): void {
   if (book.settle(key, state, persist)) dismissKey(key);
+}
+
+/** The "update available" lines of versions the app running at `running`
+ *  already has leave the list, and their toasts go: after an update, the
+ *  notification of it is not news, and its button has nothing to do. */
+export function dropPassedUpdates(running: string): void {
+  const gone = book.entries.filter((e) => updatePassed(e, running));
+  if (!book.drop((e) => updatePassed(e, running))) return;
+  for (const e of gone) dismissKey(e.key);
+  paintBells();
 }
 
 /** A toast that is not a notification: the feedback of an action that is

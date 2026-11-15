@@ -15,7 +15,7 @@ Num jogo, ninguém rola dentro de uma nota só: o mestre rola numa ficha de mons
 
 ## Ver a Mesa
 
-1. Abra o painel da direita (**Mostrar painel da direita**, ou **Painel** na barra de baixo do celular) e escolha a aba **Mesa**.
+1. Abra o painel da direita (**Mostrar painel da direita**, ou, no celular, **Painel** na barra de baixo ou na folha do botão de abas) e escolha a aba **Mesa**.
 2. Role um dado qualquer: `dice: 1d20+5`, `dice: 2d6`, ou o **Rolar dados…** da paleta.
 3. A linha aparece no fim da lista: **Você**, a hora, a nota de onde saiu (um link: um clique abre a nota), a notação, cada dado como um quadradinho e o **total**.
 
@@ -64,7 +64,7 @@ Com os **Dados 3D** ligados, a rolagem dos outros também cai em 3D na sua tela.
 
 **Som da Mesa.** Quando outra pessoa manda uma **mensagem** (ou uma rolagem que não cai em 3D) na Mesa, a janela toca um som curto — nunca para o que **você** manda, e não enquanto você escreve na caixa da Mesa. Em **Ajustes › Notificações** escolha **Som da Mesa** (Suave, Sino, Estalo ou Desligado; vem em Suave) e o **volume**; ao escolher, o som toca uma vez para você ouvir. Os dados têm o seu próprio som, ligado à parte. Se o navegador ainda não liberou o áudio (ele só libera depois que você toca na página), o som fica mudo em vez de tocar atrasado.
 
-Numa pasta que **não** é de um UniVerso (só do seu computador), a Mesa mostra as suas rolagens e as que você ouve nas notas compartilhadas **desta sessão**, e diz que não é compartilhada nem guardada. Numa pasta de um UniVerso, ou numa que o seu próprio Verso serve com a janela sentada à mesa ([[29 - Mesa pela Internet]]), ela é **a mesa de todos**: veja abaixo.
+Numa pasta que **não** é de um UniVerso (só do seu computador), a Mesa mostra as suas rolagens e as que você ouve nas notas compartilhadas **desta sessão**, e diz que não é compartilhada nem guardada. Numa pasta de um UniVerso, ou numa que o seu próprio Verso serve com a janela sentada à mesa ([[30 - Mesa pela Internet]]), ela é **a mesa de todos**: veja abaixo.
 
 ---
 

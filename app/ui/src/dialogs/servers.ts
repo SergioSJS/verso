@@ -6,17 +6,18 @@
 // answer K of 2026-10-09): the settings' "Servers" section signs in
 // through the browser — the server's page approves this device, nobody
 // pastes a token (ADR 0074 item 8) — lists the servers signed in to, opens
-// one of their folders in this window, and signs out. It also names this
+// one of their folders in this window (through its copy on this device, the
+// maintainer, 2026-11-15: serverCopy.ts), and signs out. It also names this
 // computer (ADR 0079 item 8, decided 2026-10-11).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ContractError, type ServerAccount, type ServerBack, type ServerFolder, type ServerGone } from "../bindings";
+import { commands, type ContractError, type ServerAccount, type ServerBack, type ServerFolder, type ServerGone, type ServerSignInFailed } from "../bindings";
 import { h, ui } from "../dom";
 import { errorSentence, fail } from "../errors";
 import { addressOf, attempt, busy, clearFailure, reachParts, reachSentence, reachStrings, sayFailure } from "../reach";
 import { can } from "../can";
 import { currentFolder, folderName, LAST_FOLDER } from "../folder";
-import { currentSync, openSettingsSection, preselectSync, syncStarted } from "./sync";
+import { currentSync, openSettingsSection, preselectSync, syncStarted, syncStrings } from "./sync";
 import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
 import { foundList } from "./serversFound";
@@ -25,6 +26,7 @@ import { cp as cp2 } from "../campaignStrings";
 import { tm } from "../tableMoveStrings";
 import { revokedSentence, serverBackHeard, serverGoneHeard } from "../notify/sources";
 import { focusOnOpen } from "../screen/openFocus";
+import { pickServerFolder } from "./serverCopy";
 
 /** A sentence whose names stand out: a name is `[name]`. */
 type Said = (string | [string])[];
@@ -42,6 +44,12 @@ const pt = {
   notCopied: "Digite este código na página que abriu: ",
   waiting: ". Esperando…",
   signedIn: (who: string) => `Conectado como ${who}.`,
+  // A sign-in that ended without this device signed in (review I1).
+  signInEnded: {
+    refused: "A entrada foi recusada na página do servidor; nada foi conectado.",
+    expired: "O código expirou: os dez minutos para usá-lo passaram.",
+    failed: "A entrada não terminou: o servidor respondeu algo que o app não entendeu, ou ela não pôde ser guardada. O log do app diz o quê.",
+  } as Record<string, string>,
   account: (a: ServerAccount) => `${a.name} <${a.email}>`,
   as: (name: string, email: string) => `Você entra como ${name} · ${email}`,
   foldersOf: (host: string) => `Pastas em ${host}`,
@@ -66,11 +74,11 @@ const pt = {
   noneYet: "Nenhum servidor ainda. Com um UniVerso, suas pastas ficam no navegador, no celular e em outros computadores.",
   role: (r: string): string => (r === "owner" ? "dona" : r === "editor" ? "edita" : "só lê"),
   openHere: "Abrir aqui",
-  openHereNamed: (name: string) => `Abrir ${name} nesta janela, online`,
+  openHereNamed: (name: string) => `Abrir ${name} nesta janela, com uma cópia neste aparelho que abre sem internet`,
   // The two actions of a folder's row, said once above the rows (the
   // names in `[ ]` stand out); each row's button is short, its accessible
   // name whole.
-  pair: (local: string): Said => [["Abrir aqui"], " troca a pasta desta janela pela do servidor, online. ", ["Sincronizar"], " mantém ", [local], ", a pasta deste computador aberta agora, igual à do servidor."],
+  pair: (local: string): Said => [["Abrir aqui"], " baixa a pasta do servidor para este aparelho e a abre nesta janela; a cópia abre mesmo sem internet. ", ["Sincronizar"], " mantém ", [local], ", a pasta deste computador aberta agora, igual à do servidor."],
   sync: "Sincronizar",
   syncNamed: (local: string, there: string) => `Sincronizar ${local} com ${there}`,
   syncedWithThis: (local: string) => `sincronizada com ${local}`,
@@ -97,6 +105,11 @@ const en: typeof pt = {
   notCopied: "Type this code on the page that opened: ",
   waiting: ". Waiting…",
   signedIn: (who: string) => `Connected as ${who}.`,
+  signInEnded: {
+    refused: "The sign-in was refused on the server's page; nothing was connected.",
+    expired: "The code expired: its ten minutes to be used ran out.",
+    failed: "The sign-in did not finish: the server answered something the app did not understand, or it could not be kept. The app's log says what.",
+  } as Record<string, string>,
   account: (a: ServerAccount) => `${a.name} <${a.email}>`,
   as: (name: string, email: string) => `You sign in as ${name} · ${email}`,
   foldersOf: (host: string) => `Folders on ${host}`,
@@ -118,8 +131,8 @@ const en: typeof pt = {
   noneYet: "No server yet. With a UniVerso, your folders are in the browser, on the phone and on other computers.",
   role: (r: string): string => (r === "owner" ? "owner" : r === "editor" ? "edits" : "reads only"),
   openHere: "Open here",
-  openHereNamed: (name: string) => `Open ${name} in this window, online`,
-  pair: (local: string): Said => [["Open here"], " swaps this window's folder for the server's, online. ", ["Sync"], " keeps ", [local], ", this computer's folder open now, the same as the server's."],
+  openHereNamed: (name: string) => `Open ${name} in this window, with a copy on this device that opens offline`,
+  pair: (local: string): Said => [["Open here"], " downloads the server's folder to this device and opens it in this window; the copy opens offline too. ", ["Sync"], " keeps ", [local], ", this computer's folder open now, the same as the server's."],
   sync: "Sync",
   syncNamed: (local: string, there: string) => `Sync ${local} with ${there}`,
   syncedWithThis: (local: string) => `synced with ${local}`,
@@ -215,6 +228,16 @@ export function hearServers(): void {
       const message = p.address ?? addressOf(p.url);
       outOfReach(reachParts(message).address);
       serverGoneHeard(p, reachSentence(message));
+      return;
+    }
+    // A version this app does not follow: one side is to be updated, in
+    // the sync's words for it (review M1); signing in again would not help.
+    if (p.what === "version") {
+      serverState()?.remove();
+      const words = syncStrings().problems["version"] ?? "";
+      const said = `${words.charAt(0).toUpperCase()}${words.slice(1)}.`;
+      ui.status.textContent = said;
+      serverGoneHeard(p, said);
       return;
     }
     serverState()?.remove();
@@ -329,6 +352,15 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
     said.textContent = s.signedIn(s.account(e.payload));
     url.value = "";
     void draw();
+  });
+  // Refused on the page, the code's minutes run out, or a failure: said in
+  // place of "Waiting…", with a try again that asks for a new code.
+  void listen<ServerSignInFailed>("server-sign-in-failed", (e) => {
+    if (!box.isConnected) return;
+    const again = h("button", "ghost srv-again", reachStrings().tryAgain);
+    again.type = "button";
+    again.addEventListener("click", () => form.requestSubmit());
+    said.replaceChildren(`${s.signInEnded[e.payload.why] ?? s.signInEnded["failed"]} `, again);
   });
 
   // The servers announced on this network: a click fills the address the
@@ -577,7 +609,8 @@ function folderRow(a: ServerAccount, f: ServerFolder): HTMLElement {
   failure.hidden = true;
   const openIt = (): void => {
     busy(open, true);
-    void openServerFolder(a.url, f.id, false, (e) => sayFailure(failure, e, openIt, errorSentence)).then((done) => {
+    // Its copy here, made first when there is none (serverCopy.ts).
+    void pickServerFolder(a.url, f, (e) => sayFailure(failure, e, openIt, errorSentence)).then((done) => {
       busy(open, false);
       if (done) clearFailure(failure);
     });

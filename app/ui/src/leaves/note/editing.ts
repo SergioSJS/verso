@@ -37,7 +37,7 @@ import { allFiles, allNotes } from "../../folder";
 import { icon } from "../../icons";
 import { editorChrome, withKeys } from "../../keys";
 import { listKeymap } from "../../listKeymap";
-import { MenuItem, showMenu } from "../../menu";
+import { danger, MenuItem, showMenu } from "../../menu";
 import { dirOf, name } from "../../paths";
 import { linkText } from "../../resolve";
 import { visibleBox } from "../../screen/viewport";
@@ -97,8 +97,10 @@ export function editorState(this: NoteLeaf, doc: string, shared: Extension = [])
       md.language.data.of({ autocomplete: completeMarkdown }),
       md,
       syntaxHighlighting(classHighlighter),
-      // The system's spell checker, in the languages it is set to.
-      EditorView.contentAttributes.of({ spellcheck: String(settings.spellcheck), autocorrect: settings.spellcheck ? "on" : "off", autocapitalize: "off" }),
+      // The system's spell checker, in the languages it is set to; read
+      // at each update, so the setting changed reaches an open note
+      // (settingsFollow.ts redraws it).
+      EditorView.contentAttributes.of(() => ({ spellcheck: String(settings.spellcheck), autocorrect: settings.spellcheck ? "on" : "off", autocapitalize: "off" })),
       // The text box is named after the note, as it is now (a rename
       // with unsaved text keeps this state).
       EditorView.contentAttributes.of(() => ({ "aria-label": name(this.path) })),
@@ -536,7 +538,7 @@ export function blockMenu(this: NoteLeaf, blocks: Block[], x: number, y: number)
     [t.blocks.duplicate, () => this.duplicateBlock(blocks), "copy"],
     ...(one ? [[t.blocks.copyLink, () => this.copyBlockLink(blocks), "link"] as MenuItem] : []),
     ["—", () => {}],
-    [t.blocks.delete, () => this.deleteBlock(blocks), "close"],
+    danger([t.blocks.delete, () => this.deleteBlock(blocks), "close"]),
   ];
   showMenu(x, y, items);
 }

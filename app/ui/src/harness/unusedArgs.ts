@@ -28,6 +28,8 @@ export const UNUSED_ARGS: Record<string, string[]> = {
   server_sign_out: ["url"],
   server_folders: ["url"],
   server_create_folder: ["url", "name"],
+  // The harness sizes a server's folder by its id alone (harness/serverCopy.ts).
+  server_copy_plan: ["url"],
   server_open: ["url", "folder"],
   // Sharing is a server's (ADR 0081): a folder of the harness is not on
   // one; a test stands in for the server by replacing these.

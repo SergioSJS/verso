@@ -169,9 +169,10 @@ pub(crate) async fn dial(
 > {
     let request = remote::ws_request("http://127.0.0.1", seat.token())?;
     let stream = seat.connect().map_err(|e| refused(&e))?;
-    let (socket, _) = tokio_tungstenite::client_async(request, stream)
-        .await
-        .map_err(|e| failed(e.to_string()))?;
+    let (socket, _) =
+        tokio_tungstenite::client_async_with_config(request, stream, Some(remote::ws_config()))
+            .await
+            .map_err(|e| failed(e.to_string()))?;
     let url = seat.origin().unwrap_or(NOWHERE).to_owned();
     let token = seat.token().to_owned();
     let folder = seat.folder().to_owned();

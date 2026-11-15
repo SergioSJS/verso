@@ -5,7 +5,7 @@
 // way). Screenshots for reading by eye go to $HOME/.cache/rollblock-shots
 // (mounted by the runner), when the folder exists.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 import { existsSync } from "node:fs";
 
 const SHOTS = `${process.env.HOME ?? "/root"}/.cache/rollblock-shots`;
@@ -47,7 +47,7 @@ const doc = (page) => page.evaluate(() => document.querySelector(".note-sheet .e
 /** The note open in the editing view. */
 async function editing(app, page, name) {
   await app.quickOpen(name);
-  await page.getByRole("button", { name: "Editar", exact: true }).first().click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".editor.live .cm-content")).toBeVisible();
 }
 
@@ -103,20 +103,20 @@ test("a roll dragged from the table into a note in Live becomes a card, in one u
   // The file is the block and nothing else changed.
   await expect.poll(async () => await app.file("Diario.md")).toBe(text);
   // Source: the text itself.
-  await page.getByRole("button", { name: "Fonte", exact: true }).first().click();
+  await modeOn(page, "Fonte");
   await expect(page.locator(".editor .cm-content")).toContainText("```roll");
   await expect(page.locator(".editor .cm-content")).toContainText("1d20+3 →");
   await expect(page.locator(".rb-card:visible")).toHaveCount(0);
   await shot(page, `${tag(page)}-3-source`);
   // Reading: the card again, its note a link.
-  await page.getByRole("button", { name: "Leitura", exact: true }).first().click();
+  await modeOn(page, "Leitura");
   const reading = page.locator(".preview:visible .rb-card");
   await expect(reading).toBeVisible();
   await expect(reading.locator(".rb-total")).toHaveText(total);
   await expect(page.locator(".preview:visible pre")).toHaveCount(0);
   await shot(page, `${tag(page)}-4-reading`);
   // One undo takes the whole block away.
-  await page.getByRole("button", { name: "Editar", exact: true }).first().click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".editor.live .cm-content")).toBeVisible();
   await page.locator(".cm-line", { hasText: "Fim." }).first().click();
   await app.key("Mod+z");

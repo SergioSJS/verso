@@ -15,6 +15,9 @@ struct Fake {
     lose_cursor: Mutex<bool>,
     feed: bool,
     log: Mutex<Vec<Change>>,
+    /// The read of this number (the first is 1) fails as a dropped link
+    /// would; 0 is never.
+    fail_read: Mutex<usize>,
 }
 
 impl Fake {
@@ -63,6 +66,14 @@ impl Remote for Fake {
     }
 
     fn read(&self, path: &str, sink: &mut dyn Sink) -> Result<Read> {
+        let n = self.reads.lock().unwrap().len() + 1;
+        {
+            let mut fail = self.fail_read.lock().unwrap();
+            if *fail == n {
+                *fail = 0;
+                return Err(RemoteError::new(RemoteErrorKind::Unreachable, "dropped"));
+            }
+        }
         self.reads.lock().unwrap().push(path.to_owned());
         let files = self.files.lock().unwrap();
         let (bytes, version) = files
@@ -287,4 +298,44 @@ fn the_feeds_renames_are_kept_as_chains_until_the_base_follows() {
     assert_eq!(k.moved.len(), 1);
     k.settle(&base("c.md"));
     assert!(k.moved.is_empty());
+}
+
+/// A cloud's first listing on a link that drops at the k-th read: what was
+/// read before it is kept, so the next try reads only from the k-th on —
+/// each file once over both tries — and the picture of the failed try is
+/// left as it was (none), never a partial one a plan would take for
+/// deletions there.
+#[test]
+fn a_first_listing_cut_short_keeps_the_hashes_it_read() {
+    let remote = Fake::default();
+    let names: Vec<String> = (1..=6).map(|i| format!("n{i}.md")).collect();
+    for (i, p) in names.iter().enumerate() {
+        remote.set(p, format!("bytes {i}").as_bytes(), 1);
+    }
+    *remote.fail_read.lock().unwrap() = 4;
+    let mut known = None;
+    let mut tokens = BTreeMap::new();
+    let e = refresh_learning(&remote, &mut known, &mut tokens).unwrap_err();
+    assert_eq!(e.kind, RemoteErrorKind::Unreachable);
+    assert!(known.is_none());
+    assert_eq!(
+        tokens.keys().collect::<Vec<_>>(),
+        names[..3].iter().collect::<Vec<_>>()
+    );
+    assert_eq!(tokens["n2.md"].hash, sha(b"bytes 1"));
+    // The tokens as a state saved after the failure keeps them: a new run.
+    refresh_learning(&remote, &mut known, &mut tokens).unwrap();
+    let reads = remote.reads.lock().unwrap().clone();
+    assert_eq!(reads, names);
+    let k = known.unwrap();
+    assert_eq!(k.files.len(), 6);
+    assert_eq!(k.files["n5.md"].hash, sha(b"bytes 4"));
+    assert_eq!(k.tokens(), tokens);
+    // The plain call keeps nothing it is given.
+    let before = BTreeMap::new();
+    *remote.fail_read.lock().unwrap() = 7;
+    remote.set("n1.md", b"changed", 2);
+    let mut fresh = None;
+    refresh(&remote, &mut fresh, &before).unwrap_err();
+    assert!(before.is_empty() && fresh.is_none());
 }

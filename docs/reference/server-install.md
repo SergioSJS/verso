@@ -41,7 +41,7 @@ Ubuntu carry it) it is arrow keys and Enter; without, a numbered list. Each
 step is said, and confirmed, before it runs, and is also a plain command in
 the table below (`--yes` answers yes to every question, for a script). The
 step by step for someone who has never set up a server, on Oracle's free
-tier, is note 34 of the demo vault ([UniVerso on a Free Oracle
+tier, is note 35 of the demo vault ([UniVerso on a Free Oracle
 Server](#a-weak-free-vps-oracle-cloud)). What the guided parts do, and
 choose, is decided in
 [ADR 0075](../adr/0075-server-packaging-and-storage.md), amendment of
@@ -129,7 +129,7 @@ and 443 in the VCN's security list; `firewall` also fixes the Ubuntu
 image's iptables INPUT rules and, asked, installs `iptables-persistent` so
 they survive a reboot. The walk-through for a first-timer on Oracle's free
 tier is the reference [UniVerso on Oracle Cloud's Always Free
-tier](universo-on-oracle-free.md) and, for a layperson, note 34 of the
+tier](universo-on-oracle-free.md) and, for a layperson, note 35 of the
 demo vault.
 
 ### Timers: `schedule`

@@ -6,7 +6,7 @@
 // choice of its own; a reader, a bound and a server out of reach each say
 // so.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const NOTE = "04 - Escrevendo no Editor.md";
 // A 1x1 PNG.
@@ -16,7 +16,7 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 async function openEdit(app, query = "") {
   await app.open(query);
   await app.quickOpen("04 - Escrevendo");
-  await app.page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(app.page, "Editar");
   const editor = app.page.locator(".cm-content").first();
   await editor.click();
   await app.key("Mod+End");
@@ -71,7 +71,7 @@ test.describe("on the desktop", () => {
     await page.reload();
     await page.waitForFunction(() => window.__harness?.ready === true);
     await app.quickOpen("04 - Escrevendo");
-    await page.getByRole("button", { name: "Editar", exact: true }).click();
+    await modeOn(page, "Editar");
     await page.locator(".cm-content").first().click();
     await button(page).click();
     await choose(page, "Do computador…", { name: "x.png", mimeType: "image/png", buffer: PNG });
@@ -131,7 +131,7 @@ test.describe("on a server", () => {
   test("a reader is told they only read, and nothing is sent", async ({ app, page }) => {
     await app.open("?side=server&role=reader");
     await app.quickOpen("04 - Escrevendo");
-    await page.getByRole("button", { name: "Editar", exact: true }).click().catch(() => undefined);
+    await modeOn(page, "Editar").catch(() => undefined);
     const b = button(page);
     if (await b.isVisible()) {
       await b.click();

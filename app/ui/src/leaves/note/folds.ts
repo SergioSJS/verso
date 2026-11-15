@@ -81,10 +81,14 @@ export function setHeadingFolded(h: HTMLElement, folded: boolean): void {
 /** Name the headings, items and quotes the reading view folds. */
 export function nameReadingFolds(root: HTMLElement): void {
   const seen = new Map<string, number>();
-  const all = root.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, li, blockquote:not(.callout)");
+  const all = root.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, li, blockquote:not(.callout), pre");
   for (const el of all) {
     if (el.closest(".statblock-card")) continue;
-    if (isHeading(el)) el.dataset["foldKey"] = foldKey("h", plainText(el), seen);
+    if (el.tagName === "PRE") {
+      // A code block by its first words (`k`), the reading view's own fold;
+      // an embedded note's are not this note's.
+      if (!el.closest(".embed-note") && el.querySelector(":scope > .code-tools > .code-fold-btn")) el.dataset["foldKey"] = foldKey("k", el.querySelector("code")?.textContent ?? "", seen);
+    } else if (isHeading(el)) el.dataset["foldKey"] = foldKey("h", plainText(el), seen);
     else if (el.tagName === "LI") {
       if (el.querySelector(":scope > .list-fold-btn")) el.dataset["foldKey"] = foldKey("l", ownText(el), seen);
     } else if (el.querySelector(":scope > .quote-fold-btn")) el.dataset["foldKey"] = foldKey("q", plainText(el), seen);
@@ -109,6 +113,9 @@ export function applyReadingFolds(this: NoteLeaf, root: HTMLElement, fresh?: rea
     } else if (el.tagName === "LI") {
       el.classList.add("list-folded");
       el.querySelector(":scope > .list-fold-btn")?.setAttribute("aria-expanded", "false");
+    } else if (el.tagName === "PRE") {
+      el.classList.add("code-folded");
+      el.querySelector(":scope > .code-tools > .code-fold-btn")?.setAttribute("aria-expanded", "false");
     } else {
       el.classList.add("quote-folded");
       el.querySelector(":scope > .quote-fold-btn")?.setAttribute("aria-expanded", "false");
@@ -164,13 +171,19 @@ export function revealInReading(this: NoteLeaf, el: HTMLElement): void {
   }
   for (const p of parents) headingVisibility(p);
   for (let up = el.parentElement; up && up !== this.preview; up = up.parentElement) {
-    if (up.classList.contains("folded")) up.classList.remove("folded");
+    if (up.classList.contains("folded")) {
+      up.classList.remove("folded");
+      const title = up.querySelector<HTMLElement>(":scope > .callout-title");
+      (title?.hasAttribute("aria-expanded") ? title : title?.querySelector("[aria-expanded]"))?.setAttribute("aria-expanded", "true");
+    }
     if (up.classList.contains("list-folded")) {
       up.classList.remove("list-folded");
+      up.querySelector(":scope > .list-fold-btn")?.setAttribute("aria-expanded", "true");
       this.folds.delete(up.dataset["foldKey"] ?? "");
     }
     if (up.classList.contains("quote-folded")) {
       up.classList.remove("quote-folded");
+      up.querySelector(":scope > .quote-fold-btn")?.setAttribute("aria-expanded", "true");
       this.folds.delete(up.dataset["foldKey"] ?? "");
     }
   }

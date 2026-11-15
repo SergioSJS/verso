@@ -154,7 +154,7 @@ test("someone with no account reads the note: no secret, a link out of it as tex
   // The note links to one that was not shared: plain text that says so.
   const plain = preview.locator(".link-outside", { hasText: "UniVerso" }).first();
   await expect(plain).toContainText("(não compartilhado)");
-  await expect(preview.locator('a.wikilink[data-target^="30 - Verso num Servidor"]')).toHaveCount(0);
+  await expect(preview.locator('a.wikilink[data-target^="31 - Verso num Servidor"]')).toHaveCount(0);
   // Only what was shared: the note, and what it embeds.
   await expect(reader.locator("#notes li[data-path]").first()).toBeVisible();
   const shown = await reader.locator("#notes li[data-path]").evaluateAll((li) => li.map((x) => x.dataset.path));

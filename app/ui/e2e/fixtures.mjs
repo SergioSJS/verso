@@ -51,6 +51,11 @@ export class App {
     await field.press("Enter");
   }
 
+  /** The note in front put in a mode by its name (Leitura, Editar, Fonte). */
+  async mode(name) {
+    await modeOn(this.page, name);
+  }
+
   /** Run a command of the palette (⌘⇧P) by its label. */
   async command(label) {
     await this.key("Mod+Shift+p");
@@ -299,6 +304,17 @@ export async function settledBox(page, locator, { reads = 5, within = 30_000 } =
     was = now;
     await page.waitForTimeout(50);
   }
+}
+
+/** The note in front put in a mode by its name (Leitura, Editar, Fonte):
+ *  by its own mode buttons, or, on a phone, where they fold into the top
+ *  bar, by the sheet of the tabs button (2026-11-14). */
+export async function modeOn(page, name) {
+  const own = page.locator(".leaf:not([hidden]) .note-head .modes button", { hasText: name }).first();
+  if (await own.isVisible()) return own.click();
+  await page.locator(".pane .phone-tabs").filter({ visible: true }).first().click();
+  await page.locator(".phone-sheet .phone-sheet-mode", { hasText: name }).click();
+  await expect(page.locator(".phone-sheet")).toHaveCount(0);
 }
 
 export { expect };

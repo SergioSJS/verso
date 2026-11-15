@@ -18,6 +18,20 @@ export type ScreenStrings = {
   barBack: string;
   barCommands: string;
   barPanel: string;
+  /** The phone's one top bar (2026-11-14): the open tabs behind a count,
+   *  the note's name and folder, a mode button; the rest in a sheet. */
+  openTabs: (n: number) => string;
+  headTitle: (name: string) => string;
+  modeToEdit: string;
+  modeToRead: string;
+  sheet: string;
+  sheetTabs: string;
+  sheetMode: string;
+  sheetVerbs: string;
+  closeTab: (name: string) => string;
+  barAlways: string;
+  showBar: string;
+  hideBar: string;
   /** The pane switcher of a split layout on a phone (item 2). */
   paneSwitch: (i: number, n: number) => string;
   paneItem: (i: number, name: string) => string;
@@ -116,6 +130,18 @@ const pt: ScreenStrings = {
   barBack: "Voltar",
   barCommands: "Comandos",
   barPanel: "Painel",
+  openTabs: (n) => (n === 1 ? "1 aba aberta" : `${n} abas abertas`),
+  headTitle: (name) => `${name} — abas, caminho e modo`,
+  modeToEdit: "Leitura. Tocar para editar",
+  modeToRead: "Edição. Tocar para ler",
+  sheet: "Abas e opções",
+  sheetTabs: "Abas abertas",
+  sheetMode: "Modo desta nota",
+  sheetVerbs: "Ações",
+  closeTab: (name) => `Fechar ${name}`,
+  barAlways: "Barra inferior sempre visível",
+  showBar: "Mostrar a barra inferior",
+  hideBar: "Ocultar a barra inferior",
   paneSwitch: (i, n) => `Painel ${i} de ${n}`,
   paneItem: (i, name) => `Painel ${i}: ${name}`,
   paneEmpty: "vazio",
@@ -193,6 +219,18 @@ const en: ScreenStrings = {
   barBack: "Back",
   barCommands: "Commands",
   barPanel: "Panel",
+  openTabs: (n) => (n === 1 ? "1 open tab" : `${n} open tabs`),
+  headTitle: (name) => `${name} — tabs, path and mode`,
+  modeToEdit: "Reading. Tap to edit",
+  modeToRead: "Editing. Tap to read",
+  sheet: "Tabs and options",
+  sheetTabs: "Open tabs",
+  sheetMode: "Mode of this note",
+  sheetVerbs: "Actions",
+  closeTab: (name) => `Close ${name}`,
+  barAlways: "Bottom bar always shown",
+  showBar: "Show the bottom bar",
+  hideBar: "Hide the bottom bar",
   paneSwitch: (i, n) => `Pane ${i} of ${n}`,
   paneItem: (i, name) => `Pane ${i}: ${name}`,
   paneEmpty: "empty",

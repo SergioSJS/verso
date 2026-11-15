@@ -68,6 +68,8 @@ const pt = {
   sharedWithMe: "Compartilhados comigo",
   sharedByMe: "Compartilhados por mim",
   openOther: "Abrir outra pasta…",
+  // The iOS app opens only the folders in its own Documents (review #4).
+  openOtherNone: "Neste aparelho, o Verso abre só as pastas que estão nos Documentos dele; elas aparecem na lista de pastas.",
   moreFolders: (n: number) => `Mais ${n}…`,
   hideFolder: (name: string) => `Ocultar “${name}” da lista`,
   folderHidden: (name: string) => `“${name}” saiu da lista`,
@@ -142,6 +144,7 @@ const en: typeof pt = {
   sharedWithMe: "Shared with me",
   sharedByMe: "Shared by me",
   openOther: "Open another folder…",
+  openOtherNone: "On this device, Verso opens only the folders in its own Documents; they are in the folder list.",
   moreFolders: (n: number) => `${n} more…`,
   hideFolder: (name: string) => `Hide “${name}” from the list`,
   folderHidden: (name: string) => `“${name}” left the list`,

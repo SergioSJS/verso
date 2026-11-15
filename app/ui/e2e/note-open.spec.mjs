@@ -2,7 +2,7 @@
 // when its room is joined; what is typed in between is kept; a note nobody
 // edited is never "unsaved" (perf/note-open, 2026-10-26).
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const NOTE = "Bem-vindos.md";
 
@@ -22,7 +22,7 @@ test("the text shows before the room joins, and what is typed meanwhile is kept 
   await server(app, page, 2500);
   const began = Date.now();
   await app.quickOpen("Bem-vindos");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   const editor = page.locator(".cm-content").first();
   await expect(editor).toContainText("um", { timeout: 1500 });
   expect(Date.now() - began).toBeLessThan(2000);
@@ -48,7 +48,7 @@ test("the text shows before the room joins, and what is typed meanwhile is kept 
 test("a note nobody edited is not unsaved, in a reader's tab or after the room joins", async ({ app, page }) => {
   await server(app, page, 300);
   await app.quickOpen("Bem-vindos");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await expect.poll(async () => (await app.calls("collab_join")).length).toBe(1);
   await page.waitForTimeout(600);
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);

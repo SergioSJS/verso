@@ -3,7 +3,7 @@
 // Blank or typing put the list away; a folder's items_template keeps its
 // own choice.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 import { pickMenu } from "./menuPath.mjs";
 
 const picker = (app) => app.page.locator(".template-picker");
@@ -42,7 +42,7 @@ test("Blank, or typing in the note, put the list away and write nothing", async 
   await app.key("Mod+n");
   await expect(picker(app)).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await page.locator(".editor .cm-content").filter({ visible: true }).click();
   await page.keyboard.type("x");
   await expect(picker(app)).toHaveCount(0);

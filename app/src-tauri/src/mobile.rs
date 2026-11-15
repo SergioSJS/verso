@@ -58,6 +58,17 @@ pub(crate) const OFF_ON_IOS: &[Can] = &[
     Can::ServeAway,
 ];
 
+/// What only the Android app lists: its shared storage (ADR 0118 item
+/// 4.4), which the iOS app has not — it opens its own Documents only.
+#[cfg(any(test, target_os = "android"))]
+pub(crate) const ONLY_ON_ANDROID: &[Can] = &[Can::SharedStorage];
+
+/// What this platform's app adds to the window's list.
+#[cfg(target_os = "android")]
+const ONLY_HERE: &[Can] = ONLY_ON_ANDROID;
+#[cfg(not(target_os = "android"))]
+const ONLY_HERE: &[Can] = &[];
+
 /// What this platform's app leaves out of the window's list.
 #[cfg(desktop)]
 const OFF_HERE: &[Can] = &[];
@@ -72,7 +83,9 @@ const OFF_HERE: &[Can] = OFF_ON_IOS;
 /// does not have ([`OFF_HERE`]). It stays a server and opens its own
 /// folders (decided 2026-11-08).
 pub(crate) fn local_can(loose: bool) -> Vec<Can> {
-    can_without(loose, OFF_HERE)
+    let mut can = can_without(loose, OFF_HERE);
+    can.extend_from_slice(ONLY_HERE);
+    can
 }
 
 /// [`local_can`] for a platform that leaves `off` out.
@@ -443,5 +456,19 @@ mod tests {
         assert!(!can.contains(&Can::Updates) && !can.contains(&Can::AudioShare));
         assert!(Can::FOLDER.iter().all(|c| can.contains(c)));
         assert!(can.contains(&Can::Write) && can.contains(&Can::LocalFolders));
+    }
+
+    /// Only Android walks a shared storage: the iOS app and the desktop
+    /// never list it, whatever they leave out (review #4, 2026-11-15).
+    #[test]
+    fn only_android_opens_its_shared_storage() {
+        assert!(ONLY_ON_ANDROID.contains(&Can::SharedStorage));
+        for off in [&[][..], OFF_ON_ANDROID, OFF_ON_IOS] {
+            assert!(!can_without(false, off).contains(&Can::SharedStorage));
+        }
+        assert!(
+            !local_can(false).contains(&Can::SharedStorage),
+            "not on this desktop"
+        );
     }
 }

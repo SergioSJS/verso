@@ -14,6 +14,66 @@ test release.
 
 Nothing yet.
 
+## 0.9.0-beta.2 — 2026-11-15
+
+### Added
+
+- Tutorial: a new lesson, **28 - How Will You Use Verso** (pt-BR *Como Você Vai Usar o Verso*), opens block VI: seven ways to set Verso and UniVerso up — only on the computer, computer and phone at home with the app as the server, sync without a server (a WebDAV or S3 cloud, or a folder Syncthing or iCloud Drive keeps), your own UniVerso with synced copies in the apps, an RPG table from the computer or on a UniVerso, a family or team sharing folders with roles, and alongside Obsidian — each with who it is for, what to install in what order with the menu paths, what works offline, a Mermaid diagram of where the files live, and the lessons with the details. The lessons after it move up one (28–38 become 29–39), with their links, the tour's cards and the walkthrough.
+
+### Changed
+
+- **Picking a UniVerso's folder downloads it to this device, and that copy opens offline too** (the maintainer, 2026-11-15, after a folder opened from his server on the Android app would not open again in airplane mode). On every app — desktop, Android, iPhone and iPad — choosing a server's folder in the folder switcher or with **Open here** in Settings › Servers now asks where to keep a copy, shows its size first (how many files and how many MB), downloads the whole folder, keeps it synced with the server and opens it. On Android the copy goes **Inside the app** (only Verso sees it; uninstalling the app deletes it, the server keeps everything) or in **Phone/Documents** (Obsidian and other apps see it; asks for the access to all files first); on the iPhone and iPad it goes in Verso's Documents, which the Files app shows; on a computer you choose the folder it goes in. The dialog says the download's progress, file by file, and when it is done. Offline, the copy opens and what changes syncs when the network is back. Once a copy is there, picking that folder again opens it with nothing asked. The old way stays as the second button: **Open on the server only, no copy** (online only). A reader gets only what the server lets them read, as with sync.
+- On a phone, one bar at the top in place of three: the note's name over its folder, a mode button (Reading ↔ Edit), the pane's ⋯, a button with the number of open tabs at the right end (under the thumb) and the bell. The tabs button (or the name) opens a sheet with the open tabs, the note's path, the three modes by name, the six actions of the bottom bar and a switch to keep that bar. The bottom bar stays on by default; turning it off (the sheet's switch, or ⋯ › Hide the bottom bar) gives the text about 100 px more of the screen.
+
+### Fixed
+
+- Sync: a connection whose first pass fails on the connection (a folder of ~110,000 files, whose list passed the WebSocket's 16 MiB frame) no longer reconnects in a tight loop: it waits the growing wait (5 s to 5 min) like a server out of reach, the wait starts over only after a pass goes through, and the app now takes a server's message up to 256 MiB.
+- Sync and Settings › Servers: a proxy's 502, 503, 504 or Cloudflare's 52x/530 (the server behind it down) is said as the server out of reach, by its address, and tried again on the growing wait; before, it was "something went wrong" and waited five minutes.
+- Phone: with background sync set to Wi-Fi only or charging only, a pass begun on Wi-Fi stops before its next file when the phone leaves Wi-Fi or the charger, and says paused; before, a big first download went on over mobile data.
+- Settings › Servers: a sign-in refused on the server's page, a code whose ten minutes ran out, or a sign-in that failed is said in words, with Try again; before, the code and "Waiting…" stayed forever. Signed in again, the folders that sync with that server try at once instead of in up to five minutes.
+- A window on a server's folder whose server, on reconnecting, runs a version this app does not follow says to update one of the two, not "sign in again".
+- Sync: a folder whose saved sync state cannot be read says so (the file is kept aside, named) instead of looking never synced; a cloud's half-read first listing, and a long pass's progress every 50 files, are kept, so an interrupted first sync resumes instead of starting over; the watcher's changes are not lost when listing the folder fails.
+- iPhone and iPad: the folder switcher no longer offers "Open another folder…", which opened Android's shared storage and failed in English; the iOS app opens the folders in its own Documents.
+- Live Preview: ⌘/Ctrl-click on `[[Note#Heading]]` opens the note at its heading, and on `[[#Heading]]` moves to that heading; before, the heading was dropped and `[[#Heading]]` did nothing. Such links now read "Note › Heading" and "Heading", as in Reading (where `[[#Heading]]` read " › Heading"), and an embedded note's title in Live Preview is the reading view's.
+- Live Preview: a selection inside a quote drawn as a panel (Blue Topaz, Rosé Pine, Rosé Pine Moon, Tokyo Night) showed nothing; with outlined or title-bar callouts, a selection inside a callout showed in two shades.
+- Typed notes: a declared picture written as a wikilink shows its thumbnail beside the link again in the properties panel.
+- Reading: each fold button says what it folds (section, list, quote, code block) instead of "callout", and a heading is read by its words alone; a code block's fold says whether it is open and is kept when the note is drawn again or opened later; a quote or list opened to reach a heading says it is open.
+- Reading: a picture embedded as `![[picture.png]]` has its corner grip to resize it, as a Markdown picture has.
+- Live Preview: each code block's copy and "view as diagram" buttons sit at their own block; they were all stacked at the note's top right.
+- The copy button of a Mermaid diagram in Reading, and the "</>" of a Mermaid diagram or a PDF in Live Preview, show on hover; the "</>" of a base is named for screen readers.
+- Search: the highlights in Reading and in the editor follow the system's dark mode under "auto" (they stayed light there); the other places of the selected word and the bracket matching the one at the caret take the theme's colours instead of CodeMirror's green and teal.
+- Themes: the selection stands out from the second paper and the code's paper in every catalogue theme (it was nearly invisible in light Gruvbox, Ayu Light, Everforest and Solarized), and the accent on its wash keeps 3:1 (Everforest, Yin and Yang, Ayu Light, Sanctum, Atom); the catalogue check measures both.
+- Settings: turning the stickers before links, spell checking or editing embedded notes in place on or off reaches the notes already open; before, only notes opened afterwards followed. An embedded note in Reading has its code blocks' buttons and its links marked, as the note's own.
+- Updates: a test version (Verso Beta) installs only the newest test version and a final only the newest final, the one the check offered; before, the install took the newest release of either kind, so a beta could install a final (on Android, beside the beta).
+- Updates on Android: the first update asks to allow installs from Verso before anything is downloaded, says so in the window's language, and once allowed installs the package already downloaded and checked instead of downloading it again.
+- Updates: every message of the updater (a failure, where the package went, "restart") is in the window's language, English or Portuguese; before, all were in Portuguese.
+- After updating, the "new version available" notification of the installed version leaves the list instead of staying for 30 days, and its "Download and update" button, pressed before a check, checks first instead of doing nothing.
+- The update's progress shows its percentage once, not twice.
+- Menus: only a row that deletes is painted in the accent colour; before, the last row of every menu was (a tab's "Close all", for one).
+- Menus: the tree's "Move up" and "Move down" show their arrows (the icons were blank), and in a menu where some rows have an icon and others none, every label starts at the same place.
+- Dragging a tab and letting go over the file tree, the right panel or the status bar no longer splits the nearest pane: the tab stays where it was. Escape gives a drag up.
+- A tab's menu: "Duplicate tab" opens a second tab of the same place, a folder's page and the graph included (it found their own tab again); the "Open in new tab" row, the same action twice, is gone from it.
+- A hidden tab bar comes back with a double click on the pane's bare area or its empty page, as said; on a computer the double click never reached it.
+- macOS: File › Open Folder shows ⌘O, the key that opens it (and the one set in Settings › Hotkeys), instead of ⌘⇧O.
+- The Settings sidebar gives each section its own icon (Features, Organizing, Statblock Templates and Turn into a server shared theirs with another section).
+- A hotkey cannot be set to ⌘1…⌘9 (Ctrl on Windows and Linux): the recorder says they are kept for the workspaces, which take them first.
+- A sidebar button dragged and let go off itself no longer makes its next click do nothing.
+- Reading mode: a code block's fold button is the same size as its copy and diagram buttons, and the three sit in one evenly spaced row instead of the fold button overlapping the copy button.
+- A typed note's `image` property written as a wikilink (`"[[map.png|Alias]]"`) shows as a link named by its alias, which opens the picture, instead of the raw `[[…]]` text.
+- Changing a schema (say, adding `layout: infobox`) now redraws the open notes of its type at once, whether the schema was saved here or changed outside; before, an open note kept its old layout until it was opened again.
+- In Fonte, a selection inside one line (a word, part of a line) shows: the caret's line is no longer painted over it.
+- Android: Settings › Apps shows Verso's real version (it said 1.0), and the release refuses an APK that does not carry its version.
+- Android: Back closes the find bar in a note or the reading search and stays in Verso, instead of also leaving the app.
+- On a phone held sideways, the pane's tools stay folded in ⋯ (they showed as small desktop buttons), and vertical tabs keep the one top bar a row.
+- On a phone, menus and suggestions keep clear of the status bar and the navigation bar.
+- Sync: a folder's sync state is flushed to the disk as it is written, so a power cut or a phone that dies mid-write no longer leaves it empty or cut short; one found unreadable is kept aside (never deleted) and the folder's sync turns off saying so, instead of quietly starting over as a first sync.
+- Sync: a long first sync — a cloud folder being read for the first time, or a whole server folder being downloaded — keeps what it has done as it goes, so a dropped link or a closed app resumes from there instead of reading or fetching everything again.
+- Server, in a browser: a session that ended while the connection was down (an admin ending the device's sessions, the session expiring) no longer leaves the window saying "offline" for ever and taking edits into the copy kept on this device; once the network is back the window asks the server, goes to the sign-in page and says how many changes had not gone up when the kept copy is deleted (ADR 0092 item 6).
+- Server: an account that makes folders (not the admin) inviting someone by e-mail on a server that sends mail gets the invitation sent, in their own language, instead of "admins only" after the invitation was already made — and retrying no longer leaves extra invitations waiting that count against the 20 they may have at once.
+- Server: `VERSO_PUBLIC_URL` written with its scheme's own port (`https://notes.example:443`, `http://notes.example:80`) no longer refuses every page as the wrong host; the port is dropped when the address is read.
+- Server, in a browser with a folder kept offline: when the window works from the device's copy while the folder's sync still runs (its own connection dropped, or another tab offline), saving a note that sync has just brought another person's edit of no longer writes over that edit and sends it over theirs; the save is refused as changed and shows the difference, as a note changed on disk does, and the window reads the new version.
+- Server, in a browser with a folder kept offline: a note edited while it was being sent no longer comes back as a conflict copy, or with its last lines joined twice, on the next sync; the newer text simply goes up.
+
 ## 0.9.0-beta.1 — 2026-11-14
 
 ### Added

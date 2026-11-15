@@ -21,7 +21,7 @@ O **Verso** é um ambiente de anotações e gestão de conhecimento focado em si
 > [!TIP] Comece pelo tour
 > Abra o [[Tour do Verso.canvas|Tour do Verso]]: um board com as funções do Verso, parada por parada, com as notas deste cofre dentro dos cartões. Para aprender a desenhar nos boards, siga o [[Treino do Board.canvas|Treino do Board]].
 >
-> Para seguir um link: um clique no modo **Leitura**, ou `⌘` + clique no modo **Editar** — no celular, um toque no link e **Abrir** ([[28 - Verso no Celular e no Tablet]]).
+> Para seguir um link: um clique no modo **Leitura**, ou `⌘` + clique no modo **Editar** — no celular, um toque no link e **Abrir** ([[29 - Verso no Celular e no Tablet]]).
 
 ---
 
@@ -105,22 +105,23 @@ Dados, fichas, oráculos e a mesa de jogo, sozinho ou com outras pessoas.
 
 O Verso no celular, num servidor seu, pela internet e sincronizado com uma nuvem.
 
-- [[28 - Verso no Celular e no Tablet]] — A barra de baixo, um painel por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
-- [[29 - Mesa pela Internet]] — O Verso do seu computador vira um servidor: um link da Cloudflare (modo de teste) ou o seu próprio endereço, convites, sentar à mesa, links de leitura e quem entra como.
-- [[30 - Verso num Servidor]] — O `verso serve`: instalar, contas por convite, dono, editores e leitores, editar junto e o app desktop conectado.
-- [[31 - Instalar o seu UniVerso, Passo a Passo]] — Do zero a um servidor seu, para quem nunca montou um: o compose ou o script de instalação, o primeiro admin, o HTTPS (opcional, para o offline e as notificações), o backup.
-- [[32 - Instalar o servidor num NAS ou VPS]] — O servidor num NAS (CasaOS, ZimaOS, outros com Docker) ou num VPS: o compose ou o instalador, o HTTPS, o endereço público, backups e os limites da lixeira.
-- [[33 - UniVerso num Servidor Grátis da Oracle]] — O roteiro para quem nunca montou um servidor: uma máquina grátis da Oracle, o menu do instalador, o HTTPS com um nome grátis, o primeiro admin e o celular.
-- [[34 - Sincronizar com uma Nuvem]] — Uma pasta igual a uma pasta de um Nextcloud (WebDAV) ou de um bucket S3 que você já tem, sem servidor: o formulário, a chave de S3 limitada a uma pasta, a senha no chaveiro e o que esperar.
+- [[28 - Como Você Vai Usar o Verso]] — Os jeitos de usar o Verso e o UniVerso, cada um com um desenho de onde moram os arquivos, o que instalar em que ordem e o que funciona sem internet: só no computador, com o celular em casa, sem servidor, com um UniVerso seu, numa mesa de RPG, em família ou equipe e junto com o Obsidian.
+- [[29 - Verso no Celular e no Tablet]] — Uma barra só no alto e a folha das abas, um painel por vez, segurar como clique direito, o cartão de um link, a barra do teclado e os leitores de tela.
+- [[30 - Mesa pela Internet]] — O Verso do seu computador vira um servidor: um link da Cloudflare (modo de teste) ou o seu próprio endereço, convites, sentar à mesa, links de leitura e quem entra como.
+- [[31 - Verso num Servidor]] — O `verso serve`: instalar, contas por convite, dono, editores e leitores, editar junto e o app desktop conectado.
+- [[32 - Instalar o seu UniVerso, Passo a Passo]] — Do zero a um servidor seu, para quem nunca montou um: o compose ou o script de instalação, o primeiro admin, o HTTPS (opcional, para o offline e as notificações), o backup.
+- [[33 - Instalar o servidor num NAS ou VPS]] — O servidor num NAS (CasaOS, ZimaOS, outros com Docker) ou num VPS: o compose ou o instalador, o HTTPS, o endereço público, backups e os limites da lixeira.
+- [[34 - UniVerso num Servidor Grátis da Oracle]] — O roteiro para quem nunca montou um servidor: uma máquina grátis da Oracle, o menu do instalador, o HTTPS com um nome grátis, o primeiro admin e o celular.
+- [[35 - Sincronizar com uma Nuvem]] — Uma pasta igual a uma pasta de um Nextcloud (WebDAV) ou de um bucket S3 que você já tem, sem servidor: o formulário, a chave de S3 limitada a uma pasta, a senha no chaveiro e o que esperar.
 
 ### VII. Avançado
 
 O terminal e os agentes de IA, os ajustes, a ajuda e a convivência com o Obsidian.
 
-- [[35 - Terminal, CLI e Agentes de IA]] — Um terminal deste computador numa aba (ligar, abrir, as teclas e o que um programa rodado ali faz nos arquivos), o comando `verso` para buscar pelo terminal, o cofre nos agentes de IA pelo MCP e os botões que acham o Claude Code, o Gemini CLI e as outras ferramentas de IA.
-- [[36 - Ajustes, Aparência e Atalhos]] — Tema, paleta, fontes, idioma e os seus próprios atalhos.
-- [[37 - Ajuda, Atualizações e Diagnóstico]] — Atualizações, relatar um problema e o console.
-- [[38 - Compatibilidade com o Obsidian]] — Para quem vem do Obsidian ou usa os dois: a mesma pasta, nada reescrito ao abrir, o que funciona igual, o que o Verso acrescenta, o que não existe e como experimentar.
+- [[36 - Terminal, CLI e Agentes de IA]] — Um terminal deste computador numa aba (ligar, abrir, as teclas e o que um programa rodado ali faz nos arquivos), o comando `verso` para buscar pelo terminal, o cofre nos agentes de IA pelo MCP e os botões que acham o Claude Code, o Gemini CLI e as outras ferramentas de IA.
+- [[37 - Ajustes, Aparência e Atalhos]] — Tema, paleta, fontes, idioma e os seus próprios atalhos.
+- [[38 - Ajuda, Atualizações e Diagnóstico]] — Atualizações, relatar um problema e o console.
+- [[39 - Compatibilidade com o Obsidian]] — Para quem vem do Obsidian ou usa os dois: a mesma pasta, nada reescrito ao abrir, o que funciona igual, o que o Verso acrescenta, o que não existe e como experimentar.
 
 ---
 

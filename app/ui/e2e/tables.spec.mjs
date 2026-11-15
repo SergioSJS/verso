@@ -1,7 +1,7 @@
 // A table edited as a table in Edit mode (ADR 0064): typed into cell by
 // cell, its keys, its `+`, its menu, and the Markdown it writes.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const text = (page) => page.evaluate(() => document.querySelector(".note-sheet .editor").__cmView.state.doc.toString());
 const focused = (page) => page.evaluate(() => { const a = document.activeElement; return a?.classList.contains("cm-table-cell-input") ? `${a.dataset.r},${a.dataset.c}` : null; });
@@ -118,12 +118,12 @@ test("a column dragged wider keeps its width in Edit and in Reading, and the fil
   // Kept by Verso, never written into the note (ADR 0064, revised 2026-10-07).
   expect(await app.file("Tab.md")).toBe(body);
   // Reading draws the same table at the same width.
-  await page.getByRole("button", { name: "Leitura", exact: true }).click();
+  await modeOn(page, "Leitura");
   const read = page.locator(".preview table th").first();
   await expect(read).toBeVisible();
   await expect.poll(() => read.evaluate((e) => e.offsetWidth)).toBe(wide);
   // And Edit again, the note's widget drawn anew.
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await expect.poll(() => page.locator(".cm-table-editor th").first().evaluate((e) => e.offsetWidth)).toBe(wide);
   expect(await app.file("Tab.md")).toBe(body);
 });

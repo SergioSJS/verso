@@ -448,3 +448,38 @@ fn collections_are_asked_for_with_a_trailing_slash() {
     assert!(collections.iter().any(|r| r == "MKCOL /dav/pasta/"));
     assert!(collections.iter().any(|r| r == "MKCOL /dav/.verso-probe/"));
 }
+
+/// A first listing of a folder whose link drops at the k-th file read
+/// (I4 of the sync review, 2026-11-15): the hashes read before it are
+/// kept, and the next try reads only from the k-th on.
+#[test]
+fn a_first_listing_cut_short_does_not_read_again_what_it_read() {
+    use std::collections::BTreeMap;
+    use verso_core::sync::remote::refresh_learning;
+    let dav = Dav::start(DavMode {
+        fail_get: 4,
+        ..mode()
+    });
+    let names: Vec<String> = (1..=6).map(|i| format!("pasta/n{i}.md")).collect();
+    for (i, p) in names.iter().enumerate() {
+        dav.put(p, format!("conteudo {i}").as_bytes());
+    }
+    let w = connect(&dav);
+    let (mut known, mut tokens) = (None, BTreeMap::new());
+    assert!(refresh_learning(&w, &mut known, &mut tokens).is_err());
+    assert!(known.is_none());
+    assert_eq!(tokens.len(), 3);
+    refresh_learning(&w, &mut known, &mut tokens).unwrap();
+    let gets: Vec<String> = dav
+        .requests()
+        .into_iter()
+        .filter_map(|r| r.strip_prefix("GET /dav/").map(str::to_owned))
+        .collect();
+    // The fourth twice — its read failed — and every other once.
+    let mut want: Vec<String> = names.clone();
+    want.insert(3, names[3].clone());
+    assert_eq!(gets, want);
+    let k = known.unwrap();
+    assert_eq!(k.files.len(), 6);
+    assert_eq!(k.files["pasta/n6.md"].hash, sha(b"conteudo 5"));
+}

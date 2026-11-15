@@ -301,6 +301,19 @@ until a build fills them):
 | Privacy manifest | `PrivacyInfo.xcprivacy` with required-reason APIs; uploads without one are *"not accepted by App Store Connect"* ([required reason API](https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api)). PAL's build goes through that upload (*"You will still submit apps through App Store Connect"*, [Distribute with PAL](https://faq.altstore.io/developers/distribute-with-altstore-pal.md)), so Phase 2 expects it, with an app record and its questions (export compliance, age rating) — to be confirmed at the first upload |
 | App Store later | Account deletion in the app when accounts are made in it (5.1.1(v), read through a summary, not verbatim) |
 
+*2026-11-15 — 0118 item 4.2 (a window on a UniVerso folder) holds on iOS
+as revised that day (the maintainer's decision, as relayed: *"On ALL apps (desktop, Android, iOS): picking a UniVerso folder downloads the whole folder into a local folder, binds it to the server folder with the existing sync engine (ADR 0079), and opens the local copy. Offline, the local copy opens; sync resumes when the network returns."*):
+picking a UniVerso's folder makes a copy in the app's **Documents** — the
+one place, so the question only says it and the size — beside
+`Documents/Verso`, which Files shows under *On My iPad › Verso*, synced
+by 0079 and opening offline; the window on the server stays the second
+choice, online only. The host takes `Documents` from Tauri's
+`document_dir` as `ios.rs` does for its own folder; a copy there opens as
+any folder of the app. Not built in: following a copy after an install
+moves the container (the sync's state and the last folder are kept by the
+folder's path, as for `Documents/Verso` today) — said in the report of
+that day, not decided.*
+
 ### 9. What the build must change (the code at `c2940cfb6`, facts)
 
 - Android's setup (configuration directory, log, the phone's folder) is

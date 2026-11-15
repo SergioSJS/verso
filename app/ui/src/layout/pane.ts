@@ -37,6 +37,8 @@ import { TextLeaf } from "../leaves/textfile";
 import { MenuItem, showMenu } from "../menu";
 import { Kind, kindOf } from "../paths";
 import { periodicMenu } from "../periodic/notes";
+import { PhoneHead } from "../screen/phoneHead";
+import { setBottomBar } from "../screen/phoneSheet";
 import { st } from "../screen/strings";
 import { settings } from "../settings";
 import { t } from "../strings";
@@ -59,6 +61,7 @@ export class Pane {
   /** The pane left the layout: what it listens to on the page goes. */
   dispose(): void {
     this.stopEmptyHint();
+    this.phone.dispose();
   }
   readonly leaves: Leaf[] = [];
   readonly tabsDivider = h("div", "tabs-divider");
@@ -87,6 +90,8 @@ export class Pane {
   readonly switcher = button("ghost pane-switch", st.paneSwitch(1, 1));
   /** A pane under 520 px folds its tools into this one (ADR 0076 item 2). */
   readonly fold = button("ghost iconic pane-fold", st.paneTools, "more");
+  /** On a phone, the one top bar in place of the tabs (screen/phoneHead.ts). */
+  readonly phone: PhoneHead;
 
   constructor() {
     // The tabs are the tablist; the pane's tools sit beside it, outside.
@@ -131,7 +136,13 @@ export class Pane {
       this.tabsDivider.addEventListener("pointerup", up);
     });
     this.body.addEventListener("dblclick", (e) => {
-      if (this.tabsHidden && e.target === this.body) this.setTabsHidden(false);
+      if (!this.tabsHidden) return;
+      // The pane's own ground brings the bar back: its empty page, or the
+      // bare area of a tab's view around what it shows — the body itself
+      // is always covered on a computer. Never text, a field or a canvas:
+      // their double click is their own (a word selected).
+      const at = e.target instanceof Element ? e.target : null;
+      if (at === this.body || at?.closest(".pane-empty") || (at?.classList.contains("leaf") && at.parentElement === this.body)) this.setTabsHidden(false);
     });
     const orient = this.orient;
     orient.addEventListener("click", () => this.setVertical(!this.vertical));
@@ -154,7 +165,8 @@ export class Pane {
       this.foldMenu(r.left, r.bottom + 4);
     });
     this.tools.append(this.backButton, this.forwardButton, all, orient, plus, max, close, this.fold);
-    this.tabs.append(this.switcher, this.tabList, this.tools);
+    this.phone = new PhoneHead(this);
+    this.tabs.append(this.switcher, this.phone.el, this.tabList, this.tools, this.phone.count);
     this.tabs.addEventListener("dblclick", (e) => {
       // Without the system's title bar the bar's empty space is the title
       // bar: a double click maximizes the window there (ADR 0072).
@@ -249,8 +261,9 @@ export class Pane {
     this.activate(leaf, true);
     return leaf;
   }
-  openGraph(path: string): Leaf {
-    let leaf = this.leaves.find((l) => l.kind === "graph" && l.path === path);
+  /** The graph around `path`: its tab found again, or with `fresh` a new one. */
+  openGraph(path: string, fresh = false): Leaf {
+    let leaf = fresh ? undefined : this.leaves.find((l) => l.kind === "graph" && l.path === path);
     if (!leaf) {
       leaf = new GraphLeaf(this);
       this.insert(leaf);
@@ -280,8 +293,9 @@ export class Pane {
   private layoutLeaves(): Leaf[] {
     return layout().panes().flatMap((p) => p.leaves);
   }
-  openFolder(path: string, preview = false): Leaf {
-    let leaf = this.leaves.find((l) => l.kind === "folder" && l.path === path);
+  /** A folder's page: its tab found again, or with `fresh` a new one. */
+  openFolder(path: string, preview = false, fresh = false): Leaf {
+    let leaf = fresh ? undefined : this.leaves.find((l) => l.kind === "folder" && l.path === path);
     if (leaf && !preview) leaf.keep();
     if (!leaf) {
       leaf = new FolderLeaf(this);
@@ -349,8 +363,10 @@ export class Pane {
       ...(leaf.path && !can("windows") && server ? [[st.openInBrowserTab, () => void commands.openWindow(leaf.path).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       ...(leaf.kind === "theme" || leaf.kind === "terminal" ? [] : [
-      [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
-      [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
+      // A second tab of the same place, a folder's page and a graph
+      // included (it used to be "Open in new tab" twice, and found the
+      // folder's or the graph's own tab again).
+      [t.duplicateTab, () => void (leaf.kind === "folder" ? this.openFolder(leaf.path, false, true) : leaf.kind === "graph" ? this.openGraph(leaf.path, true) : this.open(leaf.path, false, true)), "copy"],
       ] as MenuItem[]),
       ...(splits ? [
         [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"] as MenuItem,
@@ -412,6 +428,8 @@ export class Pane {
       sep,
       [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
       [t.hideTabs, () => this.setTabsHidden(true), "collapse"],
+      // On a phone the bar of verbs at the bottom comes and goes from here too.
+      ...(narrow.matches ? [[settings.phoneBottomBar ? st.hideBar : st.showBar, () => setBottomBar(!settings.phoneBottomBar), "panelRight"] as MenuItem] : []),
       ...(many && !narrow.matches ? [[layout().maximized === this ? t.restore : t.maximize, () => layout().toggleMaximize(this), "maximize"] as MenuItem] : []),
       [t.closePane, () => void this.closeAll(), "close"],
     ]);
@@ -489,6 +507,7 @@ export class Pane {
     layout().focus(this);
     showOutline(leaf);
     markCurrent();
+    this.phone.paint();
     dispatchEvent(new CustomEvent("verso:leaf-active", { detail: leaf }));
     leaf.tab.scrollIntoView({ block: "nearest", inline: "nearest" });
     // Again once its name is drawn: a tab just made is narrow until then, and

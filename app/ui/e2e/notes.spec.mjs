@@ -3,7 +3,7 @@
 
 import { crc32, deflateSync } from "node:zlib";
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 /** Today in the window's clock, as the app names a daily note. */
 const today = (app) =>
@@ -16,7 +16,7 @@ test("the / menu inserts today's date, and ⌘Z takes it back", async ({ app }) 
   await app.open();
   await app.quickOpen("04 - Escrevendo");
   const note = "04 - Escrevendo no Editor.md";
-  await app.page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(app.page, "Editar");
   const editor = app.page.locator(".cm-content").first();
   await editor.click();
   await app.key("Mod+End");
@@ -124,7 +124,7 @@ test("a note changed on disk while text typed here is unsaved shows both, and th
   await app.open();
   await app.quickOpen("04 - Escrevendo");
   const note = "04 - Escrevendo no Editor.md";
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
   await page.keyboard.type(" digitado aqui");
@@ -184,7 +184,7 @@ test("a wide picture inside an embedded note does not rewrap the whole note", as
   await app.writeOutside("Com Embute.md", "Um parágrafo de prosa que tem de quebrar na largura do painel, e nunca passar da borda direita da janela.\n\n![[Ficha]]\n\nOutro parágrafo, o mesmo caso.\n");
   await app.folderChanged(["Ficha.md", "Com Embute.md"], true);
   await app.quickOpen("Com Embute");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   // The caret away from the embed's line: the live preview draws it.
   await page.locator(".cm-content").first().click({ position: { x: 50, y: 10 } });
   await expect(page.locator(".cm-lp-embed-body img")).toBeVisible();
@@ -226,7 +226,7 @@ test("an embedded note is drawn in the editor as the reading view draws it", asy
     }, body);
   await expect(page.locator(".embed-note-body h2")).toBeVisible();
   const reading = await look(".embed-note-body");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   // The caret away from the embed's line: the live preview draws it.
   await page.locator(".cm-content").first().click({ position: { x: 50, y: 10 } });
   await expect(page.locator(".cm-lp-embed-body h2")).toBeVisible();
@@ -240,7 +240,7 @@ test("⌘R saves the note typed in, then reloads the window", async ({ app, page
   await app.open();
   await app.quickOpen("04 - Escrevendo");
   const note = "04 - Escrevendo no Editor.md";
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
   await page.keyboard.type(" digitado aqui");
@@ -265,7 +265,7 @@ test("⌘R does not reload over a note that cannot be saved", async ({ app, page
   await app.open();
   await app.quickOpen("04 - Escrevendo");
   const note = "04 - Escrevendo no Editor.md";
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
   await page.keyboard.type(" digitado aqui");
@@ -302,9 +302,9 @@ test("changing between Leitura and Editar keeps in view what was at the top", as
     });
   await page.locator(".preview h2", { hasText: /Seção 20$/ }).evaluate((h) => h.scrollIntoView({ block: "start" }));
   await expect.poll(atTop).toMatch(/^(\d+)?Seção 20$/);
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await expect.poll(atTop).toBe("Seção 20");
-  await page.getByRole("button", { name: "Leitura", exact: true }).click();
+  await modeOn(page, "Leitura");
   await expect.poll(atTop).toMatch(/^(\d+)?Seção 20$/);
 });
 
@@ -327,7 +327,7 @@ test("Editar sets the text where Leitura does: same column, width and line heigh
   // Drawn first: under load the measure could run before the paragraph is.
   await expect(page.locator(".preview p", { hasText: "Um parágrafo" })).toBeVisible();
   const reading = { para: await measure(".preview p", "Um parágrafo"), item: await measure(".preview li", "Um item") };
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
   const editing = { para: await measure(".cm-line", "Um parágrafo"), item: await measure(".cm-line", "Um item") };
@@ -360,7 +360,7 @@ test("a conflict in the editor keeps both: the disk's under the name, mine in a 
   await app.open();
   await app.quickOpen("04 - Escrevendo");
   const note = "04 - Escrevendo no Editor.md";
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
   await page.keyboard.type(" digitado aqui");
@@ -391,7 +391,7 @@ async function typeIn(app, page, file, typed) {
   await app.writeOutside(file, `# ${file.replace(/\.md$/, "")}\n\ntexto\n`);
   await app.folderChanged([file], true);
   await app.quickOpen(file.replace(/\.md$/, ""));
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
   await page.keyboard.type(typed);
@@ -404,7 +404,7 @@ test("a note deleted outside while its tab holds unsaved text says so, stops sav
   await app.writeOutside("Apagada.md", "# Apagada\n\ntexto\n");
   await app.folderChanged(["Apagada.md"], true);
   await app.quickOpen("Apagada");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await page.locator(".cm-content").first().click();
   await app.key("Mod+End");
   await app.removeOutside("Apagada.md");

@@ -122,7 +122,8 @@ test("a split layout on a phone: one pane at a time, a switcher, the layout kept
   await expect(menu.getByRole("menuitem")).toHaveCount(2);
   await menu.getByRole("menuitem", { name: /Painel 1: 01 - Guia/ }).click();
   await expect(page.locator(".pane:visible")).toHaveCount(1);
-  await expect(page.locator('.pane:visible .tab[aria-selected="true"]')).toContainText("01 - Guia");
+  // The tab in front, named in the one top bar (the tabs fold into it, 2026-11-14).
+  await expect(page.locator(".pane:visible .phone-title-name")).toHaveText(/01 - Guia/);
   // On a phone the split commands are absent: from the palette and from a tab.
   await app.key("Mod+Shift+p");
   // A touch screen's field waits for a tap (screen/openFocus.ts).
@@ -130,7 +131,9 @@ test("a split layout on a phone: one pane at a time, a switcher, the layout kept
   await page.keyboard.type("Dividir");
   await expect(page.locator(".quick.palette:not([hidden]) .quick-list li")).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await page.locator('.pane:visible .tab[aria-selected="true"]').click({ button: "right" });
+  // The tab's own menu, through the pane's ⋯ (what a long press on the tab opened).
+  await page.locator(".pane:visible .pane-fold").click();
+  await menu.getByRole("menuitem", { name: "Ações da aba…" }).click();
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Dividir à direita" })).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -304,6 +307,13 @@ test("the tree by touch: Select turns it into a selection with a bar; Keep open 
   // The row's menu from the keys: WebKit's phone emulation sends a right
   // click's menu to the row above the one clicked.
   const menuOf = async (el) => {
+    // A tab folds into the phone's one top bar (2026-11-14): its menu is the
+    // pane's ⋯ › "Ações da aba…", what a long press on the tab opened.
+    if (!(await el.isVisible()) && (await el.evaluate((e) => e.classList.contains("tab")))) {
+      await page.locator(".pane.focused .pane-fold").click();
+      await page.locator(".menu:not([hidden])").getByRole("menuitem", { name: "Ações da aba…" }).click();
+      return;
+    }
     await el.focus();
     await page.keyboard.press("Shift+F10");
   };
@@ -421,7 +431,13 @@ test("the on-screen keyboard: the menus, the / menu and the cursor stay above it
   const s = await slash.boundingBox();
   expect(s.y + s.height).toBeLessThanOrEqual(shown);
   await page.keyboard.press("Escape");
-  await page.locator('.pane.focused .tab[aria-selected="true"]').click({ button: "right" });
+  // The tab's menu: by its tab, or on a phone through the pane's ⋯ (the tabs fold into the one top bar).
+  const front = page.locator('.pane.focused .tab[aria-selected="true"]');
+  if (await front.isVisible()) await front.click({ button: "right" });
+  else {
+    await page.locator(".pane.focused .pane-fold").click();
+    await page.locator(".menu:not([hidden])").getByRole("menuitem", { name: "Ações da aba…" }).click();
+  }
   const menu = await page.locator(".menu:not([hidden])").boundingBox();
   expect(menu.y + menu.height).toBeLessThanOrEqual(shown);
   await page.keyboard.press("Escape");
@@ -553,27 +569,29 @@ test("a phone with every drawer closed has no shadow on its edges and no empty t
   if (process.env.PHONE_SHOTS) await page.screenshot({ path: `${process.env.PHONE_SHOTS}/closed-${process.env.SHOT_TAG ?? "after"}-390.png` });
 });
 
-test("a phone's note row: the place and the modes share one compact row, the fold button is whole and clear of the bell, tabs are 44 px @layout", async ({ app, page }) => {
+test("a phone's one top bar: the name over its folder, the mode, ⋯, the tabs and the bell in one row of 44 px, each whole and inside the screen @layout", async ({ app, page }) => {
   await app.open();
   if ((page.viewportSize()?.width ?? 1500) > 760) test.skip(true, "phone only");
   await app.quickOpen("01 - Guia");
-  const crumbs = await page.locator(".leaf-head .crumbs").first().boundingBox();
-  const modes = await page.locator(".leaf-head .modes").first().boundingBox();
   const vw = page.viewportSize().width;
-  // The box includes 2rem of fade at its start (a negative margin): the place itself starts inside the screen.
-  expect(crumbs.x + 32).toBeGreaterThanOrEqual(0);
-  expect(crumbs.x + crumbs.width).toBeLessThanOrEqual(vw + 1);
-  // One row (2026-10-30, the maintainer): the place gives way to the segmented modes, which stay whole.
-  expect(modes.x + modes.width).toBeLessThanOrEqual(vw + 1);
-  expect(crumbs.x + crumbs.width).toBeLessThanOrEqual(modes.x + 1 + 32);
-  expect(modes.y).toBeLessThan(crumbs.y + crumbs.height);
-  expect(modes.height).toBeLessThanOrEqual(44);
-  const fold = await page.locator(".pane-fold").first().boundingBox();
-  const bell = await page.locator(".notify-bell-phone").first().boundingBox();
-  expect(fold.width).toBeGreaterThanOrEqual(44);
-  expect(fold.x + fold.width).toBeLessThanOrEqual(bell.x + 1);
-  expect(bell.height).toBeGreaterThanOrEqual(44);
-  expect((await page.locator(".pane .tabs").first().boundingBox()).height).toBeGreaterThanOrEqual(44);
+  const bar = await page.locator(".pane.focused .tabs").boundingBox();
+  expect(bar.height).toBeGreaterThanOrEqual(44);
+  expect(bar.height).toBeLessThanOrEqual(45);
+  // The note's own row of folder and modes folds into the bar (2026-11-14).
+  await expect(page.locator(".leaf:not([hidden]) .note-head")).toBeHidden();
+  const parts = [".pane.focused .phone-title", ".pane.focused .phone-mode", ".pane.focused .pane-fold", ".pane.focused .phone-tabs", ".notify-bell-phone"];
+  const boxes = [];
+  for (const sel of parts) {
+    const b = await page.locator(sel).first().boundingBox();
+    expect(b, sel).not.toBeNull();
+    expect(b.x, sel).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width, sel).toBeLessThanOrEqual(vw + 1);
+    expect(b.height, sel).toBeGreaterThanOrEqual(43.5);
+    boxes.push(b);
+  }
+  // In that order, left to right, none over the next: the tabs at the thumb's end, by the bell.
+  for (let i = 1; i < boxes.length; i++) expect(boxes[i - 1].x + boxes[i - 1].width, parts[i]).toBeLessThanOrEqual(boxes[i].x + 1);
+  await expect(page.locator(".pane.focused .phone-title-name")).toContainText("01 - Guia");
   expect(await page.locator(".pane-fold").first().getAttribute("title")).toBeTruthy();
 });
 

@@ -3,7 +3,7 @@
 // one line whatever its digits, and every item's text starts at the same
 // place as item 1's.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 test("a two- or three-digit number stays on its line and the texts line up", async ({ app }) => {
   const { page } = app;
@@ -12,7 +12,7 @@ test("a two- or three-digit number stays on its line and the texts line up", asy
   await app.writeOutside("Lista longa.md", `# Lista\n\n${items}\n\ntexto\n\n98. item 98\n99. item 99\n100. item 100\n`);
   await app.folderChanged(["Lista longa.md"], true);
   await app.quickOpen("Lista longa");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   const marks = page.locator(".editor .cm-lp-order-mark");
   await expect(marks.first()).toBeVisible();
   const lineHeight = await page.locator(".editor .cm-line.cm-lp-ordered").first().evaluate((el) => parseFloat(getComputedStyle(el).lineHeight));

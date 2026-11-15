@@ -759,7 +759,7 @@ point 13).
 
 ## 10. Settings, help, the command line
 
-1. ⌘,: the sections as note 36 names them; Aparência's options; Terminal e
+1. ⌘,: the sections as note 37 names them; Aparência's options; Terminal e
    agentes: the command's button (Instalar or Substituir; on Windows no
    button — verso.exe comes with the app) and the MCP snippets, which show
    the command the host would write; without Claude Desktop, "Baixar o
@@ -804,45 +804,45 @@ point 13).
    `verso backlinks <folder> "Projeto Alpha"` (its name, as a link names
    it, or its path); `--unresolved`; `--json`. Level: A. Caught: only a path
    was found (2026-10-01).
-4. An agent on the folder through `verso mcp` (note 35): asked which notes
+4. An agent on the folder through `verso mcp` (note 36): asked which notes
    have the tag `projeto` and what "Tour do Verso" shows, it lists them by
    tag and reads the board's cards and edges; `links` of a note with
    `relacionado: "[[…]]"` names the relation; `query_base` on
    `Projetos.base` gives the table's rows. Nothing in the folder changes.
    Level: S (`crates/verso-cli/tests/mcp.rs`), A (a client: Claude Desktop
    or Claude Code).
-5. `verso <another folder>` with the app open (note 35): the folder opens
+5. `verso <another folder>` with the app open (note 36): the folder opens
    in a window of its own, in the same app — one Verso in the Dock or the
    taskbar, never a second app. Level: S (`a_second_launch_hands_its_folder_to_the_running_app`,
    the host's tests), A (the installed app, on macOS and Windows). Caught
    2026-10-08: on macOS a second app started, with no window.
-6. "Um servidor para todo o Verso" in Terminal e agentes (note 35): the
+6. "Um servidor para todo o Verso" in Terminal e agentes (note 36): the
    switch "Esta pasta é visível para agentes" appears off; the snippets and
    the entry "Adicionar ao Claude Desktop" shows say `mcp --all`. With the
    folder marked, an agent's `list_folders` names it and its tools read it
    by `folder`; unmarked, it is gone from the list. Level: H; E:
    `settings.spec.mjs`; S (`the_server_for_all_of_verso_reads_only_the_visible_folders`);
    A (Claude Desktop, with the app closed).
-7. An update (note 37): from an installed version older than the newest
+7. An update (note 38): from an installed version older than the newest
    release, Ajustes › Geral › Versão › "Verificar atualizações", then
    "Baixar e atualizar": the file's checksum and its signature are checked
    before anything is installed; a file whose signature is missing or does
    not verify installs nothing and says so. "Ver notas da versão" shows
    that release's news in the window's language, as plain lines — never
    the release page's download tables. A second folder of the same
-   name added to Claude Desktop (note 35) gets `verso-<parent>-<name>`.
+   name added to Claude Desktop (note 36) gets `verso-<parent>-<name>`.
    Level: S (`an_update_installs_only_with_its_signature`,
    `a_folder_of_a_name_already_added_takes_its_parent_s_name`); U
    (`test/updateNews.test.mjs`); A (the first signed release, on macOS and
    Windows).
-8. On Linux (note 35): the `.deb` installs `verso-app` and `verso` in
+8. On Linux (note 36): the `.deb` installs `verso-app` and `verso` in
    /usr/bin, and Terminal e agentes says the command came with the
    package; an AppImage's "Instalar" puts `verso` in `~/.local/bin`; "Mostrar
    no gerenciador de arquivos" selects the file. Level: S
    (`scripts/check-linux-vm.sh --install`, the app opened on Ubuntu's
    desktop; `--webkit`, the suite on Linux's WebKit); A (Debian, Fedora,
    the AppImage).
-9. The folder's settings (note 36, "Da pasta ou desta máquina"; [ADR
+9. The folder's settings (note 37, "Da pasta ou desta máquina"; [ADR
    0070](../adr/0070-what-travels-with-the-folder.md) items 1–2): in a
    folder just imported, Ajustes › Arquivos e links › "Ignorar pastas de
    build" says *Desta máquina*, and the folder holds no `.verso/`;
@@ -860,7 +860,7 @@ point 13).
    file is not changed (decided 2026-10-12). Level: U (`npm test`'s
    `folderLayer.test.mjs`; `crates/verso-server/src/tests.rs`, "an
    invited reader"); A.
-10. Notifications (note 37, "Notificações"; [ADR
+10. Notifications (note 38, "Notificações"; [ADR
     0084](../adr/0084-notifications-in-the-window.md)): a sync that fails
     is said once in a toast at the bottom right — "A sincronização
     falhou", its level a word and a mark — and again only when it is back,
@@ -1004,7 +1004,7 @@ point 13).
 
 ## 12. On a phone and a tablet
 
-From the tour's stop ⑱ "No celular" and note 28 ([ADR
+From the tour's stop ⑱ "No celular" and note 29 ([ADR
 0076](../adr/0076-the-window-on-every-screen.md)). By machine, the tests
 tagged `@layout` run at 390 × 844 (WebKit), 412 × 915 (Chromium, touch) and
 820 × 1180 (WebKit) besides the desktop's size (`playwright.config.mjs`); by
@@ -1016,6 +1016,21 @@ hand, on a phone and an iPad, the server's window in the browser.
    drawer with the search field, Comandos the palette; Voltar steps back in
    the pane. Level: H; E: `responsive.spec.mjs`, "the frame follows the
    screen" and "the phone's bar".
+1a. One top bar (ADR 0076 item 6, revised 2026-11-14): with the bottom bar
+   hidden (⋯ › *Ocultar a barra inferior*; it is on by default), open note
+   04: the pane's top is one row of 44 px —
+   "04 - Escrevendo no Editor" over "demo-vault", the book (*Leitura. Tocar
+   para editar*), ⋯, a box "1" (*1 aba aberta*) and the bell — and the text
+   starts under it: no tab row, no row of folder and modes, no bottom bar.
+   The book turns the note to Editar (a pencil now) and back. A tap on "1"
+   or on the name drops the sheet: the tab (×closes it), the path's
+   folders, Leitura / Editar / Fonte, Arquivos, Buscar, Nova nota, Voltar,
+   Comandos, Painel, and *Barra inferior sempre visível*; a tap outside,
+   Escape or Android's Back closes it; Arquivos opens the drawer. The switch
+   brings the bottom bar back and it stays after a reload; ⋯ hides it
+   again. With no tab open the row stays with the
+   folder's name. On a wide window, the tabs and the note's row as before.
+   Level: H; E: `phone-top-bar.spec.mjs` (three tests).
 2. A layout split on a wide window, then narrowed: one pane at a time and a
    switcher "2/2" in the tab bar; the panes are listed and chosen from it; the
    split commands are absent from the palette and from a tab's menu; widened
@@ -1073,7 +1088,7 @@ hand, on a phone and an iPad, the server's window in the browser.
     `manual-checks.md`).
 
 11. Offline on the phone ([ADR
-    0092](../adr/0092-the-phone-offline.md); note 28, "Sem Rede"): on a
+    0092](../adr/0092-the-phone-offline.md); note 29, "Sem Rede"): on a
     server over HTTPS, a folder's *Settings › Offline* says the space first and
     keeps the folder on this device; with the network off the page still
     opens, lists the folder, a note is read and edited, the status bar says
@@ -1091,7 +1106,7 @@ hand, on a phone and an iPad, the server's window in the browser.
     `manual-checks.md`.
 12. The Android app ([ADR
     0118](../adr/0118-a-native-android-app-from-the-same-core-and-ui.md)
-    Phase 1; note 28, "O App para Android"): on the phone, *Settings › Sync*
+    Phase 1; note 29, "O App para Android"): on the phone, *Settings › Sync*
     says the folder lives inside the app and goes with it; *Settings ›
     Servers › Connect* opens the server's page in the phone's browser, and
     after the approval the server's folders are in the folder switcher and
@@ -1117,7 +1132,7 @@ hand, on a phone and an iPad, the server's window in the browser.
 
 ## 13. On a server
 
-From the tour's stop "Num servidor" and note 30 ([ADR
+From the tour's stop "Num servidor" and note 31 ([ADR
 0073](../adr/0073-self-hosted-server-first.md), [0074](../adr/0074-accounts-and-access-on-the-server.md),
 [0075](../adr/0075-server-packaging-and-storage.md)). By machine, the
 server's end-to-end tests drive a real `verso serve` (`scripts/check-e2e.sh
@@ -1219,7 +1234,7 @@ rest below and in `manual-checks.md`.
    console sets and empties it; the sweep expires what is past its days and
    the oldest while a trash alone passes the quota (`tests_trash.rs`).
 10. Sharing between people ([ADR 0081](../adr/0081-sharing-between-people-on-one-universo.md)),
-   from note 30's "Compartilhar com outra pessoa" and the tour's stop: the
+   from note 31's "Compartilhar com outra pessoa" and the tour's stop: the
    demo vault has one account, so the other side is followed with two
    browsers on a UniVerso. The folder button at the top of the side bar
    opens the switcher, *Neste computador*, *Meus*, *Compartilhados comigo*;
@@ -1247,7 +1262,7 @@ rest below and in `manual-checks.md`.
    share counts, sums and lists only notes inside it (the server's Rust
    test, `tests_shares.rs`, "a receivers counts are the shares").
 11. Editing together in a synced folder ([ADR
-    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 30's
+    0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 31's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,
     a note opened in *Editar* says *ao vivo, só você* beside its title (a
     dot, the words in its tip and to a screen reader) and in the status bar;
@@ -1282,7 +1297,7 @@ rest below and in `manual-checks.md`.
     the steps run in the harness's room or by hand.
 12. Everything edited together, not only notes ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md) item 12), from
-    note 30's *Editar junto* and the tour's stop "Num servidor": with the
+    note 31's *Editar junto* and the tour's stop "Num servidor": with the
     demo vault on a UniVerso, open *Tour do Verso* — or a board of your
     own — in two windows. Drag a card in one while the other draws a text
     with the text tool: each window shows both, and the file holds both,
@@ -1334,17 +1349,17 @@ rest below and in `manual-checks.md`.
     dialect's `tests/secret.rs` and `fixtures/callout/secret` (approved
     2026-10-15); A: `manual-checks.md`.
 
-14. The installation lesson (note 31, "Instalar o seu UniVerso, Passo a
-    Passo"): the tour's "Num servidor" stop shows notes 30 and 31 side by
-    side, and note 30's *Instalar* links to 31. In 31 every fenced block
+14. The installation lesson (note 32, "Instalar o seu UniVerso, Passo a
+    Passo"): the tour's "Num servidor" stop shows notes 31 and 32 side by
+    side, and note 31's *Instalar* links to 32. In 32 every fenced block
     (`bash`, `yaml`) copies whole, and each command, path, port and
     variable reads the same as in `docs/reference/server-hands-on.md`; the
     note says Verso is in testing, with no public download yet; and the
-    links to `#Se algo der errado` and to note 30's *O primeiro admin e as
+    links to `#Se algo der errado` and to note 31's *O primeiro admin e as
     contas* land on their headings. Level: H; R: `scripts/demo-vault.mjs
     check` (links and headings of the vault).
 
-15. This app is a server (note 28, *Parear o Celular com o Seu Computador*;
+15. This app is a server (note 29, *Parear o Celular com o Seu Computador*;
     [ADR 0096](../adr/archive/0096-this-app-is-a-server.md)): *Ajustes* › *Este app é
     um servidor* offers the folders opened on this computer, none ticked; a
     folder of one's own that also syncs with a server is ticked like any
@@ -1366,7 +1381,7 @@ rest below and in `manual-checks.md`.
 
 16. UniVerso found on the network ([ADR
     0097](../adr/0097-universo-found-on-the-network-and-a-bad-dns-survived.md);
-    note 31, section 6, *O caminho mais curto*): in *Settings › Servers*,
+    note 32, section 6, *O caminho mais curto*): in *Settings › Servers*,
     *Encontrados nesta rede* lists a UniVerso announced on the network with
     the address each row will use and *sem HTTPS* when it is plain; a click
     fills that address and starts the sign-in as if typed, and nothing
@@ -1378,7 +1393,7 @@ rest below and in `manual-checks.md`.
     A for the network; R: `scripts/demo-vault.mjs check` for the note.
 
 17. Files only in the cloud, downloaded from the sync card ([ADR
-    0043](../adr/0043-placeholder-guard.md), decided 2026-10-27; note 30,
+    0043](../adr/0043-placeholder-guard.md), decided 2026-10-27; note 31,
     section *Syncing a folder from this computer*): *Settings › Sync* lists
     files not on this computer yet with *Baixar N arquivos (X MB)*; the size
     is said before anything starts; a disk without room (or whose room cannot
@@ -1878,9 +1893,9 @@ With a folder whose `.space/waypoints.json` is an iCloud placeholder (macOS):
 
 1. Put a Markdown file of more than 16 MiB (e.g. `head -c 17000000 /dev/zero | tr '\0' a > Grande.md`, one long line is enough) in the folder and open it: above the text a line says the note is over 16 MiB and out of the index, so search and backlinks do not see it; a normal note shows no such line. Level: H; E: `big-note-notice.spec.mjs`; the core's side (`INDEX_MOST`) is in `verso-core`'s tests.
 
-## The guided installer (ADR 0075 amendment, note 33, 2026-10-30)
+## The guided installer (ADR 0075 amendment, note 34, 2026-10-30)
 
-On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an account), as in note 33:
+On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an account), as in note 34:
 
 1. `curl -fsSLO https://versomd.com/universo.sh && sh universo.sh`: the menu opens, with arrows when `whiptail` is there and a numbered list otherwise, in the language of `LANG`; `0` or Quit leaves. Declining a step ("Go on?" with `n`) runs nothing. Level: A; E: `scripts/check-installer.sh` (menu driven by a script, both languages, a declined step).
 2. Option 1, Install: on a 1 GB machine it offers a swap file first; after the install it prints the short "back in the menu" lines, and on Oracle the VCN steps. Level: A (swap and install through the .deb: `scripts/check-installer.sh`; a real Oracle machine: manual).
@@ -1891,13 +1906,13 @@ On a fresh Ubuntu 24.04 machine (a VM; Oracle's free shapes if you have an accou
 
 ## Server hardening of 2026-10-31 (B9, B11, B13)
 
-1. The memory limit (B9): in note 31 (both vaults) both compose files carry `mem_limit: 768m` with a line saying why; `docker compose config` of the file prints `mem_limit: "805306368"`. Level: A on a real container: `docker stats universo` shows a 768 MiB limit. Check: `scripts/check-server-image.sh`.
+1. The memory limit (B9): in note 32 (both vaults) both compose files carry `mem_limit: 768m` with a line saying why; `docker compose config` of the file prints `mem_limit: "805306368"`. Level: A on a real container: `docker stats universo` shows a 768 MiB limit. Check: `scripts/check-server-image.sh`.
 2. The trash's size cap (B11): on a test server started with `VERSO_TRASH_MAX=1MB`, delete notes or files in a folder until its trash passes 1 MB: within seconds the oldest entries are gone from the trash (the folder page in the console shows the new size, and the audit log has `trash_over_cap` lines), the newest stay, and nothing outside `.trash/` is touched. Level: H (server); E: `tests_trash.rs`, `tests/trash.rs` of verso-core.
 3. The old address (B13): on a server with `VERSO_PUBLIC_URL=https://<its name>` set, open `http://<its IP>:7340` in a browser: a page, not a bare line, in the browser's language first and the other below, saying the address has changed, with a link that opens the public one; the page names no address you typed. `curl -si http://<its IP>:7340/api/me` still answers `421` with JSON (`"error":"host"`). Level: A for the browser; E: `tests_http.rs`, `wrong_host.rs`.
 
 ## Only the folder's owner deletes, outside a table (ADR 0113 B, amended 2026-10-31)
 
-On a UniVerso, with the owner's account and an editor's (two browsers, or the browser and the desktop app), a folder with a shared subfolder `Mesa` shared to a third account as editor, and no table, as in notes 07 and 30:
+On a UniVerso, with the owner's account and an editor's (two browsers, or the browser and the desktop app), a folder with a shared subfolder `Mesa` shared to a third account as editor, and no table, as in notes 07 and 31:
 
 1. As the editor, right-click a note in the tree: no **Mover para a lixeira**; the selection's menu and the selection bar have **Mover para…** and no bin; the palette has no **Apagar**. Level: A; E: `e2e-server/zz-owner-deletes.spec.mjs`.
 2. As the editor, select a note and press Delete (or ⌘⌫): the notice and the status line say "Só o dono da pasta apaga aqui: nada foi apagado…" (EN: "Only the folder's owner deletes here…"); the note stays. Level: A; E: `zz-owner-deletes.spec.mjs`.
@@ -1907,17 +1922,17 @@ On a UniVerso, with the owner's account and an editor's (two browsers, or the br
 6. On the editor's desktop, the folder synced here: delete a note in Finder, wait for a pass: the note is back, and Ajustes › Sincronizar lists "Um arquivo apagado aqui voltou…". Move a note out of `Mesa` in Finder: after a pass it is back in `Mesa`, listed as "Um arquivo tirado aqui de uma pasta compartilhada voltou para ela". Level: A; E: `tests_sync_access.rs`.
 7. As the owner, every delete is offered and works; inside a table nothing changed (a player still never deletes, the game master does). Level: A; E: `access-vectors.json`.
 
-## Compatibility with Obsidian and the NAS or VPS install (notes 38 and 32, 2026-10-31)
+## Compatibility with Obsidian and the NAS or VPS install (notes 39 and 33, 2026-10-31)
 
 Docs only; no code changed. Both lessons exist in `demo-vault/` (pt-BR) and `demo-vault-en/` (EN), are paired in `scripts/demo-vault/names.mjs`, sit in the Tour (cards in *Atalhos e ajuda* and *Num servidor*) and in note 00's list.
 
-1. Open the Tour board: the *Atalhos e ajuda* group has a card for note 38 and the *Num servidor* group one for note 32, in both languages; double-click each and read the note. Level: H; E: `node scripts/demo-vault.mjs check`.
-2. Note 31 ends with a link to note 32, note 32 with one to note 33, and note 37 with one to note 38, the last lesson (the check refuses a chain that skips). Level: H.
-3. Note 38, section 6, on a copy of a real Obsidian vault: open it with `⌘ O`; a note in Fonte reads as Obsidian wrote it and the file's date is unchanged after closing without typing; an edit in Verso shows in Obsidian; a `.canvas` with one card moved changes one line in the Git diff; the Excalidraw drawing's **Converter em board** shows the board before creating it; `> [!secret]` reads as a callout in Obsidian; with Obsidian's daily-note settings in `.obsidian/`, **Ajustes › Notas periódicas** offers **Usar os ajustes do Obsidian**. Level: A (needs Obsidian installed).
-4. Note 38 states only what `docs/spec/dialect.md` (sections 5 to 7), ADRs 0011, 0012, 0030 and 0070 and the lessons it links say: if one of those changes (embedded HTML, the accepted forms of `tags` and `aliases`, the plugin shim), reread sections 3 and 4 of the note. Level: H.
-5. Note 32, section 2, against `packaging/server/docker-compose.yml`: the paths, `mem_limit: 768m` and the `user:` line it describes are the file's. Section 3 against `sh universo.sh --help`: the commands `install`, `https [--duckdns NAME]`, `admin`, `swap`, `firewall`, `status`, `backup [--keygen|--encrypt]`, `restore`, `schedule backup|update|status|off`, `update`, `support`, `reset-admin` exist. Level: H; E: `scripts/check-installer.sh` for the script.
-6. Note 32, section 7: `VERSO_TRASH_DAYS` (30) and `VERSO_TRASH_MAX` (1GB) are the defaults of `docs/reference/server-install.md` section 7; the unit's `MemoryMax=75%` is `packaging/server/universo.service`. Level: H.
-7. Note 32 end to end on a real NAS (ZimaOS or CasaOS) and a real Ubuntu VPS, as a layperson would: not run for this change; the other Docker NAS brands are not covered by the project and the note says so. Level: A.
+1. Open the Tour board: the *Atalhos e ajuda* group has a card for note 39 and the *Num servidor* group one for note 33, in both languages; double-click each and read the note. Level: H; E: `node scripts/demo-vault.mjs check`.
+2. Note 32 ends with a link to note 33, note 33 with one to note 34, and note 38 with one to note 39, the last lesson (the check refuses a chain that skips). Level: H.
+3. Note 39, section 6, on a copy of a real Obsidian vault: open it with `⌘ O`; a note in Fonte reads as Obsidian wrote it and the file's date is unchanged after closing without typing; an edit in Verso shows in Obsidian; a `.canvas` with one card moved changes one line in the Git diff; the Excalidraw drawing's **Converter em board** shows the board before creating it; `> [!secret]` reads as a callout in Obsidian; with Obsidian's daily-note settings in `.obsidian/`, **Ajustes › Notas periódicas** offers **Usar os ajustes do Obsidian**. Level: A (needs Obsidian installed).
+4. Note 39 states only what `docs/spec/dialect.md` (sections 5 to 7), ADRs 0011, 0012, 0030 and 0070 and the lessons it links say: if one of those changes (embedded HTML, the accepted forms of `tags` and `aliases`, the plugin shim), reread sections 3 and 4 of the note. Level: H.
+5. Note 33, section 2, against `packaging/server/docker-compose.yml`: the paths, `mem_limit: 768m` and the `user:` line it describes are the file's. Section 3 against `sh universo.sh --help`: the commands `install`, `https [--duckdns NAME]`, `admin`, `swap`, `firewall`, `status`, `backup [--keygen|--encrypt]`, `restore`, `schedule backup|update|status|off`, `update`, `support`, `reset-admin` exist. Level: H; E: `scripts/check-installer.sh` for the script.
+6. Note 33, section 7: `VERSO_TRASH_DAYS` (30) and `VERSO_TRASH_MAX` (1GB) are the defaults of `docs/reference/server-install.md` section 7; the unit's `MemoryMax=75%` is `packaging/server/universo.service`. Level: H.
+7. Note 33 end to end on a real NAS (ZimaOS or CasaOS) and a real Ubuntu VPS, as a layperson would: not run for this change; the other Docker NAS brands are not covered by the project and the note says so. Level: A.
 
 ## Share audio, the window (ADR 0116 section B, task S6, note 27)
 
@@ -1992,7 +2007,7 @@ In either vault, in the desktop app and in a browser of a UniVerso folder:
 7. As a player of that table (the hidden track set to *Toda a mesa: Não vê* in Acesso…; a file with no access of its own follows the notes that embed it, ADR 0113 K.3): an embed of a file you see plays for you alone, with no **Tocar para a mesa**; the embed of the hidden file is *🔒 (ainda não revelado)* and its board card is locked; the page holds no trace of its name. Level: A; E: `e2e-server/audio-embed.spec.mjs`.
 8. On a phone (390 × 844): every control of the player is 44 px, there is no volume slider (the phone's buttons), **Silenciar** works; the board's card plays from a tap. Level: A; E: `audio-embed.spec.mjs` (`@layout`).
 
-## The embedded terminal (ADR 0115, note 35, 2026-10-31)
+## The embedded terminal (ADR 0115, note 36, 2026-10-31)
 
 In the desktop app, on a folder of this computer (the demo vault will do). The U tests named are in `app/src-tauri/src/tests_terminal.rs` (a real shell on a real pseudo-terminal) unless said:
 
@@ -2022,11 +2037,11 @@ On the app (desktop and a phone, 390 × 844), with a folder open and, for steps 
 - **A synced editor is offered no delete (ADR 0113 B8, item 8 of 2026-11-01).** In the desktop app, a folder synced with a server where this account is an editor: right-click a note, the menu has no *Mover para a lixeira*; select two and the bar has no delete; `Delete` on a note says *só a dona da pasta apaga*. The owner's own synced window still offers it. S: `test/access-synced.test.mjs`.
 - **A phone's right-panel tabs (ADR 0072 amendment, 2026-11-01).** On a phone, open the right panel on the Outline tab: eight tabs of 34 × 44 px fit in the drawer at 390 px; on a 320 px or 360 px phone the ones that do not fit are in **⋯**, in your order. E: `right-tabs-phone.spec.mjs`.
 
-## This app is a server: the internet link, invitations and the table (ADR 0117, note 29, 2026-11-04)
+## This app is a server: the internet link, invitations and the table (ADR 0117, note 30, 2026-11-04)
 
-Lesson 29 (*Mesa pela Internet* / *A Table over the Internet*) exists in both vaults, is paired in `scripts/demo-vault/names.mjs`, sits in the Tour (card in *No celular*) and in note 00's list; notes 28 and 32 point to it. The window is the harness's (it answers the link, the own address, the invitations and the seat in memory); the real `cloudflared`, Cloudflare and a phone on mobile data are in `manual-checks.md`.
+Lesson 30 (*Mesa pela Internet* / *A Table over the Internet*) exists in both vaults, is paired in `scripts/demo-vault/names.mjs`, sits in the Tour (card in *No celular*) and in note 00's list; notes 29 and 33 point to it. The window is the harness's (it answers the link, the own address, the invitations and the seat in memory); the real `cloudflared`, Cloudflare and a phone on mobile data are in `manual-checks.md`.
 
-1. Open the Tour board: the *No celular* group has a card for note 29 in both languages; read the note. Note 28's pairing section names the two boxes and says a phone pairs on the network only; note 32 ends pointing to 29. Level: H; E: `node scripts/demo-vault.mjs check`.
+1. Open the Tour board: the *No celular* group has a card for note 30 in both languages; read the note. Note 29's pairing section names the two boxes and says a phone pairs on the network only; note 33 ends pointing to 29. Level: H; E: `node scripts/demo-vault.mjs check`.
 2. **Ajustes › Transformar em servidor**: under the switch, **Na minha rede** and **Por um link na internet (Cloudflare, modo de teste)**. Neither ticked, **Ligar o servidor** does not start and says to tick one. The link alone serves: **Link no ar.**, the address with **Copiar link** and the QR, the hours left with **Prorrogar por 12 horas**, the testing-mode warning, **Parear um celular** off and saying why; unticking the box stops serving. Level: H (the real link: A); E: `local-server-link.spec.mjs`, `local-server.spec.mjs`.
 2a. The section's dialogs (2026-11-05): **Antes de ligar** and **Parear um celular** sit in the middle of the window, within it; at 1280 x 800 the pairing dialog has the QR on the left and the rest beside it, no scrollbar; at 390 x 844 it takes the width and scrolls only if it must; Escape closes it. Every other dialog opened from Settings was looked at the same way (the theme gallery, the in-place confirmations of the section). Level: H; E: `local-server.spec.mjs` (@layout).
 3. A download that fails, a checksum refused, Cloudflare unreachable and a link that drops each say so in words in both languages. Level: H; E: `local-server-link.spec.mjs`, `localServerLink.test.mjs` (the phrases are the host's).
@@ -2048,17 +2063,17 @@ Lesson 29 (*Mesa pela Internet* / *A Table over the Internet*) exists in both va
 13. **Serve from the folder's page** (R4, 2026-11-13): a folder of this computer not served shows the strip *Servidor* with **Servir deste computador**, and its tree menu the same row; with the server off the click asks **Ligar o servidor e servir “…”?**, **Ligar e servir** ticks it and turns the server on, the status says *“…” é servida deste computador.*; a failed start leaves it unticked and says why. With the server on, ticking or unticking in Settings (and choosing parts) does not stop it: the mark keeps *Servindo*, a quick link keeps its address. **Parar de servir** on the root page and the tree's root menu asks first (*N jogadores perdem acesso até você servir de novo. A mesa, o chat e as rolagens ficam guardados.*); a window seated at that folder goes back to the computer's folder; served again, the same table and players come back. **Copiar link da mesa** on the owner's card copies `…/?folder=<id>` (the link's origin while on; the network's, said to open only here). Level: H; E: `local-server.spec.mjs` (*served from its page*, *change while serving*), `campaign.spec.mjs`; S: `local::tests_rest`, `tableRoute.test.mjs`; A: the real app on the maintainer's OK.
 14. **A game master invites** (R6, UniVerso, 2026-11-13): an account with *cria pastas* sees **Convidar jogadores** on its own table and **Gerar link de convite** in **Compartilhar…** of its own folder; the invitee reads only; the 21st waiting invitation is refused in words; in another account's folder (even as an editor) nothing is offered; the console's **Convites** shows **Feito por**; taking *cria pastas* away ends that account's waiting invitations, those accepted stay. Level: S (`tests_gm_invites`), H for the strings.
 15. **The owner pairs through the link** (R3, 2026-11-13): with the link alone, **Parear um celular** is enabled and shows the link's QR; with both boxes, a button switches the QR; the link's sign-in page offers **Parear este celular com um código**; a code typed while the dialog is closed is refused without being tried; **Foi você?** says *pelo link* and the forwarded address, with *Pode editar as notas* ticked; 3 wrong codes end the window whatever address they come from; a quick link's device ends with the link, an own address's stays. Level: S (`local::tests_link_pair`), E (`local-server-link.spec.mjs`, `local-signin.spec.mjs`), A for a real phone on mobile data.
-16. **A UniVerso's own link** (R5, 2026-11-14): lesson 31's section *Sem domínio e sem abrir porta* names `universo.sh link quick|own|off` (menu item 11), `VERSO_TUNNEL` for Docker/CasaOS/ZimaOS and the console's **Servidor** page (**Ligar um link rápido**, **Ligar o meu endereço**, **Estender 12 horas**, **Desligar**); the console shows the address, the time left and the testing-mode words; turning on and extending ask the proof; with the link on and no `VERSO_PUBLIC_URL`, an invitation carries the link's address. Level: S (`verso-server` tunnel tests, `verso-tunnel`), H (`consoleLink` test), A on VM 107 (the R5 spike) and with a real token (manual check).
+16. **A UniVerso's own link** (R5, 2026-11-14): lesson 32's section *Sem domínio e sem abrir porta* names `universo.sh link quick|own|off` (menu item 11), `VERSO_TUNNEL` for Docker/CasaOS/ZimaOS and the console's **Servidor** page (**Ligar um link rápido**, **Ligar o meu endereço**, **Estender 12 horas**, **Desligar**); the console shows the address, the time left and the testing-mode words; turning on and extending ask the proof; with the link on and no `VERSO_PUBLIC_URL`, an invitation carries the link's address. Level: S (`verso-server` tunnel tests, `verso-tunnel`), H (`consoleLink` test), A on VM 107 (the R5 spike) and with a real token (manual check).
 17. **Move a table to the other server** (R9, 2026-11-14): a served folder that syncs with a UniVerso, its table's dialog has **Mudar de servidor**; after the question the window goes to the other host and its table's dialog, every note hidden and no player; a player at the old table reads *A mesa mudou de servidor…* with no retry; the old table's switch does not reopen; **Desfazer** on the old one warns and takes out its players. Level: S (`tests_table_move` in verso-server and the host), E (`table-move.spec.mjs`), A with the real app on the maintainer's OK.
 
 ## The lessons in seven blocks (the maintainer, 2026-11-04)
 
-Both vaults hold lessons 00 to 38, in seven blocks: I. Começando (00–06), II. Organizar (07–13), III. Outras formas de ver (14–19), IV. Board (20–21), V. RPG (22–27), VI. Juntos e em outros aparelhos (28–34), VII. Avançado (35–38). The former notes 17 (*Terminal, CLI e Agentes*) and 35 (*Terminal e Agentes de IA*) are one lesson, *35 - Terminal, CLI e Agentes de IA* / *35 - Terminal, CLI and AI Agents*.
+Both vaults hold lessons 00 to 38, in seven blocks: I. Começando (00–06), II. Organizar (07–13), III. Outras formas de ver (14–19), IV. Board (20–21), V. RPG (22–27), VI. Juntos e em outros aparelhos (28–34), VII. Avançado (35–38). The former notes 17 (*Terminal, CLI e Agentes*) and 35 (*Terminal e Agentes de IA*) are one lesson, *36 - Terminal, CLI e Agentes de IA* / *36 - Terminal, CLI and AI Agents*.
 
 1. Note 00, *Mapa de Exploração do Vault*: the seven blocks as headings, each with its line, and every lesson once, in number order; the same in English. Level: S (every numbered note in the map), H.
-2. Every lesson from 01 ends with one line — *Anterior* · *Próxima* · *Página Inicial* · *Tour do Verso* (EN: *Previous* · *Next* · *Home Page* · *Verso Tour*); note 38 says it is the last lesson. A cross-reference that was in the old closing line (24 to 16, 29 to 30 and 32, 30, 31, 32 and 33 to their server and table notes) stays, as its own sentence above it. Level: S (each links to the next), H.
+2. Every lesson from 01 ends with one line — *Anterior* · *Próxima* · *Página Inicial* · *Tour do Verso* (EN: *Previous* · *Next* · *Home Page* · *Verso Tour*); note 39 says it is the last lesson. A cross-reference that was in the old closing line (24 to 16, 29 to 30 and 32, 30, 31, 32 and 33 to their server and table notes) stays, as its own sentence above it. Level: S (each links to the next), H.
 3. The Tour: 22 stops, ① to ㉒, in the blocks' order (Escrever, Conectar, Blocos; Arquivos, Encontrar, Abas e janelas, Figurinhas e ordem, Focos, Diárias e tipos; Bases e grafo, Diagramas, Ler e ver, Web; Boards; Dados, Mundos e RPG, A mesa; No celular, Num servidor; Terminal e agentes, Ajustes, Atalhos e ajuda); each stop's cards are lessons of one block, and *Num servidor*'s five cards fit inside its group. Same drawing in English. Level: H; E: `board-tour.spec.mjs`, `demo-vault-en.spec.mjs`.
-4. Note 35 reads in this order: the terminal (on, opening, the warning, keys, closing, each system), the `verso` command, agents through MCP, AI agents in the terminal; its links to `#Agentes de IA (MCP)` and `#O terminal` land on their headings. Level: S (the headings), H.
+4. Note 36 reads in this order: the terminal (on, opening, the warning, keys, closing, each system), the `verso` command, agents through MCP, AI agents in the terminal; its links to `#Agentes de IA (MCP)` and `#O terminal` land on their headings. Level: S (the headings), H.
 5. Import into a folder that holds the earlier demo untouched: the old copy of each renamed lesson goes to the folder's trash once its new name is written (`DEMO_RETIRED` lists each old path with its new one); a lesson the person edited is kept and named. The two old terminal lessons were merged, not renamed (git follows neither into the new 35), so their untouched copies stay in such a folder. Level: H; E: `import.spec.mjs`, `test/demoImport.test.mjs`.
 6. The site's wiki is made from these vaults (ADR 0058 points 16–18): import it again in the `versomd-site` repository and read the pages of the lessons that moved. Level: A.
 
@@ -2069,3 +2084,46 @@ On a server, with a table whose player (a reader invited to that one folder, who
 1. The player opens `/` (or signs in afresh in a private window): the window opens their folder at once, never *Escolha uma pasta deste servidor*. A link to a folder of the server they are not in opens their folder too. Level: H; E: `e2e-server/link-landing.spec.mjs` ("a player with one folder lands in it").
 2. The player opens `/?folder=<the table's id>&note=<the hidden note's path>` (and the same with a path that does not exist, or `../x.md`): their folder opens with no tab for it, no message names it, and the address bar keeps only `?folder=`. A note they see, in the same kind of link, opens as a tab. Level: H; E: `e2e-server/link-landing.spec.mjs` ("a link to a note a player may not open").
 3. An account with no folder that may not create folders lands on *Escolha uma pasta deste servidor* with *Escolher uma pasta* and no *Importar cofre de exemplo*. An admin with no folder still has both. Level: H; E: `e2e-server/server.spec.mjs` ("an invited reader"), `test/landing.test.mjs`.
+
+## A server's folder picked in the app: its copy here (notes 29 and 31, 2026-11-15)
+
+Signed in to a UniVerso that has a folder (the harness: `e2e/server-copy.spec.mjs` signs it in to one):
+
+1. In the folder switcher, the server's folder (or **Abrir aqui** in Settings › Servers): a dialog *Abrir “<pasta>”* says the copy opens offline, its size (*3 arquivos · 2,4 MB*) and, on a desktop, that you choose where; **Cancelar** closes it with nothing made. Level: H; E: `e2e/server-copy.spec.mjs` ("on a desktop the pick asks…").
+2. **Escolher onde e baixar…** (a desktop): the system's dialog; cancelled, the question stays; chosen, the window shows the copy and the dialog says *Baixando: k de n arquivos…*, then *Pronto: n arquivos estão neste aparelho*; the status bar says *Sincronizada*. Level: H for the dialog's text and progress, A for the system's dialog; E: `e2e/server-copy.spec.mjs` ("…the next pick opens it", "the download's progress is said file by file").
+3. The same folder picked again: it opens at once, no question. Level: H; E: the same test.
+4. On Android (`?host=mobile`): **Dentro do app** (checked) and **Celular/Documents**, each with what it means; Celular/Documents without the access asks for it first (**Permitir acesso**). On iOS (`?host=ios`): one place, Verso's Documents, said. Level: H; E: `e2e/server-copy.spec.mjs` (the Android and iOS tests); A on the devices (`manual-checks.md`, "A server's folder picked in the app").
+5. **Abrir só no servidor, sem cópia**: the folder opens on the server, said as online only. Level: H; E: `e2e/server-copy.spec.mjs` ("the window on the server alone…").
+6. The server down: the question says it could not reach the server, with **Tentar de novo**; a copy made before opens all the same. Level: H; E: `e2e/server-copy.spec.mjs` ("with the server down…"); A in airplane mode (`manual-checks.md`).
+
+## Menus, tab drags and the updater's words (fix/beta-0.9-feedback, note 10, 2026-11-15)
+
+On the app, with the demo vault open:
+
+1. Right-click a note in the tree: only **Mover para a lixeira** is in the accent colour; right-click a tab: its last row, **Fechar todas**, is not. In **Organizar** (with manual order on), **Mover para cima / para baixo** show their arrows. Every label of a menu starts at the same place. Level: H; E: `menus.spec.mjs` ("only a row that destroys…", "every label of a menu starts…").
+2. Drag a tab and let it go over the file tree, the right panel or the status bar: nothing moves, no pane splits. Drag it to a pane's edge (the split is shown) and press Esc: the drag ends, the tab stays. Level: H; E: `tab-drop.spec.mjs`.
+3. A tab's menu has **Duplicar aba** (no **Abrir em nova aba**): on a folder's page it opens a second tab of the page. Hide the tab bar, double-click the pane's bare area: the bar comes back. Level: H; E: `menus.spec.mjs` ("the tab's menu duplicates…"), `tab-drop.spec.mjs`.
+4. **Ajustes › Atalhos**: record ⌘1 for a command: *reservado aos espaços de trabalho (de ⌘1 a ⌘9)*, nothing changed. The sidebar of Settings has no icon twice. Level: H.
+5. **Ajustes › Geral › Versão**, **Verificar atualizações** with the update source out of reach: the failure is said in the window's language (switch **Idioma** to English: English). Level: A (the harness has no updater); S: `updateWords.test.mjs`, `cargo test -p verso-app update`.
+
+## How will you use Verso: the scenarios lesson (note 28, 2026-11-15)
+
+Lesson 28 (*Como Você Vai Usar o Verso* / *How Will You Use Verso*) opens block VI; the lessons that were 28–38 are 29–39 in both vaults, in `scripts/demo-vault/names.mjs`, in the tour and in the specs that open a lesson by name.
+
+1. The welcome note's block VI lists note 28 first, in both languages; note 27 ends with *Próxima: 28*, note 28 with *Anterior: 27 · Próxima: 29*, and note 29 with *Anterior: 28*. Level: H; E: `node scripts/demo-vault.mjs check` (links and the chain of lessons).
+2. Open the Tour board: the *No celular* stop has three cards, note 28 first, and its text starts with *Não sabe por onde começar?* (EN: *Not sure where to start?*). Level: H.
+3. In note 28, the table *Qual é o seu caso* (EN *Which one is yours*): each link goes to its section; every section has **Para quem**, the numbered steps, **Sem internet** and **Mais** with links that open. Level: H; E: `check` (each `[[#…]]` names a heading).
+4. Each Mermaid diagram (nine) is drawn in Reading and in Edit off the block, in light and in dark, with its labels in the vault's language; a screen reader names each one by its `accTitle`. Open the same note in Obsidian: the diagrams draw there too. Level: H (A for the screen reader and Obsidian).
+5. Every menu path the lesson names exists in the app as written: **Ajustes › Transformar em servidor** (*Na minha rede*, *Por um link na internet (Cloudflare, modo de teste)*, **Ligar o servidor**, **Parear um celular**), **Ajustes › Sincronizar › Sincronizar com…**, **Ajustes › Servidores › Conectar** and *Sincronizar ‘sua pasta’*, **Escolher onde e baixar…**, **Baixar e abrir**, **Abrir outra pasta…** (Android), **Servir deste computador**, **Tornar esta pasta uma mesa**, **Convidar jogadores › Gerar link**, **Compartilhar…**, **Ajustes › Sem rede**. Level: H (Android and iOS rows: A).
+6. The site's wiki is made from these vaults (ADR 0058 points 16–18): import it again in the `versomd-site` repository; the lesson's page draws its diagrams, and the pages of the lessons that moved keep their addresses (the site's slugs carry no number). Level: A.
+
+## Sign-in ends, a server out of reach behind its proxy, and the iOS folder switcher (notes 29 and 31, 2026-11-15)
+
+Review findings I1–I6, M1, M2 and #4 of 2026-11-15, on `fix/beta-0.9-feedback`. Note 31 now says what Settings › Servers shows when a sign-in is refused or its code expires; note 29 says the iOS app has no *Abrir outra pasta…*.
+
+1. **A sign-in refused** (A, the app and a UniVerso): Settings › Servers › Conectar, and on the server's page **Não fui eu: recusar**: within a few seconds the app replaces *Esperando…* with *A entrada foi recusada na página do servidor…* and **Tentar de novo**, which asks for a new code. Leave a code unused for ten minutes: *O código expirou…*. Level: A; E: `e2e/sign-in-ends.spec.mjs` (the words), host test `remote::sign_in::tests` (the event, against a stand-in server).
+2. **Signed in again, sync goes at once** (A): with a folder syncing, end the device's session from the server's Devices page; the sync says to connect again. Sign in again in Settings › Servers: the sync is back within seconds, not five minutes. Level: A; E: host test `a_sign_in_kept_wakes_the_folders_that_sync_with_the_server`.
+3. **A server behind Cloudflare, down** (A, a UniVerso reached through its tunnel): stop the server, keep the tunnel: the status bar says the server is out of reach by its address, with **Tentar de novo**, not *algo deu errado*; start it again: the sync is back within the growing wait. Level: A; E: host tests `a_proxys_502_is_out_of_reach_and_tried_again_soon`, `a_proxys_answer_is_unreachable_the_servers_own_is_not`.
+4. **A server of another version** (A): on reconnecting to a server two contract versions apart, the window says *O servidor está numa versão diferente deste app: atualize o que estiver atrás.*, not *conecte de novo*. Level: A; E: `e2e/sign-in-ends.spec.mjs`, host test `a_version_refused_is_not_a_session_ended`.
+5. **The iOS folder switcher** (A, the iPad or iPhone app): the folder switcher's *Neste celular* lists the folders in Verso's Documents and has no *Abrir outra pasta…*; Android's still has it and walks the phone's storage. Level: A; E: `e2e/phone-ios.spec.mjs` (`?host=ios` and `?host=mobile`).
+6. **An unreadable sync state** (H, desktop): with Verso closed, cut a folder's `sync-<key>.json` in the app's settings folder short; open the folder: Settings › Sincronizar says *Estado da sincronização ilegível* and names the file kept aside; the status bar says it too; turning sync on again compares both sides from the start and deletes nothing. Level: H; E: host test `an_unreadable_state_is_said_with_the_file_set_aside`.

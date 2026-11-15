@@ -110,7 +110,7 @@ async function setup(app, page, width, scheme) {
 
 async function open(app, page, name, mode) {
   await app.quickOpen(name);
-  await page.locator(".leaf:not([hidden]) .modes button", { hasText: mode }).first().click();
+  await app.mode(mode);
 }
 
 /** Grow the window to the whole note and keep its picture. */

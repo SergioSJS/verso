@@ -70,7 +70,6 @@
 .dg-save-problem { margin: 0; min-height: 1.2em; font-size: .82rem; color: var(--seal); }
 
 .dg-view-btn { right: 2.2rem; }
-.preview pre .dg-view-btn { right: 4.4rem; }
 .cm-lp-diagram-btn { right: 2.4rem; }
 pre:hover .dg-view-btn, .editor:hover .cm-lp-diagram-btn, .dg-view-btn:focus-visible, .cm-lp-diagram-btn:focus-visible { opacity: 1; }
 

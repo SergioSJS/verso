@@ -6,7 +6,7 @@
 // system's notifications through the plugin's calls the harness answers
 // (src/harness/notifications.ts).
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const PHONE = 760;
 const phone = (page) => page.viewportSize().width < PHONE;
@@ -366,7 +366,7 @@ test("presence: by default someone joining is in the list and rings in the prese
   await app.writeOutside(NOTE, "# Sessao\n\num\n");
   await app.folderChanged([NOTE], true);
   await app.quickOpen("Sessao ao vivo");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
   // Joins in the first seconds after the tab bound its room are the people who were already there (PRESENCE_SETTLE_MS).
   await page.waitForTimeout(5_500);
@@ -403,7 +403,7 @@ test("presence set back to \"Aviso e lista\": the toast comes back, at the top, 
   await app.writeOutside(NOTE, "# Sessao\n\num\n");
   await app.folderChanged([NOTE], true);
   await app.quickOpen("Sessao ao vivo");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".live-mark:visible")).toHaveText("ao vivo, só você");
   await page.waitForTimeout(5_500);
   await page.evaluate((n) => window.__harness.rooms.present(n, "Bia"), NOTE);

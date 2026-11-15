@@ -7,7 +7,7 @@
 // nothing of a newer Verso, it is a viewer from the first frame on every
 // host, and a note's two dice of the same notation are two dice.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const card = (id, text, y) => ({ id, type: "text", text, x: 0, y, width: 300, height: 80 });
 const BOARD = (...nodes) => `{\n\t"nodes":[\n${nodes.map((n) => `\t\t${JSON.stringify(n)}`).join(",\n")}\n\t],\n\t"edges":[]\n}`;
@@ -93,7 +93,7 @@ test("a result stays with the die that was rolled (Live Preview)", async ({ app,
   await app.writeOutside("Ficha.md", NOTE);
   await app.folderChanged(["Ficha.md"], true);
   await app.quickOpen("Ficha");
-  await page.getByRole("button", { name: "Editar", exact: true }).first().click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".editor.live .cm-content")).toBeVisible();
   const dice = page.locator(".editor.live .cm-content .dice");
   await expect(dice).toHaveCount(2);

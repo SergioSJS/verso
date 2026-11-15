@@ -330,11 +330,32 @@ html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
 .editor .cm-selectionBackground { background: var(--selection) !important; }
 .editor .cm-selectionLayer .cm-selectionBackground { display: none; }
 .editor .cm-editor .cm-line::selection, .editor .cm-editor .cm-line ::selection { background: transparent !important; }
-.editor .cm-editor :is(.cm-lp-fence, .cm-lp-callout, .cm-lp-code, .cm-lp-mark)::selection,
-.editor .cm-editor :is(.cm-lp-fence, .cm-lp-callout, .cm-lp-code, .cm-lp-mark) ::selection { background: var(--selection) !important; }
+/* The lines and spans that paint a background, in one list: code (block
+   and inline) and highlights always; a callout when its style is tinted
+   (outlined and title-bar leave its lines clear, title-bar paints the head);
+   a quote only in the panel style. A line left clear keeps the drawn layer,
+   so the browser's selection there would be a second shade. */
+.editor .cm-editor :is(.cm-lp-fence, .cm-lp-code, .cm-lp-mark)::selection,
+.editor .cm-editor :is(.cm-lp-fence, .cm-lp-code, .cm-lp-mark) ::selection,
+:root:not([data-callout-style="outlined"], [data-callout-style="title-bar"]) .editor .cm-editor .cm-lp-callout::selection,
+:root:not([data-callout-style="outlined"], [data-callout-style="title-bar"]) .editor .cm-editor .cm-lp-callout ::selection,
+[data-callout-style="title-bar"] .editor .cm-editor .cm-lp-callout-head::selection,
+[data-callout-style="title-bar"] .editor .cm-editor .cm-lp-callout-head ::selection,
+[data-blockquote-style="panel"] .editor .cm-editor .cm-lp-quote::selection,
+[data-blockquote-style="panel"] .editor .cm-editor .cm-lp-quote ::selection { background: var(--selection) !important; }
+/* The other places the selected word stands, and the bracket matching the
+   one at the caret: from the tokens, not CodeMirror's green and teal. */
+.editor .cm-editor .cm-selectionMatch { background: color-mix(in oklch, var(--selection) 60%, transparent); border-radius: 2px; }
+.editor .cm-editor .cm-matchingBracket, .editor .cm-editor.cm-focused .cm-matchingBracket { background: var(--brass-wash); color: inherit; outline: 1px solid color-mix(in oklch, var(--brass) 55%, transparent); border-radius: 2px; }
+.editor .cm-editor .cm-nonmatchingBracket, .editor .cm-editor.cm-focused .cm-nonmatchingBracket { background: var(--seal-wash); color: inherit; }
 .editor.source .cm-scroller { font-family: var(--mono); font-size: calc(.9rem * var(--note-scale, 1)); line-height: 1.6; }
 .editor.source .cm-gutters { display: flex; background: none; border: 0; color: var(--ink-3); font-size: .78rem; }
 .editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2) !important; }
+/* The drawn selection lies under the lines: the active line's paint hid a
+   selection inside that one line (a word, part of a line), while one over
+   several lines showed (the maintainer, 2026-11-15). With text selected the
+   active line is not painted. */
+.editor.source .cm-editor:has(.cm-evenSelection .cm-selectionBackground) .cm-activeLine { background: none !important; }
 
 /* Reading mode line numbers & fold gutter */
 .preview {
@@ -517,34 +538,40 @@ html.show-line-numbers-preview .preview h6 .preview-line-num {
   border-color: var(--ink-3);
 }
 
-/* Reading mode code folding */
-.preview pre .code-fold-btn {
+/* Reading mode code block buttons: one row (diagram, fold, copy), each the
+   copy button's size, so none stands out or overlaps its neighbour. */
+.preview pre .code-tools {
   position: absolute;
   top: .5rem;
-  right: 2.2rem;
-  width: 24px;
-  height: 24px;
+  right: .5rem;
+  display: flex;
+  gap: .25rem;
+  z-index: 2;
+}
+.preview pre .code-tools .copy-code-btn { position: static; }
+.preview pre .code-fold-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   opacity: 0;
-  color: var(--ink-3);
+  padding: .25rem .45rem;
+  color: var(--ink-2);
   background: var(--paper);
   border: 1px solid var(--hair);
   border-radius: 4px;
+  font-size: .75rem;
   cursor: pointer;
-  padding: 0;
-  transition: opacity .15s, transform .2s var(--ease-out);
+  transition: opacity .15s;
 }
+/* As a heading's fold: open points down, folded points right. */
+.preview pre .code-fold-btn .icon { width: 12px; height: 12px; transform: rotate(90deg); transition: transform .2s var(--ease-out); }
+.preview pre .code-fold-btn:hover { background: var(--paper-3); color: var(--ink); }
 .preview pre:hover .code-fold-btn,
 .preview pre.code-folded .code-fold-btn,
 .preview pre .code-fold-btn:focus-visible {
   opacity: 1;
 }
-.preview pre.code-folded .code-fold-btn {
-  transform: rotate(-90deg);
-  color: var(--seal);
-}
+.preview pre.code-folded .code-fold-btn { color: var(--seal); }
+.preview pre.code-folded .code-fold-btn .icon { transform: rotate(0deg); }
 .preview pre.code-folded code {
   display: none !important;
 }

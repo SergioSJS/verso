@@ -8,7 +8,7 @@
 // the status bar nothing one file cannot use. `?loose=1` (src/harness.ts)
 // stands for the window the host makes for a double-clicked `.md`.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 test("the loose window shows the file alone, with no tree and no folder tools", async ({ app, page }) => {
   await app.open("?loose=1");
@@ -52,7 +52,7 @@ test("a stale folder command is refused in words, and the file is edited and sav
   });
   expect(refused).toBe("refused");
   // Edited and saved under its own name: the file in memory changes.
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   const editor = page.locator(".cm-content").first();
   await editor.click();
   await app.key("Mod+End");
@@ -63,7 +63,7 @@ test("a stale folder command is refused in words, and the file is edited and sav
 
 test("a link opens a sibling note as a tab of its own; a link to nothing says so", async ({ app, page }) => {
   await app.open("?loose=1");
-  await page.getByRole("button", { name: "Leitura", exact: true }).click().catch(() => {});
+  await modeOn(page, "Leitura").catch(() => {});
   await page.locator('.preview a.wikilink[data-target="Vizinha"]').click();
   await expect(page.locator(".tab", { hasText: "Vizinha" })).toBeVisible();
   await expect(page.locator(".loose-bar .loose-name")).toHaveText("Vizinha.md");
@@ -78,7 +78,7 @@ test("a read-only reason is shown above the text and the editor is locked", asyn
   await app.open("?loose=1&ro=permissions");
   await expect(page.locator(".note-sheet .flags, .flags").first()).toContainText("Só leitura: o sistema não deixa gravar este arquivo");
   // The editor is locked: typing changes nothing on disk.
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   const editor = page.locator(".cm-content").first();
   await editor.click();
   await page.keyboard.type("zzz");

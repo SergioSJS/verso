@@ -22,7 +22,7 @@ import { t } from "../strings";
 import { bytes } from "../web/strings";
 import { dayOf, leavingSoon, quotaNear } from "./core";
 import { showTable } from "../table/show";
-import { notify, onAct, settle, stateOf } from "./index";
+import { dropPassedUpdates, notify, onAct, settle, stateOf } from "./index";
 import { news } from "./presence";
 import { inFront } from "./system";
 import { notifyStrings } from "./strings";
@@ -244,6 +244,14 @@ export function installSources(): void {
     settingsDialog.show("general");
     void updateController.downloadAndInstall();
   });
+  // A notification of a version this app already runs (it was installed
+  // since) leaves the list at the start (update.ts drops them after each
+  // check too).
+  if (can("updates")) {
+    void commands.appInfo().then((r) => {
+      if (r.status === "ok") dropPassedUpdates(r.data.version);
+    });
+  }
   // A folder of a server: where this side opens them.
   onAct("folders", () => (can("local_folders") ? settingsDialog.show("servers") : void openFolderSwitcher(ui.open)));
   // A live note's room refused an edit as a conflict (ADR 0082): the

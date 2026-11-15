@@ -29,6 +29,7 @@ import { projectBoard } from "./harness/maps";
 import { Versions } from "./harness/history";
 import { SystemNotifications } from "./harness/notifications";
 import { FakeTerminals } from "./harness/terminal";
+import { ServerCopy } from "./harness/serverCopy";
 import * as sanitize from "./sanitize";
 
 const vault = new URLSearchParams(location.search).get("vault");
@@ -167,7 +168,7 @@ if (params.get("sync") === "reader") {
 // the contract's `unreachable`, carrying the address — whatever the test
 // set its handler to; `serverDown(null)` brings it back. `?server=down`
 // starts with it down at localhost:7351.
-const TO_A_SERVER = new Set(["server_folders", "server_create_folder", "server_open", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_invite", "share_revoke", "share_attachments", "read_link_list", "read_link_secrets", "read_link_create", "read_link_revoke", "server_prove"]);
+const TO_A_SERVER = new Set(["server_folders", "server_create_folder", "server_open", "server_copy_plan", "server_copy_make", "server_sign_in", "folder_sync_start", "share_list", "share_grant", "share_invite", "share_revoke", "share_attachments", "read_link_list", "read_link_secrets", "read_link_create", "read_link_revoke", "server_prove"]);
 let serverDown: string | null = params.get("server") === "down" ? "localhost:7351" : null;
 const answer = core.invoke.bind(core);
 // The system's notifications (ADR 0084 item 9): the plugin's calls,
@@ -256,9 +257,15 @@ if (params.get("host") === "mobile" || params.get("host") === "ios") {
   const notOnAPhone = params.get("host") === "ios" ? [...android, "audio_share", "updates", "link", "discover", "serve_away"] : android;
   core.handlers["capabilities"] = (a) => {
     const c = asked(a) as { host: string; can: string[] };
-    return { ...c, host: c.host === "desktop" ? "mobile" : c.host, can: c.can.filter((x) => !notOnAPhone.includes(x)) };
+    // Only Android walks its shared storage (src-tauri mobile.rs `ONLY_ON_ANDROID`).
+    const only = params.get("host") === "mobile" ? ["shared_storage"] : [];
+    return { ...c, host: c.host === "desktop" ? "mobile" : c.host, can: [...c.can.filter((x) => !notOnAPhone.includes(x)), ...only] as typeof c.can };
   };
 }
+// A server's folder picked in the app: its copy on this device (the
+// maintainer, 2026-11-15; harness/serverCopy.ts), in this device's places.
+const serverCopy = new ServerCopy(core, params.get("host") === "mobile" ? ["in_app", "phone"] : params.get("host") === "ios" ? ["documents"] : ["choose"]);
+Object.assign(core.handlers, serverCopy.handlers());
 const tableParam = params.get("table");
 if (tableParam === "owner" || tableParam === "player") {
   campaign.up = true;
@@ -432,6 +439,8 @@ const harness = {
   serverDown: (address: string | null) => {
     serverDown = address;
   },
+  /** A server's folder's copy on this device: the copies made, the sizes, the download played. */
+  serverCopy,
   /** The system's notifications: its permission, its answer when asked,
    *  what was sent, a click on the last (ADR 0084 item 9). */
   notifications,

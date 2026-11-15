@@ -17,7 +17,9 @@
 //! a temporary name, a chmod of it, a rename over the sidecar, a read. The
 //! rename means a reader never sees half a file. There is no fsync: losing
 //! a sidecar costs an entry in a listing, not a note — the requirements of
-//! ADR 0029 are for notes and live in `verso-fs`. The directory is the
+//! ADR 0029 are for notes and live in `verso-fs`. The one exception is a
+//! synced folder's state ([`write_sync`]), whose loss costs the sync's
+//! base: flushed, file and directory, as `verso-fs` writes. The directory is the
 //! index's, created at 0700, and the sidecar is `0600` like the index file
 //! (ADR 0046) — set on the temporary, so the name it takes is never wider.
 
@@ -224,24 +226,107 @@ pub(crate) fn write_recent_files(config: &Path, files: &[PathBuf]) -> std::io::R
 
 /// A synced folder's state (ADR 0079 item 3): `<config>/sync-<key>.json`,
 /// `0600` as the index, beside the folder's index and never in the folder.
-/// None when the file is missing or does not read: the folder then syncs
-/// as if for the first time, which never deletes (item 11).
-pub(crate) fn read_sync(config: &Path, key: &str) -> Option<crate::sync::State> {
-    std::fs::read_to_string(config.join(format!("sync-{key}.json")))
-        .ok()
-        .and_then(|text| serde_json::from_str(&text).ok())
+/// None when the file is missing. One that is there but does not read
+/// (empty, cut short, not JSON) is renamed aside to
+/// `sync-<key>.json.unreadable-<nanoseconds>` — never deleted — and an off
+/// state saying so takes its place, which is what this answers: the
+/// folder stops syncing and the window can say why, and turning sync on
+/// again is a first sync, which never deletes (item 11). Another error of
+/// the read is an error: nothing is written over what could not be read.
+pub(crate) fn read_sync(config: &Path, key: &str) -> std::io::Result<Option<crate::sync::State>> {
+    let name = format!("sync-{key}.json");
+    let file = config.join(&name);
+    // Twice at most: another process may set the same file aside between
+    // this read and the rename, and its stand-in is then read.
+    for _ in 0..2 {
+        match std::fs::read_to_string(&file) {
+            Ok(text) => {
+                if let Ok(state) = serde_json::from_str(&text) {
+                    return Ok(Some(state));
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            // Not UTF-8: as unreadable as a file cut short.
+            Err(e) if e.kind() == std::io::ErrorKind::InvalidData => {}
+            Err(e) => return Err(e),
+        }
+        let since = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
+        let aside = format!("{name}.unreadable-{}", since.as_nanos());
+        match std::fs::rename(&file, config.join(&aside)) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(e),
+        }
+        let state = crate::sync::State {
+            off: true,
+            unreadable: Some(crate::sync::Unreadable {
+                at: i64::try_from(since.as_secs()).unwrap_or(i64::MAX),
+                aside,
+            }),
+            ..crate::sync::State::default()
+        };
+        write_sync(config, key, &state)?;
+        return Ok(Some(state));
+    }
+    Ok(None)
 }
 
+/// Written durably, unlike the other files here: a state lost or cut short
+/// costs the base, and a first sync without it leaves conflict copies and
+/// brings deleted files back. A temporary of this process's own, `0600`,
+/// its bytes flushed to the disk, renamed over the state, and the
+/// directory flushed so that the rename survives a power cut (invariant 9,
+/// as `verso-fs` writes a note).
 pub(crate) fn write_sync(
     config: &Path,
     key: &str,
     state: &crate::sync::State,
 ) -> std::io::Result<()> {
+    use std::io::Write;
     let name = format!("sync-{key}.json");
     let temporary = temporary(config, &name);
-    std::fs::write(&temporary, serde_json::to_vec(state)?)?;
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&temporary)?;
     private(&temporary)?;
-    std::fs::rename(&temporary, config.join(name))
+    file.write_all(&serde_json::to_vec(state)?)?;
+    file.sync_all()?;
+    drop(file);
+    std::fs::rename(&temporary, config.join(name))?;
+    sync_dir(config)
+}
+
+/// `fsync` of a directory, so the rename just made in it survives a power
+/// loss — as `verso-fs` does it (`os::sync_dir`): on Windows a directory
+/// opens only with `FILE_FLAG_BACKUP_SEMANTICS`, and takes
+/// `FlushFileBuffers` (`sync_all`) only with write access (ADR 0069).
+#[cfg(unix)]
+fn sync_dir(dir: &Path) -> std::io::Result<()> {
+    std::fs::OpenOptions::new().read(true).open(dir)?.sync_all()
+}
+
+#[cfg(windows)]
+fn sync_dir(dir: &Path) -> std::io::Result<()> {
+    use std::os::windows::fs::OpenOptionsExt;
+    const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
+    // FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE.
+    const SHARE_ALL: u32 = 0x1 | 0x2 | 0x4;
+    std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .share_mode(SHARE_ALL)
+        .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
+        .open(dir)?
+        .sync_all()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn sync_dir(_dir: &Path) -> std::io::Result<()> {
+    Ok(())
 }
 
 /// The calls agents made, newest last: `<config>/agents.log` (ADR 0054).
@@ -287,3 +372,114 @@ pub(crate) fn read_agent_log(config: &Path) -> String {
 
 /// The agents' calls `agents.log` keeps.
 const AGENT_LOG_LINES: usize = 2000;
+
+#[cfg(test)]
+mod tests {
+    use crate::sync::{Loaded, State, load, load_checked, save};
+
+    /// The names in the configuration directory, sorted.
+    fn names(dir: &std::path::Path) -> Vec<String> {
+        let mut out: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        out.sort();
+        out
+    }
+
+    fn synced() -> State {
+        State {
+            server: "https://universo.example".to_owned(),
+            folder: "f1".to_owned(),
+            base: [("a.md".to_owned(), "h".to_owned())].into(),
+            ..State::default()
+        }
+    }
+
+    #[test]
+    fn a_state_saved_reads_back_and_leaves_no_temporary() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(
+            load_checked(Some(dir.path()), "k").unwrap(),
+            Loaded::Missing
+        );
+        save(Some(dir.path()), "k", &synced()).unwrap();
+        assert_eq!(
+            load_checked(Some(dir.path()), "k").unwrap(),
+            Loaded::Found(Box::new(synced()))
+        );
+        assert_eq!(names(dir.path()), vec!["sync-k.json"]);
+    }
+
+    /// Cut short by a power cut, empty, or not text at all: unreadable,
+    /// not "no state" — kept aside byte for byte, and sync off saying why.
+    #[test]
+    fn a_state_cut_short_is_unreadable_and_kept_aside() {
+        let whole = serde_json::to_vec(&synced()).unwrap();
+        for bad in [&whole[..whole.len() / 2], &b""[..], &[0xff, 0xfe, 0][..]] {
+            let dir = tempfile::tempdir().unwrap();
+            std::fs::write(dir.path().join("sync-k.json"), bad).unwrap();
+            let Loaded::Unreadable(u) = load_checked(Some(dir.path()), "k").unwrap() else {
+                panic!("an unreadable state read as another");
+            };
+            assert!(
+                u.aside.starts_with("sync-k.json.unreadable-"),
+                "{}",
+                u.aside
+            );
+            assert!(u.at > 0);
+            let mut kept = Vec::new();
+            std::io::Read::read_to_end(
+                &mut std::fs::OpenOptions::new()
+                    .read(true)
+                    .open(dir.path().join(&u.aside))
+                    .unwrap(),
+                &mut kept,
+            )
+            .unwrap();
+            assert_eq!(kept, bad);
+            assert_eq!(
+                names(dir.path()),
+                vec!["sync-k.json".to_owned(), u.aside.clone()]
+            );
+            // Asked again, and by the old call: the same answer — off,
+            // which the host's "synced" leaves alone — never a first sync.
+            assert_eq!(
+                load_checked(Some(dir.path()), "k").unwrap(),
+                Loaded::Unreadable(u.clone())
+            );
+            let stand_in = load(Some(dir.path()), "k").unwrap().unwrap();
+            assert!(stand_in.off && stand_in.server.is_empty());
+            // Turned on again: a state without it, the bad file still kept.
+            save(Some(dir.path()), "k", &synced()).unwrap();
+            assert_eq!(
+                load_checked(Some(dir.path()), "k").unwrap(),
+                Loaded::Found(Box::new(synced()))
+            );
+            assert_eq!(names(dir.path()).len(), 2);
+        }
+    }
+
+    /// What cannot be read for another reason is an error, and nothing is
+    /// written over it.
+    #[cfg(unix)]
+    #[test]
+    fn a_state_that_cannot_be_opened_is_an_error_not_replaced() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        save(Some(dir.path()), "k", &synced()).unwrap();
+        let file = dir.path().join("sync-k.json");
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o000)).unwrap();
+        // Root reads anything: then there is nothing to show.
+        if std::fs::read_to_string(&file).is_ok() {
+            return;
+        }
+        assert!(load_checked(Some(dir.path()), "k").is_err());
+        assert_eq!(names(dir.path()), vec!["sync-k.json"]);
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert_eq!(
+            load_checked(Some(dir.path()), "k").unwrap(),
+            Loaded::Found(Box::new(synced()))
+        );
+    }
+}

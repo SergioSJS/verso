@@ -58,6 +58,16 @@ pub(crate) fn versions(hello: &Value) -> SyncVersions {
     }
 }
 
+/// How every refusal of a version ends ([`contract_refused`],
+/// [`sync_refused`]): the marker that tells it from a session ended.
+pub(crate) const BEHIND: &str = "update the one that is behind";
+
+/// Whether `e` is a refusal of the other side's version, not of the
+/// device's session.
+pub(crate) fn is_behind(e: &ContractError) -> bool {
+    e.kind == verso_contract::ErrorKind::Refused && e.message.ends_with(BEHIND)
+}
+
 /// The refusal of a server whose contract version this app does not take,
 /// in English for the log: the version, build and contract version of
 /// each side.
@@ -68,7 +78,7 @@ pub(crate) fn contract_refused(hello: &Value) -> Option<ContractError> {
     }
     let v = versions(hello);
     Some(refused(format!(
-        "the server runs Verso {} (build {}, contract {theirs}), this app {} (build {}, contract {}): update the one that is behind",
+        "the server runs Verso {} (build {}, contract {theirs}), this app {} (build {}, contract {}): {BEHIND}",
         v.server_version,
         v.server_build,
         v.app_version,
@@ -85,11 +95,8 @@ pub(crate) fn contract_refused(hello: &Value) -> Option<ContractError> {
 pub(crate) fn sync_refused(hello: &Value) -> Option<String> {
     use verso_core::sync::{PROTOCOL, follows};
     let theirs = said_number(hello, "sync");
-    (hello.get("syncRefused").is_some() || !follows(PROTOCOL, theirs)).then(|| {
-        format!(
-            "the server speaks sync {theirs}, this app sync {PROTOCOL}: update the one that is behind"
-        )
-    })
+    (hello.get("syncRefused").is_some() || !follows(PROTOCOL, theirs))
+        .then(|| format!("the server speaks sync {theirs}, this app sync {PROTOCOL}: {BEHIND}"))
 }
 
 /// A server whose build of the contract is not this app's, written to the

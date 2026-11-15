@@ -99,12 +99,35 @@ export async function changedOutside(change: FolderChanged): Promise<void> {
   if (changed.size > 0) void panel.loadTags();
   const outcomes = await recheckAll(changed.size > 0 ? changed : null);
   if (change.key !== currentFolder) return;
+  if (changed.size > 0 && schemaTouched(changed)) retypeOpen();
   for (const sp of spaces) for (const p of sp.layout.panes()) for (const l of p.leaves) if ((l instanceof BoardLeaf || l instanceof DataLeaf) && changed.has(l.path)) void l.recheck();
   tellOutcomes(outcomes);
   showProblems(change.index);
   // A note this app wrote (another window's view, a card moved) is current
   // in the index already, and not named: the views ask again all the same.
   refreshBases();
+}
+/** The open notes that name a type, read again with their type, after a
+ *  schema may have changed: a note holding one was written here (`from`,
+ *  itself left alone), or the schema of an open note changed outside (the
+ *  maintainer, 2026-11-15: a schema given `layout: infobox` left an open
+ *  note of its type drawn as before). A note with text not saved waits for
+ *  its own save. */
+export function retypeOpen(from = ""): void {
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) {
+    if (l instanceof NoteLeaf && !l.dirty && l.path !== from && l.note?.note_type) void l.load(l.path, true);
+  }
+}
+/** Whether notes changed outside may have changed an open note's type: its
+ *  schema's note among them, or one that names a type no schema answers
+ *  yet (a new schema may answer it now). */
+function schemaTouched(changed: Set<string>): boolean {
+  for (const s of spaces) for (const p of s.layout.panes()) for (const l of p.leaves) {
+    const state = l instanceof NoteLeaf ? l.note?.note_type?.state : undefined;
+    if (!state) continue;
+    if (state.kind === "typed" ? changed.has(state.schema) : true) return true;
+  }
+  return false;
 }
 /** `run` once no name is being typed in `container`: redrawing it would
  *  take the field away, or commit half a name. Looked at again until then,

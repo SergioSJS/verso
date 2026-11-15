@@ -48,7 +48,7 @@ export function foldWords(s: string): string {
   return s.normalize("NFC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "").slice(0, 60);
 }
 
-/** A fold's name: its kind (`h`, `l`, `q`, `c`, `e`), its words and which of
+/** A fold's name: its kind (`h`, `l`, `q`, `c`, `e`, `k` a code block), its words and which of
  *  the same it is. `seen` counts what was met so far; give the same map to
  *  every call over one note, in the note's order. */
 export function foldKey(kind: string, words: string, seen: Map<string, number>): string {

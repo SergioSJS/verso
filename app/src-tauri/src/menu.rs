@@ -312,13 +312,18 @@ pub(crate) fn app_menu<R: tauri::Runtime>(
                     true,
                     None::<&str>,
                 )?),
-                Row::Own(Own::OpenFolder) => Box::new(MenuItem::with_id(
-                    app,
-                    OPEN_FOLDER,
-                    l("open-folder"),
-                    true,
-                    Some("CmdOrCtrl+Shift+O"),
-                )?),
+                Row::Own(Own::OpenFolder) => {
+                    // The key the window binds to its command "open-folder"
+                    // (keys.ts, ⌘O unless the person changed it), as every
+                    // command row takes it: never a key of the bar's own.
+                    let accelerator = menu_state.keys.get("open-folder").map(String::as_str);
+                    let text = l("open-folder");
+                    Box::new(
+                        MenuItem::with_id(app, OPEN_FOLDER, text, true, accelerator).or_else(
+                            |_| MenuItem::with_id(app, OPEN_FOLDER, text, true, None::<&str>),
+                        )?,
+                    )
+                }
                 Row::Own(Own::OpenFile) => Box::new(MenuItem::with_id(
                     app,
                     OPEN_FILE,

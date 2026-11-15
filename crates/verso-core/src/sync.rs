@@ -108,6 +108,86 @@ pub struct State {
     /// as JSON, ADR 0113 S8): the last answer holds while offline.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seat: Option<serde_json::Value>,
+    /// The state saved before did not read (empty, cut short, not JSON —
+    /// a power cut or a phone that died while it was written): it was set
+    /// aside, never deleted, and this state stands in for it, off, so that
+    /// the window says why instead of a plain "off" ([`load_checked`]).
+    /// Turning sync on again writes a state without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unreadable: Option<Unreadable>,
+}
+
+/// A saved state found unreadable, and where it was kept.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Unreadable {
+    /// Seconds since the Unix epoch when it was found.
+    pub at: i64,
+    /// The name it was set aside under, in the configuration directory.
+    pub aside: String,
+}
+
+/// What [`load_checked`] found of a folder's saved state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Loaded {
+    /// None saved: the folder never synced here, or was forgotten.
+    Missing,
+    /// The state as last saved (boxed: a state is large, the other
+    /// answers small).
+    Found(Box<State>),
+    /// What was saved did not read: set aside as [`Unreadable::aside`],
+    /// never deleted. Sync is off until the person turns it on again —
+    /// then a first sync, which deletes nothing (item 11).
+    Unreadable(Unreadable),
+}
+
+/// When a long pass saves the state it has reached: after every
+/// [`Checkpoint::STEPS`] steps carried out, or [`Checkpoint::EVERY`]
+/// since the last save, whichever comes first — so that a pass cut short
+/// (a first download of a whole folder, a link that drops) goes on from
+/// there instead of starting over. The host saves only after a step
+/// completed, whose base entry is then true; a step not carried out has
+/// none.
+#[derive(Debug, Clone)]
+pub struct Checkpoint {
+    steps: usize,
+    since: std::time::Instant,
+    every_steps: usize,
+    every: std::time::Duration,
+}
+
+impl Default for Checkpoint {
+    fn default() -> Self {
+        Self::new(Self::STEPS, Self::EVERY)
+    }
+}
+
+impl Checkpoint {
+    /// The steps between two saves.
+    pub const STEPS: usize = 50;
+    /// The longest time between two saves while steps complete.
+    pub const EVERY: std::time::Duration = std::time::Duration::from_secs(30);
+
+    #[must_use]
+    pub fn new(every_steps: usize, every: std::time::Duration) -> Self {
+        Self {
+            steps: 0,
+            since: std::time::Instant::now(),
+            every_steps: every_steps.max(1),
+            every,
+        }
+    }
+
+    /// One step carried out: whether to save now. Saying yes starts the
+    /// count again.
+    pub fn step(&mut self) -> bool {
+        self.steps += 1;
+        if self.steps >= self.every_steps || self.since.elapsed() >= self.every {
+            self.steps = 0;
+            self.since = std::time::Instant::now();
+            return true;
+        }
+        false
+    }
 }
 
 /// A cloud a folder syncs with (ADR 0104 item 6): WebDAV or S3, and where.
@@ -1025,8 +1105,14 @@ fn agreed<'a>(
     }
 }
 
-/// The folder's sync state, as last saved (none: never synced, or not
-/// readable — then a first sync, which deletes nothing).
+/// The folder's sync state, as last saved (none: never synced). A state
+/// that does not read is set aside, never deleted, and an off state that
+/// says so ([`State::unreadable`]) stands in for it: this answers that one
+/// — off, as before — and [`load_checked`] tells it apart.
+///
+/// # Errors
+/// The configuration directory is unknown, or the file could not be read
+/// or set aside.
 pub fn load(
     config: Option<&std::path::Path>,
     key: &str,
@@ -1035,7 +1121,26 @@ pub fn load(
         Some(d) => d.to_path_buf(),
         None => crate::config_dir()?,
     };
-    Ok(crate::sidecar::read_sync(&dir, key))
+    crate::sidecar::read_sync(&dir, key).map_err(crate::CoreError::Sidecar)
+}
+
+/// [`load`], telling a state that did not read from none: what the host
+/// asks to say "sync state unreadable" instead of "off".
+///
+/// # Errors
+/// As [`load`].
+pub fn load_checked(
+    config: Option<&std::path::Path>,
+    key: &str,
+) -> Result<Loaded, crate::CoreError> {
+    Ok(match load(config, key)? {
+        None => Loaded::Missing,
+        Some(State {
+            unreadable: Some(u),
+            ..
+        }) => Loaded::Unreadable(u),
+        Some(state) => Loaded::Found(Box::new(state)),
+    })
 }
 
 pub fn save(

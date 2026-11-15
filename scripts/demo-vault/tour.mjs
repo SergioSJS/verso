@@ -339,13 +339,15 @@ const STOPS = [
     color: TEAL,
     canvasColor: "5",
     cards: [
-      ["n-celular", "28 - Verso no Celular e no Tablet.md", 600],
-      ["n-mesanet", "29 - Mesa pela Internet.md", 600],
+      ["n-cenarios", "28 - Como Você Vai Usar o Verso.md", 400],
+      ["n-celular", "29 - Verso no Celular e no Tablet.md", 400],
+      ["n-mesanet", "30 - Mesa pela Internet.md", 400],
     ],
     tip:
-      "No navegador do celular, a barra de baixo traz Arquivos, Buscar, Nova nota, Voltar, Comandos e Painel; um layout dividido mostra um painel por vez. " +
+      "Não sabe por onde começar? A nota 28 mostra cada jeito de usar o Verso e o UniVerso — só no computador, com o celular em casa, sem servidor, com um UniVerso seu, numa mesa, em família — com o desenho de onde moram os arquivos e o que instalar em que ordem. " +
+      "No celular, uma barra só no alto: o botão com o número de abas abre a folha com as abas, o caminho, os modos e Arquivos, Buscar, Nova nota, Voltar, Comandos e Painel; um layout dividido mostra um painel por vez. " +
       "Tocar numa pasta a abre ou fecha, e a página dela abre pelo botão no fim da linha. Segurar e soltar abre o menu, segurar e arrastar move, e o … ao lado da linha faz o mesmo sem gesto. No Editar, o toque num link mostra Abrir e Editar link. Com HTTPS, Ajustes › Sem rede deixa uma pasta abrir e editar sem conexão, e o que mudou sobe quando a rede volta. " +
-      "Sem servidor montado: Ajustes › Transformar em servidor liga o seu próprio computador como servidor — na rede de casa para parear celulares, e/ou por um link da Cloudflare (modo de teste) para jogar com quem está longe; a nota 29 traz os passos, os convites, sentar à mesa e o endereço próprio.",
+      "Sem servidor montado: Ajustes › Transformar em servidor liga o seu próprio computador como servidor — na rede de casa para parear celulares, e/ou por um link da Cloudflare (modo de teste) para jogar com quem está longe; a nota 30 traz os passos, os convites, sentar à mesa e o endereço próprio.",
   },
   {
     id: "servidor",
@@ -354,18 +356,18 @@ const STOPS = [
     color: TEAL,
     canvasColor: "5",
     cards: [
-      ["n-servidor", "30 - Verso num Servidor.md", 240],
-      ["n-instalar", "31 - Instalar o seu UniVerso, Passo a Passo.md", 240],
-      ["n-nas", "32 - Instalar o servidor num NAS ou VPS.md", 240],
-      ["n-oracle", "33 - UniVerso num Servidor Grátis da Oracle.md", 240],
-      ["n-nuvem", "34 - Sincronizar com uma Nuvem.md", 240],
+      ["n-servidor", "31 - Verso num Servidor.md", 240],
+      ["n-instalar", "32 - Instalar o seu UniVerso, Passo a Passo.md", 240],
+      ["n-nas", "33 - Instalar o servidor num NAS ou VPS.md", 240],
+      ["n-oracle", "34 - UniVerso num Servidor Grátis da Oracle.md", 240],
+      ["n-nuvem", "35 - Sincronizar com uma Nuvem.md", 240],
     ],
     tip:
       "O UniVerso, o Verso num servidor seu, guarda as pastas e as abre no navegador: contas por convite, dono, editores e leitores, várias pessoas na mesma nota, no mesmo board ou arquivo, ao vivo, com o ponteiro e o nome de cada um. " +
-      "No app desktop, Ajustes › Servidores conecta pelo navegador; Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota, um board ou um arquivo de texto aberto nela é editado junto, ao vivo. " +
+      "No app desktop, Ajustes › Servidores conecta pelo navegador; escolher uma pasta do servidor baixa uma cópia dela, que abre sem rede e fica sincronizada (ou Abrir só no servidor, sem cópia); Ajustes › Sincronizar mantém uma pasta deste computador igual a uma do servidor — e, com a rede, uma nota, um board ou um arquivo de texto aberto nela é editado junto, ao vivo. " +
       "Botão direito numa pasta › Compartilhar… divide só ela com outra pessoa, lendo ou editando; quem recebe a vê em Compartilhados comigo. " +
-      "Para montar o seu, a nota 31 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup; a nota 32 escolhe o caminho pela máquina que você tem — um NAS (CasaOS, ZimaOS, outros com Docker) ou um VPS — e traz o HTTPS, o endereço público, os backups e os limites da lixeira; a nota 33 é o roteiro para quem nunca montou um servidor, numa máquina grátis da Oracle, com o menu do instalador (sh universo.sh). " +
-      "Sem servidor: Ajustes › Sincronizar › Sincronizar com… liga a pasta a um Nextcloud (WebDAV) ou a um bucket S3 que você já tem — a nota 34 mostra os passos e como limitar a chave a uma pasta; a senha fica no chaveiro do sistema, e o celular continua precisando de um UniVerso.",
+      "Para montar o seu, a nota 32 é o passo a passo: o compose ou o script de instalação, o primeiro admin, o HTTPS opcional e o backup; a nota 33 escolhe o caminho pela máquina que você tem — um NAS (CasaOS, ZimaOS, outros com Docker) ou um VPS — e traz o HTTPS, o endereço público, os backups e os limites da lixeira; a nota 34 é o roteiro para quem nunca montou um servidor, numa máquina grátis da Oracle, com o menu do instalador (sh universo.sh). " +
+      "Sem servidor: Ajustes › Sincronizar › Sincronizar com… liga a pasta a um Nextcloud (WebDAV) ou a um bucket S3 que você já tem — a nota 35 mostra os passos e como limitar a chave a uma pasta; a senha fica no chaveiro do sistema, e o celular continua precisando de um UniVerso.",
   },
   {
     id: "terminal",
@@ -374,7 +376,7 @@ const STOPS = [
     color: VIOLET,
     canvasColor: "6",
     cards: [
-      ["n-terminal", "35 - Terminal, CLI e Agentes de IA.md", 640],
+      ["n-terminal", "36 - Terminal, CLI e Agentes de IA.md", 640],
     ],
     tip:
       "Instale o comando verso em Ajustes › Terminal e agentes e busque nas notas pelo terminal. " +
@@ -396,7 +398,7 @@ const STOPS = [
     heading: "⚙️ Ajustes",
     color: GREEN,
     canvasColor: "4",
-    cards: [["n-ajustes", "36 - Ajustes, Aparência e Atalhos.md", 640]],
+    cards: [["n-ajustes", "37 - Ajustes, Aparência e Atalhos.md", 640]],
     tip: "⌘, abre os Ajustes: tema, paleta, fontes, idioma, as pastas do cofre e, em Atalhos, a tecla de cada comando — troque a que quiser. Em Aparência, a galeria de temas troca o visual com um clique; Copiar e Editar abrem o Construtor de tema, que muda as cores ao vivo, e dá para importar e exportar temas .verso-theme.",
     extra(b, x, y, f) {
       b.write("d-paletas", x + 740, y + 150, "as quatro paletas", { size: 32, color: GREY, frame: f });
@@ -422,7 +424,7 @@ const STOPS = [
     cards: [],
     tip:
       "O sino, na barra de status, guarda as notificações; Relatar problema, ao lado, prepara um relato para você copiar; ⌥⌘I abre o console. No Windows e no Linux, Ctrl no lugar de ⌘. " +
-      "Vindo do Obsidian? A nota 38 diz o que funciona igual na mesma pasta, o que o Verso acrescenta e o que não existe.",
+      "Vindo do Obsidian? A nota 39 diz o que funciona igual na mesma pasta, o que o Verso acrescenta e o que não existe.",
     tipWidth: 620,
     tipY: 700,
     extra(b, x, y, f) {
@@ -433,8 +435,8 @@ const STOPS = [
         "⌘⇧P  comandos\n⌘P  abrir pelo nome\n⌘K  buscar nas notas\n⌘N  nova nota\n⌘⇧D  nota de hoje\n" + "⌘E  ler ou editar\n⌘\\  dividir a tela\n⌘[  ⌘]  voltar e avançar\n⌘,  ajustes",
         { size: 34, color: INK, font: SANS, frame: f },
       );
-      b.file("n-ajuda", "37 - Ajuda, Atualizações e Diagnóstico.md", x + 720, y + 130, 640, 260);
-      b.file("n-obsidian", "38 - Compatibilidade com o Obsidian.md", x + 720, y + 410, 640, 260);
+      b.file("n-ajuda", "38 - Ajuda, Atualizações e Diagnóstico.md", x + 720, y + 130, 640, 260);
+      b.file("n-obsidian", "39 - Compatibilidade com o Obsidian.md", x + 720, y + 410, 640, 260);
       b.file("n-inicio", "00 - Bem-vindo ao Verso.md", x + 720, y + 690, 640, 260);
     },
   },

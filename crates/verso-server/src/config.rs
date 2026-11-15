@@ -300,6 +300,36 @@ fn value(env: &dyn Env, name: &str) -> Result<Option<String>, ConfigError> {
     }
 }
 
+/// `url` without the port its scheme has by default (`https://x:443` is
+/// `https://x`, `http://x:80` is `http://x`): a browser names neither in
+/// `Host` nor in `Origin`, which are compared with the public address
+/// (`auth.rs`), so a page would be refused as the wrong host. Any other
+/// port, or none, is kept as written.
+fn without_default_port(url: &str) -> String {
+    let default = if url.starts_with("https://") {
+        ":443"
+    } else if url.starts_with("http://") {
+        ":80"
+    } else {
+        return url.to_owned();
+    };
+    let Some((scheme, rest)) = url.split_once("://") else {
+        return url.to_owned();
+    };
+    let (authority, path) = match rest.find('/') {
+        Some(at) => rest.split_at(at),
+        None => (rest, ""),
+    };
+    match authority.strip_suffix(default) {
+        // The whole port, after a name: `x:4430` and `x:1443` do not end in
+        // `:443`, and nothing is left of a name that was only a port.
+        Some(name) if !name.is_empty() && !name.ends_with(':') => {
+            format!("{scheme}://{name}{path}")
+        }
+        _ => url.to_owned(),
+    }
+}
+
 /// The least length of the first admin's password (ADR 0074 item 1).
 pub const MIN_PASSWORD: usize = 12;
 
@@ -313,7 +343,7 @@ impl Config {
             .parse()
             .map_err(|e| ConfigError(format!("VERSO_LISTEN: {e}")))?;
         let public_url =
-            value(env, "VERSO_PUBLIC_URL")?.map(|u| u.trim_end_matches('/').to_owned());
+            value(env, "VERSO_PUBLIC_URL")?.map(|u| without_default_port(u.trim_end_matches('/')));
         if let Some(u) = &public_url
             && !(u.starts_with("https://") || u.starts_with("http://"))
         {
@@ -610,6 +640,30 @@ mod tests {
         .unwrap();
         assert!(!c.loopback_only());
         assert_eq!(c.public_url.as_deref(), Some("https://notas.casa"));
+    }
+
+    /// A public address written with its scheme's own port is the address a
+    /// browser names (review M2): `Host: notas.casa` was refused against
+    /// `notas.casa:443`. Any other port stays.
+    #[test]
+    fn the_public_address_drops_its_schemes_default_port() {
+        let public = |u: &str| read(&[("VERSO_PUBLIC_URL", u)]).unwrap().public_url;
+        for (written, read_as) in [
+            ("https://notas.casa:443", "https://notas.casa"),
+            ("https://notas.casa:443/", "https://notas.casa"),
+            ("http://notas.casa:80", "http://notas.casa"),
+            ("https://notas.casa:443/verso", "https://notas.casa/verso"),
+            ("https://[2001:db8::1]:443", "https://[2001:db8::1]"),
+            ("https://notas.casa", "https://notas.casa"),
+            ("https://notas.casa:8443", "https://notas.casa:8443"),
+            ("https://notas.casa:4430", "https://notas.casa:4430"),
+            ("https://notas.casa:1443", "https://notas.casa:1443"),
+            ("http://notas.casa:443", "http://notas.casa:443"),
+            ("https://notas.casa:80", "https://notas.casa:80"),
+            ("http://notas.casa:8080", "http://notas.casa:8080"),
+        ] {
+            assert_eq!(public(written).as_deref(), Some(read_as), "{written}");
+        }
     }
 
     #[test]

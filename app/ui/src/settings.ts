@@ -109,6 +109,9 @@ export type Settings = {
   devtools: boolean;
   /** A single click in a list opens a preview tab (2026-09-30). */
   previewTabs: boolean;
+  /** On a phone, the bar of verbs at the bottom is shown (the default);
+   *  off, its verbs are in the top bar's sheet alone (2026-11-14). */
+  phoneBottomBar: boolean;
   /** Organizing (ADR 0060, S1-S4). */
   stickers: boolean;
   stickerInLinks: boolean;
@@ -208,6 +211,7 @@ export const DEFAULTS: Settings = {
   boardDoubleClick: "card",
   devtools: true,
   previewTabs: true,
+  phoneBottomBar: true,
   stickers: true,
   stickerInLinks: false,
   covers: true,
@@ -388,6 +392,7 @@ export function applySettings(): void {
   // A note's sheet keeps a margin for the handles, in every mode, so its
   // text stands at the same place in Reading and in Edit.
   document.documentElement.classList.toggle("block-handles", Boolean(settings.blockHandles));
+  document.documentElement.classList.toggle("phone-bar-on", Boolean(settings.phoneBottomBar));
   const headingFonts: Record<string, string> = {
     serif: '"Fraunces", "Iowan Old Style", Georgia, serif',
     sans: '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',

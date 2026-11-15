@@ -615,6 +615,13 @@ jobs:
             echo "::error::the APK is signed with the debug key"
             exit 1
           fi
+          # Android names it by the release's version (it said 1.0 until 0.9.0-beta.2).
+          tools="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          if ! "$tools/aapt2" dump badging "$apk" | grep -q "versionName='$VERSION'"; then
+            echo "::error::the APK's versionName is not $VERSION"
+            "$tools/aapt2" dump badging "$apk" | head -1
+            exit 1
+          fi
           cp "$apk" "$slug-$VERSION-android-arm64.apk"
       - name: sign the release's files
         if: steps.version.outputs.sigs == 'true'

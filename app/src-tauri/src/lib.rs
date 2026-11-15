@@ -80,6 +80,7 @@ mod remote_abilities;
 #[cfg(target_os = "linux")]
 mod resolv_conf;
 mod secrets;
+mod server_copy;
 mod session;
 mod shared;
 mod shares;
@@ -928,6 +929,9 @@ macro_rules! commands_for {
                 server_folders::<$runtime>,
                 server_create_folder::<$runtime>,
                 server_open::<$runtime>,
+                server_copy::server_copy_open::<$runtime>,
+                server_copy::server_copy_plan::<$runtime>,
+                server_copy::server_copy_make::<$runtime>,
                 server_retry::<$runtime>,
                 window_server::<$runtime>,
                 discover_servers_start,
@@ -1053,6 +1057,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()
             .typ::<verso_contract::ServerGone>()
+            .typ::<verso_contract::ServerSignInFailed>()
             .typ::<verso_contract::LocalLink>()
             .typ::<verso_contract::ServerBack>()
             .typ::<verso_contract::FolderQuota>()

@@ -63,6 +63,14 @@ pub(crate) async fn open_shared_folder<R: tauri::Runtime>(
     .await
 }
 
+/// `Documents` of the shared storage, made when absent: where a copy of a
+/// server's folder goes when the person keeps it where the phone's other
+/// apps see it (`CopyPlace::Phone`, the maintainer, 2026-11-15). Refused
+/// without the access, and on a desktop.
+pub(crate) async fn phone_documents() -> Result<std::path::PathBuf, ContractError> {
+    imp::folder(String::new(), Some("Documents".to_owned())).await
+}
+
 /// Whether this window's folder is one of the app's own storage (a
 /// phone's, deleted with the app), not of the shared storage (item 4.4):
 /// what Settings › Sync says of it. Never on a desktop.

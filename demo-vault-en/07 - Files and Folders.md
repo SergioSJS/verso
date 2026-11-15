@@ -63,7 +63,7 @@ What you delete stays in the folder's **Trash** for 30 days, and then is gone fo
 - **Delete now** and **Empty the trash** delete for good, and ask first, right there, with the size.
 - **Keep deleted files for** changes this folder's period: from 1 day to **Forever**. Shortening it deletes at once whatever is already past the new period.
 - On a server, each folder's trash has a **size limit** (1 GiB unless whoever runs the server changes it): past it, the oldest items go before their time — but **never an item younger than 1 day**, which waits. If what you are about to delete passes that limit by itself, the question warns you: it will stay in the trash for 1 day and then go for good, and cannot be restored.
-- In a server folder ([[30 - Verso on a Server]]), outside a table, **only the folder's owner deletes**: whoever edits creates, renames and moves, and is not offered **Move to Trash** — `Delete` says why. Whoever can edit sees the trash and restores; deleting for good and shortening the period belong to the owner too. When a synced device overwrites a note, the version it replaced also goes to the trash, as **replaced by** that device — if another program saved an old text over it, you can go back.
+- In a server folder ([[31 - Verso on a Server]]), outside a table, **only the folder's owner deletes**: whoever edits creates, renames and moves, and is not offered **Move to Trash** — `Delete` says why. Whoever can edit sees the trash and restores; deleting for good and shortening the period belong to the owner too. When a synced device overwrites a note, the version it replaced also goes to the trash, as **replaced by** that device — if another program saved an old text over it, you can go back.
 
 ---
 
@@ -76,7 +76,7 @@ Every note, board and base keeps its **versions**: what was written at each chan
 - **Restore this version** asks first and writes that version as a new version: the current text stays in the history, nothing is lost. If the file changed while you were looking, nothing is written and the difference is redone.
 - **Copy as a new note** puts the version beside the file, as `Name (version 2026-10-14 15h04).md`.
 - Consecutive writes become one version every ten minutes of editing. All are kept for a day, then one an hour up to 30 days and one a day after that, for a year — **Settings › Files and links › Keep versions for** changes this. The history stays outside the folder, in Verso's configuration: none of it shows up among your files. Images and PDFs are not included; a replaced attachment goes to the [[#The Trash|trash]].
-- In a server folder ([[30 - Verso on a Server]]), whoever can edit sees the history and restores — also on a note that other people are editing together, which everyone sees change —, and whoever can only read sees no history.
+- In a server folder ([[31 - Verso on a Server]]), whoever can edit sees the history and restores — also on a note that other people are editing together, which everyone sees change —, and whoever can only read sees no history.
 
 ---
 

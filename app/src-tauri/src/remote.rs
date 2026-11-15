@@ -34,6 +34,8 @@ use crate::dns::SendRetrying;
 
 pub(crate) use crate::compat::{sync_refused, versions};
 
+mod sign_in;
+
 /// The commands a window on a server's folder sends to the server; every
 /// other one is this app's (its windows, its menus, its updates).
 pub(crate) fn forwards(cmd: &str) -> bool {
@@ -491,9 +493,17 @@ pub(crate) fn answer(response: reqwest::blocking::Response) -> Result<Value, Con
     {
         dns::worked(host, from.ip());
     }
+    let origin = response.url().origin().ascii_serialization();
     let body: Value = response.json().unwrap_or(Value::Null);
     if status.is_success() {
         return Ok(body);
+    }
+    // A proxy whose server is down: out of reach, by the server's address.
+    if reach::proxy_down(status.as_u16(), &body) {
+        return Err(reach::unreachable(
+            &origin,
+            &format!("a proxy answered {status}"),
+        ));
     }
     Err(error_of(status.as_u16(), &body))
 }
@@ -515,6 +525,11 @@ pub(crate) fn error_of(status: u16, body: &Value) -> ContractError {
         404 | 410 => ContractError {
             kind: ErrorKind::NotFound,
             message,
+        },
+        // A proxy's, the server behind it down (`answer` names the address).
+        s if crate::reach::proxy_down(s, body) => ContractError {
+            kind: ErrorKind::Unreachable,
+            message: format!("the server does not answer behind its proxy ({s})"),
         },
         _ => crate::reach::answered(status, message),
     }
@@ -571,70 +586,14 @@ pub(crate) async fn server_sign_in<R: tauri::Runtime>(
     })
     .await
     .map_err(|e| failed(e.to_string()))??;
-    let code = started["code"].as_str().unwrap_or_default().to_owned();
-    let poll = started["poll"].as_str().unwrap_or_default().to_owned();
     let page = started["url"].as_str().unwrap_or_default().to_owned();
-    let interval = started["interval"].as_u64().unwrap_or(2).max(1);
     if !page.starts_with(&url) {
         return Err(refused("the server named a page elsewhere"));
     }
     *lock(&SIGN_IN_PAGE) = Some(page.clone());
-    let (poll_code, poll_url) = (code.clone(), url.clone());
-    tauri::async_runtime::spawn(async move {
-        for _ in 0..(600 / interval) {
-            tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
-            let (c, p, u) = (poll_code.clone(), poll.clone(), poll_url.clone());
-            let r =
-                tauri::async_runtime::spawn_blocking(move || -> Result<Value, ContractError> {
-                    answer(
-                        http()?
-                            .post(format!("{u}/api/device/poll"))
-                            .json(&json!({ "code": c, "poll": p }))
-                            .send_retrying()
-                            .map_err(|e| reach::unsent(&u, &e))?,
-                    )
-                })
-                .await;
-            let body = match r {
-                Ok(Ok(body)) => body,
-                // Out of reach for a moment — the iOS app suspended while
-                // the person signs in in Safari (ADR 0119 Phase 0), a
-                // network that dropped: asked again at the next turn,
-                // within the code's ten minutes.
-                Ok(Err(e)) if e.kind == ErrorKind::Unreachable => continue,
-                _ => break,
-            };
-            if body["pending"] == true {
-                continue;
-            }
-            let (Some(token), Some(account)) = (body["token"].as_str(), body.get("account")) else {
-                break;
-            };
-            let login = ServerLogin {
-                url: poll_url.clone(),
-                token: token.to_owned(),
-                email: account["email"].as_str().unwrap_or_default().to_owned(),
-                name: account["name"].as_str().unwrap_or_default().to_owned(),
-            };
-            let shown = ServerAccount {
-                url: login.url.clone(),
-                email: login.email.clone(),
-                name: login.name.clone(),
-            };
-            match servers::keep(config.as_deref(), login) {
-                Ok(()) => {
-                    log::write("INFO", "host", &format!("signed in to {}", shown.url));
-                    let _ = app.emit("server-signed-in", shown);
-                }
-                Err(e) => log::write(
-                    "ERROR",
-                    "host",
-                    &format!("keeping the server's sign-in: {e}"),
-                ),
-            }
-            return;
-        }
-    });
+    let started = sign_in::Started::of(&url, &started);
+    let code = started.code.clone();
+    tauri::async_runtime::spawn(sign_in::follow(app, config, started));
     Ok(ServerSignIn { code, page })
 }
 
@@ -887,6 +846,21 @@ pub(crate) fn is_servers_401(
                 .is_some_and(|v| v.trim().parse::<u32>().is_ok()))
 }
 
+/// The largest message, and frame, a connection takes from the server: the
+/// server sends an answer as one frame, and its `sync_state` of a folder
+/// of ~110,000 files passed tungstenite's 16 MiB frame — the pass failed on
+/// the connection, every time (review I2, 2026-11-15). The server takes 48
+/// MiB from a client (`verso_server::rpc::MAX_MESSAGE`) and bounds nothing
+/// it sends; this bounds what a server can make this app hold at once.
+pub(crate) const LARGEST_MESSAGE: usize = 256 << 20;
+
+/// [`LARGEST_MESSAGE`] as tungstenite's configuration.
+pub(crate) fn ws_config() -> tokio_tungstenite::tungstenite::protocol::WebSocketConfig {
+    tokio_tungstenite::tungstenite::protocol::WebSocketConfig::default()
+        .max_message_size(Some(LARGEST_MESSAGE))
+        .max_frame_size(Some(LARGEST_MESSAGE))
+}
+
 /// Open the WebSocket of `request` at `host:port`: per address, the TCP
 /// connection and the TLS and WebSocket handshakes, so that an address that
 /// accepts the connection and cannot complete them (a router's own page on
@@ -913,12 +887,17 @@ pub(crate) async fn ws_open(
     let shaken = dns::dial_with(host, port, |stream| {
         let (request, connector) = (request.clone(), connector.clone());
         async move {
-            tokio_tungstenite::client_async_tls_with_config(request, stream, None, connector)
-                .await
-                .map_err(|e| {
-                    let answered = matches!(&e, Wire::Http(r) if is_servers_401(r, tls));
-                    (e, answered)
-                })
+            tokio_tungstenite::client_async_tls_with_config(
+                request,
+                stream,
+                Some(ws_config()),
+                connector,
+            )
+            .await
+            .map_err(|e| {
+                let answered = matches!(&e, Wire::Http(r) if is_servers_401(r, tls));
+                (e, answered)
+            })
         }
     })
     .await;
@@ -1351,6 +1330,13 @@ async fn redial_once<R: tauri::Runtime>(
     };
     let remote = match connect(app, label, login, folder.to_owned()).await {
         Ok(r) => r,
+        // A version this app does not follow: an update, not a sign-in, is
+        // the way back (review M1, 2026-11-15).
+        Err(e) if crate::compat::is_behind(&e) => {
+            release(app, label);
+            let _ = app.emit_to(label, "server-gone", gone(url, "version", None, None));
+            return Step::Stop;
+        }
         Err(e) if e.kind == ErrorKind::Refused => {
             release(app, label);
             let _ = app.emit_to(label, "server-gone", gone(url, "session", None, None));

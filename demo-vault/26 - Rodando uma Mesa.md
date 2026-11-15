@@ -9,9 +9,9 @@ status: ativo
 
 # Rodando uma Mesa
 
-Uma **mesa** é uma pasta de campanha num UniVerso (o Verso num servidor seu, [[30 - Verso num Servidor]]): você, a mestra, convida as jogadoras só para ela, e cada nota fica **oculta** até você liberar. Nada disso é escrito nas notas: o que está liberado, o que tem nome secreto e quem pode editar fica no banco do servidor, então um arquivo sincronizado, ou aberto no Obsidian, é uma nota comum.
+Uma **mesa** é uma pasta de campanha num UniVerso (o Verso num servidor seu, [[31 - Verso num Servidor]]): você, a mestra, convida as jogadoras só para ela, e cada nota fica **oculta** até você liberar. Nada disso é escrito nas notas: o que está liberado, o que tem nome secreto e quem pode editar fica no banco do servidor, então um arquivo sincronizado, ou aberto no Obsidian, é uma nota comum.
 
-Só a dona da pasta faz isto, numa pasta de um servidor ou numa pasta deste computador **sincronizada** com ele ([[30 - Verso num Servidor]]): a mestra pode conduzir a sessão do app de desktop, com a pasta local, enquanto as jogadoras usam o navegador ou o app de desktop delas na pasta do servidor. Sem conexão (ou com a sincronização pausada) a mesa fica indisponível e o painel **Mesa** diz isso; ela volta sozinha quando a conexão volta. Numa pasta só deste computador não há mesa, e nada disto aparece — a não ser que o próprio Verso dela vire servidor e você se sente à mesa ([[29 - Mesa pela Internet]]): aí é a mesma mesa, com a mesma janela **Mesa** e os mesmos convites.
+Só a dona da pasta faz isto, numa pasta de um servidor ou numa pasta deste computador **sincronizada** com ele ([[31 - Verso num Servidor]]): a mestra pode conduzir a sessão do app de desktop, com a pasta local, enquanto as jogadoras usam o navegador ou o app de desktop delas na pasta do servidor. Sem conexão (ou com a sincronização pausada) a mesa fica indisponível e o painel **Mesa** diz isso; ela volta sozinha quando a conexão volta. Numa pasta só deste computador não há mesa, e nada disto aparece — a não ser que o próprio Verso dela vire servidor e você se sente à mesa ([[30 - Mesa pela Internet]]): aí é a mesma mesa, com a mesma janela **Mesa** e os mesmos convites.
 
 ---
 
@@ -33,7 +33,7 @@ Num UniVerso, convida alguém que ainda não tem conta quem administra o servido
 
 **Mesa aberta** é uma **chave** no topo da janela, com um selo **Aberta** ou **Fechada**, e vale na hora: não há botão de salvar. Desligada, as jogadoras não conseguem abrir a pasta e quem está dentro sai; e você sempre entra. **O que a jogadora vê:** no lugar da pasta, "A mesa está fechada pelo mestre. Você entra quando ela abrir.", com **Tentar agora**; o app tenta de novo sozinho, de vez em quando, e ela entra assim que você ligar a chave. Para você, o botão da Mesa ao lado do nome da pasta diz **Mesa (fechada)** enquanto estiver desligada, para você não esquecer ninguém do lado de fora.
 
-Uma mesa que você **levou para o outro servidor** (o computador ou o UniVerso, veja [[29 - Mesa pela Internet]]) fica fechada aqui de vez: a jogadora que a abre lê *A mesa mudou de servidor. O mestre levou esta mesa para outro servidor. Peça a ele um convite novo.*, sem tentar de novo, e a chave não reabre. **Desfazer** essa mesa antiga tira dela os jogadores que ela tinha.
+Uma mesa que você **levou para o outro servidor** (o computador ou o UniVerso, veja [[30 - Mesa pela Internet]]) fica fechada aqui de vez: a jogadora que a abre lê *A mesa mudou de servidor. O mestre levou esta mesa para outro servidor. Peça a ele um convite novo.*, sem tentar de novo, e a chave não reabre. **Desfazer** essa mesa antiga tira dela os jogadores que ela tinha.
 
 A janela é feita de cartões: **Convidar jogadores** (o link num campo, com **Copiar** e o dia em que vence), **Jogadores** (uma tabela, veja [[#Quem pode o quê: a tabela de jogadoras]]), **Notas** (quantas liberadas e quantas ocultas, com **Liberar tudo** e **Ocultar tudo**, que valem para a mesa toda) e, recolhidos, os limites em **Avançado**. **Desfazer mesa** fica no pé, em vermelho e discreto, e pergunta antes.
 

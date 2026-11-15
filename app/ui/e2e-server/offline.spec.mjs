@@ -580,3 +580,42 @@ test("the server ending the session deletes the copy at the device's next connec
   expect(await kept(page, folder, "a.md")).toBeNull();
   expect(errors.filter((e) => !/session|signed|unauthor/i.test(e))).toEqual([]);
 });
+
+test("a session ended while the connection was down sends the window to sign in, and says the changes that were waiting", async ({ page, browser }, info) => {
+  chromiumOnly();
+  test.setTimeout(240_000);
+  const errors = watch(page);
+  await signedIn(page);
+  const folder = await newFolder(page, `Fim fora ${info.project.name}`);
+  await put(page, folder, "a.md", "a\n");
+  // Routed from the start: a socket made before the route is not its.
+  const net = await network(page);
+  await open(page, folder);
+  await keepIt(page);
+  // The connection goes; the window goes on from the copy, and a write
+  // waits there.
+  await net.off();
+  await reopen(page);
+  await expect(page.locator("#notes li").first()).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator("html")).toHaveAttribute("data-offline", "1", { timeout: 30_000 });
+  await typeIn(page, "a.md", "escrito antes do fim\n");
+  await expect.poll(() => kept(page, folder, "a.md"), { timeout: 30_000 }).toContain("escrito antes do fim");
+  // Meanwhile the same account, elsewhere, ends the other sessions: nothing
+  // can tell this window, whose connection is down.
+  const away = await elsewhere(browser);
+  const ended = await away.page.evaluate(async () => {
+    const state = await (await fetch("/api/state")).json();
+    return (await fetch("/api/me/sessions/others", { method: "DELETE", headers: { "x-verso-csrf": state.csrf } })).status;
+  });
+  expect(ended).toBe(200);
+  await away.close();
+  // The network returns: every upgrade is refused (401, seen by the page
+  // only as a close). The window asks the server, hears the session ended,
+  // and goes to sign in — not "offline" for ever, taking edits.
+  await net.on();
+  await page.waitForURL(/\/signin/, { timeout: 60_000 });
+  // The copy goes (ADR 0092 item 6), and the change that waited is said.
+  await expect(page.locator("body")).toContainText(/O servidor encerrou esta sessão.*1 mudança/, { timeout: 30_000 });
+  await expect.poll(() => keptPaths(page, folder), { timeout: 30_000 }).toEqual([]);
+  expect(errors.filter((e) => !/session|signed|unauthor|401/i.test(e))).toEqual([]);
+});

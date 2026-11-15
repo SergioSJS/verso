@@ -79,7 +79,7 @@ No Obsidian, a nota mostra as mesmas propriedades do jeito do Obsidian: nada no 
 ## Buscar e Agentes
 
 - Na busca, `type:personagem` lista as notas do tipo — junto com `tag:`, `path:` e as palavras.
-- Um agente pelo MCP ([[35 - Terminal, CLI e Agentes de IA]]) recebe o tipo e as propriedades declaradas de cada nota, e lista as notas de um tipo.
+- Um agente pelo MCP ([[36 - Terminal, CLI e Agentes de IA]]) recebe o tipo e as propriedades declaradas de cada nota, e lista as notas de um tipo.
 
 ---
 

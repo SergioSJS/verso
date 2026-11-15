@@ -107,6 +107,7 @@ const pt = {
     version: "o servidor está numa versão diferente deste app: atualize o que estiver atrás",
     folder_gone: "a pasta do servidor sumiu, ou esta conta não tem mais acesso a ela",
     held: "a pasta deste computador não pôde ser aberta para seguir sincronizando enquanto você está à mesa: tente de novo",
+    state_unreadable: "o estado salvo da sincronização não pôde ser lido: ela foi desligada",
     failed: "algo deu errado; o log do app diz o quê",
   } as Record<string, string>,
   /** The `version` problem with what each side runs. */
@@ -130,6 +131,10 @@ const pt = {
   // A share revoked by its owner (ADR 0081 item 8): sync turned off.
   revokedShort: (when: string) => `Desligada: quem compartilhou revogou o acesso em ${when}`,
   revokedTitle: "Compartilhamento revogado",
+  // A saved state that did not read (review I5): kept aside, never deleted.
+  unreadableTitle: "Estado da sincronização ilegível",
+  unreadableWhy: (aside: string) =>
+    `O arquivo em que este app guarda o que já foi sincronizado nesta pasta não pôde ser lido. Ele foi guardado à parte, como ${aside}, na pasta de configurações do app, e a sincronização foi desligada. Ao ligá-la de novo, os dois lados são comparados do zero, como numa primeira sincronização: nada é apagado.`,
   revokedWhy: (folder: string, server: string, when: string) =>
     `Quem compartilhou ${folder}, em ${server}, revogou o seu acesso em ${when}. A sincronização desta pasta foi desligada; os arquivos continuam neste computador, como estavam.`,
 };
@@ -210,6 +215,7 @@ const en: typeof pt = {
     version: "the server runs another version than this app: update the one that is behind",
     folder_gone: "the server's folder is gone, or this account no longer reaches it",
     held: "this computer's folder could not be opened to go on syncing while you sit at the table: try again",
+    state_unreadable: "the sync's saved state could not be read: sync was turned off",
     failed: "something went wrong; the app's log says what",
   },
   versions: (v: SyncVersions): string =>
@@ -231,6 +237,9 @@ const en: typeof pt = {
   bar: "Sync",
   revokedShort: (when: string) => `Off: the share's owner revoked it on ${when}`,
   revokedTitle: "Share revoked",
+  unreadableTitle: "Sync state unreadable",
+  unreadableWhy: (aside: string) =>
+    `The file in which this app keeps what was already synced in this folder could not be read. It was kept aside, as ${aside}, in the app's settings folder, and sync was turned off. Turned on again, both sides are compared from the start, as on a first sync: nothing is deleted.`,
   revokedWhy: (folder: string, server: string, when: string) =>
     `Whoever shared ${folder}, on ${server}, revoked your access on ${when}. This folder's sync was turned off; the files stay on this computer as they were.`,
 };
@@ -305,6 +314,10 @@ function problemText(st: SyncStatus): string | null {
 export function stateText(st: SyncStatus, short = false): string {
   const s = syncStrings();
   if (st.state === "off" && st.revoked) return s.revokedShort(when(st.revoked));
+  if (st.state === "off" && st.problem === "state_unreadable") {
+    const words = s.problems["state_unreadable"] ?? "";
+    return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+  }
   let text = s.states[st.state] ?? st.state;
   if (st.state === "syncing" && (st.sending || st.receiving)) text = s.moving(st.sending, st.receiving);
   if (st.state === "paused" && st.deletions) text = `${s.states["paused"]} · ${s.toDelete(st.deletions)}`;
@@ -354,7 +367,8 @@ function paint(): void {
   const st = status;
   // Off because the share was revoked, the bar says so until the person
   // turns sync on again or off themselves.
-  const revoked = Boolean(st && !st.on && st.revoked);
+  // Or because its saved state did not read (review I5).
+  const revoked = Boolean(st && !st.on && (st.revoked || st.problem === "state_unreadable"));
   b.hidden = !st || (!st.on && !revoked);
   if (st && (st.on || revoked)) {
     const text = stateText(st, true);
@@ -421,7 +435,8 @@ export function syncBody(item: Item): HTMLElement {
       return;
     }
     const on = status?.on ?? false;
-    const revoked = on ? null : (status?.revoked ?? null);
+    // Redrawn when why it is off changes: a revocation, a state unreadable.
+    const revoked = on ? null : (status?.revoked ?? (status?.problem === "state_unreadable" ? "unreadable" : null));
     if (on) drawOn(body, status as SyncStatus);
     else if (wasOn !== false || revoked !== wasRevoked) void drawOff(body, item);
     wasOn = on;
@@ -458,6 +473,15 @@ async function drawOff(box: HTMLElement, item: Item): Promise<void> {
       h("h3", "sync-item-title", s.revokedTitle),
       h("p", "sync-item-why", s.revokedWhy(st.folder_name || st.folder, hostOf(st.server), when(st.revoked))),
     );
+    box.prepend(notice);
+  }
+  // Turned off because its saved state did not read: said, with the file
+  // kept aside named (the host's message ends with its name).
+  if (st && !st.on && st.problem === "state_unreadable") {
+    const aside = /set aside as (\S+)$/.exec(st.message ?? "")?.[1] ?? "";
+    const notice = h("article", "sync-item danger sync-unreadable");
+    notice.setAttribute("role", "status");
+    notice.append(h("h3", "sync-item-title", s.unreadableTitle), h("p", "sync-item-why", s.unreadableWhy(aside)));
     box.prepend(notice);
   }
   // A UniVerso or a cloud the person already has: one place per folder.

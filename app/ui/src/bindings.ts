@@ -918,6 +918,67 @@ export const commands = {
 	 */
 	serverOpen: (url: string, folder: string) => typedError<FolderInfo, ContractError>(__TAURI_INVOKE("server_open", { url, folder })),
 	/**
+	 *  Open this device's copy of `folder` of the server at `url` in this
+	 *  window, with nothing asked of the server (offline too): `None` when
+	 *  there is none here yet.
+	 */
+	serverCopyOpen: (url: string, folder: string) => typedError<{
+	/**  The folder's own name (its last path component), for display. */
+	name: string,
+	/**
+	 *  An opaque, stable name for the folder that carries no path — the
+	 *  stem of its index file's name under the configuration directory:
+	 *  letters, digits and `-`. What a UI keeps its per-folder state
+	 *  under, and what `reopen_folder` takes to open the folder again.
+	 */
+	key: string,
+	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
+} | null, ContractError>(__TAURI_INVOKE("server_copy_open", { url, folder })),
+	/**
+	 *  What a copy of `folder` of the server at `url` would take, and where
+	 *  this device can keep it: asked before the question is put.
+	 */
+	serverCopyPlan: (url: string, folder: string) => typedError<ServerCopyPlan, ContractError>(__TAURI_INVOKE("server_copy_plan", { url, folder })),
+	/**
+	 *  Make the copy of `folder` of the server at `url` in `place`, open it in
+	 *  this window, and bind it to the server's folder: its sync starts at
+	 *  once and downloads everything, the window hearing `sync-status` as it
+	 *  goes. A copy already here is opened instead, never a second one. `None`
+	 *  when the person cancelled the desktop's dialog.
+	 */
+	serverCopyMake: (url: string, folder: string, place: CopyPlace) => typedError<{
+	/**  The folder's own name (its last path component), for display. */
+	name: string,
+	/**
+	 *  An opaque, stable name for the folder that carries no path — the
+	 *  stem of its index file's name under the configuration directory:
+	 *  letters, digits and `-`. What a UI keeps its per-folder state
+	 *  under, and what `reopen_folder` takes to open the folder again.
+	 */
+	key: string,
+	index: IndexSummary,
+	/**
+	 *  The name of the folder's file system when changes made there by
+	 *  other programs may show late: a volume without the exclusive rename
+	 *  and with hard links (macOS: some network volumes; ADR 0048, revised
+	 *  2026-10-12), where a file Verso creates or moves is named by a
+	 *  link, whose later removal by another program the system may not
+	 *  report. Verso's own writes are as safe as anywhere. The UI says it
+	 *  once per folder, in the user's language (ADR 0035).
+	 */
+	late_outside_changes?: string | null,
+} | null, ContractError>(__TAURI_INVOKE("server_copy_make", { url, folder, place })),
+	/**
 	 *  The window's reconnection tries now, its waits starting over: the
 	 *  person's "Tentar de novo" while the window's server is out of reach.
 	 *  Nothing when the window is not reconnecting.
@@ -2139,7 +2200,15 @@ export type Can =
  *  and A13); the window then says the server runs only while Verso is
  *  open.
  */
-"serve_away";
+"serve_away" | 
+/**
+ *  Open a folder of the phone's shared storage, walked in the window
+ *  (ADR 0118 item 4.4): the Android app alone lists it. The iOS app
+ *  opens only the folders in its own Documents, and the window leaves
+ *  *Open another folder…* out there; the desktop's is the system's
+ *  folder picker.
+ */
+"shared_storage";
 
 export type Capabilities = Capabilities_Serialize | Capabilities_Deserialize;
 
@@ -2384,6 +2453,30 @@ export type ContractError = {
 	kind: ErrorKind,
 	message: string,
 };
+
+/**  Where this device can keep a copy of a server's folder. */
+export type CopyPlace = 
+/**
+ *  Android: the app's own storage, beside its `Verso` folder — no
+ *  other app sees it, and it goes when the app is uninstalled.
+ */
+"in_app" | 
+/**
+ *  Android: `Documents` of the phone's shared storage, which Obsidian
+ *  and the other apps see (ADR 0118 item 4.4: Android's *All files
+ *  access*).
+ */
+"phone" | 
+/**
+ *  iOS and iPadOS: the app's `Documents`, which the Files app shows
+ *  (ADR 0119 A5).
+ */
+"documents" | 
+/**
+ *  A desktop: a folder the person chooses with the system's dialog; the
+ *  copy is made inside it.
+ */
+"choose";
 
 /**
  *  This computer's name (ADR 0079 item 8, ADR 0074 item 8; decided
@@ -4355,6 +4448,21 @@ export type ServerBack = {
 	url: string,
 };
 
+/**
+ *  What a copy of a server's folder would take, asked before it is made:
+ *  the folder's name (the copy's), how many files the server would send
+ *  this account — a reader's count leaves out what it may not read, as the
+ *  sync does — and their size, and where this device can keep it.
+ */
+export type ServerCopyPlan = {
+	name: string,
+	files: number,
+	/**  Bytes, `f64` as everywhere in the contract. */
+	bytes: number | null,
+	/**  This device's places, the first the one offered first. */
+	places: CopyPlace[],
+};
+
 /**  A folder of a server the account may open, and the role in it. */
 export type ServerFolder = {
 	id: string,
@@ -4395,7 +4503,9 @@ export type ServerGone = {
 	url: string,
 	/**
 	 *  What ended: `session` (the server ended this device's session, or
-	 *  refused it on reconnecting), `folder` (this account no longer
+	 *  refused it on reconnecting), `version` (on reconnecting, the server
+	 *  runs a version this app does not follow: one of the two is to be
+	 *  updated, not signed in again), `folder` (this account no longer
 	 *  reaches the folder or the share: `reason` says why), `connection`
 	 *  (the connection dropped; the app tries again), `unreachable` (a
 	 *  try found the server out of reach: `address` names it) or `closed`
@@ -4426,6 +4536,23 @@ export type ServerGone = {
 export type ServerSignIn = {
 	code: string,
 	page: string,
+};
+
+/**
+ *  A sign-in through the browser that ended without this device signed in
+ *  (event `server-sign-in-failed`; `server-signed-in` says the other end):
+ *  the window stops waiting for the code and says why, with a try again.
+ */
+export type ServerSignInFailed = {
+	/**  The server, as the sign-in named it. */
+	url: string,
+	/**
+	 *  `refused` (the person said it was not them on the server's page, or
+	 *  the code was used elsewhere), `expired` (the code's ten minutes ran
+	 *  out) or `failed` (the server's answer did not read, or this device
+	 *  could not keep the sign-in: the log says what).
+	 */
+	why: string,
 };
 
 /**

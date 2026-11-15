@@ -494,6 +494,26 @@ pub fn refresh(
     known: &mut Option<Known>,
     remembered: &BTreeMap<String, Token>,
 ) -> Result<Vec<Who>> {
+    refresh_learning(remote, known, &mut remembered.clone())
+}
+
+/// [`refresh`], keeping in `remembered` each hash it reads of the remote
+/// as soon as it has it — also when a later read fails and the picture is
+/// left as it was. A cloud's first listing reads every file to find its
+/// hash; on a link that drops, a host that saves `remembered` (the state's
+/// `tokens`) after a failed refresh does not read those files again on
+/// the next try, so a large folder gets through a piece at a time instead
+/// of starting over (I4 of the sync review, 2026-11-15). What it keeps is
+/// only what the remote said a version holds: never a base, never a
+/// change to plan from.
+///
+/// # Errors
+/// As [`refresh`].
+pub fn refresh_learning(
+    remote: &dyn Remote,
+    known: &mut Option<Known>,
+    remembered: &mut BTreeMap<String, Token>,
+) -> Result<Vec<Who>> {
     let after = known.as_ref().and_then(|k| k.cursor.clone());
     let (listing, kept) = match remote.list(after.as_deref()) {
         Err(e) if e.kind == RemoteErrorKind::CursorLost => (remote.list(None)?, None),
@@ -504,7 +524,7 @@ pub fn refresh(
         _ => Known::default(),
     };
     let mut named = Vec::new();
-    let learn = |entry: &Entry, next: &mut Known| -> Result<Who> {
+    let mut learn = |entry: &Entry, next: &mut Known| -> Result<Who> {
         let hash = match &entry.hash {
             Some(h) => Some(h.clone()),
             None => {
@@ -522,7 +542,17 @@ pub fn refresh(
                 }) {
                     Some(h) => Some(h),
                     None => match remote.fingerprint(&entry.path) {
-                        Ok((version, hash)) if version == entry.version => Some(hash),
+                        Ok((version, hash)) if version == entry.version => {
+                            remembered.insert(
+                                entry.path.clone(),
+                                Token {
+                                    version,
+                                    hash: hash.clone(),
+                                    size: entry.size,
+                                },
+                            );
+                            Some(hash)
+                        }
                         // It changed between the listing and the read: the
                         // next pass lists it again.
                         Ok(_) => None,

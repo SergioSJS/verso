@@ -101,6 +101,14 @@ recommended and is marked `[DECIDED 2026-10-14]`.
 8. **Every browser, not only phones.** The same feature works in a desktop
    browser; the desktop app keeps [0079](0079-sync-a-local-folder-with-a-server.md)'s
    sync of a local folder, unchanged.
+   *2026-11-15 — the apps (desktop, Android, iOS) no longer open a
+   server's folder online by default: picking one makes a copy on the
+   device bound by 0079's sync, which opens offline (the maintainer, after
+   the Android app would not open such a folder again in airplane mode;
+   his decision, as relayed that day: *"On ALL apps (desktop, Android, iOS): picking a UniVerso folder downloads the whole folder into a local folder, binds it to the server folder with the existing sync engine (ADR 0079), and opens the local copy. Offline, the local copy opens; sync resumes when the network returns."*; 0079 item 14,
+   revised the same day). This ADR stays the browser's offline; the
+   window on the server alone stays in the apps as a second choice, online
+   only.*
 9. **Accessibility and languages** ([0035](0035-cross-cutting-requirements.md)):
    the offline state is announced when it changes; pt-BR and English.
 

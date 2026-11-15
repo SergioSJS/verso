@@ -30,7 +30,8 @@ import { attachFolderLayouts } from "./statblock/folderWire";
 import { focusOnOpen } from "./screen/openFocus";
 import { receiveShared } from "./screen/shared";
 import { openSharedFolderDialog } from "./dialogs/sharedFolder";
-import { host } from "./can";
+import { can, host } from "./can";
+import { sh } from "./shareStrings";
 
 /** A popped-out window joins the session: the folder is open already. */
 export async function joinAsPopout(): Promise<void> {
@@ -203,10 +204,20 @@ async function showListsAndTabs(info: FolderInfo): Promise<void> {
   }
   if (!restored) newSpace();
 }
+/** Whether this window can open a folder it does not list yet: the
+ *  desktop's picker, a browser's server, Android's shared storage — not
+ *  the iOS app, which opens only the folders in its own Documents. */
+export function opensAnotherFolder(): boolean {
+  return host() !== "mobile" || can("shared_storage");
+}
 export async function openFolderDialog(): Promise<void> {
-  // A phone has no folder picker that answers with a folder: its shared
-  // storage is walked in the window (ADR 0118 item 4.4).
-  if (host() === "mobile") return openSharedFolderDialog();
+  // A phone has no folder picker that answers with a folder: Android's
+  // shared storage is walked in the window (ADR 0118 item 4.4); the iOS
+  // app has none, and says where its folders are (review #4, 2026-11-15).
+  if (host() === "mobile") {
+    if (can("shared_storage")) return openSharedFolderDialog();
+    return flash("info", sh.openOther, sh.openOtherNone);
+  }
   await openFolderBy(() => commands.pickFolder());
 }
 /** A scan rule turned on or off: the host takes the new rules, and the

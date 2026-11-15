@@ -18,6 +18,7 @@ import { Prec, type EditorState, type Extension } from "@codemirror/state";
 import { redo, undo } from "@codemirror/commands";
 import { deleteCol, deleteRow, gridText, insertCol, insertRow, parseGrid, setAlign, setCell, type Align, type Grid } from "./table";
 import { wireColumnGrips, type WidthStore } from "./tableWidths";
+import { danger } from "./menuDanger";
 
 export type TableEditorOptions = {
   labels: {
@@ -437,8 +438,8 @@ export class TableEditor extends WidgetType {
     const align = (a: Align, label: string) => [label + (g.align[c] === a ? " ✓" : ""), () => write(view, dom, setAlign(g, c, g.align[c] === a ? null : a), { r, c }, "input.table"), "text"] as [string, () => void, string];
     items.push(align("left", L.alignLeft), align("center", L.alignCenter), align("right", L.alignRight));
     items.push(["—", () => {}]);
-    if (r >= 0) items.push([L.deleteRow, () => write(view, dom, deleteRow(g, r), { r: Math.min(r, g.body.length - 2), c }, "delete.table"), "close"]);
-    if (g.head.length > 1) items.push([L.deleteCol, () => write(view, dom, deleteCol(g, c), { r, c: Math.max(0, c - 1) }, "delete.table"), "close"]);
+    if (r >= 0) items.push(danger<[string, () => void, string?]>([L.deleteRow, () => write(view, dom, deleteRow(g, r), { r: Math.min(r, g.body.length - 2), c }, "delete.table"), "close"]));
+    if (g.head.length > 1) items.push(danger<[string, () => void, string?]>([L.deleteCol, () => write(view, dom, deleteCol(g, c), { r, c: Math.max(0, c - 1) }, "delete.table"), "close"]));
     this.opts.menu(x, y, items);
   }
 

@@ -76,6 +76,8 @@ mod picked;
 pub use picked::{
     FilesDropped, FilesOver, PickSkip, PickedFile, PickedFiles, RecentFolder, SkippedPick,
 };
+mod server_copy;
+pub use server_copy::{CopyPlace, ServerCopyPlan};
 mod periodic;
 pub use periodic::{ObsidianPeriodic, PeriodSettings, PeriodicSettings};
 mod loose;
@@ -773,6 +775,20 @@ pub struct ServerAccount {
     pub name: String,
 }
 
+/// A sign-in through the browser that ended without this device signed in
+/// (event `server-sign-in-failed`; `server-signed-in` says the other end):
+/// the window stops waiting for the code and says why, with a try again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct ServerSignInFailed {
+    /// The server, as the sign-in named it.
+    pub url: String,
+    /// `refused` (the person said it was not them on the server's page, or
+    /// the code was used elsewhere), `expired` (the code's ten minutes ran
+    /// out) or `failed` (the server's answer did not read, or this device
+    /// could not keep the sign-in: the log says what).
+    pub why: String,
+}
+
 /// A UniVerso announced on the local network (ADR 0097): what the
 /// announcement says, to show and to click, never to trust. The `url` is
 /// the address a click fills in; nothing connects because of it.
@@ -815,7 +831,9 @@ pub struct ServerGone {
     /// The server, as signed in to (Settings › Servers).
     pub url: String,
     /// What ended: `session` (the server ended this device's session, or
-    /// refused it on reconnecting), `folder` (this account no longer
+    /// refused it on reconnecting), `version` (on reconnecting, the server
+    /// runs a version this app does not follow: one of the two is to be
+    /// updated, not signed in again), `folder` (this account no longer
     /// reaches the folder or the share: `reason` says why), `connection`
     /// (the connection dropped; the app tries again), `unreachable` (a
     /// try found the server out of reach: `address` names it) or `closed`

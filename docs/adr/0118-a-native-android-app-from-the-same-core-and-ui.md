@@ -178,6 +178,19 @@ How, from the platform's rules (`Constraint` unless marked):
    user on many devices) can be short for a large vault.
 2. **A window on a UniVerso folder**, as the desktop app opens one (0073
    item 2, 0079).
+   *Revised 2026-11-15 (the maintainer, after 0.9.0-beta.1: a folder
+   "RPG" opened here from the folder picker would not open again in
+   airplane mode; his decision, as relayed that day: *"On ALL apps (desktop, Android, iOS): picking a UniVerso folder downloads the whole folder into a local folder, binds it to the server folder with the existing sync engine (ADR 0079), and opens the local copy. Offline, the local copy opens; sync resumes when the network returns."*).
+   Picking a UniVerso's folder now makes **a copy on the phone**, synced
+   by item 1's engine, and opens it; the question says its size and asks
+   where it goes: **Dentro do app** (the private storage, beside `Verso`;
+   deleted if the app is uninstalled, said there) or **Celular/Documents**
+   (item 4's *All files access*, asked first; Obsidian and other apps see
+   it). Once the copy exists the pick opens it with nothing asked, offline
+   too. The window on the UniVerso folder stays as the question's second
+   choice, *"Abrir só no servidor, sem cópia"*, online only. 0079 item 14
+   (revised the same day) holds the details and the defaults chosen in
+   the code.*
 3. **A folder the person picks in shared storage** (a SAF `content://`
    tree) is **deferred**: it needs a new `verso-fs` backend (no atomic
    rename, no inotify, slow bulk listing). The open item of 0026 rule 4's
@@ -312,6 +325,13 @@ on the entry function. Also:
 | 0 — spike | Android SDK/NDK set up; a debug APK built from `app/src-tauri` with item 7's gates | On the maintainer's POCO X3 Pro (M2102J20SG, Android 16 / API 36, arm64) over `adb`: opens a folder in private storage; the demo vault measured in Android's WebView — recommended pass numbers, not decided: opens in ≤ 3 s, typing latency ≤ 50 ms on a long note, the board at ≥ 30 fps with ~60 elements, memory ≤ 400 MB; a TLS handshake to a real UniVerso; the Doze test (`adb shell dumpsys deviceidle force-idle` with a client connected: the server still answers); the build breaks found beyond item 7 listed |
 | 1 — v1 | Items 3–6: private folder synced with UniVerso / WebDAV / S3; a window on a UniVerso folder; the phone as a server on the LAN and by the bundled link, with the foreground service; the off list; a signed APK | The rows of [`docs/reference/manual-checks.md`](../reference/manual-checks.md) "This app is a server" that apply, run from the phone; sync's vectors green on Android (cross-built host tests or an on-device runner: `[OPEN]`); the Doze test again; TalkBack; both languages, the foreground notification's text included; 390×844 and the device's own size |
 | 2 — later | A SAF folder import, Play Store, F-Droid (*not now*, 2026-11-12), iOS (0119) | Each by its own decision |
+
+*2026-11-15 — Phase 1's "a window on a UniVerso folder" is, since the
+maintainer's decision of that day (item 4.2, revised), a copy of the
+UniVerso folder on the phone, synced and opening offline, with the window
+on the server as the second choice; its device checks (airplane mode
+included) are in `manual-checks.md` ("A server's folder picked in the
+app").*
 
 The intents, the shared folder through *All files access*, background sync
 and audio capture moved from Phase 2 into Phase 1 on 2026-11-12 (Source).
