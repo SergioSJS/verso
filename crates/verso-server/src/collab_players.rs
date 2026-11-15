@@ -296,10 +296,10 @@ fn disk_classes(
     base: &str,
     lock: &dyn Fn(&str) -> Option<String>,
 ) -> (Value, BTreeMap<String, Class>) {
-    let canvas: Value = serde_json::from_str(base)
-        .ok()
-        .filter(Value::is_object)
-        .unwrap_or_else(|| json!({ "nodes": [], "edges": [] }));
+    // As the player's cut reads a file (fails closed: one that writes a key
+    // twice is an empty board to them).
+    let canvas: Value =
+        board_sight::player_reads(base).unwrap_or_else(|| json!({ "nodes": [], "edges": [] }));
     let sight = board_sight::classes_of(&board_sight::entries_of_canvas(&canvas), lock);
     let shaped = board_sight::shape_canvas_seen(&canvas, &sight, lock);
     (shaped, sight.class)
@@ -409,6 +409,16 @@ fn make(
         };
         Ok((file, told, plain))
     })?;
+    // A file that writes a key twice was drawn into the room as the game
+    // master's window reads it (the last of the two), which may be an open
+    // card where a reader's projection sees a secret pin: the room cannot be
+    // cut for a player until the file is written once without
+    // (`board_sight::player_reads`; fix of 2026-11-15). Fails closed.
+    if board_sight::writes_a_key_twice(&file.text) || board_sight::writes_a_key_twice(&base) {
+        return Err(refused(
+            "this board's file writes a key twice: the game master opens and saves it before a player may edit it",
+        ));
+    }
     // A name not asked above is locked: nothing is said by guessing.
     let lock = |f: &str| match told_files.get(f) {
         Some(t) => t.clone(),
@@ -1107,17 +1117,17 @@ pub(super) fn canvas(
         ));
         return Ok(());
     }
-    let Ok(mine) = serde_json::from_str::<Value>(&disk.text) else {
+    if serde_json::from_str::<Value>(&disk.text).is_err() {
         return Ok(());
-    };
+    }
     let Some(veil) = crate::campaign::veil_for_key(server, &r.key) else {
         return Ok(());
     };
     let veil = veil.view(&account);
     let laid = server.service.with_key(&r.key, |ws| {
         let locks = Locks::new(ws, &veil).within(scope.as_ref());
-        Ok(board_sight::lay_over(
-            &mine,
+        Ok(board_sight::lay_over_text(
+            &disk.text,
             &theirs,
             &|f| locks.text(f),
             &|f| locks.sees(f),

@@ -748,3 +748,60 @@ fn elements_that_share_an_id_are_laid_over_unless_one_is_hidden_from_the_player(
     let lock = |f: &str| (f == "oculta.md").then(|| "trancado".to_owned());
     assert!(lay_over(&hidden, &player, &lock, &|_| true).is_none());
 }
+
+/// Boards whose files write a key twice, each read by serde (the last of
+/// the two) as an open card where a reader's projection sees a secret pin
+/// (B of the audit of 2026-11-15).
+const TWICE: [&str; 4] = [
+    r#"{"nodes":[{"id":"zqtwice","type":"text","text":"zqtwicetext","verso":{"secret":true},"verso":{}}],"edges":[]}"#,
+    r#"{"nodes":[{"id":"zqtwice","type":"text","text":"zqtwicetext","verso":{"secret":true,"secret":false}}],"edges":[]}"#,
+    r#"{"nodes":[{"id":"zqtwice","type":"text","text":"zqtwicetext","verso":{"secret":true}}],"nodes":[],"edges":[]}"#,
+    r#"{"nodes":[],"edges":[],"verso":{"version":1,"drawing":[{"id":"zqtwice","type":"line","customData":{"verso":{"secret":true}},"customData":{}}]}}"#,
+];
+
+#[test]
+fn a_board_that_writes_a_key_twice_is_served_a_player_as_an_empty_one() {
+    for board in TWICE {
+        // What a reader is served: the projection counts both.
+        let reader = verso_core::canvas_secret::project(board).into_owned();
+        assert!(!reader.contains("zqtwice"), "{reader}");
+        // What a player who edits it is served: nothing of it either.
+        let shown = shaped_text(board, &none);
+        assert!(!shown.contains("zqtwice"), "{board}: {shown}");
+        assert!(player_reads(board).is_none(), "{board}");
+        assert!(writes_a_key_twice(board), "{board}");
+        // The shaped text of an already shaped canvas fails closed too.
+        let from = shaped_text_from(board, &json!({ "nodes": [], "edges": [] }));
+        assert!(!from.contains("zqtwice"), "{from}");
+    }
+    // A board that writes each key once is served as before.
+    let once = r#"{"nodes":[{"id":"a","type":"text","text":"x","verso":{"secret":true}},{"id":"b","type":"text","text":"y"}],"edges":[]}"#;
+    assert!(!writes_a_key_twice(once));
+    let shown = shaped_text(once, &none);
+    assert!(
+        shown.contains("\"b\"") && !shown.contains("\"a\""),
+        "{shown}"
+    );
+}
+
+#[test]
+fn a_players_save_is_never_laid_over_a_file_that_writes_a_key_twice() {
+    // The player was shown the pin as an open card (serde's reading) and
+    // drops it: laid over the file serde reads, the pin would be lost.
+    let player = json!({ "nodes": [], "edges": [] });
+    for board in &TWICE[..3] {
+        let serde_read: Value = serde_json::from_str(board).unwrap();
+        let old = lay_over(&serde_read, &player, &none, &|_| true);
+        assert!(
+            old.is_none_or(|v| !v.to_string().contains("zqtwice")),
+            "the read serde makes drops the pin: the case this guards"
+        );
+        assert!(
+            lay_over_text(board, &player, &none, &|_| true).is_none(),
+            "{board}"
+        );
+    }
+    // A file that writes each key once is laid over as before.
+    let once = r#"{"nodes":[{"id":"a","type":"text","text":"x"}],"edges":[]}"#;
+    assert!(lay_over_text(once, &player, &none, &|_| true).is_some());
+}

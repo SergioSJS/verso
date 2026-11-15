@@ -96,6 +96,24 @@ impl Json {
     fn is_scalar(&self) -> bool {
         !matches!(self, Self::Array(_) | Self::Object(_))
     }
+
+    /// Whether some object in the value, at any depth, writes a key twice.
+    /// Readers differ on which of the two counts (`JSON.parse` and serde
+    /// keep the last, a reader's projection counts both): a cut that reads
+    /// the file one way must not trust a parse that reads it the other.
+    #[must_use]
+    pub fn writes_a_key_twice(&self) -> bool {
+        match self {
+            Self::Object(entries) => {
+                let mut seen = std::collections::HashSet::with_capacity(entries.len());
+                entries
+                    .iter()
+                    .any(|(k, v)| !seen.insert(k.as_str()) || v.writes_a_key_twice())
+            }
+            Self::Array(items) => items.iter().any(Self::writes_a_key_twice),
+            _ => false,
+        }
+    }
 }
 
 /// Why a text is not a canvas this module can read.
