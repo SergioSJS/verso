@@ -319,3 +319,6 @@ the Windows option (item 3), Linux package signatures (item 5), when
 `scripts/install-beta.sh` is signed with a fixed local certificate, so macOS
 keeps its permissions ([0051](0051-development-flow-and-releases.md),
 amendment of the same day). The release builds stay ad hoc, as above.
+*As built (2026-11-15):* `scripts/mac/local-signing-cert.sh` creates the
+identity "Verso Local Signing"; `scripts/install-beta.sh` uses it when present
+(ad hoc with a notice otherwise); `release.yml` is unchanged.

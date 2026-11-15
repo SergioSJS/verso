@@ -1764,6 +1764,11 @@ Review findings I6 and #4 of 2026-11-15. The hold between two files runs in the 
 2. **Android, charging only** (A): the same with *só carregando*, unplugging the charger.
 3. **iPad or iPhone** (A): the folder switcher has no *Abrir outra pasta…*; the palette's *Abrir pasta* says, in a notice, that the app opens only the folders in its Documents.
 
+## The Mac beta signed with a fixed local certificate (ADR 0051 amendment, N2, 2026-11-15)
+
+1. **Create the identity once** (A, the Mac): `scripts/mac/local-signing-cert.sh` (type the login keychain password, and again when macOS asks to trust the certificate); `security find-identity -p codesigning` lists "Verso Local Signing". `--remove` takes it away.
+2. **Two installs in a row** (A): `scripts/install-beta.sh` twice (the first says *signed with "Verso Local Signing"*); open a folder under Downloads or Documents after the first install and allow it: after the second install the app opens it with no new question, and Keychain items it saved are read without a prompt. Without the identity the script says *signed AD HOC* and macOS asks again. `codesign -d -r- "/Applications/Verso Beta.app"` shows the same `certificate leaf = H"…"` both times.
+
 ## The Verso app paired with a computer at home (ADR 0117, 2026-11-15)
 
 The pairing's proofs, the pin, a copy synced both ways and a replaced identity run against a real local server on loopback in the host's tests (`app/src-tauri/src/paired/tests.rs`) and the server's (`crates/verso-server/src/local/tests_pair_app.rs`); the form in the harness (`e2e/pair-computer.spec.mjs`). What only devices on a real home network can try:
