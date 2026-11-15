@@ -142,22 +142,24 @@ function verbGrid(): HTMLElement {
   return grid;
 }
 
-function aSwitch(text: string, on: boolean, change: (on: boolean) => void): HTMLElement {
+function aSwitch(text: string, on: boolean, change: (on: boolean) => void, note = ""): HTMLElement {
   const label = h("label", "phone-sheet-switch");
   const box = h("input");
   box.type = "checkbox";
   box.setAttribute("role", "switch");
   box.checked = on;
   box.addEventListener("change", () => change(box.checked));
-  label.append(h("span", "", text), box);
+  const words = h("span", "", text);
+  if (note) words.append(h("small", "phone-sheet-switch-note", note));
+  label.append(words, box);
   return label;
 }
 
 /** Whether the bottom bar stays, and whether a sideways swipe brings the
  *  side panels (screen/swipe.ts; on by default). */
-function barSwitches(): HTMLElement[] {
+function barSwitches(note: string): HTMLElement[] {
   return [
-    aSwitch(st.barAlways, settings.phoneBottomBar, setBottomBar),
+    aSwitch(st.barAlways, settings.phoneBottomBar, setBottomBar, note),
     aSwitch(st.swipePanels, settings.phoneSwipe, (on) => {
       settings.phoneSwipe = on;
       saveSettings();
@@ -186,7 +188,12 @@ export function openSheet(pane: Pane, from: HTMLElement): void {
     sheet.append(nav);
   }
   if (leaf instanceof NoteLeaf) sheet.append(heading(st.sheetMode), modeRow(leaf));
-  sheet.append(heading(st.sheetVerbs), verbGrid(), ...barSwitches());
+  // The tab's own section: a board's Board | Text and verbs (leaves/boardSheet.ts).
+  const own = leaf?.sheetSection(() => closeSheet(false));
+  if (own) sheet.append(own);
+  // A board that draws puts its tools where the bottom bar was: the
+  // switch says so, or the bar's going would look like a fault.
+  sheet.append(heading(st.sheetVerbs), verbGrid(), ...barSwitches(leaf?.phoneHistory() ? st.barBoardNote : ""));
   veil.addEventListener("click", () => closeSheet());
   sheet.addEventListener("keydown", (e) => {
     if (e.key !== "Escape" || !isTop(sheet)) return;

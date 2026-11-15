@@ -53,6 +53,8 @@ export const ICO = {
   front: "M3.5 3.5h7v7h-7zM5.5 12.5h7v-7",
   lock: "M3.5 7.5h9v6h-9zM5.5 7.5v-2a2.5 2.5 0 0 1 5 0v2",
   reader: "M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8zM8 9.7a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4z",
+  close: "M4 4l8 8M12 4l-8 8",
+  menu: "M2.5 4h11M2.5 8h11M2.5 12h11",
 };
 
 export type ToolButtonProps = {
@@ -252,7 +254,10 @@ export function TopRightTools({
   const searchId = useId();
   return (
     <div className="Island board-ex-tools" role="toolbar" aria-label={s.toolbar}>
-      {insert}
+      {/* On a phone (css/boardphone.css) what puts on the board and the
+          outline are the ⋯ sheet's; what acts on the selection (the
+          `board-ex-context` group) and the search, once used, stay here. */}
+      {insert && <span className="board-ex-insert">{insert}</span>}
       {insert && <div className="App-toolbar__divider" />}
       <span className="board-ex-search">
         {/* The magnifier focuses the field: on a narrow board the field is
@@ -293,13 +298,15 @@ export function TopRightTools({
         )}
       </span>
       {(openable || ends || file || cropPicture || pageToggle || maps) && <div className="App-toolbar__divider" />}
+      <span className="board-ex-context">
       {openable && <ToolButton label={s.open} title={s.openTitle} onClick={() => selectedNode && openNode(selectedNode, false)} icon={ICO.open} testId="board-tool-open" />}
       {file && <ToolButton label={s.swap} title={s.swapTitle} onClick={() => selectedNode && selectedData && void relink(selectedNode, selectedData)} icon={ICO.swap} testId="board-tool-swap" />}
       {pageToggle && <ToolButton label={pageToggle.on ? s.showLink : s.showPage} title={pageToggle.on ? s.showLinkTitle : s.showPageTitle} onClick={pageToggle.run} icon={pageToggle.on ? ICO.link : ICO.page} testId="board-tool-page-toggle" />}
       {cropPicture && <ToolButton label={s.crop} title={s.cropTitle} onClick={cropPicture} icon={ICO.crop} testId="board-tool-crop" />}
       {maps}
       {ends && <ToolButton label={s.promote} title={s.promoteTitle} onClick={() => void promote()} icon={ICO.relation} testId="board-tool-promote" />}
-      <div className="App-toolbar__divider" />
+      </span>
+      <div className="App-toolbar__divider board-ex-outline-line" />
       <ToolButton label={s.outline} title={s.outlineTitle} onClick={() => setShowOutline((v) => !v)} icon={ICO.outline} pressed={showOutline} testId="board-tool-outline" />
     </div>
   );

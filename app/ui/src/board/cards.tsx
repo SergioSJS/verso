@@ -11,7 +11,7 @@ import { DataBody, DataControls, useDiagramAvailable, useFileText } from "./data
 import { type CanvasNode, CARD_PAPER, cardCrop, cardView, type CardView, type El, isMap, isPage, nodeData, nodeName, type Outline } from "./model";
 import { PageCard } from "./page";
 import { type BoardStrings } from "./strings";
-import { OpenIcon, SwapIcon } from "./tools";
+import { BoardIcon, ICO, OpenIcon, SwapIcon } from "./tools";
 import { BoardHost, CardEditing } from "./types";
 import { ext, IMAGE, kindOf } from "../paths";
 import { sharpFactor } from "./sharp";
@@ -695,10 +695,14 @@ export function OutlinePanel({
   onAnnotations,
   onFocus,
   onOpen,
+  onClose,
   maps,
 }: {
   /** The maps and their pins (ADR 0090), above the cards. */
   maps?: JSX.Element | null;
+  /** The outline closed by its own button: shown on a phone, where the
+   *  outline lies over the board (css/boardphone.css). */
+  onClose?: () => void;
   outline: Outline;
   strings: BoardStrings;
   annotations: boolean;
@@ -716,7 +720,14 @@ export function OutlinePanel({
   const empty = outline.groups.length === 0 && outline.loose.length === 0 && outline.edges.length === 0 && outline.annotations.length === 0 && !maps;
   return (
     <aside className="board-outline" aria-label={strings.outlineHeading}>
-      <h2 className="board-outline-heading">{strings.outlineHeading}</h2>
+      <div className="board-outline-top">
+        <h2 className="board-outline-heading">{strings.outlineHeading}</h2>
+        {onClose && (
+          <button type="button" className="board-outline-close" aria-label={strings.closeOutline} title={strings.closeOutline} onClick={onClose}>
+            <BoardIcon d={ICO.close} />
+          </button>
+        )}
+      </div>
       {empty && <p className="board-outline-empty">{strings.empty}</p>}
       {maps}
       {outline.groups.length > 0 && (

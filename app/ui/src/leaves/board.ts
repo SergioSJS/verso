@@ -53,6 +53,7 @@ import { embedFrame } from "./web";
 import { searchNotes } from "../search";
 import { settings } from "../settings";
 import { boardText, LANG, t } from "../strings";
+import { boardSection } from "./boardSheet";
 import { flashSaved } from "../quietStatus";
 import { tableKeymap } from "../table";
 import { ConflictBanner, fileMade, keepCopy } from "./conflict";
@@ -591,6 +592,19 @@ export class BoardLeaf extends TextLeaf {
       this.paintFace();
       this.editor.focus();
     }
+  }
+  /** The phone's ⋯ sheet: Board | Text and the board's verbs (boardSheet.ts). */
+  override sheetSection(done: () => void): HTMLElement | null {
+    const verbs = this.showing === "board" ? (this.board?.verbs() ?? []) : [];
+    return boardSection({ modes: this.boardModes, showing: this.showing, verbs, access: this.access.el, done });
+  }
+  /** Excalidraw's undo and redo, which the phone's top bar presses; none
+   *  while the text is shown or the board only reads. */
+  override phoneHistory(): { undo: HTMLButtonElement; redo: HTMLButtonElement } | null {
+    if (this.showing !== "board") return null;
+    const undo = this.boardHost.querySelector<HTMLButtonElement>('[data-testid="button-undo"]');
+    const redo = this.boardHost.querySelector<HTMLButtonElement>('[data-testid="button-redo"]');
+    return undo && redo ? { undo, redo } : null;
   }
   private paintFace(): void {
     for (const b of this.boardModes.querySelectorAll<HTMLButtonElement>("button")) b.setAttribute("aria-pressed", String(b.dataset["face"] === this.showing));

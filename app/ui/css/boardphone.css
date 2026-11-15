@@ -1,0 +1,121 @@
+/* ---------- A board on a phone (2026-11-15; ADR 0076 item 15, ADR 0057) ----------
+   The maintainer's screenshot: the board/text toggle on a row of its own,
+   Excalidraw's menu and Verso's four tools on another, undo and redo on a
+   third, the drawing tools in a padded card and the app's bottom bar under
+   it — "the useful area becomes tiny". His choice among three prototypes
+   (option C, one column in landscape): the canvas keeps only the drawing
+   tools; Board | Text, what puts something on the board, the search, the
+   outline and Excalidraw's menu are the top bar's ⋯ sheet's (its "Board"
+   section, leaves/boardSheet.ts); undo and redo are the top bar's
+   (screen/phoneHead.ts); what acts on a selection shows only while there
+   is one. Held upright the tools are one flush bar at the foot, in the
+   place of the app's bottom bar (its verbs are in ⋯ too); held sideways,
+   where height is short, they are one column at the right edge.
+   Excalidraw's stylesheet loads after this one: its own properties are
+   overridden with !important. Excalidraw counts the tools it shows from
+   the toolbar's width (the text tool stays out of "more" from 316 px):
+   the toolbar keeps that width, see-through in the column. Desktop and
+   tablet layouts are untouched (the phone's media only). */
+
+/* Off a phone: the drawing's short word and the outline's close are not drawn. */
+.drawing-bar-short, .board-outline-close { display: none; }
+
+@media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
+  /* The board/text row gives way: Board | Text is in ⋯ › Board. The text
+     face keeps its row, the way back to the board. */
+  .leaf.board-face .leaf-head { display: none; }
+
+  /* While a board that draws is in front, its tools take the bottom bar's
+     place; the bar's verbs are in ⋯ (the switch there says so). A board
+     that only reads keeps the bar. */
+  html:has(.leaf.board-face:not([hidden]) .excalidraw--mobile-toolbar) .bottom-bar { display: none; }
+
+  /* Excalidraw's menu is ⋯ › Board › "Export, background and help": its
+     button goes, its place stays, so the menu opens there. */
+  .board-canvas .excalidraw--mobile .main-menu-trigger { display: none !important; }
+  /* Excalidraw fixes its phone menu to the window's top, over the top bar: on the board's top instead. */
+  .board-canvas .excalidraw--mobile .excalidraw-ui-top-left .dropdown-menu-event-wrapper > div:has(> .main-menu) { position: absolute !important; top: 0 !important; left: 0 !important; right: auto !important; transform: none !important; }
+
+  /* The top bar's undo and redo (screen/phoneHead.ts), off as Excalidraw's are. */
+  .phone-head .phone-undo:disabled, .phone-head .phone-redo:disabled { opacity: .35; }
+  /* The bar's switch, while a board's tools are in its place: a line saying so. */
+  .phone-sheet-switch-note { display: block; margin-top: 2px; font: 12px/1.3 var(--ui); color: var(--ink-3); }
+
+  /* Verso's island at the top right holds, on a phone, only what acts on
+     the selection and the search once used; it is out of sight while it
+     holds neither (its field stays focusable from ⋯ › Board › Search). */
+  .board-canvas .excalidraw--mobile .board-ex-tools :is(.board-ex-insert, .App-toolbar__divider, .ToolIcon:has([data-testid="board-tool-outline"])) { display: none; }
+  .board-canvas .excalidraw--mobile .board-ex-tools .board-ex-search:not(:focus-within):has(input:placeholder-shown),
+  .board-canvas .excalidraw--mobile .board-ex-tools:has(.board-ex-context:empty):not(:has(.board-ex-search:focus-within)):not(:has(.board-ex-search input:not(:placeholder-shown))) {
+    position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; overflow: hidden; clip-path: inset(50%); border: 0 !important; box-shadow: none !important;
+  }
+  .board-canvas .excalidraw--mobile .board-ex-tools .board-ex-search input { width: 14ch; }
+
+  /* Undo and redo are the top bar's; Excalidraw's island under the tools
+     keeps what acts on a selection, and goes while there is none. */
+  .board-canvas .excalidraw--mobile .compact-action-item:has(:is([data-testid="button-undo"], [data-testid="button-redo"])) { display: none !important; }
+  .board-canvas .excalidraw--mobile .mobile-shape-actions:not(:has(.compact-action-item:not(:has(:is([data-testid="button-undo"], [data-testid="button-redo"]))))) { display: none !important; }
+
+  /* The tools without their card: no shadow, no border, no padding. */
+  .board-canvas .excalidraw--mobile .App-bottom-bar > .App-toolbar { box-shadow: none !important; border: 0 !important; background: transparent !important; padding: 0 !important; margin: 0 !important; border-radius: 0 !important; }
+  .board-canvas .excalidraw--mobile .mobile-toolbar { gap: 0 !important; padding: 0 !important; overflow: visible !important; }
+  .board-canvas .excalidraw--mobile .mobile-toolbar .ToolIcon__icon { border-radius: 10px !important; }
+
+  /* The outline lies over the board, closed by its own button or ⋯ › Board › Outline. */
+  .leaf.board-face .board-outline { position: absolute; top: 0; right: 0; bottom: 0; z-index: 8; width: min(22rem, 88%); padding-right: max(.9rem, env(safe-area-inset-right)); box-shadow: -12px 0 32px -12px oklch(0% 0 0 / .35); }
+  .board-outline-close { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -.5rem -.6rem 0 0; border-radius: 8px; color: var(--ink-2); }
+  .board-outline-close svg { width: 18px; height: 18px; }
+  .board-outline-close:active { background: var(--paper-3); }
+
+  /* The plugin drawing's bar on one row: its short word, then its two buttons. */
+  .drawing-bar { flex-wrap: nowrap; gap: .25rem; padding: 0 max(.25rem, env(safe-area-inset-right)) 0 max(.75rem, env(safe-area-inset-left)); }
+  .drawing-bar-label { display: none; }
+  .drawing-bar-short { display: block; flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ink-2); font-size: 13px; }
+  .drawing-bar button { flex: none; min-height: 44px; white-space: nowrap; }
+}
+
+/* Upright: one flush bar at the foot, the width of the screen. */
+@media (max-width: 760px) and (orientation: portrait), (pointer: coarse) and (max-height: 500px) and (orientation: portrait) {
+  .board-canvas .excalidraw--mobile .App-bottom-bar {
+    position: absolute !important; left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important;
+    width: auto !important; max-width: none !important; margin: 0 !important; transform: none !important;
+    display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 0 !important;
+    padding: 3px max(8px, env(safe-area-inset-right)) 3px max(8px, env(safe-area-inset-left)) !important;
+    background: var(--paper-2); border-top: 1px solid var(--hair);
+  }
+  /* Where the app's bar was, the board's reaches the screen's foot. */
+  html.phone-bar-on .board-canvas .excalidraw--mobile .App-bottom-bar { padding-bottom: calc(3px + env(safe-area-inset-bottom)) !important; }
+  .board-canvas .excalidraw--mobile .App-bottom-bar > .App-toolbar { width: 100% !important; }
+  .board-canvas .excalidraw--mobile .mobile-toolbar { width: 100% !important; max-width: 560px; margin: 0 auto !important; justify-content: space-between !important; }
+  .board-canvas .excalidraw--mobile .App-bottom-bar > .mobile-shape-actions { position: absolute !important; right: max(8px, env(safe-area-inset-right)); bottom: calc(100% + 8px); width: auto !important; margin: 0 !important; }
+}
+
+/* Sideways: one column at the right edge (the thumb's), clear of a notch
+   or camera there. Its eight tools share the height under the top bar:
+   44 px each where the screen gives 352 px, a little less on a shorter
+   one, each as wide as the column (52 px). */
+@media (max-width: 760px) and (orientation: landscape), (pointer: coarse) and (max-height: 500px) and (orientation: landscape) {
+  .board-canvas { --rail: calc(52px + env(safe-area-inset-right)); }
+  .board-canvas .excalidraw--mobile .App-bottom-bar {
+    position: absolute !important; top: 0 !important; bottom: 0 !important; right: 0 !important; left: auto !important;
+    width: max(340px, var(--rail)) !important; max-width: none !important; margin: 0 !important; transform: none !important;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) 0 !important;
+    display: flex !important; flex-direction: column !important; align-items: flex-end !important; gap: 0 !important;
+    background: none !important; pointer-events: none;
+  }
+  /* The column's paper: the strip under the tools, not the see-through box. */
+  .board-canvas .excalidraw--mobile .App-bottom-bar::before { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: var(--rail); background: var(--paper-2); border-left: 1px solid var(--hair); }
+  .board-canvas .excalidraw--mobile .App-bottom-bar > .App-toolbar { position: relative; flex: 1 1 auto; min-height: 0; width: 340px !important; pointer-events: none; }
+  .board-canvas .excalidraw--mobile .mobile-toolbar { flex-direction: column !important; align-items: flex-end !important; justify-content: center !important; width: 340px !important; height: 100% !important; pointer-events: none; }
+  .board-canvas .excalidraw--mobile .mobile-toolbar > * { flex: 0 1 44px; min-height: 0; pointer-events: auto; }
+  .board-canvas .excalidraw--mobile .mobile-toolbar :is(.ToolIcon_type_button, .ToolIcon__icon, .dropdown-menu-button, .ToolIcon) { width: 52px !important; height: 100% !important; max-height: 44px; }
+  .board-canvas .excalidraw--mobile .mobile-toolbar .dropdown-menu-event-wrapper { display: flex; }
+  /* What acts on a selection: beside the column, at its foot. */
+  .board-canvas .excalidraw--mobile .App-bottom-bar > .mobile-shape-actions { position: absolute !important; right: calc(var(--rail) + 8px); bottom: calc(8px + env(safe-area-inset-bottom)); width: auto !important; margin: 0 !important; pointer-events: auto; }
+  /* Verso's island and Excalidraw's menu clear the column. */
+  .board-canvas .excalidraw--mobile .App-top-bar { right: calc(var(--rail) + 4px) !important; }
+}
+
+@media (forced-colors: active) {
+  .board-canvas .excalidraw--mobile .App-bottom-bar, .board-canvas .excalidraw--mobile .App-bottom-bar::before { border-color: CanvasText; }
+}

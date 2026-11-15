@@ -30,6 +30,8 @@ export type ScreenStrings = {
   sheetVerbs: string;
   closeTab: (name: string) => string;
   barAlways: string;
+  /** Under the bar's switch while a board that draws is open: its tools take the bar's place. */
+  barBoardNote: string;
   /** Whether a sideways swipe brings the side panels (screen/swipe.ts). */
   swipePanels: string;
   /** Settings › Appearance, under the phone group: what the swipe does and
@@ -148,6 +150,7 @@ const pt: ScreenStrings = {
   sheetVerbs: "Ações",
   closeTab: (name) => `Fechar ${name}`,
   barAlways: "Barra inferior sempre visível",
+  barBoardNote: "Num board, as ferramentas de desenho ficam no lugar dela.",
   swipePanels: "Deslizar para o lado abre os painéis",
   swipePanelsDesc: "Arraste da direita para a esquerda para o painel da direita e da esquerda para a direita para os arquivos, começando longe da borda. Desligue se o gesto se confunde com o Voltar do celular.",
   barAlwaysDesc: "Arquivos, Buscar, Nova nota e o resto ficam embaixo. Desligada, eles ficam no ⋯ da barra de cima.",
@@ -241,6 +244,7 @@ const en: ScreenStrings = {
   sheetVerbs: "Actions",
   closeTab: (name) => `Close ${name}`,
   barAlways: "Bottom bar always shown",
+  barBoardNote: "On a board, the drawing tools take its place.",
   swipePanels: "Swipe sideways to open the panels",
   swipePanelsDesc: "Swipe right to left for the right panel and left to right for the files, starting away from the edge. Turn it off if the gesture gets mixed up with the phone's Back.",
   barAlwaysDesc: "Files, Search, New note and the rest stay at the bottom. Off, they are in the top bar's ⋯.",
