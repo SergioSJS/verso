@@ -350,3 +350,14 @@ written; merged by pull request #41, 75d2340, and released in
   instance, and "Add to Claude".
 
 *2026-10-21* — the maintainer marked, in the decisions questionnaire of 2026-10-20 (answered 2026-10-21), all option A: **0071.snap** `[DECIDED 2026-10-21]` no Snap for now (the `.deb`, `.rpm` and AppImage are enough; Snap's confinement complicates folders and child web views); **0071.wayland** `[DECIDED 2026-10-21]` observe, and show "does not work" where it does not, as this ADR says; **0071.case** `[DECIDED 2026-10-21]` names differing only in case: after V1, observing Obsidian on Linux first ([0009](0009-external-constraints.md)); **0071.all** `[DECIDED 2026-10-21]` the ADR is **Accepted** as a whole, already shipped in 0.6.0-beta.1. Nothing is `[OPEN]` any more in this Status.
+
+*As built, ARM64 (2026-11-15):* the repository is public, so the `linux` job
+of `release.yml` gained its second matrix entry: `aarch64` on
+`ubuntu-22.04-arm`, triple `aarch64-unknown-linux-gnu`, deb `arm64`. It builds
+the same three packages and the command line, named
+`Verso-<version>-linux-arm64.deb`, `-linux-aarch64.rpm`,
+`-linux-aarch64.AppImage` and `verso-cli-<version>-linux-aarch64.tar.gz`, all
+in the signed checksums list (22 files in all). The updater picks them by the
+words `aarch64` / `arm64` (`update/pick.rs`, with a test), and the release
+page lists them under "Linux on ARM". Not run on an ARM machine here: first
+proven by the next release's run.

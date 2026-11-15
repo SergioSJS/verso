@@ -296,3 +296,10 @@ whether to update by itself every Sunday, yes by default; and the same
 `schedule update` for Docker (backup, `docker compose pull`, `up -d`) on
 the channel's tag. The maintainer: *"depois a gente decide se a gente muda
 esse fluxo"*.
+
+*As built (2026-11-15), item 6:* the release builds the app for macOS in two
+legs, arm64 and x64 ([0095](0095-mac-notarization-and-windows-code-signing.md)
+item 9), and for Linux in two, x64 and ARM64 ([0071](0071-linux-port.md)),
+beside Windows, Android, iOS and the server; `publish` waits for all of them
+and for the checksums list, and the release carries 22 files plus the list
+and its signature.

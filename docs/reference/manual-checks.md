@@ -1782,3 +1782,8 @@ The pairing's proofs, the pin, a copy synced both ways and a replaced identity r
 5. **iPad or iPhone** (A, the AltStore build): the same pairing and copy; the copy is in Verso's Documents in Files; iOS lets the app sync only while it is on the screen.
 6. **Another computer as the app** (A): the Windows or Linux app pairs with the Mac the same way, **Escolher onde e baixar…** making its copy.
 7. **Someone in the middle** (A, optional, a lab network): a TLS-intercepting proxy between the phone and the Mac: nothing is paired — *O código não confere…* when the proxy passes the request on (the Mac counts one of the window's three tries and shows no *Foi você?*), *a resposta não veio do computador que mostra este código…* when it answers in the Mac's place.
+
+## Intel Mac and Linux ARM64 app packages (V.21, V.22)
+
+1. **A real Intel Mac** (A, if one is ever at hand): unzip `Verso-…-macos-x64.zip`, allow it once, open a folder; Settings › Check for updates offers the `-macos-x64.zip`, never the `-arm64` one. Until then it is only run under Rosetta on the Apple-silicon Mac.
+2. **A real ARM64 Linux** (A, a Raspberry Pi 4/5 with a 64-bit desktop): install the `-linux-arm64.deb` (or the `.AppImage`), open a folder; Check for updates offers the `arm64`/`aarch64` file.
