@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.9.0-beta.2 — 2026-11-15
+
 ### Acrescentado
 
 - Tutorial: uma lição nova, **28 - Como Você Vai Usar o Verso** (em inglês *How Will You Use Verso*), abre o bloco VI: sete jeitos de montar o Verso e o UniVerso — só no computador, computador e celular em casa com o app como servidor, sincronizar sem servidor (uma nuvem WebDAV ou S3, ou uma pasta que o Syncthing ou o iCloud Drive mantêm), um UniVerso seu com cópias sincronizadas nos apps, uma mesa de RPG do computador ou num UniVerso, uma família ou equipe dividindo pastas com papéis, e junto com o Obsidian — cada um com para quem é, o que instalar em que ordem com os caminhos dos menus, o que funciona sem internet, um diagrama Mermaid de onde moram os arquivos e as lições com os detalhes. As lições depois dela sobem um número (28–38 viram 29–39), com os links, os cartões do tour e o roteiro de verificação.

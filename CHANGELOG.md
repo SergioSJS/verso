@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.9.0-beta.2 — 2026-11-15
+
 ### Added
 
 - Tutorial: a new lesson, **28 - How Will You Use Verso** (pt-BR *Como Você Vai Usar o Verso*), opens block VI: seven ways to set Verso and UniVerso up — only on the computer, computer and phone at home with the app as the server, sync without a server (a WebDAV or S3 cloud, or a folder Syncthing or iCloud Drive keeps), your own UniVerso with synced copies in the apps, an RPG table from the computer or on a UniVerso, a family or team sharing folders with roles, and alongside Obsidian — each with who it is for, what to install in what order with the menu paths, what works offline, a Mermaid diagram of where the files live, and the lessons with the details. The lessons after it move up one (28–38 become 29–39), with their links, the tour's cards and the walkthrough.
