@@ -311,6 +311,9 @@ fn a_computer_paired_by_its_code_syncs_a_copy_both_ways() {
         .unwrap()
         .json()
         .unwrap();
+    // The computer's own folder, listed at the phone's role: an editor's,
+    // never the owner's (the maintainer's phone said *dona*, 2026-11-15).
+    assert_eq!(folders["folders"][0]["role"], "editor", "{folders}");
     let id = folders["folders"][0]["id"].as_str().unwrap().to_owned();
     let d = device_at(&login.url, &id, &login.token, &[]);
     sync(&d);

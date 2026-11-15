@@ -38,15 +38,23 @@ pub fn role(server: &Server, who: &Who, id: &str) -> ApiResult<(Folder, Role)> {
         .db
         .role(id, &who.account.id)?
         .ok_or_else(ApiError::not_found)?;
+    Ok((folder, ceiling(who, writes, role)))
+}
+
+/// The most of `role` the credential `who` holds: a reader's when it does
+/// not write (a read token, a phone paired as reader), and never an owner's
+/// for a paired phone, whatever the owner's role in the folder (ADR 0096
+/// item 12, ADR 0117). What [`role`] answers, and what the folders' list
+/// says beside each folder (`shares::listing`): the chip a paired phone
+/// shows is the role it opens the folder at.
+#[must_use]
+pub fn ceiling(who: &Who, writes: bool, role: Role) -> Role {
     let role = if writes { role } else { role.min(Role::Reader) };
-    // A phone is never an owner, whatever the owner's role in the folder
-    // (ADR 0096 item 12).
-    let role = if who.phone.is_some() {
+    if who.phone.is_some() {
         role.min(Role::Editor)
     } else {
         role
-    };
-    Ok((folder, role))
+    }
 }
 
 /// The folder and the member's role, which must be at least `least`.

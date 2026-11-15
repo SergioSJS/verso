@@ -756,7 +756,17 @@ with its reason, for the maintainer's reading:
    all phones*, 14 days idle and 90 at most (D12, unchanged). A bearer of
    this computer's own accounts opened nothing before; it opens exactly
    this — the owner's device session **with** the row — narrowed as a
-   browser's phone is (`devices.rs`). It runs the phone's allowlist and,
+   browser's phone is (`devices.rs`). The folders' list (`/api/folders`,
+   `shares::listing`) names each folder at that capped role — the lesser
+   of the account's and the pairing's, `access::ceiling`, the one
+   `access::role` opens it at — so Settings › Servers says *edits* or
+   *reads only* beside the computer's own folder, never *owner* (built
+   2026-11-15: the list said the account's raw role, and a real phone
+   showed *dona*; only the label was wrong, the owner's routes and
+   commands were already closed to it, `tests_pair_app.rs`). The app is
+   asked nothing of the access (`access_get` stays off its allowlist):
+   its sync's rights follow its role, and the computer judges each change
+   (`sync/universo.rs`). It runs the phone's allowlist and,
    besides, the sync's commands at its role (`APP_READ`, `APP_EDIT` in
    `allow.rs`); a browser's phone runs none of them. **Never through the
    internet link**: the app pins the computer's own key, which the tunnel

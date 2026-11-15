@@ -318,3 +318,108 @@ fn the_app_is_one_of_the_four_and_ends_with_the_identity() {
         );
     });
 }
+
+/// A bearer request with a body, from this server's own origin.
+async fn bearer_send(
+    lab: &Lab,
+    method: reqwest::Method,
+    path: &str,
+    token: &str,
+    body: Value,
+) -> u16 {
+    lab.client
+        .request(method, lab.url(path))
+        .header("origin", lab.origin())
+        .bearer_auth(token)
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .status()
+        .as_u16()
+}
+
+/// The folders' list says the role the app opens a folder at: in a folder
+/// its account owns, the pairing's — an editor's or a reader's, never the
+/// owner's (the maintainer's phone showed *dona* beside the folder the
+/// computer serves, 2026-11-15). And the label was only a label: what only
+/// the owner does — the folder's shares, its read links, its members, its
+/// table and its access, the bin emptied, the folder's settings — stays
+/// closed to the app, over HTTP and over its WebSocket.
+#[test]
+fn the_app_is_listed_at_its_pairing_and_runs_nothing_of_the_owners() {
+    run(async {
+        let mut lab = lab();
+        lab.serve();
+        for (role, said) in [(Role::Editor, "editor"), (Role::Reader, "reader")] {
+            let (token, _) = pair_app(&lab, role).await;
+            let (status, list) = bearer_get(&lab, "/api/folders", &token).await;
+            assert_eq!(status, 200, "{list}");
+            let row = &list["folders"][0];
+            assert_eq!(row["name"], "Campanha", "{list}");
+            assert_eq!(row["role"], said, "the pairing's role, never owner: {list}");
+            assert_eq!(list["byMe"], json!([]), "no shares are the app's: {list}");
+            let id = row["id"].as_str().unwrap().to_owned();
+            for path in [
+                format!("/api/folders/{id}/shares"),
+                format!("/api/folders/{id}/readlinks"),
+                format!("/api/folders/{id}/members"),
+            ] {
+                let (status, _) = bearer_get(&lab, &path, &token).await;
+                assert_eq!(status, 404, "{path} as {said}");
+            }
+            let put = json!({ "path": "", "email": "ana@example.com", "role": "editor" });
+            for (method, path) in [
+                (reqwest::Method::PUT, format!("/api/folders/{id}/shares")),
+                (
+                    reqwest::Method::POST,
+                    format!("/api/folders/{id}/shares/invite"),
+                ),
+                (
+                    reqwest::Method::POST,
+                    format!("/api/folders/{id}/readlinks"),
+                ),
+                (reqwest::Method::DELETE, format!("/api/folders/{id}")),
+            ] {
+                let status = bearer_send(&lab, method.clone(), &path, &token, put.clone()).await;
+                assert!(
+                    status == 404 || status == 405,
+                    "{method} {path} as {said}: {status}"
+                );
+            }
+            let mut ws = opened(&lab, &token).await;
+            for (n, (cmd, args)) in [
+                (
+                    "share_grant",
+                    json!({ "path": "", "email": "ana@example.com", "role": "editor" }),
+                ),
+                ("share_revoke", json!({ "path": "", "account": "x" })),
+                ("read_link_create", json!({})),
+                ("campaign_make", json!({ "root": "" })),
+                ("access_set", json!({ "path": "Sessao.md" })),
+                ("trash_empty", json!({})),
+                ("trash_set_days", json!({ "days": 1 })),
+                ("set_folder_settings", json!({})),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let answer = call(&mut ws, 10 + n as u64, cmd, args).await;
+                assert_eq!(
+                    answer["err"]["kind"], "not_on_phone",
+                    "{cmd} as {said}: {answer}"
+                );
+            }
+            ws.send(Message::Close(None)).await.ok();
+            let app = lab
+                .local
+                .phones()
+                .unwrap()
+                .into_iter()
+                .find(|p| p.name == "Pixel da Ana")
+                .unwrap();
+            assert_eq!(app.role, role);
+            lab.local.revoke(&app.id).unwrap();
+        }
+    });
+}

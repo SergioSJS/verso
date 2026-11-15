@@ -26,6 +26,10 @@ test release.
 - On a phone, the top bar says who else is live in the note or board in front (*live, with …*), under its name: the row that said it is hidden on a phone.
 - On a phone, a board, a drawing, the graph, the data graph and a map show a slim tab on each edge of the screen: the left one opens the files, the right one the right panel — the sideways swipe does not start on them, as the finger draws or pans there.
 
+### Fixed
+
+- **A phone paired with the computer at home no longer says it owns the computer's folder.** In the Verso app, Settings › Servers listed the folder the computer serves as *owner* beside **Computer at home**; it now says the role the phone was paired with, *edits* or *reads only*, as the computer's list of phones does. Only the label was wrong: the phone never could share the folder, make read links, run its table or its access, or empty its trash, and a test now keeps it so.
+
 ## 0.9.0-beta.2 — 2026-11-15
 
 ### Added

@@ -24,6 +24,10 @@ versão de teste.
 - No celular, a barra do alto diz quem mais está ao vivo na nota ou no board da frente (*ao vivo, com …*), embaixo do nome: a linha que dizia isso fica escondida no celular.
 - No celular, um board, um desenho, o grafo, o grafo de dados e um mapa mostram uma aba fininha em cada beirada da tela: a da esquerda abre os arquivos, a da direita o painel da direita — deslizar para o lado não começa neles, porque ali o dedo desenha ou desloca.
 
+### Corrigido
+
+- **Um celular pareado com o computador de casa não diz mais que é dono da pasta do computador.** No app Verso, Configurações › Servidores mostrava a pasta que o computador serve como *dona* ao lado de **Computador de casa**; agora mostra o papel com que o celular foi pareado, *edita* ou *só lê*, como a lista de celulares do computador. Só o rótulo estava errado: o celular nunca pôde compartilhar a pasta, criar links de leitura, conduzir a mesa ou o acesso dela, nem esvaziar a lixeira, e um teste agora garante isso.
+
 ## 0.9.0-beta.2 — 2026-11-15
 
 ### Acrescentado

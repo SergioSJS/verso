@@ -284,6 +284,10 @@ impl Remote for Universo {
                     // decides. Anything else (a connection lost, a server busy)
                     // is the pass's error, and the last memo stands.
                     Err(e) if e.message.contains("not inside a table") => return Ok(None),
+                    // A computer at home asks a paired phone nothing of the
+                    // access (ADR 0117: no access dialog on a phone): its
+                    // role decides, and the computer judges each change.
+                    Err(e) if e.detail.as_deref() == Some("not_on_phone") => return Ok(None),
                     Err(e) => return Err(e),
                 };
             let Some(list) = answer.as_array() else {
