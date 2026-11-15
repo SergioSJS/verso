@@ -318,6 +318,19 @@ carried a recommendation; the maintainer decided. Open items answered
     board's whole room, whose cards it writes by the share's paths: both
     need the same re-rooting and, for sync, a hash of the bytes the device
     holds that is not the server's.
+    *Fixed 2026-11-15 (not V.49 built; the room's half closed failing
+    closed):* a share window without a table is **no longer let into the
+    board's room** — it held every card by the owner's paths, those of
+    files beside the share too — and follows the board by its file,
+    re-rooted, and writes it whole (`write_board`, laid over the disk); a
+    room of the share's own is still V.49. A **past version** of a board
+    read through a share (`history_read`) is re-rooted as the board is
+    live, a card beside the share locked; a board is not read as a note
+    (`read_note`) through a share; and a board whose file writes a key twice
+    is laid anew from the last of each key on the way out, never spliced
+    (ADR 0113, "Amended 2026-11-15: five more leaks"). The **sync** of a
+    share to a device still carries a board's bytes as they are on the
+    server (V.49, open).
 12. **Rooms** ([0073](0073-self-hosted-server-first.md) item 7). A note
     open through a share and through the owner's folder is **one room**:
     the room's place is the owner's folder key and the full path, which
