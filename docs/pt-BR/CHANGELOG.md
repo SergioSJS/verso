@@ -16,6 +16,10 @@ versão de teste.
 
 - No celular, deslizar o dedo para o lado traz os painéis laterais, ao alcance sem a barra de baixo: da direita para a esquerda o painel da direita, da esquerda para a direita os arquivos; o painel acompanha o dedo e deslizar ao contrário o fecha. Começa longe da borda da tela, depois da largura que o Android informa para o gesto de Voltar (ela segue a sensibilidade do Voltar), e um texto selecionado, os campos, o que rola para o lado e os boards, desenhos, mapas e grafos ficam com o dedo. *Deslizar para o lado abre os painéis*, na folha do botão de abas ou em Ajustes › Aparência › Celular (junto com a chave da barra de baixo), desliga.
 
+### Alterado
+
+- **Um board no celular dá a tela ao desenho.** Com o celular em pé, as ferramentas de desenho são uma barra só embaixo, no lugar da barra de baixo enquanto está aberto um board em que você desenha (as ações dela continuam na folha da barra do alto); com o celular deitado, são uma coluna na beirada direita e o board fica com a altura toda. Desfazer e refazer ficam na barra do alto. Board | Texto, o cartão de texto, os itens de Inserir, as setas soltas, a busca do board, o sumário e o menu do board ficam numa parte **Board** da folha da barra do alto. O que age sobre uma seleção só aparece enquanto algo está selecionado, e o sumário abre por cima do board, com o seu próprio fechar. Um board que você só lê guarda a barra de baixo; a barra de um desenho do plugin vira uma linha. Computador e tablet não mudam.
+
 ## 0.9.0-beta.2 — 2026-11-15
 
 ### Acrescentado
