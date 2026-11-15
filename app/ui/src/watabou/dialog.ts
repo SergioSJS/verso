@@ -19,6 +19,7 @@ import { focusOnOpen } from "../screen/openFocus";
 import { allFolders, openFolders, revealInTree } from "../tree/tree";
 import { type Given, MAX_TEXT_BYTES, PICTURE, type Plan, plan } from "./detect";
 import { type Chosen, folderName, importMap } from "./importMap";
+import { isTurned } from "./align";
 import { type PictureInfo, pngInfo, svgInfo } from "./picture";
 import { ww } from "./words";
 import { MAX_IMAGE_BYTES } from "../attachName";
@@ -115,6 +116,7 @@ export function showWatabouImport(folder: string, files: File[] = []): void {
       lines.unshift(ww.dungeon(current.title || ww.untitledDungeon, current.keys, current.json !== null));
       if (!current.json) lines.push(ww.noDrawing);
       else lines.push(current.fit ? ww.pictureLined : current.pictured ? ww.needSvg : ww.bringPicture);
+      if (current.json && current.fit && isTurned(current.fit)) lines.push(ww.turned(current.fit.turned));
     } else if (current.kind === "region") {
       lines.unshift(ww.region(current.title || ww.untitledRegion, current.json.region.towns.length, current.json.region.dangers.length));
     } else if (current.kind === "dwelling") {

@@ -150,9 +150,13 @@ test("a dungeon with Watabou's own picture: the picture is the map, the keys pin
   ]);
   await expect(dialog.locator(".wb-import-seen")).toContainText("O desenho do próprio Watabou vira o mapa do board, alinhado às salas");
   await expect(dialog.locator(".wb-import-makes")).toContainText("o board com o desenho do Watabou");
+  // This export came turned (Rotate-to-fit on): imported, and said how to export it square.
+  await expect(dialog.locator(".wb-import-seen")).toContainText("O desenho do Watabou veio girado 30°");
+  await expect(dialog.locator(".wb-import-seen")).toContainText("View › Rotate-to-fit");
   await dialog.getByRole("button", { name: "Importar", exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect.poll(() => app.file(`${DIR}/${DIR}.canvas`)).not.toBeNull();
+  expect(await app.file(`${DIR}/${DIR}.md`)).toContain("> [!warning]\n> O desenho do Watabou veio girado 30°");
   const board = JSON.parse(await app.file(`${DIR}/${DIR}.canvas`));
   // The picture is the map, the keys pins on it; the walls on the picture's grid.
   expect(board.nodes[0]).toEqual(expect.objectContaining({ id: "wb-map", file: `${DIR}/swamp_citadel_of_uadjed.svg`, verso: expect.objectContaining({ map: true, locked: true }) }));
@@ -170,6 +174,24 @@ test("a dungeon with Watabou's own picture: the picture is the map, the keys pin
   await expect.poll(async () => [...new Set(await traced())]).toEqual([100]);
   await app.boardVerb("tracing", "board-tool-tracing");
   await expect.poll(async () => [...new Set(await traced())]).toEqual([0]);
+});
+
+test("a dungeon exported square (Rotate-to-fit off): no word about turning, the map square to the board", async ({ app, page }) => {
+  await app.open("?vault=empty");
+  const dialog = await importDialog(app, page);
+  await dialog.locator('input[type="file"]').setInputFiles([
+    { name: "swamp_citadel_of_uadjed.json", mimeType: "application/json", buffer: sample("swamp_citadel_of_uadjed.json") },
+    { name: "swamp_citadel_of_uadjed.svg", mimeType: "image/svg+xml", buffer: sample("swamp_citadel_of_uadjed.square.trimmed.svg") },
+  ]);
+  await expect(dialog.locator(".wb-import-seen")).toContainText("alinhado às salas");
+  await expect(dialog.locator(".wb-import-seen")).not.toContainText("girado");
+  await dialog.getByRole("button", { name: "Importar", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => app.file(`${DIR}/${DIR}.canvas`)).not.toBeNull();
+  const board = JSON.parse(await app.file(`${DIR}/${DIR}.canvas`));
+  const [a, b, c, d] = board.verso.walls.grid;
+  expect([a, b, c, d]).toEqual([40, 0, 0, 40]);
+  expect(await app.file(`${DIR}/${DIR}.md`)).not.toContain("[!warning]");
 });
 
 test("a village with its picture: a folder with the note and a board whose map is the picture", async ({ app, page }) => {

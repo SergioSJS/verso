@@ -22,15 +22,27 @@ export type Fit = {
   shown: PictureInfo;
   box: { x: number; y: number; width: number; height: number };
   cells: Affine;
+  /** How far the generator turned the map on its page, in degrees (its
+   *  *View › Rotate-to-fit*): 0 when exported with that off, the map then
+   *  square to the board's grid. */
+  turned: number;
 };
+
+/** Turns smaller than this, in degrees, are none. */
+const SQUARE = 0.01;
+
+/** Whether a dungeon's picture came turned (not square to the board). */
+export const isTurned = (f: Fit): boolean => Math.abs(f.turned) > SQUARE;
 
 /** The largest a picture is laid on the board, in pixels a side. */
 const MAX_BOARD = 200_000;
 
 /** A dungeon's picture: from the SVG of the export (its map's transform),
  *  shown as the PNG of the same export when one came; null when no SVG
- *  says where the map is — a PNG alone does not (the map is turned to fit
- *  the page, by an angle the PNG does not tell). */
+ *  says where the map is — a PNG alone does not: where on the page the
+ *  generator puts the map, at what scale and (with *Rotate-to-fit* on) at
+ *  what angle, depends on the window it was exported from, the title, the
+ *  story and the notes' boxes; the SVG writes all three down. */
 export function dungeonFit(pictures: readonly PictureInfo[]): Fit | null {
   for (const svg of pictures) {
     if (svg.kind !== "svg" || !svg.map) continue;
@@ -41,7 +53,8 @@ export function dungeonFit(pictures: readonly PictureInfo[]): Fit | null {
     const width = svg.width * k;
     const height = svg.height * k;
     if (!(width > 0 && height > 0 && width <= MAX_BOARD && height <= MAX_BOARD)) continue;
-    return { shown: shownOf(svg, pictures), box: { x: 0, y: 0, width: round(width), height: round(height) }, cells: compose(scaleBy(k), cellToSvg) };
+    const turned = (sim.angle * 180) / Math.PI;
+    return { shown: shownOf(svg, pictures), box: { x: 0, y: 0, width: round(width), height: round(height) }, cells: compose(scaleBy(k), cellToSvg), turned: Math.round(turned * 100) / 100 };
   }
   return null;
 }

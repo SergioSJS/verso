@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import * as esbuild from "esbuild";
 
 await esbuild.build({
-  entryPoints: ["src/watabou/dungeon.ts", "src/watabou/dwelling.ts", "src/watabou/picture.ts", "src/watabou/align.ts", "src/watabou/trace.ts", "src/watabou/draw.ts", "src/watabou/drawHouse.ts", "src/watabou/detect.ts", "src/watabou/notes.ts", "src/board/tracing.ts", "src/board/model.ts"],
+  entryPoints: ["src/watabou/dungeon.ts", "src/watabou/dwelling.ts", "src/watabou/picture.ts", "src/watabou/align.ts", "src/watabou/trace.ts", "src/watabou/draw.ts", "src/watabou/drawHouse.ts", "src/watabou/detect.ts", "src/watabou/notes.ts", "src/board/tracing.ts", "src/board/model.ts", "src/watabou/words.ts"],
   bundle: true,
   format: "esm",
   platform: "node",
@@ -31,6 +31,7 @@ const drawHouse = await import(`${B}/watabou/drawHouse.mjs`);
 const detect = await import(`${B}/watabou/detect.mjs`);
 const notes = await import(`${B}/watabou/notes.mjs`);
 const tracing = await import(`${B}/board/tracing.mjs`);
+const { wordsByLang } = await import(`${B}/watabou/words.mjs`);
 const model = await import(`${B}/board/model.mjs`);
 
 const sample = (n) => readFileSync(new URL(`./watabou/${n}`, import.meta.url), "utf8");
@@ -163,6 +164,43 @@ describe("The dungeon's cells on its picture", () => {
     const minY = Math.min(...DUNGEON.rects.map((r) => r.y));
     near(col.x + col.width / 2, -minX * draw.CELL, 1e-6);
     near(col.y + col.height / 2, -minY * draw.CELL, 1e-6);
+  });
+});
+
+describe("A dungeon exported turned, or square (View › Rotate-to-fit off)", () => {
+  const SQUARE_SVG = sample("swamp_citadel_of_uadjed.square.trimmed.svg");
+  test("the turned export is imported and said to be turned; the square one is square, and says nothing", () => {
+    const turned = align.dungeonFit([pic.svgInfo("t.svg", SVG)]);
+    near(turned.turned, 30, 1e-6);
+    assert.equal(align.isTurned(turned), true);
+    const square = align.dungeonFit([pic.svgInfo("s.svg", SQUARE_SVG)]);
+    assert.equal(square.turned, 0);
+    assert.equal(align.isTurned(square), false);
+    // Square to the board: a cell's sides along the board's axes, CELL long.
+    const [a, b, c, d] = square.cells;
+    near(a, draw.CELL, 1e-6);
+    near(d, draw.CELL, 1e-6);
+    assert.equal(b, 0);
+    assert.equal(c, 0);
+    // The key "1" at (10, -6.5) where that page draws it: (933.2, 418.4) of the window.
+    const k = square.box.width / 1400;
+    const [kx, ky] = pic.apply(square.cells, 10, -6.5);
+    near(kx / k, 933.2);
+    near(ky / k, 418.4);
+  });
+
+  test("the words name the angle and Watabou's own menu path, in both languages", () => {
+    assert.match(wordsByLang.pt.turned(30), /girado 30°.*View › Rotate-to-fit.*Export as › SVG e Save as PNG/);
+    assert.match(wordsByLang.pt.turned(12.34), /girado 12,3°/);
+    assert.match(wordsByLang.en.turned(30), /turned by 30°.*View › Rotate-to-fit.*Export as › SVG and Save as PNG/);
+  });
+
+  test("the note of a turned import ends with how to export it square; a square one has no such word", () => {
+    const word = "Export again with View › Rotate-to-fit off.";
+    const turned = notes.dungeonNote({ json: DUNGEON, md: null, board: "D/D.canvas", jsonFile: null, pictures: ["D/s.png"], turned: word });
+    assert.match(turned, /> \[!warning\]\n> Export again with View › Rotate-to-fit off\.\n$/);
+    const square = notes.dungeonNote({ json: DUNGEON, md: null, board: "D/D.canvas", jsonFile: null, pictures: ["D/s.png"], turned: null });
+    assert.doesNotMatch(square, /\[!warning\]/);
   });
 });
 

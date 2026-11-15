@@ -70,7 +70,7 @@ const base = (path: string): string => path.split("/").pop() ?? path;
 /** The dungeon's note: its properties, then the generator's Markdown when
  *  it came (else the same made from the JSON), then the pictures that came
  *  with it. `board` and `json` are the paths the import made. */
-export function dungeonNote(o: { json: Dungeon | null; md: DungeonText | null; board: string | null; jsonFile: string | null; pictures: string[] }): string {
+export function dungeonNote(o: { json: Dungeon | null; md: DungeonText | null; board: string | null; jsonFile: string | null; pictures: string[]; turned?: string | null }): string {
   const props = frontMatter([
     ["generator", "one-page-dungeon"],
     ["generator_version", o.json?.version ?? null],
@@ -82,7 +82,9 @@ export function dungeonNote(o: { json: Dungeon | null; md: DungeonText | null; b
   ]);
   const body = o.md ? o.md.text.replace(/\r\n?/g, "\n") : o.json ? dungeonBody(o.json) : "";
   const pictures = o.pictures.map((p) => `![[${base(p)}]]`).join("\n\n");
-  return `${props}${body.trimEnd()}\n${pictures ? `\n${pictures}\n` : ""}`;
+  // Verso's own word, when the picture came turned: how to export it square.
+  const turned = o.turned ? `\n> [!warning]\n> ${o.turned}\n` : "";
+  return `${props}${body.trimEnd()}\n${pictures ? `\n${pictures}\n` : ""}${turned}`;
 }
 
 /** The region's note: its properties, the towns and the dangers as links

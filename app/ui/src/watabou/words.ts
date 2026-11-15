@@ -27,6 +27,8 @@ export type WatabouWords = {
   /** The generator's picture: lined up, or how to bring it. */
   pictureLined: string;
   needSvg: string;
+  /** The dungeon's picture came turned by `deg` degrees. */
+  turned: (deg: number) => string;
   bringPicture: string;
   floorsLined: (n: number, floors: number) => string;
   bringFloors: string;
@@ -64,7 +66,7 @@ export type WatabouWords = {
 const pt: WatabouWords = {
   command: "Importar mapa do Watabou…",
   title: "Importar mapa do Watabou",
-  intro: "Exporte o mapa em watabou.github.io: no One Page Dungeon, o JSON (as salas), o SVG e o PNG (o desenho do Watabou) e o Markdown (a semente); no Dwellings, Export › as JSON e, em cada andar, as SVG e as PNG; numa vila ou cidade, o JSON e o PNG; no Perilous Shores, o Save em JSON. Depois escolha ou solte os arquivos aqui.",
+  intro: "Exporte o mapa em watabou.github.io: no One Page Dungeon, com View › Rotate-to-fit desligado, o JSON (as salas), o SVG e o PNG (o desenho do Watabou) e o Markdown (a semente); no Dwellings, Export › as JSON e, em cada andar, as SVG e as PNG; numa vila ou cidade, o JSON e o PNG; no Perilous Shores, o Save em JSON. Depois escolha ou solte os arquivos aqui.",
   choose: "Escolher arquivos…",
   dropHere: "ou solte os arquivos aqui",
   where: "Pasta",
@@ -76,7 +78,8 @@ const pt: WatabouWords = {
   dwelling: (title, floors, rooms) => `Dwellings “${title}”: ${floors === 1 ? "1 andar" : `${floors} andares`}, ${rooms === 1 ? "1 cômodo" : `${rooms} cômodos`}, com o desenho.`,
   noDrawing: "Sem o JSON não há desenho: só a nota. Solte o JSON junto para ter o mapa.",
   pictureLined: "O desenho do próprio Watabou vira o mapa do board, alinhado às salas; os números viram alfinetes que abrem a nota. O traçado do Verso fica escondido por baixo (“Mostrar o traçado” no board).",
-  needSvg: "Para o desenho do Watabou ficar alinhado às salas, solte também o SVG (Export as › SVG). Só com o PNG não dá para saber o giro do mapa: o board fica com o desenho do Verso.",
+  needSvg: "Para o desenho do Watabou ficar alinhado às salas, solte também o SVG (Export as › SVG): só o SVG diz onde, em que escala e em que giro o mapa está na página. Sem ele, o board fica com o desenho do Verso.",
+  turned: (deg) => `O desenho do Watabou veio girado ${fmtDeg(deg, ",")}°: ele é importado assim, mas não fica no esquadro do board. Para um mapa alinhado ao board, no One Page Dungeon desligue View › Rotate-to-fit (clique direito no mapa), exporte de novo Export as › SVG e Save as PNG, e importe outra vez.`,
   bringPicture: "Para o board mostrar o desenho do próprio Watabou, solte também o SVG e o PNG (Export as › SVG e Save as PNG). Sem eles, o board fica com o desenho do Verso.",
   floorsLined: (n, floors) => (n === floors ? "O desenho do Watabou de cada andar vira o mapa do andar; o traçado do Verso fica escondido por baixo (“Mostrar o traçado” no board)." : `O desenho do Watabou vem para ${n} de ${floors} andares; os outros ficam com o desenho do Verso. Exporte cada andar com Export › as SVG.`),
   bringFloors: "Para o board mostrar o desenho do próprio Watabou, exporte cada andar com Export › as SVG (e as PNG) e solte junto. Sem eles, o board fica com o desenho do Verso.",
@@ -126,7 +129,7 @@ const pt: WatabouWords = {
 const en: WatabouWords = {
   command: "Import Watabou map…",
   title: "Import Watabou map",
-  intro: "Export the map at watabou.github.io: from One Page Dungeon, the JSON (the rooms), the SVG and the PNG (Watabou's own drawing) and the Markdown (the seed); from Dwellings, Export › as JSON and, on each floor, as SVG and as PNG; from a village or a city, the JSON and the PNG; from Perilous Shores, Save as JSON. Then choose or drop the files here.",
+  intro: "Export the map at watabou.github.io: from One Page Dungeon, with View › Rotate-to-fit off, the JSON (the rooms), the SVG and the PNG (Watabou's own drawing) and the Markdown (the seed); from Dwellings, Export › as JSON and, on each floor, as SVG and as PNG; from a village or a city, the JSON and the PNG; from Perilous Shores, Save as JSON. Then choose or drop the files here.",
   choose: "Choose files…",
   dropHere: "or drop the files here",
   where: "Folder",
@@ -138,7 +141,8 @@ const en: WatabouWords = {
   dwelling: (title, floors, rooms) => `Dwellings “${title}”: ${floors === 1 ? "1 floor" : `${floors} floors`}, ${rooms === 1 ? "1 room" : `${rooms} rooms`}, with the drawing.`,
   noDrawing: "Without the JSON there is no drawing, only the note. Drop the JSON too to get the map.",
   pictureLined: "Watabou's own drawing becomes the board's map, lined up with the rooms; the numbers become pins that open the note. Verso's tracing stays hidden underneath (“Show the tracing” on the board).",
-  needSvg: "For Watabou's drawing to line up with the rooms, drop the SVG too (Export as › SVG). A PNG alone does not say how the map is turned: the board keeps Verso's drawing.",
+  needSvg: "For Watabou's drawing to line up with the rooms, drop the SVG too (Export as › SVG): only the SVG says where on the page the map is, at what scale and how turned. Without it, the board keeps Verso's drawing.",
+  turned: (deg) => `Watabou's drawing came turned by ${fmtDeg(deg, ".")}°: it is imported so, but not square to the board. For a map aligned to the board, in One Page Dungeon switch off View › Rotate-to-fit (right-click the map), export again with Export as › SVG and Save as PNG, and import again.`,
   bringPicture: "For the board to show Watabou's own drawing, drop the SVG and the PNG too (Export as › SVG and Save as PNG). Without them, the board keeps Verso's drawing.",
   floorsLined: (n, floors) => (n === floors ? "Watabou's drawing of each floor becomes that floor's map; Verso's tracing stays hidden underneath (“Show the tracing” on the board)." : `Watabou's drawing comes for ${n} of ${floors} floors; the others keep Verso's drawing. Export each floor with Export › as SVG.`),
   bringFloors: "For the board to show Watabou's own drawing, export each floor with Export › as SVG (and as PNG) and drop them too. Without them, the board keeps Verso's drawing.",
@@ -184,6 +188,12 @@ const en: WatabouWords = {
   badSeed: "The seed is a whole number from 1 to 2147483646.",
   newMapDone: (path) => `Created ${path}.`,
 };
+
+/** Degrees as a person reads them: whole, or to one place. */
+function fmtDeg(deg: number, point: string): string {
+  const r = Math.round(deg * 10) / 10;
+  return (Number.isInteger(r) ? String(r) : r.toFixed(1)).replace(".", point);
+}
 
 /** 1st, 2nd, 3rd, 4th… */
 function ordinal(n: number): string {

@@ -10,6 +10,7 @@
 // there (`exists` is answered, and a name taken moves on).
 
 import { fitName } from "../attachName";
+import { isTurned } from "./align";
 import { type ContractError, commands } from "../bindings";
 import { textBase64 } from "../files";
 import { placeFile } from "../placeFile";
@@ -79,7 +80,7 @@ export async function importMap(p: Plan, files: Chosen[], parent: string, name: 
   }
   const noteText =
     p.kind === "dungeon"
-      ? dungeonNote({ json: p.json?.dungeon ?? null, md: p.md?.text ?? null, board, jsonFile, pictures })
+      ? dungeonNote({ json: p.json?.dungeon ?? null, md: p.md?.text ?? null, board, jsonFile, pictures, turned: p.fit && board && isTurned(p.fit) ? ww.turned(p.fit.turned) : null })
       : p.kind === "dwelling"
         ? houseNote({ house: p.json.house, title: p.title || ww.untitledHouse, board, jsonFile, pictures }, ww.house)
         : p.kind === "settlement"
