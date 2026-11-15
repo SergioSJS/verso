@@ -1597,8 +1597,26 @@ the folder `Campanha Fractal/` beside it ([ADR
    frame per floor, side by side, the stairs at the same spot in each, rooms
    named as in the note (*Room 1*, *Room 2* where a floor has two), the
    windows over the outer walls, the entrance's arrow, a spiral stair as a
-   round tower. A city's JSON is named, not
-   imported. ⌘⇧P › *Novo mapa gerado…*: pick a generator, the seed drawn (or
+   round tower. A city's JSON alone is not imported: the dialog asks
+   for its picture.
+   **Watabou's own drawing** (item 2, revised 2026-11-15): export the
+   dungeon again with *Export as › SVG* and *Save as PNG* too and drop the
+   four files: the dialog adds *O desenho do próprio Watabou vira o mapa do
+   board, alinhado às salas…* and *o board com o desenho do Watabou*. The
+   board's map is the generator's picture (parchment, hatching, the keys'
+   boxes); a round pin with each number sits exactly on the picture's own
+   number — hover: the note's preview; click: the note opens. The map
+   tools' *Mostrar o traçado* shows Verso's tracing in blue: every wall on
+   the picture's walls, the columns on the picture's columns; press again:
+   hidden; ⌘Z undoes each. Drop only the JSON and the PNG: *Para o desenho
+   do Watabou ficar alinhado às salas, solte também o SVG…* and the board
+   is Verso's drawing. A house with each floor's *Export › as SVG* (and
+   *as PNG*): each frame shows that floor's picture, the room names the
+   generator's; *Mostrar o traçado* lines the walls up on every floor. A
+   village (*Export as › JSON* and *› PNG*): a folder with the note
+   (`generator: village-generator`) and a board whose map is the picture.
+   On a phone (390 × 844): ⋯ › Board › *Mostrar o traçado* does the same;
+   the numbered pins stay tappable. ⌘⇧P › *Novo mapa gerado…*: pick a generator, the seed drawn (or
    typed), *Criar nota*: the note embeds the generator (asked about once)
    with `seed` in its properties. A dungeon with a secret door (a dashed
    line across a way): on the board's map menu, *Ver como leitor* — the
@@ -1609,7 +1627,7 @@ the folder `Campanha Fractal/` beside it ([ADR
    *Export* inside the note saving into the folder, the player's view on a
    UniVerso, `docs/reference/manual-checks.md`); E:
    `watabou-import.spec.mjs`; U: `test/watabou.test.mjs`,
-   `test/watabouHouse.test.mjs`; S: `tests_board_walls.rs`,
+   `test/watabouHouse.test.mjs`, `test/watabouPicture.test.mjs`; S: `tests_board_walls.rs`,
    `crates/verso-core/tests/canvas_walls.rs`.
 
 ## 15. Structured data as a diagram (note 16, the sample files)
