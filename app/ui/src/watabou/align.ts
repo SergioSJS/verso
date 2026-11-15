@@ -9,6 +9,7 @@
 // Verso's drawing has it. Pure.
 
 import { CELL } from "./draw";
+import type { Dungeon } from "./dungeon";
 import { type Affine, type PictureInfo, compose, scaleBy, shownOf, similarity } from "./picture";
 
 /** The One Page Dungeon draws its map at 30 units a cell, before the turn
@@ -43,7 +44,10 @@ const MAX_BOARD = 200_000;
  *  generator puts the map, at what scale and (with *Rotate-to-fit* on) at
  *  what angle, depends on the window it was exported from, the title, the
  *  story and the notes' boxes; the SVG writes all three down. */
-export function dungeonFit(pictures: readonly PictureInfo[]): Fit | null {
+export function dungeonFit(pictures: readonly PictureInfo[], dungeon: Dungeon | null = null): Fit | null {
+  // First the map alone (Export as › PNG…): square, placed by arithmetic.
+  const map = dungeon ? mapPicture(pictures, dungeon) : null;
+  if (map) return map;
   for (const svg of pictures) {
     if (svg.kind !== "svg" || !svg.map) continue;
     const cellToSvg = compose(svg.map, scaleBy(DUNGEON_UNIT));
@@ -57,6 +61,45 @@ export function dungeonFit(pictures: readonly PictureInfo[]): Fit | null {
     return { shown: shownOf(svg, pictures), box: { x: 0, y: 0, width: round(width), height: round(height) }, cells: compose(scaleBy(k), cellToSvg), turned: Math.round(turned * 100) / 100 };
   }
   return null;
+}
+
+/** The dungeon's box in cells as *Export as › PNG…* draws it (One Page
+ *  Dungeon 1.2.7, observed on 14 exports of 9 dungeons, 2026-11-15:
+ *  `docs/reference/watabou-importers-survey-2026-11-15.md`): the union of
+ *  the rooms — every rect but a door's 1 × 1 cell — each grown by one cell
+ *  on every side (the wall round it). */
+export function mapBox(d: Dungeon): { x: number; y: number; w: number; h: number } | null {
+  const doors = new Set(d.doors.map((x) => `${x.x},${x.y}`));
+  const rooms = d.rects.filter((r) => !(r.w === 1 && r.h === 1 && doors.has(`${r.x},${r.y}`)));
+  if (rooms.length === 0) return null;
+  const x = Math.min(...rooms.map((r) => r.x)) - 1;
+  const y = Math.min(...rooms.map((r) => r.y)) - 1;
+  return { x, y, w: Math.max(...rooms.map((r) => r.x + r.w)) + 1 - x, h: Math.max(...rooms.map((r) => r.y + r.h)) + 1 - y };
+}
+
+/** The cell size, in pixels, of a picture that is the map alone: its width
+ *  and height `box.w · c` and `box.h · c` for one whole `c` (the export's
+ *  *Cell size in pixels*, 10 to 200), within a pixel; null for any other. */
+export function mapCell(p: { width: number; height: number }, box: { w: number; h: number }): number | null {
+  const c = Math.round(p.width / box.w);
+  if (c < 4 || c > 400) return null;
+  return Math.abs(p.width - box.w * c) <= 1 && Math.abs(p.height - box.h * c) <= 1 ? c : null;
+}
+
+/** A PNG of *Export as › PNG…*: the map alone, never turned, cell `(x, y)`
+ *  of the JSON at pixel `((x − box.x) · c, (y − box.y) · c)` — so on the
+ *  board, at CELL pixels a cell, the box is the picture. */
+function mapPicture(pictures: readonly PictureInfo[], d: Dungeon): Fit | null {
+  const box = mapBox(d);
+  if (!box) return null;
+  const png = pictures.find((p) => p.kind === "png" && mapCell(p, box) !== null);
+  if (!png) return null;
+  return {
+    shown: png,
+    box: { x: 0, y: 0, width: box.w * CELL, height: box.h * CELL },
+    cells: [CELL, 0, 0, CELL, -CELL * box.x, -CELL * box.y],
+    turned: 0,
+  };
 }
 
 /** What Dwellings names a floor's picture: the house's file name and the

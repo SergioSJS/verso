@@ -153,7 +153,7 @@ export function plan(files: Given[]): Plan {
       pictures,
       rooms: dungeon ? dungeon.rects.filter((r) => r.w * r.h > 1).length : 0,
       keys: (text?.keys.length ?? 0) || (dungeon?.keys.length ?? 0),
-      fit: dungeon ? dungeonFit(infos) : null,
+      fit: dungeon ? dungeonFit(infos, dungeon) : null,
       pictured: infos.length > 0,
     };
   }

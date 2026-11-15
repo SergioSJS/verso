@@ -204,6 +204,49 @@ describe("A dungeon exported turned, or square (View › Rotate-to-fit off)", ()
   });
 });
 
+describe("A dungeon's map alone (Export as › PNG…), placed by arithmetic", () => {
+  // Real exports of One Page Dungeon 1.2.7 (2026-11-15, the survey's samples):
+  // the JSON kept in test/watabou/, the PNG's size as the generator wrote it.
+  const cases = [
+    { json: "swamp_citadel_of_uadjed.json", png: [1720, 1720], c: 40, box: { x: -24, y: -21, w: 43, h: 43 } },
+    { json: "swamp_citadel_of_uadjed.json", png: [3010, 3010], c: 70, box: { x: -24, y: -21, w: 43, h: 43 } },
+    { json: "dungeon_of_the_viper_knight.json", png: [810, 1170], c: 30, box: { x: -9, y: -22, w: 27, h: 39 } },
+    { json: "dungeon_of_the_viper_knight.json", png: [837, 1209], c: 31, box: { x: -9, y: -22, w: 27, h: 39 } },
+    { json: "ebonfist_chambers.json", png: [1950, 2050], c: 50, box: { x: -11, y: -35, w: 39, h: 41 } },
+    { json: "blightstar_house.json", png: [770, 1540], c: 70, box: { x: -10, y: -8, w: 11, h: 22 } },
+    { json: "blightstar_house.json", png: [781, 1562], c: 71, box: { x: -10, y: -8, w: 11, h: 22 } },
+  ];
+  for (const k of cases) {
+    test(`${k.json} at ${k.c} px a cell (${k.png.join(" × ")}): the rooms' box and the exact placement`, () => {
+      const d = dungeonMod.readDungeon(JSON.parse(sample(k.json)));
+      assert.deepEqual(align.mapBox(d), k.box);
+      const png = pic.pngInfo("map.png", pngHead(...k.png));
+      assert.equal(align.mapCell(png, k.box), k.c);
+      const fit = align.dungeonFit([png], d);
+      assert.equal(fit.shown.name, "map.png");
+      assert.equal(fit.turned, 0);
+      assert.deepEqual(fit.box, { x: 0, y: 0, width: k.box.w * draw.CELL, height: k.box.h * draw.CELL });
+      // Cell (x, y) at pixel ((x − R.x)·c, (y − R.y)·c) of the PNG: on the
+      // board, the same point of the picture's box.
+      const r = d.rects.find((q) => q.w > 1 && q.h > 1);
+      const [bx, by] = pic.apply(fit.cells, r.x, r.y);
+      assert.deepEqual([bx / fit.box.width, by / fit.box.height], [((r.x - k.box.x) * k.c) / k.png[0], ((r.y - k.box.y) * k.c) / k.png[1]]);
+    });
+  }
+
+  test("a PNG of another size is no map: the SVG is asked for; the map alone wins over a page's SVG", () => {
+    const d = DUNGEON;
+    assert.equal(align.dungeonFit([pic.pngInfo("page.png", pngHead(4846, 3461))], d), null);
+    assert.equal(align.dungeonFit([pic.pngInfo("odd.png", pngHead(1720, 1700))], d), null);
+    const p = detect.plan([given("s.json", sample("swamp_citadel_of_uadjed.json")), picture("page.png", pic.pngInfo("page.png", pngHead(4846, 3461)))]);
+    assert.equal(p.fit, null);
+    assert.equal(p.pictured, true);
+    const both = align.dungeonFit([pic.svgInfo("page.svg", SVG), pic.pngInfo("map.png", pngHead(1720, 1720))], d);
+    assert.equal(both.shown.name, "map.png");
+    assert.equal(both.turned, 0);
+  });
+});
+
 describe("A house's floors on their pictures", () => {
   const svg = pic.svgInfo("house_by_the_sea_gf.svg", HOUSE_SVG);
   const grid = { cols: 4, rows: 7 };

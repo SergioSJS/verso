@@ -176,6 +176,30 @@ test("a dungeon with Watabou's own picture: the picture is the map, the keys pin
   await expect.poll(async () => [...new Set(await traced())]).toEqual([0]);
 });
 
+test("a dungeon's map alone (Export as › PNG…) with its JSON: the PNG placed on the rooms by its size, the keys pins on it @layout", async ({ app, page }) => {
+  await app.open("?vault=empty");
+  const dialog = await importDialog(app, page);
+  await dialog.locator('input[type="file"]').setInputFiles([
+    { name: "swamp_citadel_of_uadjed.json", mimeType: "application/json", buffer: sample("swamp_citadel_of_uadjed.json") },
+    // Cut down from a real export at 40 px a cell to 10: 43 × 43 cells, 430 × 430.
+    { name: "swamp_citadel_of_uadjed.png", mimeType: "image/png", buffer: sample("swamp_citadel_of_uadjed.map10.png") },
+  ]);
+  await expect(dialog.locator(".wb-import-seen")).toContainText("alinhado às salas");
+  await expect(dialog.locator(".wb-import-seen")).not.toContainText("girado");
+  await dialog.getByRole("button", { name: "Importar", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => app.file(`${DIR}/${DIR}.canvas`)).not.toBeNull();
+  const board = JSON.parse(await app.file(`${DIR}/${DIR}.canvas`));
+  expect(board.nodes[0]).toEqual(expect.objectContaining({ id: "wb-map", file: `${DIR}/swamp_citadel_of_uadjed.png`, x: 0, y: 0, width: 43 * 40, height: 43 * 40 }));
+  expect(board.verso.walls.grid).toEqual([40, 0, 0, 40, 960, 840]);
+  // Key 1 at (10, -6.5) of the JSON: (34 · 40, 14.5 · 40) on the board, its pin's middle.
+  const one = board.nodes.find((n) => n.verso?.key === "1");
+  expect([one.x + one.width / 2, one.y + one.height / 2]).toEqual([1360, 580]);
+  await app.boardReady();
+  await expect(page.locator(".board-pin.is-key")).toHaveCount(4);
+  expect(await app.file(`${DIR}/${DIR}.md`)).not.toContain("[!warning]");
+});
+
 test("a dungeon exported square (Rotate-to-fit off): no word about turning, the map square to the board", async ({ app, page }) => {
   await app.open("?vault=empty");
   const dialog = await importDialog(app, page);
