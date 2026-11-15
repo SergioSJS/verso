@@ -62,25 +62,27 @@ pub(crate) async fn collab_command(
     // edits is edited by element, in a shadow of its room made of what the
     // player sees (ADR 0113 H); one a player only sees is followed by its
     // file, as it is saved.
-    let board_of_a_player =
-        door.veiled() && crate::access::Kind::of_path(&path) == crate::access::Kind::Board;
-    // A window of a share that is no player of a table (fix of 2026-11-15):
-    // the board's room holds every card by the owner's paths, those of
-    // files beside the share too, and the only room cut to a share is a
-    // table player's shadow (`collab_players`). So it is not let in (fails
-    // closed; a room of the share's own is V.49): it follows the board by
-    // its file, which the share re-roots (`read_text`), and writes it whole
-    // (`write_board`, laid over the disk), as a window with no room does.
+    let at_board = crate::access::Kind::of_path(&path) == crate::access::Kind::Board;
+    let board_of_a_player = door.veiled() && at_board;
+    // A window of a share that is no player of a table (V.49, ADR 0081 item
+    // 11): the board's room holds every card by the owner's paths, those of
+    // files beside the share too. It edits the board in a shadow of the room
+    // cut to the share, as a player does — every element's card re-rooted
+    // at the share, a card beside it locked, the presence it hears cut to
+    // the elements it sees (`collab_players`). One that only reads follows
+    // the board by its file, which the share re-roots (`read_text`).
+    let board_of_a_share = scope.is_some() && !door.veiled() && at_board;
+    let writes = door.may_path(crate::access::Action::Edit, &path).allowed();
     if let Some(s) = &scope
-        && !board_of_a_player
-        && crate::access::Kind::of_path(&path) == crate::access::Kind::Board
+        && board_of_a_share
+        && !writes
         && !matches!(cmd, "collab_present" | "collab_leave")
     {
         return Err(s.error(refused(
-            "a board opened through a share is followed by its file: it has no room for the share yet",
+            "you may only read this board: you see it as it is saved",
         )));
     }
-    let writes = door.may_path(crate::access::Action::Edit, &path).allowed();
+    let shadowed = board_of_a_player || board_of_a_share;
     // The document a window joins is the whole one for whoever the rules let
     // see the secret blocks — the game master's read-only credential too
     // (ADR 0113 item 6) — and the projection's for the rest; typing is the
@@ -92,7 +94,7 @@ pub(crate) async fn collab_command(
                 .allowed());
     // A conflict between the room and the disk is the game master's to
     // choose: it closes the room for everyone.
-    if board_of_a_player && cmd == "collab_resolve" {
+    if shadowed && cmd == "collab_resolve" {
         return Err(refused(
             "the game master chooses between the board and the file",
         ));
@@ -125,18 +127,25 @@ pub(crate) async fn collab_command(
     let user = who.account.name.clone();
     let account = who.account.id.clone();
     let held = scope.clone();
+    // The words of a locked card: the table's language for a player, the
+    // account's for a share's window.
+    let lang = crate::campaign::player(server, who, client)?
+        .map_or_else(|| who.account.lang.clone(), |p| p.veil.lang.clone());
     let answer = blocking(move || match cmd.as_str() {
         // Whether someone is in the note: a write that is not a keystroke
         // joins the room to be made there (ADR 0082).
         "collab_present" => Ok(Value::Bool(s.rooms.occupied(&key, &path))),
-        "collab_join" if board_of_a_player && writes => {
+        "collab_join" if shadowed && writes => {
+            let seat = crate::collab::players::Seat {
+                veiled: board_of_a_player,
+                lang: &lang,
+            };
             to_value(crate::collab::players::join_shadow(
                 &s,
                 (&c, &account),
-                &key,
-                &path,
+                (&key, &path),
                 &user,
-                held.as_ref(),
+                (held.as_ref(), &seat),
             )?)
         }
         "collab_join" => {

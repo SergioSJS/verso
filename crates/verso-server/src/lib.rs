@@ -544,6 +544,8 @@ mod tests_secret_pins;
 #[cfg(test)]
 mod tests_secret_review;
 #[cfg(test)]
+mod tests_share_board_room;
+#[cfg(test)]
 mod tests_share_board_sync;
 #[cfg(test)]
 mod tests_share_gaps;

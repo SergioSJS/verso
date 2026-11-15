@@ -688,17 +688,33 @@ fn a_card_of_a_hidden_file_leaves_no_trace_in_the_links_of_a_players_board() {
 
 /// D of the audit of 2026-11-15: a window of a share that is no player of a
 /// table was let into the board's room, which holds every card by the
-/// owner's paths — a card of a file beside the share too. It is refused the
-/// room (no room is cut to a share without a table yet: V.49) and follows
-/// the board by its file, re-rooted.
+/// owner's paths — a card of a file beside the share too. Refused the room
+/// that day, it joins a shadow of it cut to the share since V.49: the cards
+/// in the share's paths, the one beside it locked. A reader of the share
+/// follows the board by its file, re-rooted.
 #[test]
-fn a_share_window_with_no_table_is_not_let_into_the_boards_room() {
+fn a_share_window_with_no_table_joins_the_boards_room_only_cut_to_the_share() {
     block_on(async {
         let mut c = cast_with(false).await;
         master_seeds(&mut c).await;
         let (joined, ana) = ana_joins(&mut c).await;
+        assert!(joined.get("ok").is_some(), "{joined}");
+        assert_eq!(file_of(&ana, "c-open").as_deref(), Some("Livre.md"));
+        assert!(locked(&ana, "c-out"), "{:?}", collab_board::elements(&ana));
+        assert!(file_of(&ana, "c-out").is_none());
+        // What she has beside it: the file, re-rooted, the card beside the
+        // share locked.
+        let (read, _) = exchange(&mut c.ana, "read_text", json!({ "path": REL }), OUTSIDE).await;
+        let text = read["ok"]["text"].as_str().unwrap_or_default();
+        assert!(text.contains("\"Livre.md\""), "{read}");
+        let id = c.share.clone();
+        crate::tests_board_leaks::sweep(&mut c.ana, &id, REL, OUTSIDE).await;
+        // A reader of the share: no room, the file.
+        let mut r = cast_as(false, "reader").await;
+        master_seeds(&mut r).await;
+        let (joined, doc) = ana_joins(&mut r).await;
         assert!(joined.get("ok").is_none(), "{joined}");
-        assert!(collab_board::elements(&ana).is_empty());
+        assert!(collab_board::elements(&doc).is_empty());
         for cmd in [
             "collab_update",
             "collab_canvas",
@@ -706,7 +722,7 @@ fn a_share_window_with_no_table_is_not_let_into_the_boards_room() {
             "collab_awareness",
         ] {
             let (got, _) = exchange(
-                &mut c.ana,
+                &mut r.ana,
                 cmd,
                 json!({ "path": REL, "update": "", "at": "", "json": "{}" }),
                 OUTSIDE,
@@ -714,13 +730,8 @@ fn a_share_window_with_no_table_is_not_let_into_the_boards_room() {
             .await;
             assert!(got.get("ok").is_none(), "{cmd}: {got}");
         }
-        // What she has instead: the file, re-rooted, the card beside the
-        // share locked.
-        let (read, _) = exchange(&mut c.ana, "read_text", json!({ "path": REL }), OUTSIDE).await;
-        let text = read["ok"]["text"].as_str().unwrap_or_default();
-        assert!(text.contains("\"Livre.md\""), "{read}");
-        let id = c.share.clone();
-        crate::tests_board_leaks::sweep(&mut c.ana, &id, REL, OUTSIDE).await;
+        let id = r.share.clone();
+        crate::tests_board_leaks::sweep(&mut r.ana, &id, REL, OUTSIDE).await;
     });
 }
 
