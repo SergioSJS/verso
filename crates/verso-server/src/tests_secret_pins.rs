@@ -41,6 +41,9 @@ const SECRET: &[&str] = &[
     "zqwallkey",
     "zqtopkey",
     "zqdoor",
+    // A pin whose `verso` is written twice, secret in the first (the audit of
+    // 2026-11-15, B): a reader's projection counts both.
+    "zqtwice",
 ];
 
 /// A map, an open pin to a note, and secret pins of three kinds: a file,
@@ -53,7 +56,8 @@ const BOARD: &str = r#"{
 		{"id":"cartao","type":"text","text":"cartao aberto\n\n> [!secret]\n> zqcallout vive [[Cripta]]\n\nfim do cartao","x":400,"y":400,"width":200,"height":80},
 		{"id":"zqpinid","type":"file","file":"Cripta.md","x":9000011,"y":9100022,"width":24,"height":24,"verso":{"pin":true,"secret":true,"groups":["gmapa","gzq"]}},
 		{"id":"txt","type":"text","text":"zqpintext","x":9000012,"y":9100023,"width":24,"height":24,"verso":{"secret":true}},
-		{"id":"zqpinfile","type":"link","url":"https://zqpinurl.example","x":9000013,"y":9100024,"width":24,"height":24,"verso":{"secret":true}}
+		{"id":"zqpinfile","type":"link","url":"https://zqpinurl.example","x":9000013,"y":9100024,"width":24,"height":24,"verso":{"secret":true}},
+		{"id":"zqtwice","type":"text","text":"zqtwice","x":9000015,"y":9100026,"width":24,"height":24,"verso":{"secret":true},"verso":{}}
 	],
 	"edges":[
 		{"id":"e1","fromNode":"aberto","toNode":"mapa"},
