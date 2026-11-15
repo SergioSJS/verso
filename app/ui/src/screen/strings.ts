@@ -32,6 +32,12 @@ export type ScreenStrings = {
   barAlways: string;
   /** Whether a sideways swipe brings the side panels (screen/swipe.ts). */
   swipePanels: string;
+  /** Settings › Appearance, under the phone group: what the swipe does and
+   *  when to turn it off. */
+  swipePanelsDesc: string;
+  barAlwaysDesc: string;
+  /** Settings › Appearance: the group of the phone's own switches. */
+  phoneGroup: string;
   showBar: string;
   hideBar: string;
   /** The pane switcher of a split layout on a phone (item 2). */
@@ -143,6 +149,9 @@ const pt: ScreenStrings = {
   closeTab: (name) => `Fechar ${name}`,
   barAlways: "Barra inferior sempre visível",
   swipePanels: "Deslizar para o lado abre os painéis",
+  swipePanelsDesc: "Arraste da direita para a esquerda para o painel da direita e da esquerda para a direita para os arquivos, começando longe da borda. Desligue se o gesto se confunde com o Voltar do celular.",
+  barAlwaysDesc: "Arquivos, Buscar, Nova nota e o resto ficam embaixo. Desligada, eles ficam no ⋯ da barra de cima.",
+  phoneGroup: "Celular",
   showBar: "Mostrar a barra inferior",
   hideBar: "Ocultar a barra inferior",
   paneSwitch: (i, n) => `Painel ${i} de ${n}`,
@@ -233,6 +242,9 @@ const en: ScreenStrings = {
   closeTab: (name) => `Close ${name}`,
   barAlways: "Bottom bar always shown",
   swipePanels: "Swipe sideways to open the panels",
+  swipePanelsDesc: "Swipe right to left for the right panel and left to right for the files, starting away from the edge. Turn it off if the gesture gets mixed up with the phone's Back.",
+  barAlwaysDesc: "Files, Search, New note and the rest stay at the bottom. Off, they are in the top bar's ⋯.",
+  phoneGroup: "Phone",
   showBar: "Show the bottom bar",
   hideBar: "Hide the bottom bar",
   paneSwitch: (i, n) => `Pane ${i} of ${n}`,

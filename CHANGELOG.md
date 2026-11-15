@@ -14,7 +14,7 @@ test release.
 
 ### Added
 
-- On a phone, a sideways swipe brings the side panels, so they are in reach without the bottom bar: right to left the right panel, left to right the files; the panel follows the finger and the swipe the other way closes it. It starts away from the screen's edge (Android's Back owns the edge), and selected text, fields, things that scroll sideways and boards, drawings, maps and graphs keep the finger. *Swipe sideways to open the panels*, in the tabs button's sheet, turns it off.
+- On a phone, a sideways swipe brings the side panels, so they are in reach without the bottom bar: right to left the right panel, left to right the files; the panel follows the finger and the swipe the other way closes it. It starts away from the screen's edge, past the width Android reports for its Back gesture (it follows the Back sensitivity), and selected text, fields, things that scroll sideways and boards, drawings, maps and graphs keep the finger. *Swipe sideways to open the panels*, in the tabs button's sheet or in Settings › Appearance › Phone (with the bottom bar's switch), turns it off.
 
 ## 0.9.0-beta.2 — 2026-11-15
 

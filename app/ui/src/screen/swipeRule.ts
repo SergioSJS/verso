@@ -19,8 +19,22 @@
 import { HOLD_MS } from "../touch";
 
 /** The band along each side of the screen where no swipe starts, in CSS
- *  pixels: Android's Back gesture lives there. */
+ *  pixels: Android's Back gesture lives there. The default, when the system
+ *  does not say how wide its band is (iOS, a browser). */
 export const EDGE_PX = 24;
+/** Added to the band Android reports (its Back sensitivity can widen it), so
+ *  a finger that lands just inside the system's band is not taken for ours. */
+export const EDGE_MARGIN_PX = 8;
+
+/** The band on each side where no swipe starts: Android's own Back band
+ *  (`window.VersoGestures`, MainActivity.kt) plus a margin when the system
+ *  says it, `EDGE_PX` otherwise. With three-button navigation the system's
+ *  band is 0 and only the margin is left. */
+export function edgeBands(reported: { left: number; right: number } | null): { left: number; right: number } {
+  if (!reported) return { left: EDGE_PX, right: EDGE_PX };
+  const band = (n: number) => (Number.isFinite(n) && n >= 0 ? n + EDGE_MARGIN_PX : EDGE_PX);
+  return { left: band(reported.left), right: band(reported.right) };
+}
 /** How far the finger goes before the swipe is read at all, in CSS pixels. */
 export const SLOP_PX = 10;
 /** Sideways means at least this many times more across than down: within
@@ -61,6 +75,9 @@ export type Point = { x: number; y: number; t: number };
 export type Start = Point & {
   /** The window's width, for the edges. */
   viewport: number;
+  /** The bands along each side where no swipe starts (`edgeBands`);
+   *  `EDGE_PX` on both when left out. */
+  edges?: { left: number; right: number };
   open: Drawer;
   /** Whether the files, and the right panel, may be opened now (what their
    *  bottom-bar buttons would do). */
@@ -72,7 +89,8 @@ export type Start = Point & {
  *  it has not gone far enough to tell; else the intent, decided once for the
  *  whole touch. */
 export function classify(s: Start, at: Point, blocks: Blocks): Intent | "wait" {
-  if (s.x < EDGE_PX || s.x > s.viewport - EDGE_PX) return "none";
+  const edges = s.edges ?? { left: EDGE_PX, right: EDGE_PX };
+  if (s.x < edges.left || s.x > s.viewport - edges.right) return "none";
   const dx = at.x - s.x;
   const dy = at.y - s.y;
   // Held still first: a long press (a menu, a drag of a row, a selection).

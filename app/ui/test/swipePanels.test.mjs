@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
 
 await esbuild.build({ entryPoints: ["src/screen/swipeRule.ts"], bundle: true, format: "esm", platform: "node", outfile: "test/.bundles/swipePanels.test-bundle.mjs", logLevel: "error" });
-const { classify, decideSwipe, followX, settles, speedX, EDGE_PX, COMMIT_FRACTION } = await import("./.bundles/swipePanels.test-bundle.mjs");
+const { classify, decideSwipe, edgeBands, followX, settles, speedX, EDGE_PX, EDGE_MARGIN_PX, COMMIT_FRACTION } = await import("./.bundles/swipePanels.test-bundle.mjs");
 
 const W = 320;
 const start = (over = {}) => ({ x: 195, y: 400, t: 0, viewport: 390, open: "none", canLeft: true, canRight: true, ...over });
@@ -42,6 +42,25 @@ test("never from the screen's edges: Android's Back owns them", () => {
   }
   const s = start({ x: EDGE_PX + 1 });
   assert.equal(decideSwipe(s, path(s, 15, 0), {}, W), "open-left");
+});
+
+test("Android's reported Back band, plus a margin, replaces the default edge", () => {
+  // Nobody reports it (iOS, a browser): the default on both sides.
+  assert.deepEqual(edgeBands(null), { left: EDGE_PX, right: EDGE_PX });
+  // A wide Back sensitivity: 40 px reported on each side.
+  const wide = edgeBands({ left: 40, right: 40 });
+  assert.deepEqual(wide, { left: 40 + EDGE_MARGIN_PX, right: 40 + EDGE_MARGIN_PX });
+  const inBand = start({ x: 30, edges: wide });
+  assert.equal(decideSwipe(inBand, path(inBand, 15, 0), {}, W), "none");
+  const past = start({ x: 40 + EDGE_MARGIN_PX + 1, edges: wide });
+  assert.equal(decideSwipe(past, path(past, 15, 0), {}, W), "open-left");
+  // Three-button navigation: no system band, only the margin.
+  const buttons = edgeBands({ left: 0, right: 0 });
+  assert.deepEqual(buttons, { left: EDGE_MARGIN_PX, right: EDGE_MARGIN_PX });
+  const near = start({ x: 390 - EDGE_MARGIN_PX - 2, edges: buttons });
+  assert.equal(decideSwipe(near, path(near, -15, 0), {}, W), "open-right");
+  // A value that is not a size falls back to the default.
+  assert.deepEqual(edgeBands({ left: Number.NaN, right: -1 }), { left: EDGE_PX, right: EDGE_PX });
 });
 
 test("not clearly sideways: a scroll, a diagonal", () => {

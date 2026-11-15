@@ -3,9 +3,12 @@ package com.versomd.app
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import io.crates.keyring.Keyring
 
 class MainActivity : TauriActivity() {
@@ -55,6 +58,7 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     page = webView
+    watchGestureBands(webView)
     onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
       override fun handleOnBackPressed() {
         webView.evaluateJavascript("(window.versoBack ? window.versoBack() : false) === true") { closed ->
@@ -66,6 +70,30 @@ class MainActivity : TauriActivity() {
         }
       }
     })
+  }
+
+  // How wide the system's Back gesture band is on each side, in CSS pixels:
+  // the page's sideways swipe (app/ui/src/screen/swipe.ts) starts only past
+  // it. It follows the navigation mode (0 with three buttons) and the Back
+  // sensitivity, so it is read again each time the insets change. The
+  // window's own handling of the insets goes on unchanged.
+  @Volatile private var gestureLeft = -1f
+  @Volatile private var gestureRight = -1f
+
+  private fun watchGestureBands(webView: WebView) {
+    webView.addJavascriptInterface(object {
+      @JavascriptInterface
+      fun edges(): String =
+        if (gestureLeft < 0f) "null" else "{\"left\":$gestureLeft,\"right\":$gestureRight}"
+    }, "VersoGestures")
+    ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
+      val bands = insets.getInsets(WindowInsetsCompat.Type.systemGestures())
+      val density = view.resources.displayMetrics.density
+      gestureLeft = bands.left / density
+      gestureRight = bands.right / density
+      ViewCompat.onApplyWindowInsets(view, insets)
+    }
+    ViewCompat.requestApplyInsets(webView)
   }
 
   private external fun initTls(context: Context)

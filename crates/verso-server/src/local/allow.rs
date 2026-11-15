@@ -235,6 +235,9 @@ pub const REFUSED: &[&str] = &[
     "server_copy_open",
     "server_copy_plan",
     "server_copy_make",
+    // Pairing this device with a computer at home (ADR 0117, "The Verso
+    // app paired") is the device's own, never a remote phone's.
+    "server_pair",
     "server_prove",
     "server_retry",
     "window_server",

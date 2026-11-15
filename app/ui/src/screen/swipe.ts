@@ -24,7 +24,7 @@ import { topOverlay } from "../dialogs/a11y";
 import { menu } from "../menu";
 import { settings } from "../settings";
 import { typesText } from "./openFocus";
-import { type Blocks, COMMIT_FRACTION, type Drawer, type Intent, type Point, type Start, classify, followX, progress, settles, SLOP_PX, speedX } from "./swipeRule";
+import { type Blocks, COMMIT_FRACTION, type Drawer, type Intent, type Point, type Start, classify, edgeBands, followX, progress, settles, SLOP_PX, speedX } from "./swipeRule";
 
 /** Views where one finger pans or draws, and any element marked
  *  `data-no-swipe`: the swipe never starts on them. One list, here. The
@@ -134,6 +134,21 @@ function finish(gesture: Gesture, commit: boolean): void {
   }
 }
 
+/** How wide Android's Back gesture band is on each side now, in CSS pixels,
+ *  as the app's activity reports it (MainActivity.kt, `VersoGestures`): it
+ *  changes with the navigation mode and the Back sensitivity. `null` where
+ *  nobody reports it (iOS, a browser). */
+function systemBack(): { left: number; right: number } | null {
+  try {
+    const bridge = (window as unknown as { VersoGestures?: { edges(): string } }).VersoGestures;
+    if (!bridge) return null;
+    const v = JSON.parse(bridge.edges()) as { left?: unknown; right?: unknown };
+    return typeof v.left === "number" && typeof v.right === "number" ? { left: v.left, right: v.right } : null;
+  } catch {
+    return null;
+  }
+}
+
 function onStart(e: TouchEvent): void {
   if (g) {
     // A second finger: no swipe (and a touch whose end was never heard is
@@ -147,7 +162,7 @@ function onStart(e: TouchEvent): void {
   const p = pointOf(e);
   if (!p) return;
   g = {
-    start: { ...p, viewport: window.innerWidth, open: openNow(), canLeft: canOpenLeft(), canRight: true },
+    start: { ...p, viewport: window.innerWidth, edges: edgeBands(systemBack()), open: openNow(), canLeft: canOpenLeft(), canRight: true },
     target: e.target,
     intent: "wait",
     samples: [p],
