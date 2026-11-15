@@ -74,7 +74,7 @@ for (const mode of ["Editar", "Fonte"]) {
   test(`${mode}: swatches beside the codes; a click opens the picker, a pick rewrites the code in its format, ⌘Z restores @layout`, async ({ app, page }, info) => {
     await app.open();
     await openNote(app);
-    await page.getByRole("button", { name: mode, exact: true }).click();
+    await modeOn(page, mode);
     const editor = page.locator(".cm-content:visible").first();
     const sw = editor.locator(".cm-swatch");
     // In Source the frontmatter is text; in Live it is folded to a line.
