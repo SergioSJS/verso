@@ -24,7 +24,7 @@ import { topOverlay } from "../dialogs/a11y";
 import { menu } from "../menu";
 import { settings } from "../settings";
 import { typesText } from "./openFocus";
-import { type Blocks, COMMIT_FRACTION, type Drawer, type Intent, type Point, type Start, classify, edgeBands, followX, progress, settles, SLOP_PX, speedX } from "./swipeRule";
+import { type Blocks, COMMIT_FRACTION, type Drawer, type Intent, type Point, type Start, classify, edgeBands, followX, leansToSwipe, progress, settles, SLOP_PX, speedX } from "./swipeRule";
 
 /** Views where one finger pans or draws, and any element marked
  *  `data-no-swipe`: the swipe never starts on them. One list, here. The
@@ -32,6 +32,11 @@ import { type Blocks, COMMIT_FRACTION, type Drawer, type Intent, type Point, typ
  *  graph, a base's map. (Not every `canvas`: a PDF's pages are canvases,
  *  and an unzoomed PDF takes the swipe; zoomed, it scrolls sideways.) */
 const NO_SWIPE = "[data-no-swipe], .board-host, .excalidraw, .graph, .graph-stage, .dg-stage, .base-map, .maplibregl-map";
+/** The scrollers that roll only up and down and are given
+ *  `touch-action: pan-y pinch-zoom` while the swipe is on (css/base.css), so
+ *  the browser leaves a sideways finger to the page: their pan-y is the
+ *  swipe's own, not a canvas's. */
+const SWIPE_SCROLLERS = ".note-sheet, .side-body, .right-body, .table-log";
 /** Fields where a finger moves the caret or a thumb. The editor
  *  (`contenteditable`) is not one: a swipe over a note is the main case. */
 const FIELD = "input, textarea, select, [role='slider']";
@@ -56,11 +61,14 @@ function blocksAt(target: EventTarget | null): Blocks {
   b.selection = Boolean(sel && sel.rangeCount > 0 && !sel.isCollapsed);
   const start = target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
   if (!start) return b;
+  // The clear veil beside an open drawer (src/main.ts) holds the finger
+  // for this swipe on purpose: its `touch-action: none` is not a canvas's.
+  if (start.closest(".drawer-veil")) return b;
   b.noSwipe = Boolean(start.closest(NO_SWIPE));
   b.field = Boolean(start.closest(FIELD));
   for (let el: Element | null = start; el && el !== body && el !== document.documentElement; el = el.parentElement) {
     const cs = getComputedStyle(el);
-    if (ownsSideways(cs.touchAction)) b.noSwipe = true;
+    if (ownsSideways(cs.touchAction) && !el.matches(SWIPE_SCROLLERS)) b.noSwipe = true;
     // Scrolls sideways: it overflows across (past a rounding pixel or two)
     // and lets the person scroll it.
     if (el.scrollWidth - el.clientWidth > 2 && /auto|scroll|overlay/.test(cs.overflowX)) b.scrollX = true;
@@ -192,7 +200,12 @@ function onMove(e: TouchEvent): void {
   if (gesture.intent === "wait") {
     const far = Math.hypot(p.x - gesture.start.x, p.y - gesture.start.y) >= SLOP_PX;
     const intent = classify(gesture.start, p, far ? blocksAt(gesture.target) : {});
-    if (intent === "wait") return;
+    if (intent === "wait") {
+      // Under the slop, but already sideways where a swipe would be taken:
+      // held now, or the browser keeps every later move (swipeRule.ts).
+      if (e.cancelable && leansToSwipe(gesture.start, p, blocksAt(gesture.target))) e.preventDefault();
+      return;
+    }
     // Not a swipe, or the browser already scrolls with it: the touch is
     // the page's and the browser's for the rest of it.
     if (intent === "none" || !e.cancelable) {

@@ -397,6 +397,7 @@ export function applySettings(): void {
   // text stands at the same place in Reading and in Edit.
   document.documentElement.classList.toggle("block-handles", Boolean(settings.blockHandles));
   document.documentElement.classList.toggle("phone-bar-on", Boolean(settings.phoneBottomBar));
+  document.documentElement.classList.toggle("phone-swipe-on", Boolean(settings.phoneSwipe));
   const headingFonts: Record<string, string> = {
     serif: '"Fraunces", "Iowan Old Style", Georgia, serif',
     sans: '"Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',

@@ -85,6 +85,22 @@ export type Start = Point & {
   canRight: boolean;
 };
 
+/** Whether a move still under `SLOP_PX` already leans the way a swipe could
+ *  go from here: clearly sideways, and a swipe that way would be taken if it
+ *  went on. The page holds such a move (`preventDefault`) though nothing is
+ *  decided yet: a browser that sees the first move of a touch go by
+ *  unheld treats every later move as its own (they are no longer
+ *  cancelable), and the swipe could never be held after it. A move that
+ *  leans up or down is let go, so scrolling is untouched. */
+export function leansToSwipe(s: Start, at: Point, blocks: Blocks): boolean {
+  const dx = at.x - s.x;
+  const dy = at.y - s.y;
+  if (dx === 0 || Math.abs(dx) < DOMINANCE * Math.abs(dy)) return false;
+  const ahead = { x: s.x + Math.sign(dx) * SLOP_PX * DOMINANCE, y: s.y, t: at.t };
+  const intent = classify(s, ahead, blocks);
+  return intent !== "none" && intent !== "wait";
+}
+
 /** What the finger at `at` makes of a touch that began at `s`: "wait" while
  *  it has not gone far enough to tell; else the intent, decided once for the
  *  whole touch. */

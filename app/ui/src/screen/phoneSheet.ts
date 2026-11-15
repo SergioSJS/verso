@@ -162,6 +162,7 @@ function barSwitches(note: string): HTMLElement[] {
     aSwitch(st.barAlways, settings.phoneBottomBar, setBottomBar, note),
     aSwitch(st.swipePanels, settings.phoneSwipe, (on) => {
       settings.phoneSwipe = on;
+      document.documentElement.classList.toggle("phone-swipe-on", on);
       saveSettings();
     }),
   ];

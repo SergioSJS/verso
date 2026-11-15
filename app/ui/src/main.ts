@@ -400,6 +400,15 @@ narrow.addEventListener("change", () => {
   document.body.classList.remove("side-open", "right-open");
   paintExpanded();
 });
+// While a drawer is open on a phone, the page beside it is covered by a
+// clear veil (css/base.css): a tap on it closes the drawer (the handler
+// below) without also pressing what is under it, and a sideways finger on
+// it stays the page's (screen/swipe.ts closes the drawer with it) instead of
+// the browser's, which otherwise takes it for its own navigation.
+const drawerVeil = document.createElement("div");
+drawerVeil.className = "drawer-veil";
+drawerVeil.setAttribute("aria-hidden", "true");
+document.body.append(drawerVeil);
 document.addEventListener("mousedown", (e) => {
   if (!narrow.matches) return;
   const at = e.target as HTMLElement;

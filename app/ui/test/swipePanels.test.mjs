@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import * as esbuild from "esbuild";
 
 await esbuild.build({ entryPoints: ["src/screen/swipeRule.ts"], bundle: true, format: "esm", platform: "node", outfile: "test/.bundles/swipePanels.test-bundle.mjs", logLevel: "error" });
-const { classify, decideSwipe, edgeBands, followX, settles, speedX, EDGE_PX, EDGE_MARGIN_PX, COMMIT_FRACTION } = await import("./.bundles/swipePanels.test-bundle.mjs");
+const { classify, decideSwipe, edgeBands, leansToSwipe, followX, settles, speedX, EDGE_PX, EDGE_MARGIN_PX, COMMIT_FRACTION } = await import("./.bundles/swipePanels.test-bundle.mjs");
 
 const W = 320;
 const start = (over = {}) => ({ x: 195, y: 400, t: 0, viewport: 390, open: "none", canLeft: true, canRight: true, ...over });
@@ -125,4 +125,22 @@ test("the speed at the lift is the last tenth of a second's", () => {
   assert.equal(speedX(samples), 60 / 100);
   assert.equal(speedX([{ x: 3, y: 0, t: 1 }]), 0);
   assert.equal(settles("none", 999, 9, W), false);
+});
+
+test("a first small move that leans sideways is held; one that leans up or down is not", () => {
+  const s = start();
+  // 4 px across, 1 down: under the slop, but a swipe to the right panel would be taken.
+  assert.equal(leansToSwipe(s, { x: s.x - 4, y: s.y + 1, t: 16 }, {}), true);
+  // Mostly down: a scroll, let go.
+  assert.equal(leansToSwipe(s, { x: s.x - 2, y: s.y + 5, t: 16 }, {}), false);
+  // Sideways, but over something that scrolls sideways: let go.
+  assert.equal(leansToSwipe(s, { x: s.x - 4, y: s.y, t: 16 }, { scrollX: true }), false);
+  // Sideways toward nothing to open (files cannot open): let go.
+  const loose = start({ canLeft: false });
+  assert.equal(leansToSwipe(loose, { x: loose.x + 4, y: loose.y, t: 16 }, {}), false);
+  // From the edge band: Back's, let go.
+  const edge = start({ x: 10 });
+  assert.equal(leansToSwipe(edge, { x: 14, y: edge.y, t: 16 }, {}), false);
+  // No move across at all.
+  assert.equal(leansToSwipe(s, { x: s.x, y: s.y, t: 16 }, {}), false);
 });

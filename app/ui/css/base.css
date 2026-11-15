@@ -104,6 +104,7 @@ body.no-side aside.side, body.no-side #side-divider, body.no-right aside.right, 
    none, would stand past the window's edge. */
 body.no-right #right-divider { display: none; }
 body.no-right aside.right { border: 0; }
+.drawer-veil { display: none; }
 /* Narrow window (a phone, a half screen): the side bars become drawers
  * over the page, opened by the same toggles, closed by a tap outside. */
 @media (max-width: 760px), (pointer: coarse) and (max-height: 500px) {
@@ -112,6 +113,15 @@ body.no-right aside.right { border: 0; }
   body aside.side { left: 0; transform: translateX(-100%); }
   body aside.right { right: 0; transform: translateX(100%); }
   body.side-open aside.side, body.right-open aside.right { transform: none; box-shadow: 0 0 48px oklch(0% 0 0 / .28); }
+  /* The page beside an open drawer: a clear veil under the drawers (8) and
+     the bottom bar (9) that keeps the finger for the page (src/main.ts). */
+  body.side-open .drawer-veil, body.right-open .drawer-veil { display: block; position: fixed; inset: 0; z-index: 7; touch-action: none; }
+  /* The sideways swipe (src/screen/swipe.ts): on a scroller that rolls only
+     up and down, a finger going across is the page's, not the browser's —
+     else the browser takes it for its own pan within the first pixels and
+     the page can no longer hold it. A table, a code block or a zoomed PDF
+     scrolls sideways in its own scroller, which keeps its own touch-action. */
+  html.phone-swipe-on :is(.note-sheet, .side-body, .right-body, .table-log) { touch-action: pan-y pinch-zoom; }
   #side-divider, #right-divider { display: none; }
   .status-keys { display: none; }
   .leaf-head { flex-wrap: wrap; gap: .4rem .8rem; }

@@ -394,6 +394,27 @@ be on to reach them. Built (`app/ui/src/screen/swipeRule.ts`, the decision;
   Back owns the edges); pointer events (the browser cancels a pointer it
   takes for a scroll); `touch-action: pan-y` on the work area (every child
   would lose its own sideways scroll, a table's and a code block's).
+- **What the real phone showed** (2026-11-15, the maintainer's POCO, Brave,
+  gesture navigation; swipes driven through adb and read over DevTools): a
+  slow swipe — a finger's real pace — failed almost every time, and a second
+  swipe soon after the first often did. The browser treats every move of a
+  touch as its own (no longer cancelable) once the first move goes by unheld,
+  and it begins its own pan of a page that scrolls up and down. Three
+  answers, each seen working on the phone afterwards (14 swipes of 14, slow
+  and fast, opening and closing both panels):
+  - the scrollers that roll only up and down — the note's sheet, the files'
+    list, the right panel's body and the Table's log — get
+    `touch-action: pan-y pinch-zoom` while the swipe is on
+    (`html.phone-swipe-on`, css/base.css). A wide table or a code block is its
+    own scroller and keeps its own value, so it still scrolls sideways (seen
+    on the phone: a 1200 px strip scrolled both ways and no panel opened);
+  - a first move still under the 10 px slop that already leans sideways,
+    where a swipe would be taken, is held (`leansToSwipe`); one that leans up
+    or down is let go, so scrolling is untouched (seen: the note scrolls);
+  - beside an open drawer, a clear veil (`.drawer-veil`, `touch-action:
+    none`, under the drawers and the bottom bar) holds the finger for the
+    swipe that closes the drawer, and a tap on it closes the drawer without
+    also pressing a link under it.
 - Tried in `test/swipePanels.test.mjs` (the decision) and
   `e2e/phone-swipe.spec.mjs` (Chromium, by touch, at 390 × 844); on a real
   phone, with Android's gesture navigation, in `docs/reference/manual-checks.md`.
