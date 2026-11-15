@@ -132,6 +132,17 @@ pub(crate) fn installs_when_allowed<T>(
     }
 }
 
+/// The words an asset's name says its processor with: Apple silicon and
+/// ARM Linux say `arm64` (`.zip`, `.deb`) or `aarch64` (`.rpm`,
+/// `.AppImage`); an Intel Mac says `x64`, a PC `x64`, `x86_64` or `amd64`.
+fn arch_keywords(arm: bool) -> &'static [&'static str] {
+    if arm {
+        &["aarch64", "arm64"]
+    } else {
+        &["x86_64", "x64", "amd64"]
+    }
+}
+
 /// Picks the release asset for this platform and architecture.
 pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&super::GhAsset> {
     // Detect current platform + arch to pick the right release asset.
@@ -146,11 +157,7 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&super::GhAsset> {
         &["linux"]
     };
 
-    let arch_keywords: &[&str] = if cfg!(target_arch = "aarch64") {
-        &["aarch64", "arm64"]
-    } else {
-        &["x86_64", "x64", "amd64"]
-    };
+    let arch_keywords = arch_keywords(cfg!(target_arch = "aarch64"));
 
     // Preferred extension per platform
     let preferred_exts: &[&str] = if cfg!(target_os = "windows") {
@@ -170,6 +177,18 @@ pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&super::GhAsset> {
         }
     };
 
+    choose_asset(rel, os_keywords, arch_keywords, preferred_exts)
+}
+
+/// The best asset of `rel` for a platform's words: first, in the order of
+/// `preferred_exts`, the one that names the OS and the processor; else the
+/// OS alone.
+fn choose_asset<'a>(
+    rel: &'a GhRelease,
+    os_keywords: &[&str],
+    arch_keywords: &[&str],
+    preferred_exts: &[&str],
+) -> Option<&'a super::GhAsset> {
     // Only this channel's app (`Verso-Beta-…` or `Verso-…`, version.rs).
     let ours = |n: &str| ParsedVersion::parse(&rel.tag_name).is_none_or(|v| v.names_its_app(n));
     // Try to find the best asset: correct OS + arch + preferred extension
@@ -238,6 +257,72 @@ mod tests {
 
     fn tag(r: Option<&GhRelease>) -> Option<&str> {
         r.map(|r| r.tag_name.as_str())
+    }
+
+    fn with_assets(names: &[&str]) -> GhRelease {
+        let mut r = rel("v0.9.0");
+        r.assets = names
+            .iter()
+            .map(|n| super::super::GhAsset {
+                name: (*n).to_string(),
+                url: String::new(),
+                browser_download_url: String::new(),
+                size: 1,
+                digest: None,
+            })
+            .collect();
+        r
+    }
+
+    fn picked(r: &GhRelease, os: &[&str], arm: bool, exts: &[&str]) -> Option<String> {
+        choose_asset(r, os, arch_keywords(arm), exts).map(|a| a.name.clone())
+    }
+
+    /// Every architecture takes its own file of a release (V.21, V.22): an
+    /// Intel Mac the `-macos-x64.zip`, an Apple-silicon Mac the `-arm64`,
+    /// ARM Linux the `arm64` `.deb` / `aarch64` `.rpm` and `.AppImage`.
+    #[test]
+    fn each_architecture_picks_its_own_file_of_the_release() {
+        let r = with_assets(&[
+            "Verso-0.9.0-macos-arm64.zip",
+            "Verso-0.9.0-macos-x64.zip",
+            "verso-cli-0.9.0-macos-x64.tar.gz",
+            "Verso-0.9.0-linux-amd64.deb",
+            "Verso-0.9.0-linux-x86_64.rpm",
+            "Verso-0.9.0-linux-x86_64.AppImage",
+            "Verso-0.9.0-linux-arm64.deb",
+            "Verso-0.9.0-linux-aarch64.rpm",
+            "Verso-0.9.0-linux-aarch64.AppImage",
+        ]);
+        let mac = ["macos", "darwin", "osx"];
+        let linux = ["linux"];
+        let want = |got: Option<String>, name: &str| assert_eq!(got.as_deref(), Some(name));
+        want(
+            picked(&r, &mac, false, &[".dmg", ".zip"]),
+            "Verso-0.9.0-macos-x64.zip",
+        );
+        want(
+            picked(&r, &mac, true, &[".dmg", ".zip"]),
+            "Verso-0.9.0-macos-arm64.zip",
+        );
+        for (arm, deb, rpm, image) in [
+            (
+                false,
+                "Verso-0.9.0-linux-amd64.deb",
+                "Verso-0.9.0-linux-x86_64.rpm",
+                "Verso-0.9.0-linux-x86_64.AppImage",
+            ),
+            (
+                true,
+                "Verso-0.9.0-linux-arm64.deb",
+                "Verso-0.9.0-linux-aarch64.rpm",
+                "Verso-0.9.0-linux-aarch64.AppImage",
+            ),
+        ] {
+            want(picked(&r, &linux, arm, &[".deb"]), deb);
+            want(picked(&r, &linux, arm, &[".rpm"]), rpm);
+            want(picked(&r, &linux, arm, &[".appimage"]), image);
+        }
     }
 
     #[test]

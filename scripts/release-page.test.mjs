@@ -29,6 +29,8 @@ function workflowFiles(v) {
   const linux = job("linux");
   const archs = [...linux.matchAll(/- arch: (\S+)[\s\S]*?\n\s+deb: (\S+)/g)].map((m) => ({ ARCH: m[1], DEB: m[2] }));
   assert.ok(archs.length > 0, "no Linux matrix entry found");
+  const macArchs = [...job("macos").matchAll(/- arch: (\S+)\n\s+triple:/g)].map((m) => m[1]);
+  assert.deepEqual(macArchs, ["arm64", "x64"], "the macOS matrix is not arm64 and x64");
   const loop = /for entry in ([^;]+); do/.exec(job("server"));
   assert.ok(loop, "no architecture loop in the server job");
   const servers = loop[1].trim().split(/\s+/).map((e) => {
@@ -44,7 +46,9 @@ function workflowFiles(v) {
   const out = new Set();
   for (const t of templates) {
     const base = t.replaceAll("$slug", slug).replaceAll("$VERSION", v);
-    if (/\$(ARCH|DEB)\b/.test(base)) {
+    if (/\$MACARCH\b/.test(base)) {
+      for (const a of macArchs) out.add(base.replaceAll("$MACARCH", a));
+    } else if (/\$(ARCH|DEB)\b/.test(base)) {
       for (const a of archs) out.add(base.replaceAll("$ARCH", a.ARCH).replaceAll("$DEB", a.DEB));
     } else if (/\$(arch|goarch)\b/.test(base)) {
       for (const s of servers) out.add(base.replaceAll("$goarch", s.goarch).replaceAll("$arch", s.arch));
@@ -74,14 +78,14 @@ for (const v of ["0.8.1-beta.1", "1.0.0"]) {
 
 // ADR 0055, revised 2026-10-14: one signed checksums list in place of a
 // `.sig` per file, with 0.8.3 the bridge that publishes both.
-test("a release publishes its sixteen files and the signed list; the bridge, each file's .sig too", () => {
+test("a release publishes its twenty-two files and the signed list; the bridge, each file's .sig too", () => {
   const v = "0.8.3-beta.1";
   const after = releaseAssets(v, false);
-  assert.equal(after.length, 18);
+  assert.equal(after.length, 24);
   assert.ok(after.includes("verso-0.8.3-beta.1-SHA256SUMS") && after.includes("verso-0.8.3-beta.1-SHA256SUMS.sig"));
   assert.equal(after.filter((a) => a.endsWith(".sig")).length, 1, "after the bridge, the list's .sig alone");
   const bridge = releaseAssets(v, true);
-  assert.equal(bridge.length, 34);
+  assert.equal(bridge.length, 46);
   for (const f of Object.values(releaseFiles(v))) assert.ok(bridge.includes(`${f}.sig`), `${f}.sig in the bridge`);
   assert.deepEqual(releaseAssets(v), releaseAssets(v, PER_FILE_SIGNATURES));
 });
