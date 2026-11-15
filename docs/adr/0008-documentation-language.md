@@ -46,6 +46,10 @@ pt-BR mirror to public/community documents:
    in `docs/pt-BR/CHANGELOG.md` keeps its heading and is filled, translated,
    in the PR that cuts the version (`scripts/release.mjs prepare`). The
    heading structure of both files stays the same.
+   *Withdrawn 2026-11-15* (the maintainer: *"já lançamos!"* — Verso has
+   public releases now): every change adds its entry to both changelogs in
+   the same change, English under `## Unreleased` and Portuguese under
+   `## Não lançado`, as the mirror check already asks.
 3. **Internal engineering documentation** (`CLAUDE.md`, `docs/adr/`,
    `docs/spec/`, `docs/reference/`, `docs/review/`, `docs/roadmap.md`,
    `docs/BRIEFING.md`, `.github/pull_request_template.md`) is maintained in
