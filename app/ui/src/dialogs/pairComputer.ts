@@ -138,9 +138,12 @@ export function pairComputerForm(paired: (a: ServerAccount) => void): HTMLElemen
   failure.hidden = true;
   const said = h("p", "srv-said");
   said.setAttribute("role", "status");
-  const row = h("div", "srv-field");
-  row.append(go);
-  form.append(heading, help, addressLabel, address, codeLabel, code, row, safe, failure, said);
+  // Each field its own row, the button beside the code (as Connect's).
+  const addressRow = h("div", "srv-field");
+  addressRow.append(address);
+  const codeRow = h("div", "srv-field");
+  codeRow.append(code, go);
+  form.append(heading, help, addressLabel, addressRow, codeLabel, codeRow, safe, failure, said);
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     busy(go, true);
