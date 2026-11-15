@@ -142,31 +142,33 @@ The following items gate the official release of V1 (they do not block local com
 | V.49 | A shared board with the owner's paths: a share's sync carries a board with the share's paths, and a share window without a table joins the board's room by them | [ADR 0081](adr/0081-sharing-between-people-on-one-universo.md) item 11 | **Done** (2026-11-15, the maintainer: *"no hack, pull V.49 in"*): the share's sync carries the board cut to the share on every path, hashes of the cut (`d849174e`); a share window without a table edits the board in a shadow of its room cut to the share (`c36fa5e4`); a board is not renamed through a share out of being a board (`2879cd93`). Two devices by hand in `manual-checks.md` |
 | V.50 | Merge by block of offline edits (two people who edited one note offline are merged, not copied) | [ADR 0122](adr/0122-merge-by-block-of-offline-edits.md), [ADR 0082](adr/0082-live-co-editing-of-a-synced-folder.md), [ADR 0073](adr/0073-self-hosted-server-first.md) item 10 | Decided into V1 2026-11-01; ADR 0122 Accepted 2026-11-15; to build, after the terminal and the music are polished |
 | V.51 | The other placeholder providers (Dropbox, Google Drive on macOS) never read as a deletion | [ADR 0043](adr/0043-placeholder-guard.md) | Decided into V1 2026-11-01; **not built**: `verso-fs/src/placeholder.rs` knows iCloud's `SF_DATALESS` and Windows' cloud attributes only; whether File Provider placeholders carry `SF_DATALESS` was never observed (needs a Mac with Dropbox or Google Drive); after the terminal and the music are polished |
-| V.55 | A virtual tabletop layer on the board: scenes, grid, tokens, walls, fog and sight, lighting, initiative (ADR 0121) | [ADR 0121](adr/0121-a-virtual-tabletop-layer-on-the-board.md) | **Decided into V1 2026-11-15** by the maintainer (Q1 (b)); **every question Q0–Q20 decided by him the same day** (ADR 0121 Accepted; the second reading before building pending): a scene is a group on the board with its own play view; a token is a note's file card (its picture may come from the note's frontmatter; a token maker proposed); a player moves only their own token, by drag or arrows / `W A S D`; no turn rule, the game master pauses the scene; every wall blocks; fog per scene with a reset and a scope per player, party or token; sight on the server, on drop or live; ghosts; dynamic lighting planned; initiative as an ordered list with "already acted" checks; "bring everyone here"; teleport between scenes. Steps T0–T14 below; not built (T0's top level, the player's key allowlist, is built: `942359ac`) |
+| V.55 | A virtual tabletop layer on the board: scenes, grid, tokens, walls, fog and sight, lighting, initiative (ADR 0121) | [ADR 0121](adr/0121-a-virtual-tabletop-layer-on-the-board.md) | **Decided into V1 2026-11-15** by the maintainer (Q1 (b)); **every question Q0–Q20 decided by him the same day** (ADR 0121 Accepted; its second reading done and applied 2026-11-15: T0–T9 may start, T0 first; T10–T14 wait for his confirmations, listed in the ADR's Status; whether T11–T13 gate the V1 release is his to say): a scene is a group on the board with its own play view; a token is a note's file card (its picture may come from the note's frontmatter; a token maker proposed); a player moves only their own token, by drag or arrows / `W A S D`; no turn rule, the game master pauses the scene; every wall blocks; fog per scene with a reset and a scope per player, party or token; sight on the server, on drop or live; ghosts; dynamic lighting planned; initiative as an ordered list with "already acted" checks; "bring everyone here"; teleport between scenes. Steps T0–T14 below; not built (T0's top level, the player's key allowlist, is built: `942359ac`) |
 | V.56 | Opening one `.md` file without a folder | [ADR 0114](adr/0114-opening-one-markdown-file-without-a-folder.md) | **Done; counted in V1** by the maintainer 2026-11-15 (Q11 (a)); released in 0.8.4-beta.1 |
 | V.52 | ~~The bucket's pre-signed URL~~ | [ADR 0044](adr/0044-verso-fs-semantics.md) | Moved **after V1** by the maintainer on 2026-11-14 (*"fica pra depois mesmo, tem que tá no roadmap"*): After V1, item 10 |
 
 **V.55's steps** ([ADR 0121](adr/0121-a-virtual-tabletop-layer-on-the-board.md) "Order and size"; the author's sizes, estimates, not a plan):
 
-| # | Step | Size | State |
-|---|---|---|---|
-| T0 | The board's projection serves only the keys it knows: top level, then nodes' `verso` keys | S | Top level built (`942359ac`); nodes' keys before any step writes walls, fog or tokens |
-| T1 | Scenes on the board (a group with `verso.scene`) and their grid: square, hex pointy, hex flat; alignment on the map; snap; cell numbers (the hexcrawl of 0120 item 11) | M | Decided (Q0) |
-| T2 | Table players who only see a board follow it live, read-only (amends 0090 pick 2 and 0113 H) | M | Decided (Q8) |
-| T3 | Ruler in the grid's units, shared live | S | Decided (Q14) |
-| T4 | Tokens: a note's file card, its picture from the note's frontmatter, its own public face, size in cells, snapped, the tracker as a bar | L | Decided (Q2, Q12) |
-| T4b | The token maker: a round crop with a border made from a picture, written as a new picture file | S–M | Proposed (Q2), the maintainer's to confirm |
-| T5 | Hide a drawn element from players | S–M | Proposed |
-| T6 | Initiative: an ordered list of characters with "already acted" checks, hidden entries by default | S–M | Decided (Q9, Q15) |
-| T7 | The play view ("Open the scene") and a player window (second screen / TV) | M | Decided (Q16); needs V.43 "see as player" |
-| T7b | "Bring everyone here": the game master moves every viewer's view to a place of the scene or board | S | Decided (Q16) |
-| T8 | Walls and doors editor | S–M | Proposed |
-| T9 | Universal VTT import (`.dd2vtt`, `.uvtt`, `.df2vtt`) into a scene with walls | S–M | Decided (Q11) |
-| T10 | Players move only their tokens, by drag or arrows / `W A S D`; every wall blocks; the game master pauses the scene | M | Decided (Q3, Q3b, Q5b, Q14b) |
-| T11 | Manual fog of war, left out of every path a player has; reset; map tiles cut by the game master's device in a compact format and masked one at a time | XL | Decided (Q4, Q6, Q6b, Q13, Q19); the tile format the maintainer's to confirm |
-| T12 | Token vision on the server, on drop or live; the fog's scope per player, party or token; explored areas and ghosts; the game master's token view | XL | Decided (Q4, Q5, Q5b, Q7, Q18) |
-| T13 | Dynamic lighting: light sources, darkness, darkvision, time of day; lights never served raw | L–XL | Decided (Q10) |
-| T14 | Teleport of tokens between scenes, two points linked by the game master (levels and roofs) | M | Decided (Q17) |
+| # | Step | Size | State | Needs |
+|---|---|---|---|---|
+| T0 | The board's projection serves only the keys it knows: top level, then nodes', edges' and drawn elements' `verso` keys, from an inventory with a test that fails on an unclassified key; a player's put carrying an unknown key refused | S–M | Top level built (`942359ac`); nodes', edges' and drawn elements' keys, from the inventory, before any step writes walls, fog or tokens; nothing else merges before it | — |
+| T0b | The projection moves from `verso-server` to `verso-core`, a pure move with the same tests | S | Proposed by the second reading (N-I12); follows from Q5 (the projection in `verso-core`) | T0 |
+| T1 | Scenes on the board (a group with `verso.scene`, naming its map node) and their grid: square, hex pointy, hex flat; alignment on the map; snap; cell numbers (the hexcrawl of 0120 item 11); inside a scene a non-game-master changes nothing yet | M | Decided (Q0, Q3); the grid's fields proposed | T0, T0b |
+| T2 | Table players who only see a board follow it live, read-only (amends 0090 pick 2 and 0113 H); measuring first | M | Decided (Q8) | — |
+| T3 | Ruler in the grid's units, shared live | S | Proposed (0121 item 3); its presence rule decided (Q14) | T1 |
+| T4 | Tokens: a note's file card, its picture from the note's frontmatter, its own public face, size in cells, snapped, the tracker as a bar | L | Decided (Q2, Q12); the frontmatter property's name proposed | T1; the roles table of 0121 item 22 |
+| T4b | The token maker: a round crop with a border made from a picture, written as a new picture file | S–M | Asked for by the maintainer (Q2); design proposed, his to confirm | T4 |
+| T5 | Hide a drawn element from players | S–M | Proposed | T0 |
+| T6 | Initiative: an ordered list of characters with "already acted" checks, hidden entries by default | S–M | Decided (Q9, Q15); where the list is kept proposed, his to confirm | T4 |
+| T7a | The play view ("Open the scene") | M | Decided (Q0, Q16) | T1, T4, T2 |
+| T7b' | A player window (second screen / TV) | S–M | Decided (Q16); waits for V.43 "see as player" | T7a; V.43 |
+| T7b | "Bring everyone here": the game master moves every viewer's view to a place of the scene or board | S | Asked for by the maintainer (Q16); design proposed | T7a |
+| T8 | Walls and doors editor; measuring the node's size first | S–M | Proposed | T1, T0 |
+| T9 | Universal VTT import (`.dd2vtt`, `.uvtt`, `.df2vtt`) into a scene with walls; offers to hide the picture from players first | S–M | Decided (Q11) | T1, T0 |
+| T10 | Players move only their tokens, by drag or arrows / `W A S D`; every wall blocks; every write path judged by one check; the game master pauses the scene | M | Decided (Q3, Q3b, Q5b, Q14b); the pause's design proposed | T2, T4, T8 |
+| T11 | Manual fog of war, left out of every path a player has; reset; map tiles cut by the game master's device in a compact format and masked one at a time; Watabou's two pictures, with and without secret rooms (his answer 2.3) | XL | Decided (Q6, Q6b, Q13, Q19); Q4's storage, the painted fog's scope, what reset restores, the drawn-dungeon rule and the tile format proposed, his to confirm before the step | T10, T7a |
+| T12 | Token vision on the server, on drop or live; the fog's scope per player, party or token; explored areas and ghosts; the game master's token view | XL | Decided (Q5, Q5b, Q7, Q18); the ghosts' rules and how fog and sight combine proposed, his to confirm before the step | T11 |
+| T13 | Dynamic lighting: light sources, darkness, darkvision, time of day; lights never served raw | L–XL | Asked for by the maintainer (Q10); design proposed | T12 |
+| T14 | Teleport of tokens between scenes, two points linked by the game master (levels and roofs) | M | Asked for by the maintainer (Q17); design proposed | T10, T11; T12 where vision is on |
 
 ---
 

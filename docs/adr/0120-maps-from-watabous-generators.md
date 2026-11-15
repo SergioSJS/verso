@@ -1,6 +1,9 @@
 # ADR 0120 — Maps from Watabou's generators: the importer, our own drawing, the generated-map note
 
 - Date: 2026-11-12
+- Amended in part by [0121](0121-a-virtual-tabletop-layer-on-the-board.md) (Accepted 2026-11-15, not built): item 3 (the
+  walls move into the scene). This text is amended when the step that builds
+  it is merged.
 - Source: the maintainer, in session on 2026-11-12, answering the seven
   questions of the research report of 2026-11-11 on Watabou's generators
   (watabou.github.io, Procgen Arcana; the report is the maintainer's, kept
@@ -457,6 +460,10 @@ fix of 2026-11-15). Open: how the two are told apart (same size: the person
 says which, or a name convention), and how this meets
 [ADR 0121](0121-a-virtual-tabletop-layer-on-the-board.md)'s fog and sight,
 which may hide those rooms anyway.
+*When* answered by the maintainer on 2026-11-15 (note *decisoes-2026-11-15*,
+2.3: *"B"* — *"junto com a névoa da ADR 0121"*): built with 0121's fog, its
+step T11 (0121 item 9). How the two pictures are told apart stays open
+here.
 
 **Revised 2026-11-15** (item 2): the generator's picture is the map, built
 on `feat/phone-home-and-board`. Chosen in the code, for the maintainer to
