@@ -680,3 +680,119 @@ fn a_card_of_a_hidden_file_leaves_no_trace_in_the_links_of_a_players_board() {
         assert!(!back.to_string().contains("Oculta"), "{back}");
     });
 }
+
+/// D of the audit of 2026-11-15: a window of a share that is no player of a
+/// table was let into the board's room, which holds every card by the
+/// owner's paths — a card of a file beside the share too. It is refused the
+/// room (no room is cut to a share without a table yet: V.49) and follows
+/// the board by its file, re-rooted.
+#[test]
+fn a_share_window_with_no_table_is_not_let_into_the_boards_room() {
+    block_on(async {
+        let mut c = cast_with(false).await;
+        master_seeds(&mut c).await;
+        let (joined, ana) = ana_joins(&mut c).await;
+        assert!(joined.get("ok").is_none(), "{joined}");
+        assert!(collab_board::elements(&ana).is_empty());
+        for cmd in [
+            "collab_update",
+            "collab_canvas",
+            "collab_save",
+            "collab_awareness",
+        ] {
+            let (got, _) = exchange(
+                &mut c.ana,
+                cmd,
+                json!({ "path": REL, "update": "", "at": "", "json": "{}" }),
+                OUTSIDE,
+            )
+            .await;
+            assert!(got.get("ok").is_none(), "{cmd}: {got}");
+        }
+        // What she has instead: the file, re-rooted, the card beside the
+        // share locked.
+        let (read, _) = exchange(&mut c.ana, "read_text", json!({ "path": REL }), OUTSIDE).await;
+        let text = read["ok"]["text"].as_str().unwrap_or_default();
+        assert!(text.contains("\"Livre.md\""), "{read}");
+        let id = c.share.clone();
+        crate::tests_board_leaks::sweep(&mut c.ana, &id, REL, OUTSIDE).await;
+    });
+}
+
+/// E of the audit of 2026-11-15: a past version of a board through a share
+/// was served as it was written, the owner's paths and the cards beside
+/// the share in it. It crosses as the board does live.
+#[test]
+fn a_past_version_of_a_board_through_a_share_crosses_as_the_board_does() {
+    block_on(async {
+        let mut c = cast_with(false).await;
+        for x in [5, 7] {
+            let first = c.owner.call("read_text", json!({ "path": BOARD })).await;
+            let mut v: Value = serde_json::from_str(first["ok"]["text"].as_str().unwrap()).unwrap();
+            v["nodes"][1]["x"] = json!(x);
+            let wrote = c
+                .owner
+                .call(
+                    "write_text",
+                    json!({ "path": BOARD, "text": v.to_string(), "revision": first["ok"]["revision"] }),
+                )
+                .await;
+            assert!(wrote.get("ok").is_some(), "{wrote}");
+        }
+        let (list, _) = exchange(&mut c.ana, "history_list", json!({ "path": REL }), OUTSIDE).await;
+        let versions = list["ok"]["versions"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        assert!(versions.len() >= 2, "{list}");
+        for v in versions {
+            let (read, _) = exchange(
+                &mut c.ana,
+                "history_read",
+                json!({ "path": REL, "id": v["id"] }),
+                OUTSIDE,
+            )
+            .await;
+            let text = read["ok"]["text"].as_str().unwrap_or_default();
+            assert!(text.contains("\"Livre.md\""), "{read}");
+            assert!(!text.contains("Sub/"), "{read}");
+        }
+        // The game master's own window reads the version whole.
+        let mine = c.owner.call("history_list", json!({ "path": BOARD })).await;
+        let first = mine["ok"]["versions"][0]["id"].clone();
+        let read = c
+            .owner
+            .call("history_read", json!({ "path": BOARD, "id": first }))
+            .await;
+        assert!(read.to_string().contains("Fora/Y.md"), "{read}");
+    });
+}
+
+/// Found beside E: a board whose file writes `nodes` twice crossed a share
+/// spliced by its last list, and its first list — a card of a file beside
+/// the share — crossed as it was written.
+#[test]
+fn a_board_that_writes_its_nodes_twice_crosses_a_share_as_the_window_reads_it() {
+    block_on(async {
+        let mut c = cast_with(false).await;
+        let first = c.owner.call("read_text", json!({ "path": BOARD })).await;
+        let twice = r#"{"nodes":[{"id":"c-out","type":"file","file":"Fora/Y.md","x":0,"y":0,"width":1,"height":1}],
+"nodes":[{"id":"c-open","type":"file","file":"Sub/Livre.md","x":0,"y":0,"width":1,"height":1}],"edges":[]}"#;
+        let wrote = c
+            .owner
+            .call(
+                "write_text",
+                json!({ "path": BOARD, "text": twice, "revision": first["ok"]["revision"] }),
+            )
+            .await;
+        assert!(wrote.get("ok").is_some(), "{wrote}");
+        for cmd in ["read_text", "read_file_text"] {
+            let (read, _) = exchange(&mut c.ana, cmd, json!({ "path": REL }), OUTSIDE).await;
+            let text = read["ok"]["text"]
+                .as_str()
+                .or_else(|| read["ok"].as_str())
+                .unwrap_or_default();
+            assert!(text.contains("\"Livre.md\""), "{cmd}: {read}");
+        }
+    });
+}

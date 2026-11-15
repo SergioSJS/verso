@@ -64,6 +64,22 @@ pub(crate) async fn collab_command(
     // file, as it is saved.
     let board_of_a_player =
         door.veiled() && crate::access::Kind::of_path(&path) == crate::access::Kind::Board;
+    // A window of a share that is no player of a table (fix of 2026-11-15):
+    // the board's room holds every card by the owner's paths, those of
+    // files beside the share too, and the only room cut to a share is a
+    // table player's shadow (`collab_players`). So it is not let in (fails
+    // closed; a room of the share's own is V.49): it follows the board by
+    // its file, which the share re-roots (`read_text`), and writes it whole
+    // (`write_board`, laid over the disk), as a window with no room does.
+    if let Some(s) = &scope
+        && !board_of_a_player
+        && crate::access::Kind::of_path(&path) == crate::access::Kind::Board
+        && !matches!(cmd, "collab_present" | "collab_leave")
+    {
+        return Err(s.error(refused(
+            "a board opened through a share is followed by its file: it has no room for the share yet",
+        )));
+    }
     let writes = door.may_path(crate::access::Action::Edit, &path).allowed();
     // The document a window joins is the whole one for whoever the rules let
     // see the secret blocks — the game master's read-only credential too

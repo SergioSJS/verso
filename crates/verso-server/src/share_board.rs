@@ -223,18 +223,24 @@ pub fn text_out(scope: &Scope, text: &str, words: &str) -> String {
     let Ok(board) = Canvas::parse(text) else {
         return text.to_owned();
     };
-    let nodes: Vec<&str> = board
-        .nodes()
-        .iter()
-        .filter_map(|n| n.get("file").and_then(Json::as_str))
-        .collect();
-    if nodes.is_empty() {
-        return text.to_owned();
-    }
-    if !duplicate_file(&board) && nodes.iter().all(|f| scope.to_rel(f).is_some()) {
-        let mut swap = |f: &str| Ok(scope.to_rel(f).unwrap_or_default());
-        if let Ok(Some(done)) = spliced(text, &board, &mut swap) {
-            return done;
+    // A key written twice anywhere (fix of 2026-11-15): the nodes read are
+    // the last list's, and a first `nodes` — or a node's first `file` —
+    // would cross as it is. Such a board is laid anew from serde's reading
+    // (the last of each, as the window reads it), never spliced or served.
+    if !board.root.writes_a_key_twice() {
+        let nodes: Vec<&str> = board
+            .nodes()
+            .iter()
+            .filter_map(|n| n.get("file").and_then(Json::as_str))
+            .collect();
+        if nodes.is_empty() {
+            return text.to_owned();
+        }
+        if nodes.iter().all(|f| scope.to_rel(f).is_some()) {
+            let mut swap = |f: &str| Ok(scope.to_rel(f).unwrap_or_default());
+            if let Ok(Some(done)) = spliced(text, &board, &mut swap) {
+                return done;
+            }
         }
     }
     let Ok(mut value) = serde_json::from_str::<Value>(text) else {

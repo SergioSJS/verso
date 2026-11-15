@@ -458,6 +458,7 @@ pub async fn command(
     let cmd = cmd.to_owned();
     let actor = who.account.id.clone();
     let token = token_name(server, who);
+    let lang = who.account.lang.clone();
     let shown = scope.clone();
     let out = move |p: &str| match &shown {
         Some(sc) => sc.to_rel(p).unwrap_or_default(),
@@ -507,7 +508,21 @@ pub async fn command(
             "history_list" => to_value(list(&s)?),
             "history_read" => {
                 let (id, bytes) = version(&s)?;
-                to_value(history::text(&id, bytes))
+                let mut read = history::text(&id, bytes);
+                // A past version of a board through a share crosses the
+                // share's boundary as the board does live (fix of
+                // 2026-11-15): its cards re-rooted at the share, a card of
+                // a file beside it locked (`share_board::text_out`).
+                if let Some(sc) = &scope
+                    && crate::share_board::is_board(&path)
+                    && let Some(text) = read.text.take()
+                {
+                    let words = crate::campaign_text::locked_card(&lang);
+                    let out = crate::share_board::text_out(sc, &text, &words);
+                    read.size = out.len() as f64;
+                    read.text = Some(out);
+                }
+                to_value(read)
             }
             "history_restore" => {
                 let (id, bytes) = version(&s)?;

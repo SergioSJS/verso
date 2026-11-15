@@ -1043,6 +1043,13 @@ async fn folder_command(
         .as_str()
         .is_some_and(crate::share_board::is_board)
         .then(|| args["path"].as_str().unwrap_or_default().to_owned());
+    // A board's text crosses a share only re-rooted (`board_out`); a note's
+    // reading of it (its lines, its HTML) would carry the owner's paths as
+    // written, the cards beside the share among them (found by the sweep
+    // of 2026-11-15). A board is read as a board.
+    if board.is_some() && name == "read_note" {
+        return Err(scope.error(refused("a board is read as a board, not as a note")));
+    }
     let args_path = board.clone();
     let args = match &board {
         Some(path) => board_in(server, &key, &scope, name, path, args).await?,
