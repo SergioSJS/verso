@@ -175,7 +175,11 @@ export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
         }, 1500);
       });
     });
-    pre.append(foldBtn, btn);
+    // One row for the block's buttons, so each has the same size and the
+    // same gap whichever of them a block shows.
+    const tools = h("div", "code-tools");
+    tools.append(foldBtn, btn);
+    pre.append(tools);
     // JSON, YAML, TOML, XML and CSV: the block as a diagram, beside the note (ADR 0106).
     const code = pre.querySelector("code");
     const lang = Array.from(code?.classList ?? []).find((c) => c.startsWith("language-"))?.slice(9) ?? "";
@@ -187,7 +191,7 @@ export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
       view.dataset["action"] = "view-diagram";
       view.append(icon("diagram"));
       view.addEventListener("click", () => openBlockDiagram(this, lang, code?.textContent ?? pre.textContent ?? ""));
-      pre.append(view);
+      tools.prepend(view);
     }
   }
 }

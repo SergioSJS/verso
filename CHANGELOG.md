@@ -12,7 +12,9 @@ test release.
 
 ## Unreleased
 
-Nothing yet.
+### Fixed
+
+- Reading mode: a code block's fold button is the same size as its copy and diagram buttons, and the three sit in one evenly spaced row instead of the fold button overlapping the copy button.
 
 ## 0.9.0-beta.1 — 2026-11-14
 
