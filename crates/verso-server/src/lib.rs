@@ -69,6 +69,7 @@ pub mod security_txt;
 pub mod share_board;
 pub mod share_links;
 pub mod share_sync;
+pub mod share_sync_board;
 pub mod shares;
 pub mod signin;
 pub mod state;
@@ -542,6 +543,8 @@ mod tests_secret;
 mod tests_secret_pins;
 #[cfg(test)]
 mod tests_secret_review;
+#[cfg(test)]
+mod tests_share_board_sync;
 #[cfg(test)]
 mod tests_share_gaps;
 #[cfg(test)]

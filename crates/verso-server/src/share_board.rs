@@ -180,6 +180,30 @@ fn laid(text: &str, value: &Value) -> Option<String> {
     Some(board.merged(new.root).write())
 }
 
+/// `cut` (a board as [`text_out`] made it) in the layout of `like`, a text
+/// the receiver's device wrote of the same board: every token of `like`
+/// that `cut` has the same kept (its keys' order, its scalars' spelling;
+/// all of it when the two read alike), so that a board cut to the share is
+/// the device's own bytes while nothing of it changed (V.49: a device's write
+/// is not heard back as another file). `None` unless the result reads as
+/// `cut` does, value for value, and writes no key twice — then `cut` is
+/// served as it is: nothing but the layout is ever taken from `like`.
+#[must_use]
+pub fn shaped_like(like: &str, cut: &str) -> Option<String> {
+    let value = serde_json::from_str::<Value>(cut).ok()?;
+    // The device's own text, when it reads as the cut does: as it is.
+    let out = if serde_json::from_str::<Value>(like).ok()? == value {
+        like.to_owned()
+    } else {
+        laid(like, &value)?
+    };
+    let back = Canvas::parse(&out).ok()?;
+    if back.root.writes_a_key_twice() || serde_json::from_str::<Value>(&out).ok()? != value {
+        return None;
+    }
+    Some(out)
+}
+
 /// Whether a node of `board` writes `file` twice: readers differ on which
 /// counts, so the splice does not guess.
 fn duplicate_file(board: &Canvas) -> bool {

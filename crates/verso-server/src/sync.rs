@@ -48,6 +48,7 @@ mod paths;
 mod reader;
 pub use crate::transfers::Transfers;
 use crate::transfers::{Being, IDLE, Reading, Upload, room};
+pub(crate) use files::piece_of;
 use files::{put, read};
 pub(crate) use paths::{Moving, moves_of, moving};
 use paths::{Now, reconcile_paths};

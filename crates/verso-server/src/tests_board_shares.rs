@@ -23,25 +23,25 @@ use crate::tests_board_players::{apply, bytes, edited, exchange, hear, seeded};
 use crate::tests_campaign::Win;
 
 /// The board's path in the owner's folder, and in the share.
-const BOARD: &str = "Sub/Quadro.canvas";
-const REL: &str = "Quadro.canvas";
+pub(crate) const BOARD: &str = "Sub/Quadro.canvas";
+pub(crate) const REL: &str = "Quadro.canvas";
 
 /// What a player of the share must never hear of: the folder beside it.
-const OUTSIDE: &[&str] = &["Fora", "zy.md", "Y.md"];
+pub(crate) const OUTSIDE: &[&str] = &["Fora", "zy.md", "Y.md"];
 
-struct Cast {
-    r: Running,
+pub(crate) struct Cast {
+    pub(crate) r: Running,
     /// The key the owner's folder is open under.
-    key: String,
+    pub(crate) key: String,
     /// The share's id.
-    share: String,
+    pub(crate) share: String,
     /// Ana's account.
-    account: String,
-    owner: Win,
-    ana: Win,
+    pub(crate) account: String,
+    pub(crate) owner: Win,
+    pub(crate) ana: Win,
 }
 
-fn card(id: &str, file: &str, index: &str) -> Value {
+pub(crate) fn card(id: &str, file: &str, index: &str) -> Value {
     let n = json!({ "id": id, "type": "file", "file": file, "x": 0, "y": 0, "width": 100, "height": 50 });
     json!({ "type": "embeddable", "x": 0, "y": 0, "width": 100, "height": 50, "index": index,
         "link": "https://verso.invalid/board-node", "customData": { "canvas": n } })
@@ -60,7 +60,12 @@ async fn cast() -> Cast {
     cast_with(true).await
 }
 
-async fn cast_with(table: bool) -> Cast {
+pub(crate) async fn cast_with(table: bool) -> Cast {
+    cast_as(table, "editor").await
+}
+
+/// [`cast_with`], Ana given the share as `role`.
+pub(crate) async fn cast_as(table: bool, role: &str) -> Cast {
     let r = start().await;
     let admin = sign_in(&r, "admin@casa.lan", "senha muito longa").await;
     let id = folder_id(&r, &admin).await;
@@ -106,7 +111,7 @@ async fn cast_with(table: bool) -> Cast {
     let (status, shared) = http_put(
         &r,
         &format!("/api/folders/{id}/shares"),
-        json!({ "path": "Sub", "email": "ana@casa.lan", "role": "editor" }),
+        json!({ "path": "Sub", "email": "ana@casa.lan", "role": role }),
         &admin,
     )
     .await;
@@ -134,7 +139,7 @@ async fn cast_with(table: bool) -> Cast {
 }
 
 /// The game master's window draws the board into the room; returns its copy.
-async fn master_seeds(c: &mut Cast) -> Doc {
+pub(crate) async fn master_seeds(c: &mut Cast) -> Doc {
     let (joined, _) = exchange(&mut c.owner, "collab_join", json!({ "path": BOARD }), &[]).await;
     let doc = Doc::new();
     apply(&doc, &bytes(joined["ok"]["update"].as_str().unwrap()));
@@ -155,7 +160,7 @@ async fn master_seeds(c: &mut Cast) -> Doc {
     doc
 }
 
-async fn ana_joins(c: &mut Cast) -> (Value, Doc) {
+pub(crate) async fn ana_joins(c: &mut Cast) -> (Value, Doc) {
     let (joined, _) = exchange(&mut c.ana, "collab_join", json!({ "path": REL }), OUTSIDE).await;
     let doc = Doc::new();
     if let Some(u) = joined["ok"]["update"].as_str() {
