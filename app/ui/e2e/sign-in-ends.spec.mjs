@@ -20,7 +20,8 @@ async function servers(app, page) {
 test("a sign-in refused on the server's page is said, with a try again", async ({ app, page }) => {
   await app.open();
   await servers(app, page);
-  const said = page.locator(".settings-body .srv-said");
+  // The sign-in's own line (the section has other said lines): the one with "Tentar de novo".
+  const said = page.locator(".settings-body .srv-said").filter({ has: page.getByRole("button", { name: "Tentar de novo" }) });
   await app.emit("server-sign-in-failed", { url: "https://notas.casa", why: "refused" });
   await expect(said).toContainText("A entrada foi recusada na página do servidor");
   await expect(said.getByRole("button", { name: "Tentar de novo" })).toBeVisible();

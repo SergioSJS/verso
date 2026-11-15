@@ -36,7 +36,7 @@ test("⌘W closes the tab — from the keys and from the app's menu — and ⌘�
 test("F2 renames the open note, right after a click on its row", async ({ app }) => {
   await app.open();
   await row(app, "38 - Ajuda, Atualizações e Diagnóstico.md").click();
-  await expect(app.page.locator(".tab", { hasText: "37 - Ajuda" })).toHaveCount(1);
+  await expect(app.page.locator(".tab", { hasText: "38 - Ajuda" })).toHaveCount(1);
   await app.page.keyboard.press("F2");
   const field = app.page.locator("input.title-input");
   await expect(field).toBeVisible();
