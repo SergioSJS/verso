@@ -238,6 +238,93 @@ fn the_file_of_a_board_is_shaped_the_same_way() {
     assert!(!shaped.to_string().contains("zqpin"));
 }
 
+/// A dungeon as the import of 0.9.0-beta.2 drew it: the floor, the secret
+/// door as a dashed line of stroke 3 (unmarked), a stroke marked secret,
+/// all in the drawing's one group; its walls under `verso`, and keys Verso
+/// does not know.
+fn dungeon() -> Value {
+    json!({
+        "nodes": [ { "id": "n1", "type": "text", "text": "sala", "x": 0, "y": 0, "width": 1, "height": 1 } ],
+        "edges": [],
+        "zqtop": { "plan": 1 },
+        "verso": { "version": 1, "background": "#fdf6e3", "zqverso": 2,
+            "drawing": [
+                { "id": "floor", "type": "rectangle", "groupIds": ["wb-dungeon"], "strokeStyle": "solid", "strokeWidth": 1 },
+                { "id": "zqdoor", "type": "line", "groupIds": ["wb-dungeon"], "strokeStyle": "dashed", "strokeWidth": 3 },
+                { "id": "zqmarked", "type": "line", "groupIds": ["wb-dungeon"], "customData": { "verso": { "secret": true } } },
+                { "id": "zqlabel", "type": "text", "text": "zqlabeltext", "containerId": "zqmarked" },
+            ],
+            "walls": { "version": 1, "doors": [ { "kind": "secret", "zqwall": true } ] } },
+    })
+}
+
+const DUNGEON_LEAKS: [&str; 7] = [
+    "zqtop", "zqverso", "zqwall", "walls", "zqdoor", "zqmarked", "zqlabel",
+];
+
+#[test]
+fn a_player_is_served_only_the_keys_of_a_board_a_reader_is() {
+    let shaped = shape_canvas(&dungeon(), &none);
+    let text = shaped.to_string();
+    for leak in DUNGEON_LEAKS {
+        assert!(!text.contains(leak), "{leak} reached a player: {text}");
+    }
+    let drawn: Vec<&str> = shaped["verso"]["drawing"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|d| d["id"].as_str())
+        .collect();
+    // The floor is grouped with the secret door and stays: a secret stroke
+    // hides itself, not the strokes it moves with.
+    assert_eq!(drawn, ["floor"]);
+    assert_eq!(shaped["verso"]["background"], "#fdf6e3");
+    assert_eq!(shaped["verso"]["version"], 1);
+    assert_eq!(shaped["nodes"][0]["id"], "n1");
+    // The text in the file's own layout says the same.
+    let laid = shaped_text(&dungeon().to_string(), &none);
+    for leak in DUNGEON_LEAKS {
+        assert!(!laid.contains(leak), "{leak} in the text: {laid}");
+    }
+    // A `verso` that is no object is not served either.
+    let odd = shape_canvas(&json!({ "nodes": [], "verso": "zqodd" }), &none);
+    assert!(odd.get("verso").is_none(), "{odd}");
+}
+
+#[test]
+fn the_secret_door_in_a_room_is_gone_and_its_group_stays_open() {
+    let mut items: Vec<Value> = dungeon()["verso"]["drawing"].as_array().unwrap().clone();
+    items.push(card("c1", "Livre.md"));
+    let s = see(&room(&items), &none);
+    assert_eq!(s.class["floor"], Class::Open);
+    for id in ["zqdoor", "zqmarked", "zqlabel"] {
+        assert_eq!(s.class[id], Class::Gone, "{id}");
+    }
+    assert!(s.shut.is_empty(), "{:?}", s.shut);
+    let shown: String = s.shown.values().cloned().collect();
+    for leak in ["zqdoor", "zqmarked", "zqlabel"] {
+        assert!(!shown.contains(leak), "{leak}: {shown}");
+    }
+    // A player does not draw one, nor change the floor into one.
+    let mut door = items[1].clone();
+    door["id"] = json!("mine");
+    door["version"] = json!(1);
+    door["versionNonce"] = json!(7);
+    let (k, v) = entry(&door);
+    let disk = BTreeMap::new();
+    assert!(
+        check(
+            &[Op::Put(k, v)],
+            &room(&items),
+            &s,
+            &disk,
+            &none,
+            &sees_file
+        )
+        .is_err()
+    );
+}
+
 #[test]
 fn a_players_canvas_never_writes_over_what_they_do_not_see() {
     let disk = json!({

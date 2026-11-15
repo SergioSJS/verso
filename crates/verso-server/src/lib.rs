@@ -481,6 +481,8 @@ mod tests_board_solo;
 #[cfg(test)]
 mod tests_board_stress;
 #[cfg(test)]
+mod tests_board_walls;
+#[cfg(test)]
 mod tests_bounds;
 #[cfg(test)]
 mod tests_campaign;

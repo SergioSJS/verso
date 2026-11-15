@@ -17,7 +17,15 @@
 //!   has — never the file's path, its name, its colour, its text;
 //! - **Gone**: nothing at all, not even a tombstone — a secret pin (ADR
 //!   0090 item 5) and what belongs to it: the edges that touch it, the
-//!   drawn elements bound to it, in it or grouped only with secret pins.
+//!   drawn elements bound to it, in it or grouped only with secret pins;
+//!   and a drawn element secret itself (`canvas_secret::drawn_is_secret`:
+//!   marked so, or the secret door of an imported dungeon, ADR 0120) with
+//!   what is bound to it — its groups hide nothing else.
+//!
+//! The file a player is served keeps only the keys a reader's projection
+//! keeps (`canvas_secret::PUBLIC_KEYS`, `PUBLIC_VERSO_KEYS`): an allowlist,
+//! so `verso.walls` and any key Verso does not know never reach a player
+//! (fix of 2026-11-15).
 //!
 //! The same function answers the other way: [`check`] judges an edit of the
 //! player's — a set of entries put and removed — against what they see,
@@ -88,15 +96,19 @@ fn is_secret(v: &Value) -> bool {
 /// key written twice counted, not only the last), marks a node secret.
 fn secret_as_the_file_reads_it(json: &str) -> bool {
     use verso_core::canvas::{Canvas, Json};
-    // The flag is a key spelled `secret`: an element that does not hold the
-    // word, and writes no escape that could spell it, cannot carry one. The
-    // parse below (a copy of the whole element) is for the rest.
-    if !json.contains("secret") && !json.contains('\\') {
+    // The flag is a key spelled `secret`, and an imported secret door is
+    // `dashed`: an element that holds neither word, and writes no escape
+    // that could spell one, is neither. The parse below (a copy of the whole
+    // element) is for the rest.
+    if !json.contains("secret") && !json.contains("dashed") && !json.contains('\\') {
         return false;
     }
     let Ok(c) = Canvas::parse(json) else {
         return false;
     };
+    if verso_core::canvas_secret::drawn_is_secret(&c.root) {
+        return true;
+    }
     let each = |of: &Json, key: &str| -> Vec<Json> {
         match of {
             Json::Object(e) => e
@@ -272,7 +284,12 @@ fn see_as(entries: &Entries, lock: &dyn Fn(&str) -> Option<String>, want_shown: 
     for (key, id, v) in &parsed {
         if is_secret(v) || secret_as_the_file_reads_it(&entries[*key]) {
             gone.insert((*id).to_owned());
-            shut.extend(groups(v).into_iter().map(str::to_owned));
+            // A pin shuts the groups only it holds; a secret drawn element
+            // (a stroke of a drawing, as the import's secret door is) hides
+            // itself, not the strokes it moves with.
+            if is_node(v) {
+                shut.extend(groups(v).into_iter().map(str::to_owned));
+            }
         }
     }
     for (_, id, v) in &parsed {
@@ -419,7 +436,23 @@ pub fn shape_canvas_seen(
     if let Some(Value::Array(items)) = out.pointer_mut("/verso/drawing") {
         items.retain(|v| class(v) == Class::Open);
     }
+    keep_public_keys(&mut out);
     out
+}
+
+/// `canvas` with only the keys a player may be served: an allowlist
+/// (`canvas_secret::PUBLIC_KEYS`, `PUBLIC_VERSO_KEYS`), so that a key it does
+/// not name — `verso.walls`, or one a later Verso or a plugin writes — is
+/// left out (fails closed). A `verso` that is no object is left out too.
+pub fn keep_public_keys(canvas: &mut Value) {
+    use verso_core::canvas_secret::{PUBLIC_KEYS, PUBLIC_VERSO_KEYS};
+    let Some(top) = canvas.as_object_mut() else {
+        return;
+    };
+    top.retain(|k, v| PUBLIC_KEYS.contains(&k.as_str()) && (k != "verso" || v.is_object()));
+    if let Some(verso) = top.get_mut("verso").and_then(Value::as_object_mut) {
+        verso.retain(|k, _| PUBLIC_VERSO_KEYS.contains(&k.as_str()));
+    }
 }
 
 /// The text of the board file `whole` as a player who edits it is served it:

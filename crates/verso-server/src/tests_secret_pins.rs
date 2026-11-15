@@ -35,6 +35,12 @@ const SECRET: &[&str] = &[
     "9100022",
     "zqcripta",
     "zqcallout",
+    // What no reader is served of any board (fix of 2026-11-15): the walls an
+    // imported map keeps, a key Verso does not know, the secret door the
+    // import drew unmarked.
+    "zqwallkey",
+    "zqtopkey",
+    "zqdoor",
 ];
 
 /// A map, an open pin to a note, and secret pins of three kinds: a file,
@@ -55,8 +61,10 @@ const BOARD: &str = r#"{
 	],
 	"verso":{"version":1,"drawing":[
 		{"id":"d1","type":"text","x":10,"y":10,"text":"rota publica","groupIds":["gmapa"]},
-		{"id":"d2","type":"text","x":9000014,"y":9100025,"text":"zqdrawn","groupIds":["gzq"]}
-	]}
+		{"id":"d2","type":"text","x":9000014,"y":9100025,"text":"zqdrawn","groupIds":["gzq"]},
+		{"id":"zqdoor","type":"line","x":30,"y":30,"width":0,"height":40,"groupIds":["gmapa"],"strokeStyle":"dashed","strokeWidth":3,"points":[[0,0],[0,40]]}
+	],"walls":{"version":1,"doors":[{"kind":"secret","zqwallkey":true}]}},
+	"zqtopkey":{"plan":1}
 }
 "#;
 
