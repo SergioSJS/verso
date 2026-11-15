@@ -1398,9 +1398,18 @@ each seen failing on the code before):
    paths, those beside the share too, and the only room cut to a share is a
    table player's shadow (section H). Its window follows the board by its
    file, re-rooted at the share, and writes it whole (`write_board`, laid
-   over the disk), as a window with no room does. A room of the share's own
-   is ADR 0081 item 11 (V.49), still to build; `collab_present` and
-   `collab_leave` stay answered.
+   over the disk), as a window with no room does; `collab_present` and
+   `collab_leave` stay answered. *Built 2026-11-15 (V.49, ADR 0081 item
+   11):* a window of the share that **edits** the board joins the room
+   through the same **shadow** as a table player (section H), cut by the
+   share alone (no veil: `collab_players::Locks` with none): every card
+   re-rooted at the share, a card of a file beside it a locked marker with
+   the same id, secret pins left out as for a player (they stay the
+   file's), the presence it hears cut to the elements it sees, its edits
+   judged by `board_sight::check` and the file it makes laid over the disk.
+   A table made while such a shadow is open closes it (it joins again as a
+   player); one of the share that only reads still follows the file. The
+   shadow rule of section H is now shared by a player and a share's window.
 4. **A past version of a board read through a share crosses as the board
    does live** (`history_read`, `share_board::text_out`): its cards
    re-rooted at the share, a card of a file beside it locked.

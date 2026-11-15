@@ -1119,6 +1119,20 @@ in a note long enough to scroll.
   the share was revoked and when (`873921a`). Both at a phone's width too. The console's folder page lists the
   share with its people; the audit log has each step with its path.
 
+- [ ] **A shared board on two devices, cut to the share** (V.49, ADR 0081
+  item 11): Sérgio shares *Sub* with Ana, *edita*; a board in *Sub* has a
+  card of a note in *Sub* and one of a note outside it. On Ana's computer
+  (the installed app, the share synced to a folder of hers) open the
+  synced `.canvas` in a text editor: the first card names the note by its
+  path inside the share, the other is a locked text card, and nothing names
+  a folder of Sérgio's beside *Sub*. Ana moves the first card in her app:
+  Sérgio's board has it moved and the outside card untouched, and Ana's
+  status bar does not fetch the board back. Sérgio moves only the outside
+  card: Ana's synced copy does not change. Then both open the board at once
+  (Ana in her app, Sérgio in his window): each sees the other's moves live,
+  Ana's presence shows, and the outside card stays locked for her. In the
+  server's log, no `ERROR`.
+
 - [ ] **A revoked share's sync turns off with a notice** (ADR 0081 item 8,
   `873921a`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
   removes her in *Compartilhar…*. Within seconds Ana's app shows a notice

@@ -1305,7 +1305,18 @@ rest below and in `manual-checks.md`.
    note open in a room kept as it was; by hand with two browsers). The
    receiver's status bar counts the share's notes, and a base through the
    share counts, sums and lists only notes inside it (the server's Rust
-   test, `tests_shares.rs`, "a receivers counts are the shares").
+   test, `tests_shares.rs`, "a receivers counts are the shares"). A board
+   of the share whose cards name a note of the share and a note of the
+   owner's outside it (V.49, ADR 0081 item 11): the receiver's window, the
+   copy her desktop app syncs, and the board live all show the first card
+   by its path in the share and the other as a locked card that names
+   nothing; she moves the first card on her synced copy and the owner's
+   board has it moved, with the outside card where it was and no new
+   download on her side; the owner moves only the outside card and her copy
+   does not change; with the owner in the board, she draws and he sees it at
+   once, and the other way (the server's Rust tests,
+   `tests_share_board_sync.rs`, `tests_share_board_room.rs`; two devices by
+   hand, `manual-checks.md`).
 11. Editing together in a synced folder ([ADR
     0082](../adr/0082-live-co-editing-of-a-synced-folder.md)), from note 31's
     section *Editar junto numa pasta sincronizada*: with the folder syncing,
