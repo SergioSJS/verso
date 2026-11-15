@@ -26,18 +26,18 @@ const deps = (over = {}) => ({
   ...over,
 });
 
-test("a writer's board: what puts on it, the free arrows, then search, outline and Excalidraw's menu", () => {
+test("a writer's board, in the desktop's order: Excalidraw's menu, what puts on it, the free arrows, then search and outline", () => {
   const ids = boardVerbs(deps()).map((v) => v.id);
-  assert.deepEqual(ids, ["text", "image", "file", "link", "loose", "search", "outline", "menu"]);
+  assert.deepEqual(ids, ["menu", "text", "image", "file", "link", "loose", "search", "outline"]);
 });
 
 test("a window that shows web pages offers the page card, after the link", () => {
   const ids = boardVerbs(deps({ web: true })).map((v) => v.id);
-  assert.deepEqual(ids.slice(3, 6), ["link", "page", "loose"]);
+  assert.deepEqual(ids.slice(4, 7), ["link", "page", "loose"]);
 });
 
-test("a reader's board only reads: search, outline and the menu", () => {
-  assert.deepEqual(boardVerbs(deps({ writable: false })).map((v) => v.id), ["search", "outline", "menu"]);
+test("a reader's board only reads: the menu, search and outline", () => {
+  assert.deepEqual(boardVerbs(deps({ writable: false })).map((v) => v.id), ["menu", "search", "outline"]);
 });
 
 test("the free arrows and the outline say whether they are on; each verb runs its own", () => {
@@ -48,7 +48,7 @@ test("the free arrows and the outline say whether they are on; each verb runs it
   assert.equal(by.text.pressed, undefined);
   ran.length = 0;
   for (const v of verbs) v.run();
-  assert.deepEqual(ran, ["addText", "addImage", "addFile", "addLink", "toggleLoose", "search", "outline", "menu"]);
+  assert.deepEqual(ran, ["menu", "addText", "addImage", "addFile", "addLink", "toggleLoose", "search", "outline"]);
   for (const v of verbs) assert.ok(v.label.trim().length > 0 && v.icon.startsWith("M"), `${v.id} has a name and an icon`);
 });
 
@@ -110,4 +110,12 @@ test("the app's bottom bar gives way only on a phone, and only to a board that d
   assert.equal(hide.length, 1);
   assert.equal(hide[0].query, PHONE);
   assert.match(hide[0].body, /html:has\(\.leaf\.board-face:not\(\[hidden\]\) \.excalidraw--mobile-toolbar\) \.bottom-bar/);
+});
+
+test("one order on every size: the phone's toolbar follows the desktop's (hand, selection, shapes, arrows, pencil, text, eraser, then more)", () => {
+  const order = Object.fromEntries([...css.matchAll(/\[data-testid="(toolbar-[a-z]+)"\] \{ order: (\d+); \}/g)].map((m) => [m[1], Number(m[2])]));
+  const desktop = ["toolbar-hand", "toolbar-selection", "toolbar-rectangle", "toolbar-arrow", "toolbar-freedraw", "toolbar-text", "toolbar-eraser"];
+  assert.deepEqual(Object.keys(order).sort((a, b) => order[a] - order[b]), desktop);
+  assert.match(css, /\.mobile-toolbar \.App-toolbar__extra-tools-trigger \{ order: 9 !important; \}/);
+  assert.match(css, /\.mobile-toolbar > \* \{ order: 8; \}/);
 });

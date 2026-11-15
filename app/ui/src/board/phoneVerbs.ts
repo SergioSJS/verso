@@ -36,11 +36,15 @@ export type VerbDeps = {
   menu: () => void;
 };
 
-/** The board's verbs, in the order the sheet shows them: what puts on the
- *  board first (a writer's), then what reads it. */
+/** The board's verbs, in the desktop board's order (one order on every
+ *  size, the maintainer, 2026-11-15; ADR 0076 item 6): Excalidraw's menu
+ *  (☰, at the left of the top row), the text card and Insert's items (in
+ *  the toolbar, after Excalidraw's tools), then the top-right island's
+ *  search and outline. A reader's board has only the menu, search and
+ *  outline. */
 export function boardVerbs(d: VerbDeps): BoardVerb[] {
   const { s } = d;
-  const verbs: BoardVerb[] = [];
+  const verbs: BoardVerb[] = [{ id: "menu", label: s.sheetMenu, icon: ICO.menu, run: d.menu }];
   if (d.writable) {
     verbs.push(
       { id: "text", label: s.addText, icon: ICO.text, run: d.addText },
@@ -54,7 +58,6 @@ export function boardVerbs(d: VerbDeps): BoardVerb[] {
   verbs.push(
     { id: "search", label: s.search, icon: ICO.search, run: d.search },
     { id: "outline", label: s.outline, icon: ICO.outline, run: d.outline, pressed: d.outlineOn },
-    { id: "menu", label: s.sheetMenu, icon: ICO.menu, run: d.menu },
   );
   return verbs;
 }

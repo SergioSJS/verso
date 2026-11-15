@@ -33,8 +33,8 @@ export class PhoneHead {
   private readonly mode = h("button", "phone-mode");
   /** A board's undo and redo (2026-11-15): pressing Excalidraw's own,
    *  which the phone's board keeps out of sight (css/boardphone.css). */
-  private readonly undo = h("button", "phone-mode phone-undo");
-  private readonly redo = h("button", "phone-mode phone-redo");
+  private readonly undo = h("button", "phone-hist phone-undo");
+  private readonly redo = h("button", "phone-hist phone-redo");
   /** The tab whose undo and redo are watched (Leaf.phoneHistory). */
   private history: Leaf | null = null;
   private historyFrame = 0;
