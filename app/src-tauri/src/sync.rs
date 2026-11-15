@@ -1035,9 +1035,13 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // the changes after the last cursor; a cloud's versions already seen
     // are not read again.
     // What a cloud's listing read is kept even when it fails half-way
-    // (review I4): its hashes are not read again on the next try.
+    // (review I4): its hashes are not read again on the next try. A file
+    // only there, never seen (no base by its name), is not read for its
+    // hash: its download is its one read (I4 part 2).
+    let based: HashSet<String> = state.base.keys().map(|p| engine::folded(p)).collect();
+    let unseen = |p: &str| !based.contains(&engine::folded(p));
     let named = match tokio::task::block_in_place(|| {
-        rem::refresh_learning(&*remote, &mut l.known, &mut state.tokens)
+        rem::refresh_planning(&*remote, &mut l.known, &mut state.tokens, &unseen)
     }) {
         Ok(named) => named,
         Err(e) => {
@@ -1081,6 +1085,20 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     }
     let share = l.share;
     let (mut local, mut apart) = tokio::task::block_in_place(|| here(ctx, s, &mut state, share))?;
+    // One of those with a file of its name here after all: read for its
+    // hash before the plan compares the two.
+    let mine: HashSet<String> = local
+        .keys()
+        .chain(apart.keys())
+        .map(|p| engine::folded(p))
+        .collect();
+    let wanted = |p: &str| mine.contains(&engine::folded(p));
+    if let Err(e) = tokio::task::block_in_place(|| {
+        rem::read_unread(&*remote, known, &mut state.tokens, &wanted)
+    }) {
+        save(ctx, s, &mut state, known);
+        return Err(transfer::contract_of(e));
+    }
     let pt = (ctx.pt)();
     let device = (ctx.device)();
     let when = chrono::Local::now().format("%Y-%m-%d %H.%M").to_string();

@@ -14,6 +14,7 @@ test release.
 
 - **A Watabou map's tracing is shown in your window only.** *Show the tracing* no longer changes the board's file or what the others see: it is a view of the window that pressed it, kept for that board there, and the tracing stays hidden and locked in the file for everyone else.
 - **A table made in a folder tells the people live on its boards through a share.** Their window now says "A table was made in this folder: you are now on the board as a player" as it joins the board again, instead of switching silently, and the table's dialog tells the owner how many people were live that way and rejoin as players.
+- **The first sync with a WebDAV folder downloads each file once.** A file that is only in the cloud and that this computer never synced is fetched by its download alone and its hash taken as it is written, instead of being downloaded once to learn its hash and again to keep it: a large folder's first sync crosses half the bytes. A file of the same name on both sides is still read to compare them, a file changed in the cloud between its listing and its download is fetched again, not kept, and a first sync cut short goes on from where it stopped. S3 is unchanged (its hash comes with the file's metadata).
 
 ## 0.9.0-beta.3 — 2026-11-15
 

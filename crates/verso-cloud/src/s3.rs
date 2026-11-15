@@ -1071,6 +1071,12 @@ impl Remote for S3 {
         })
     }
 
+    /// Its fingerprint is a `HEAD` (the hash kept on upload): a file only
+    /// in the bucket is asked for it as before, not left to its download.
+    fn fingerprint_reads_the_file(&self) -> bool {
+        false
+    }
+
     fn fingerprint(&self, path: &str) -> Result<(String, String)> {
         if let Some(head) = self.head(&self.key(path))? {
             if let Some(hash) = head.hash.filter(|h| h.len() == 64) {

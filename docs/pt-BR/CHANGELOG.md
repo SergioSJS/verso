@@ -14,6 +14,7 @@ versão de teste.
 
 - **O traçado de um mapa do Watabou aparece só na sua janela.** *Mostrar o traçado* não muda mais o arquivo do board nem o que os outros veem: é uma visão da janela que apertou, guardada para aquele board ali, e o traçado continua escondido e travado no arquivo para todos os outros.
 - **Uma mesa criada numa pasta avisa quem está nos boards dela por um compartilhamento.** A janela dessa pessoa agora diz "A mesa foi criada nesta pasta: você agora está no board como jogador" ao entrar de novo no board, em vez de trocar em silêncio, e o diálogo da mesa conta ao dono quantas pessoas estavam assim e voltam como jogadoras.
+- **A primeira sincronização com uma pasta WebDAV baixa cada arquivo uma vez só.** Um arquivo que só está na nuvem e que este computador nunca sincronizou vem só pelo download, e o hash dele é calculado enquanto é gravado, em vez de ser baixado uma vez para saber o hash e outra para guardá-lo: a primeira sincronização de uma pasta grande passa metade dos bytes. Um arquivo com o mesmo nome nos dois lados ainda é lido para compará-los, um arquivo que mudou na nuvem entre a listagem e o download é buscado de novo, não guardado, e uma primeira sincronização interrompida continua de onde parou. O S3 não muda (o hash dele vem com os metadados do arquivo).
 
 ## 0.9.0-beta.3 — 2026-11-15
 

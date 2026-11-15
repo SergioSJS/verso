@@ -461,13 +461,25 @@ fn download(
         Err(e) => return Err(of_remote(path, e)),
     };
     let got = rem::hex(&sha.finalize());
+    let there = engine::spelled_there(&known.files, path);
+    // A file planned without reading it for its hash (only there, never
+    // seen; I4 part 2): its hash is the one just computed from what was
+    // written, and the read must be the version listed — a file changed
+    // there since is not the one planned (invariant 11).
+    if known
+        .unread_version(&there)
+        .is_some_and(|listed| listed != read.version)
+    {
+        return Err(crossed());
+    }
     // What the remote says the bytes are, or, of a cloud that does not
     // say, what the listing it was planned on said: a file changed there
     // since is not this one.
     let expected = read.hash.clone().or_else(|| {
         known
             .files
-            .get(&engine::spelled_there(&known.files, path))
+            .get(&there)
+            .filter(|_| !known.unread.contains(&there))
             .map(|f| f.hash.clone())
     });
     if expected.is_some_and(|e| e != got) {
