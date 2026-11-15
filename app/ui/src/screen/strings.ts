@@ -18,6 +18,9 @@ export type ScreenStrings = {
   barBack: string;
   barCommands: string;
   barPanel: string;
+  /** The side panels' handles over a canvas (edgeHandles.ts). */
+  edgeFiles: string;
+  edgePanel: string;
   /** The phone's one top bar (2026-11-14): the open tabs behind a count,
    *  the note's name and folder, a mode button; the rest in a sheet. */
   openTabs: (n: number) => string;
@@ -140,6 +143,8 @@ const pt: ScreenStrings = {
   barBack: "Voltar",
   barCommands: "Comandos",
   barPanel: "Painel",
+  edgeFiles: "Abrir os arquivos",
+  edgePanel: "Abrir o painel da direita",
   openTabs: (n) => (n === 1 ? "1 aba aberta" : `${n} abas abertas`),
   headTitle: (name) => `${name} — abas, caminho e modo`,
   modeToEdit: "Leitura. Tocar para editar",
@@ -234,6 +239,8 @@ const en: ScreenStrings = {
   barBack: "Back",
   barCommands: "Commands",
   barPanel: "Panel",
+  edgeFiles: "Open the files",
+  edgePanel: "Open the right panel",
   openTabs: (n) => (n === 1 ? "1 open tab" : `${n} open tabs`),
   headTitle: (name) => `${name} — tabs, path and mode`,
   modeToEdit: "Reading. Tap to edit",
