@@ -27,8 +27,12 @@ mod cloud_only;
 mod hold;
 pub(crate) mod live;
 mod seat;
+mod task;
 mod transfer;
 pub(crate) mod universo;
+#[cfg(test)]
+pub(crate) use task::tell;
+pub(crate) use task::{run, signed_in};
 pub(crate) use transfer::contract_of;
 use transfer::{Gate, Refusal, Side};
 
@@ -128,6 +132,10 @@ pub(crate) struct Syncer {
     /// Who the server says this device is here, and whether to ask again.
     seat: Mutex<Option<Value>>,
     seat_stale: AtomicBool,
+    /// The tests' phone conditions: held from the look that finds this at
+    /// 0, counted down at each look before; never at `usize::MAX`.
+    #[cfg(test)]
+    pub(crate) hold_after: AtomicUsize,
 }
 
 const RIGHTS_UNKNOWN: u8 = 0;
@@ -171,6 +179,8 @@ impl Syncer {
             rights_asked: Mutex::new(HashSet::new()),
             seat: Mutex::new(state.seat.clone()),
             seat_stale: AtomicBool::new(true),
+            #[cfg(test)]
+            hold_after: AtomicUsize::new(usize::MAX),
         })
     }
 
@@ -257,6 +267,34 @@ impl Syncer {
 
     fn stopped(&self) -> bool {
         self.stopped.load(Ordering::Relaxed)
+    }
+
+    /// Whether a phone's background sync holds this folder now, waiting
+    /// for Wi-Fi or the charger (`background::held`). The tests hold it
+    /// after a number of looks instead (`hold_after`).
+    fn held(&self) -> bool {
+        #[cfg(test)]
+        {
+            let left = self.hold_after.load(Ordering::Relaxed);
+            if left == 0 {
+                return true;
+            }
+            if left != usize::MAX {
+                self.hold_after.store(left - 1, Ordering::Relaxed);
+            }
+        }
+        crate::background::held().is_some()
+    }
+
+    /// Whether the person asked for a pass not yet begun (`retry`).
+    #[cfg(test)]
+    pub(crate) fn was_asked(&self) -> bool {
+        self.asked.load(Ordering::Relaxed)
+    }
+
+    /// Whether this folder syncs with the server at `url`.
+    pub(crate) fn of_server(&self, url: &str) -> bool {
+        self.cloud.is_none() && self.url == url
     }
 
     pub(crate) fn poke(&self) {
@@ -438,7 +476,20 @@ pub(crate) fn off_status(config: Option<&Path>, key: &str) -> SyncStatus {
         state: "off".to_owned(),
         ..SyncStatus::default()
     };
-    let kept = engine::load(config, key).ok().flatten().filter(|s| s.off);
+    let kept = match engine::load_checked(config, key) {
+        Ok(engine::Loaded::Found(state)) => Some(*state).filter(|s| s.off),
+        // What was saved did not read (review I5): set aside, sync off until
+        // the person turns it on again — said as that, not as never synced.
+        Ok(engine::Loaded::Unreadable(u)) => {
+            status.problem = Some("state_unreadable".to_owned());
+            status.message = Some(format!(
+                "the sync's saved state did not read: sync is off; set aside as {}",
+                u.aside
+            ));
+            None
+        }
+        _ => None,
+    };
     if let Some(state) = kept
         && let Some(revoked) = state.revoked
     {
@@ -468,7 +519,7 @@ pub(crate) fn problem_of(e: &ContractError, cloud: bool) -> &'static str {
         ErrorKind::Refused if e.message.starts_with("cloud sign-in refused") => "cloud_auth",
         ErrorKind::Refused if e.message.starts_with("no keyring") => "no_keyring",
         ErrorKind::Refused if cloud => "cloud_refused",
-        ErrorKind::Refused if e.message.contains("update the one that is behind") => "version",
+        ErrorKind::Refused if e.message.contains(crate::compat::BEHIND) => "version",
         ErrorKind::Refused => "signed_out",
         _ => "failed",
     }
@@ -507,11 +558,18 @@ fn here(
     share: bool,
 ) -> Result<Here, ContractError> {
     let dirty: HashSet<String> = std::mem::take(&mut *lock(&s.dirty));
-    if let Some(found) = listed_here(ctx, s, state, &dirty, (false, share))? {
+    // A listing that fails gives the watcher's paths back for the next pass
+    // (review M2): taken, they would be read again only if they moved.
+    let kept = |e: ContractError| {
+        lock(&s.dirty).extend(dirty.iter().cloned());
+        e
+    };
+    if let Some(found) = listed_here(ctx, s, state, &dirty, (false, share)).map_err(kept)? {
         return Ok(found);
     }
     ctx.service.walk_quietly(&s.key);
-    listed_here(ctx, s, state, &dirty, (true, share))?
+    listed_here(ctx, s, state, &dirty, (true, share))
+        .map_err(kept)?
         .ok_or_else(|| verso_service::failed("the folder's listing did not settle"))
 }
 
@@ -922,7 +980,7 @@ pub(crate) struct Passed {
 /// ends the pass; one of a file is listed and the rest goes on.
 pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, ContractError> {
     // Held too while a phone's background sync waits for its conditions.
-    if s.paused.load(Ordering::Relaxed) || crate::background::held().is_some() {
+    if s.paused.load(Ordering::Relaxed) || s.held() {
         s.set(ctx, |st| {
             st.state = "paused".to_owned();
             st.deletions = None;
@@ -949,8 +1007,25 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // The remote's files: all of them on the connection's first pass, then
     // the changes after the last cursor; a cloud's versions already seen
     // are not read again.
-    let named = tokio::task::block_in_place(|| rem::refresh(&*remote, &mut l.known, &state.tokens))
-        .map_err(transfer::contract_of)?;
+    // What a cloud's listing read is kept even when it fails half-way
+    // (review I4): its hashes are not read again on the next try.
+    let named = match tokio::task::block_in_place(|| {
+        rem::refresh_learning(&*remote, &mut l.known, &mut state.tokens)
+    }) {
+        Ok(named) => named,
+        Err(e) => {
+            if state.cloud.is_some() {
+                // Not `save`, which takes the tokens from a listing there is none of.
+                let _one = lock(&s.disk);
+                if !(s.stopped() && synced(ctx.config.as_deref(), &s.key).is_none())
+                    && let Err(e) = engine::save(ctx.config.as_deref(), &s.key, &state)
+                {
+                    log::write("ERROR", "sync", &format!("keeping the sync's state: {e}"));
+                }
+            }
+            return Err(transfer::contract_of(e));
+        }
+    };
     for who in named {
         lock(&s.authors).insert(who.path, (who.by, who.device));
     }
@@ -1085,8 +1160,16 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // same file — a fetch after the respelling it needed — waits for the
     // next pass.
     let mut stuck: HashSet<String> = HashSet::new();
+    // Held meanwhile — a phone off its Wi-Fi or charger with background
+    // sync waiting for them: the rest waits too, not only the next pass (a
+    // first download begun on Wi-Fi does not go on over mobile data).
+    let mut held = false;
+    // A long pass keeps what it reached as it goes: a first download
+    // stopped half-way resumes from there, not from nothing.
+    let mut checkpoint = engine::Checkpoint::default();
     for action in plan.actions {
-        if s.stopped() || s.paused.load(Ordering::Relaxed) {
+        held = s.held();
+        if s.stopped() || s.paused.load(Ordering::Relaxed) || held {
             break;
         }
         let touches: Vec<&str> = match &action {
@@ -1117,6 +1200,10 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
                 let mut again = lock(&s.again);
                 for p in &touches {
                     again.remove(*p);
+                }
+                drop(again);
+                if checkpoint.step() {
+                    save(ctx, s, &mut state, known);
                 }
             }
             Err(Refusal::Connection(e)) => {
@@ -1198,7 +1285,7 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
         })
         .unwrap_or_default();
     s.set(ctx, |st| {
-        st.state = "synced".to_owned();
+        st.state = if held { "paused" } else { "synced" }.to_owned();
         st.sending = 0;
         st.receiving = 0;
         st.conflicts = conflicts;
@@ -1302,197 +1389,4 @@ fn gone_line(path: &str, on: &str) {
             "gone here since the folder was listed: {path} (the folder is walked again; its deletion, or the server's newer version, is carried out on {on})"
         ),
     );
-}
-
-/// What the server pushed on the device's connection that a window says
-/// (ADR 0084 item 7): the folder near its quota, to this folder's windows
-/// (pushed only to connections on the server's folder, so it is this
-/// one's); a folder given to the account, to every window, naming the
-/// server. A pass needs neither. One that does not read as its type is
-/// not said.
-pub(crate) fn tell(ctx: &Ctx, s: &Syncer, event: &str, payload: Value) {
-    match event {
-        "folder-quota" => {
-            let windows = ctx.service.clients_of(&s.key);
-            let quota = serde_json::from_value::<FolderQuota>(payload)
-                .ok()
-                .and_then(|q| serde_json::to_value(q).ok());
-            if let (false, Some(quota)) = (windows.is_empty(), quota) {
-                (ctx.told)(&windows, event, &quota);
-            }
-        }
-        "share-given" => {
-            if let Some(given) = remote::with_server(event, payload, &s.url) {
-                (ctx.all)(event, &given);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Run a folder's sync until it is turned off or no window shows the
-/// folder: connected, a pass, then waiting for a reason — the watcher, the
-/// server's push, the person, the scan's five minutes — for the next;
-/// offline, trying again with a growing wait (`reach::Backoff`: 5 s to 5
-/// min), from the start again once connected or when the person asks.
-pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
-    let mut wait = reach::Backoff::new();
-    let gone = |s: &Syncer| s.stopped() || ctx.service.clients_of(&s.key).is_empty();
-    while !gone(&s) {
-        if s.asked.swap(false, Ordering::Relaxed) {
-            wait.reset();
-        }
-        let linked = if s.cloud.is_some() {
-            cloud::link(&ctx, &s).await
-        } else {
-            link(&ctx, &s).await
-        };
-        let mut l = match linked {
-            Ok(l) => {
-                wait.reset();
-                l
-            }
-            Err(e) => {
-                // The network is down, or the server: offline either way.
-                let offline = matches!(e.kind, ErrorKind::Unavailable | ErrorKind::Unreachable);
-                // Said once per state, not on every try.
-                let was = lock(&s.status).state.clone();
-                let now = if offline { "offline" } else { "error" };
-                if was != now {
-                    log::write(
-                        if offline { "WARN" } else { "ERROR" },
-                        "sync",
-                        &format!("{now}: folder {}: {}", s.key, e.message),
-                    );
-                }
-                s.set(&ctx, |st| {
-                    st.state = if offline { "offline" } else { "error" }.to_owned();
-                    st.message = Some(e.message.clone());
-                    let problem = problem_of(&e, s.cloud.is_some());
-                    st.versions = if problem == "version" {
-                        lock(&s.versions).clone()
-                    } else {
-                        None
-                    };
-                    st.problem = Some(problem.to_owned());
-                });
-                // A closed table is tried again gently (15 s), not every five minutes.
-                let closed = e.message.contains(verso_contract::TABLE_CLOSED);
-                let pause = if offline {
-                    wait.next()
-                } else if closed {
-                    Duration::from_secs(15)
-                } else {
-                    SCAN
-                };
-                tokio::select! {
-                    () = s.wake.notified() => {}
-                    () = tokio::time::sleep(pause) => {}
-                }
-                continue;
-            }
-        };
-        log::write("INFO", "sync", &format!("connected: folder {}", s.key));
-        // The server ended this device's session: said now, as it closes
-        // the connection, not as a connection lost.
-        let mut ended = false;
-        // The folder's owner revoked the share: sync turns off.
-        let mut revoked = false;
-        while !gone(&s) {
-            match pass(&ctx, &s, &mut l).await {
-                // Waiting for the person; the pass said so.
-                Ok(Passed {
-                    paused: Some(_), ..
-                }) => {}
-                Ok(p) if p.actions > 0 => log::write(
-                    "INFO",
-                    "sync",
-                    &format!("a pass carried out {} changes", p.actions),
-                ),
-                Ok(_) => {}
-                Err(e) if matches!(e.kind, ErrorKind::Unavailable | ErrorKind::Unreachable) => {
-                    break;
-                }
-                Err(e) => {
-                    log::write("ERROR", "sync", &e.message);
-                    s.set(&ctx, |st| {
-                        st.state = "error".to_owned();
-                        st.message = Some(e.message.clone());
-                        st.problem = Some(problem_of(&e, s.cloud.is_some()).to_owned());
-                    });
-                }
-            }
-            let deadline = tokio::time::Instant::now() + SCAN;
-            let lost = loop {
-                // What the connection heard first: a connection closed
-                // while a change arrived here is seen closed, not used for
-                // a pass (the live campaign, 2026-10-11). A wake waits as
-                // a stored permit.
-                tokio::select! {
-                    biased;
-                    h = l.heard.recv() => match h {
-                        Some(remote::Heard::Event(e, _)) if e == "sync-changed" => break false,
-                        // Promoted or made a reader: what may cross changes now.
-                        Some(remote::Heard::Role(role)) => {
-                            log::write("INFO", "sync", &format!("role in the server's folder: {role}"));
-                            s.set(&ctx, |st| st.role.clone_from(&role));
-                            l.role = role;
-                            s.rights_stale();
-                            break false;
-                        }
-                        // Access changed (ADR 0113 S8): what this device may
-                        // change is asked again before the next pass sends
-                        // anything; the windows hear it as they did.
-                        Some(remote::Heard::Event(e, payload)) if e == "access-changed" => {
-                            s.rights_stale();
-                            tell(&ctx, &s, &e, payload);
-                            break false;
-                        }
-                        Some(remote::Heard::Event(e, payload)) => tell(&ctx, &s, &e, payload),
-                        Some(remote::Heard::Gone(what, _)) if what == "session" => {
-                            log::write("INFO", "sync", "signed out: the server ended this device's session");
-                            ended = true;
-                            break true;
-                        }
-                        Some(remote::Heard::Gone(what, why))
-                            if what == "folder" && why.as_deref() == Some("revoked") =>
-                        {
-                            revoked = true;
-                            break true;
-                        }
-                        _ => break true,
-                    },
-                    () = s.wake.notified() => break false,
-                    // The scan: the folder walked, as on reconnecting.
-                    () = tokio::time::sleep_until(deadline) => {
-                        l.walk = true;
-                        break false;
-                    }
-                }
-            };
-            if revoked {
-                s.live.lost();
-                s.revoked(&ctx);
-                return;
-            }
-            if lost {
-                break;
-            }
-            // A burst of changes settles before the next pass; a cloud's
-            // calls are dearer than a server's, so it settles longer (ADR
-            // 0104 item 8: each local change, debounced).
-            let settle = Duration::from_millis(if s.cloud.is_some() { 2000 } else { 500 });
-            s.live.settle(settle).await;
-        }
-        // The live notes go local (ADR 0082 item 8).
-        s.live.lost();
-        if !gone(&s) && !ended {
-            log::write(
-                "WARN",
-                "sync",
-                &format!("offline: folder {}: the connection closed", s.key),
-            );
-            s.set(&ctx, |st| st.state = "offline".to_owned());
-        }
-    }
 }

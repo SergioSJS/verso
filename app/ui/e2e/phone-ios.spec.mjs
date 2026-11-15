@@ -56,3 +56,27 @@ test("the desktop's notifications keep the Updates row", async ({ app, page }) =
   await section(app, page, "Notificações");
   await expect(page.locator(".settings-body")).toContainText("Uma versão nova do Verso");
 });
+
+// The iOS app opens only the folders in its own Documents (review #4,
+// 2026-11-15): the folder switcher has no "Open another folder…", which
+// opened Android's shared storage and failed there in English. Android
+// keeps it (phone-android.spec.mjs).
+async function switcher(page) {
+  if (page.viewportSize().width < 760 && (await page.locator("body.side-open").count()) === 0) {
+    await page.locator(".bottom-bar .bar-files").click();
+    await page.locator("aside.side").evaluate((e) => Promise.all(e.getAnimations().map((a) => a.finished)));
+  }
+  await page.locator("#open").click();
+  return page.getByRole("dialog", { name: "Trocar de pasta" });
+}
+
+test("an iPad's folder switcher offers no other folder to open", async ({ app, page }) => {
+  await app.open("?host=ios");
+  const box = await switcher(page);
+  await expect(box.getByRole("region", { name: "Neste celular" })).toBeVisible();
+  await expect(box.getByRole("button", { name: "Abrir outra pasta…" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await app.open("?host=mobile");
+  const android = await switcher(page);
+  await expect(android.getByRole("button", { name: "Abrir outra pasta…" })).toBeVisible();
+});

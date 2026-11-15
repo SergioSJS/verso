@@ -257,7 +257,9 @@ if (params.get("host") === "mobile" || params.get("host") === "ios") {
   const notOnAPhone = params.get("host") === "ios" ? [...android, "audio_share", "updates", "link", "discover", "serve_away"] : android;
   core.handlers["capabilities"] = (a) => {
     const c = asked(a) as { host: string; can: string[] };
-    return { ...c, host: c.host === "desktop" ? "mobile" : c.host, can: c.can.filter((x) => !notOnAPhone.includes(x)) };
+    // Only Android walks its shared storage (src-tauri mobile.rs `ONLY_ON_ANDROID`).
+    const only = params.get("host") === "mobile" ? ["shared_storage"] : [];
+    return { ...c, host: c.host === "desktop" ? "mobile" : c.host, can: [...c.can.filter((x) => !notOnAPhone.includes(x)), ...only] as typeof c.can };
   };
 }
 // A server's folder picked in the app: its copy on this device (the

@@ -104,13 +104,35 @@ pub(crate) fn unsent(url: &str, e: &reqwest::Error) -> ContractError {
     }
 }
 
+/// A proxy's answer that the server behind it is down: a gateway's 502,
+/// 503 or 504, or Cloudflare's 520 to 530 (its tunnel's origin gone), with
+/// no refusal of the server's own in the body — every one of those names
+/// its `error` (a 503 `busy` is the server's, an answer). Said as the
+/// server out of reach, not as its fault: the window names the address,
+/// and the sync tries again on its growing wait, not in five minutes.
+pub(crate) fn proxy_down(status: u16, body: &serde_json::Value) -> bool {
+    matches!(status, 502..=504 | 520..=530) && body.get("error").is_none()
+}
+
 /// A WebSocket to the server at `url` that did not open: unreachable when
-/// no connection was made, failed otherwise.
+/// no connection was made, or a proxy said the server behind it is down
+/// ([`proxy_down`]); failed otherwise.
 pub(crate) fn not_dialed(url: &str, e: &tokio_tungstenite::tungstenite::Error) -> ContractError {
     use tokio_tungstenite::tungstenite::Error as W;
     use tokio_tungstenite::tungstenite::error::UrlError;
     match e {
         W::Io(_) | W::Tls(_) | W::Url(UrlError::UnableToConnect(_)) => unreachable(url, &chain(e)),
+        W::Http(r)
+            if proxy_down(
+                r.status().as_u16(),
+                &r.body()
+                    .as_deref()
+                    .and_then(|b| serde_json::from_slice(b).ok())
+                    .unwrap_or_default(),
+            ) =>
+        {
+            unreachable(url, &format!("a proxy answered {}", r.status()))
+        }
         other => ContractError {
             kind: ErrorKind::Unavailable,
             message: other.to_string(),

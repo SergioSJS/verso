@@ -1057,6 +1057,7 @@ macro_rules! commands_for {
             .typ::<verso_contract::AccessChanged>()
             .typ::<ServerAccount>()
             .typ::<verso_contract::ServerGone>()
+            .typ::<verso_contract::ServerSignInFailed>()
             .typ::<verso_contract::LocalLink>()
             .typ::<verso_contract::ServerBack>()
             .typ::<verso_contract::FolderQuota>()

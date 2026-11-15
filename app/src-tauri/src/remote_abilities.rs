@@ -10,7 +10,8 @@ use verso_contract::Can;
 
 /// What this app can do whatever folder a window shows, as the contract
 /// names it: its own windows, child web views, updates, console and the
-/// opening of folders of this computer (ADR 0027, ADR 0076 item 11), and
+/// opening of folders of this computer (ADR 0027, ADR 0076 item 11) — of
+/// an Android phone's shared storage too (ADR 0118 item 4.4) — and
 /// the capture of audio to share with the table (ADR 0116 item 27: only the
 /// desktop host lists it, a server never does).
 /// "Show in Finder", "Copy full path" and the agents work on a path of this
@@ -18,12 +19,13 @@ use verso_contract::Can;
 /// (ADR 0076 item 11; the agents are an open question, kept absent). The
 /// terminal is this computer's shell, started in the person's home
 /// directory there (ADR 0115, Q4 decided 2026-10-31).
-const APP_ABILITIES: [Can; 7] = [
+const APP_ABILITIES: [Can; 8] = [
     Can::Windows,
     Can::WebViews,
     Can::Updates,
     Can::Devtools,
     Can::LocalFolders,
+    Can::SharedStorage,
     Can::Terminal,
     Can::AudioShare,
 ];

@@ -20,7 +20,7 @@ import { errorSentence } from "../errors";
 import { attempt } from "../reach";
 import { currentFolder, folderName } from "../folder";
 import { flash } from "../notify";
-import { openFolderBy, openFolderDialog } from "../open";
+import { openFolderBy, openFolderDialog, opensAnotherFolder } from "../open";
 import { roleWord, sh } from "../shareStrings";
 import { hiddenFolderKeys, hideFolder, visibleRecents } from "./hiddenFolders";
 
@@ -160,8 +160,9 @@ export async function openFolderSwitcher(anchor: HTMLElement): Promise<void> {
   if (local) {
     // The action first and apart: it is not one of the folders below it.
     const actions = h("ul", "switcher-actions");
-    actions.append(entry({ label: sh.openOther, action: true, icon: "folderOpen", run: () => void openFolderDialog() }));
-    local.section.insertBefore(actions, local.list);
+    // Not on iOS, whose folders are its Documents' alone, all listed below.
+    if (opensAnotherFolder()) actions.append(entry({ label: sh.openOther, action: true, icon: "folderOpen", run: () => void openFolderDialog() }));
+    if (actions.children.length > 0) local.section.insertBefore(actions, local.list);
     const recents = await commands.recentFolders();
     const list = local.list;
     const draw = (): void => {

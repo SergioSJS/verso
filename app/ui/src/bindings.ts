@@ -2200,7 +2200,15 @@ export type Can =
  *  and A13); the window then says the server runs only while Verso is
  *  open.
  */
-"serve_away";
+"serve_away" | 
+/**
+ *  Open a folder of the phone's shared storage, walked in the window
+ *  (ADR 0118 item 4.4): the Android app alone lists it. The iOS app
+ *  opens only the folders in its own Documents, and the window leaves
+ *  *Open another folder…* out there; the desktop's is the system's
+ *  folder picker.
+ */
+"shared_storage";
 
 export type Capabilities = Capabilities_Serialize | Capabilities_Deserialize;
 
@@ -4495,7 +4503,9 @@ export type ServerGone = {
 	url: string,
 	/**
 	 *  What ended: `session` (the server ended this device's session, or
-	 *  refused it on reconnecting), `folder` (this account no longer
+	 *  refused it on reconnecting), `version` (on reconnecting, the server
+	 *  runs a version this app does not follow: one of the two is to be
+	 *  updated, not signed in again), `folder` (this account no longer
 	 *  reaches the folder or the share: `reason` says why), `connection`
 	 *  (the connection dropped; the app tries again), `unreachable` (a
 	 *  try found the server out of reach: `address` names it) or `closed`
@@ -4526,6 +4536,23 @@ export type ServerGone = {
 export type ServerSignIn = {
 	code: string,
 	page: string,
+};
+
+/**
+ *  A sign-in through the browser that ended without this device signed in
+ *  (event `server-sign-in-failed`; `server-signed-in` says the other end):
+ *  the window stops waiting for the code and says why, with a try again.
+ */
+export type ServerSignInFailed = {
+	/**  The server, as the sign-in named it. */
+	url: string,
+	/**
+	 *  `refused` (the person said it was not them on the server's page, or
+	 *  the code was used elsewhere), `expired` (the code's ten minutes ran
+	 *  out) or `failed` (the server's answer did not read, or this device
+	 *  could not keep the sign-in: the log says what).
+	 */
+	why: string,
 };
 
 /**

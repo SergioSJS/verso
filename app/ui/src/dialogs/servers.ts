@@ -11,13 +11,13 @@
 // computer (ADR 0079 item 8, decided 2026-10-11).
 
 import { listen } from "@tauri-apps/api/event";
-import { commands, type ContractError, type ServerAccount, type ServerBack, type ServerFolder, type ServerGone } from "../bindings";
+import { commands, type ContractError, type ServerAccount, type ServerBack, type ServerFolder, type ServerGone, type ServerSignInFailed } from "../bindings";
 import { h, ui } from "../dom";
 import { errorSentence, fail } from "../errors";
 import { addressOf, attempt, busy, clearFailure, reachParts, reachSentence, reachStrings, sayFailure } from "../reach";
 import { can } from "../can";
 import { currentFolder, folderName, LAST_FOLDER } from "../folder";
-import { currentSync, openSettingsSection, preselectSync, syncStarted } from "./sync";
+import { currentSync, openSettingsSection, preselectSync, syncStarted, syncStrings } from "./sync";
 import { openFolderBy } from "../open";
 import { sh } from "../shareStrings";
 import { foundList } from "./serversFound";
@@ -44,6 +44,12 @@ const pt = {
   notCopied: "Digite este código na página que abriu: ",
   waiting: ". Esperando…",
   signedIn: (who: string) => `Conectado como ${who}.`,
+  // A sign-in that ended without this device signed in (review I1).
+  signInEnded: {
+    refused: "A entrada foi recusada na página do servidor; nada foi conectado.",
+    expired: "O código expirou: os dez minutos para usá-lo passaram.",
+    failed: "A entrada não terminou: o servidor respondeu algo que o app não entendeu, ou ela não pôde ser guardada. O log do app diz o quê.",
+  } as Record<string, string>,
   account: (a: ServerAccount) => `${a.name} <${a.email}>`,
   as: (name: string, email: string) => `Você entra como ${name} · ${email}`,
   foldersOf: (host: string) => `Pastas em ${host}`,
@@ -99,6 +105,11 @@ const en: typeof pt = {
   notCopied: "Type this code on the page that opened: ",
   waiting: ". Waiting…",
   signedIn: (who: string) => `Connected as ${who}.`,
+  signInEnded: {
+    refused: "The sign-in was refused on the server's page; nothing was connected.",
+    expired: "The code expired: its ten minutes to be used ran out.",
+    failed: "The sign-in did not finish: the server answered something the app did not understand, or it could not be kept. The app's log says what.",
+  } as Record<string, string>,
   account: (a: ServerAccount) => `${a.name} <${a.email}>`,
   as: (name: string, email: string) => `You sign in as ${name} · ${email}`,
   foldersOf: (host: string) => `Folders on ${host}`,
@@ -219,6 +230,16 @@ export function hearServers(): void {
       serverGoneHeard(p, reachSentence(message));
       return;
     }
+    // A version this app does not follow: one side is to be updated, in
+    // the sync's words for it (review M1); signing in again would not help.
+    if (p.what === "version") {
+      serverState()?.remove();
+      const words = syncStrings().problems["version"] ?? "";
+      const said = `${words.charAt(0).toUpperCase()}${words.slice(1)}.`;
+      ui.status.textContent = said;
+      serverGoneHeard(p, said);
+      return;
+    }
     serverState()?.remove();
     const said = p.what === "session" ? s.goneSession : s.gone;
     ui.status.textContent = said;
@@ -331,6 +352,15 @@ export function serversBody(_item: (title: string, desc: string, control: HTMLEl
     said.textContent = s.signedIn(s.account(e.payload));
     url.value = "";
     void draw();
+  });
+  // Refused on the page, the code's minutes run out, or a failure: said in
+  // place of "Waiting…", with a try again that asks for a new code.
+  void listen<ServerSignInFailed>("server-sign-in-failed", (e) => {
+    if (!box.isConnected) return;
+    const again = h("button", "ghost srv-again", reachStrings().tryAgain);
+    again.type = "button";
+    again.addEventListener("click", () => form.requestSubmit());
+    said.replaceChildren(`${s.signInEnded[e.payload.why] ?? s.signInEnded["failed"]} `, again);
   });
 
   // The servers announced on this network: a click fills the address the

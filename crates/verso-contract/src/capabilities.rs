@@ -106,6 +106,12 @@ pub enum Can {
     /// and A13); the window then says the server runs only while Verso is
     /// open.
     ServeAway,
+    /// Open a folder of the phone's shared storage, walked in the window
+    /// (ADR 0118 item 4.4): the Android app alone lists it. The iOS app
+    /// opens only the folders in its own Documents, and the window leaves
+    /// *Open another folder…* out there; the desktop's is the system's
+    /// folder picker.
+    SharedStorage,
 }
 
 impl Can {
