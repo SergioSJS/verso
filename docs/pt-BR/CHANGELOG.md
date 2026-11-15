@@ -12,6 +12,10 @@ versão de teste.
 
 ## Não lançado
 
+Nada ainda.
+
+## 0.9.0-beta.3 — 2026-11-15
+
 ### Acrescentado
 
 - No celular, deslizar o dedo para o lado traz os painéis laterais, ao alcance sem a barra de baixo: da direita para a esquerda o painel da direita, da esquerda para a direita os arquivos; o painel acompanha o dedo e deslizar ao contrário o fecha. Começa longe da borda da tela, depois da largura que o Android informa para o gesto de Voltar (ela segue a sensibilidade do Voltar), e um texto selecionado, os campos, o que rola para o lado e os boards, desenhos, mapas e grafos ficam com o dedo. *Deslizar para o lado abre os painéis*, na folha do botão de abas ou em Ajustes › Aparência › Celular (junto com a chave da barra de baixo), desliga. Um toque ao lado de uma gaveta aberta a fecha sem apertar também o que está embaixo. A folha da Mesa e da aba Música entra pela direita, como o deslizar a traz, em vez de subir de baixo.

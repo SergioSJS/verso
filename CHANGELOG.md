@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.9.0-beta.3 — 2026-11-15
+
 ### Added
 
 - **The Verso app pairs with the computer at home, and keeps a copy that opens offline.** On a phone, a tablet or another computer, **Settings › Servers › Pair with a computer at home** takes the address and the eight-letter code that the computer's **Pair a phone** shows; the computer asks *Was it you who typed this code in the Verso app?*. Paired, the computer is listed as **Computer at home**, and its folders are picked as a server's: a copy on the device that opens anywhere offline and syncs both ways whenever the device is on the home network with the computer serving. Away, the status says *Away from the computer at home: the copy works without it*. The code never crosses the network — the app and the computer each prove they know it over the key the other shows — and from then on the app trusts that computer's key and nothing else, so someone else on the network cannot pass for it. When the computer's address changes, the app tries the addresses it has served on; at a new one, pairing again keeps the same copy. **Replace this computer's identity** ends the pairing, and the app says so. The app is one of the four phones, reads or edits as chosen, and is revoked like one. The phone's browser keeps pairing by the QR, with no copy, as before.
