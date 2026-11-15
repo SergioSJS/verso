@@ -1600,11 +1600,17 @@ the folder `Campanha Fractal/` beside it ([ADR
    round tower. A city's JSON is named, not
    imported. ⌘⇧P › *Novo mapa gerado…*: pick a generator, the seed drawn (or
    typed), *Criar nota*: the note embeds the generator (asked about once)
-   with `seed` in its properties. Level: H (the import, the drawing, the
-   region, the generated note); A (the generator's *Export* inside the note
-   saving into the folder, `docs/reference/manual-checks.md`); E:
+   with `seed` in its properties. A dungeon with a secret door (a dashed
+   line across a way): on the board's map menu, *Ver como leitor* — the
+   dashed line is gone, the rest of the drawing stays; on a UniVerso table,
+   a player who opens the board (and her synced copy of the file) has no
+   secret door and no `walls` (fix of 2026-11-15). Level: H (the import,
+   the drawing, the region, the generated note); A (the generator's
+   *Export* inside the note saving into the folder, the player's view on a
+   UniVerso, `docs/reference/manual-checks.md`); E:
    `watabou-import.spec.mjs`; U: `test/watabou.test.mjs`,
-   `test/watabouHouse.test.mjs`.
+   `test/watabouHouse.test.mjs`; S: `tests_board_walls.rs`,
+   `crates/verso-core/tests/canvas_walls.rs`.
 
 ## 15. Structured data as a diagram (note 16, the sample files)
 

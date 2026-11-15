@@ -136,6 +136,15 @@ Segments in the board's pixels, the drawing's space; a door is the segment
 across its way. Moving the drawing does not move them: a later reader
 should anchor them to the group.
 
+**Who is served them** (fix of 2026-11-15, see Status): nobody but whoever
+sees the board whole — the owner, a table's game master. A UniVerso serves
+a reader or a player a board through an **allowlist** of its keys
+(`nodes`, `edges`, and of `verso` only `version`, `drawing`, `background`),
+so `verso.walls` never reaches them. A **secret door** is drawn marked
+`"customData": {"verso": {"secret": true}}`, and the cut of the drawing
+leaves a marked element out for them (its group stays: the rest of the
+dungeon is theirs).
+
 **A town's note on click** (item 4): following a link to a note that does
 not exist makes it, as always, in the linking note's folder. When the
 linking note's `generator` is `perilous-shores` and its `export` names the
@@ -276,3 +285,42 @@ that were `[OPEN]` here, each as recommended:
 
 The mechanism under every item is the author's, built under these
 decisions and labelled as such above.
+
+### Fixed 2026-11-15: the walls and the secret doors were served to players
+
+Found by the reading of ADR 0121
+([review](../review/2026-11-15-adr-0121-review.md), B1): as built through
+0.9.0-beta.2, `verso.walls` — every wall and door of an imported dungeon or
+house, a secret door named `"kind": "secret"` — was served whole to every
+reader and player of a board on a UniVerso (the reader's projection and the
+player's cut each filtered only the nodes, the edges and the drawing, and
+let any other key through), and the drawing showed a secret door as a
+dashed line to everyone. Fixed on `feat/phone-home-and-board`:
+
+- **One allowlist, both cuts.** `verso_core::canvas_secret` (a reader's
+  projection: `read_text`, `read_file_text`, `read_note`, `board_preview`,
+  sync bytes and hashes, listing sizes, search) and
+  `verso_server::board_sight` (a player who edits: the room's snapshot, its
+  `base`, its updates, `read_text`) keep only `PUBLIC_KEYS` and
+  `PUBLIC_VERSO_KEYS`; any other key is left out (fails closed). The same
+  projection serves "view as a reader" and the export without secrets,
+  now offered on a board whose only secret is a drawn one.
+- **A drawn element secret itself** is left out of a reader's and a
+  player's drawing, with its bound text and what is bound to it
+  (`drawn_is_secret`): marked as above, or — for the boards already in
+  folders, written unmarked — the import's own signature for a secret door,
+  a `line`, `dashed`, of stroke width 3 (a width Excalidraw's menu never
+  gives). A secret stroke does not shut its groups.
+- **The file route** (`/f/`) now refuses a board and a note to every player
+  of a table, as it does to a reader; a folder's editor at a table was sent
+  a board's bytes whole.
+- **History** was already the game master's for a board (ADR 0113 H).
+- **Chosen in the code:** walls go to no player at all until ADR 0121
+  defines what a player may know of them; a secret door the game master
+  restyles (another dash or width) is no longer recognised unmarked —
+  re-importing marks it. A player still sees the floor through a secret
+  door's cell as an open way: hiding the room behind it is fog (0121).
+- Tests: `crates/verso-core/tests/canvas_walls.rs`,
+  `crates/verso-server/src/tests_board_walls.rs`, `board_sight_tests.rs`,
+  the canaries of `tests_secret_pins.rs`; each seen failing on the code
+  before the fix.

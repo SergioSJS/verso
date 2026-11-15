@@ -27,6 +27,7 @@ versão de teste.
 ### Corrigido
 
 - **Um celular pareado com o computador de casa não diz mais que é dono da pasta do computador.** No app Verso, Configurações › Servidores mostrava a pasta que o computador serve como *dona* ao lado de **Computador de casa**; agora mostra o papel com que o celular foi pareado, *edita* ou *só lê*, como a lista de celulares do computador. Só o rótulo estava errado: o celular nunca pôde compartilhar a pasta, criar links de leitura, conduzir a mesa ou o acesso dela, nem esvaziar a lixeira, e um teste agora garante isso.
+- **Um UniVerso não entrega mais aos jogadores as paredes de um mapa importado, nem desenha para eles as portas secretas.** Desde que os mapas do Watabou podem ser importados (0.9.0-beta.1), um board feito de uma masmorra ou de uma casa guardava no arquivo as paredes e as portas, a porta secreta dita como tal, e um UniVerso servia essa parte do arquivo inteira a todo jogador e leitor do board — e a porta secreta de uma masmorra, desenhada como uma linha tracejada, estava também no board deles. Agora um jogador ou um leitor recebe só o que um board mostra (os cartões, as setas, o desenho e o fundo): as paredes, e tudo mais que um arquivo de board guarde e o Verso não conheça, ficam com o mestre, e a porta secreta é desenhada só para o mestre, também nos boards importados antes disto. Um jogador de uma mesa, qualquer que seja o papel dele na pasta, também não recebe mais o arquivo de um board ou de uma nota pelo endereço web dele.
 
 ## 0.9.0-beta.2 — 2026-11-15
 

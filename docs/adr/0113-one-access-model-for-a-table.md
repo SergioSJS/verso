@@ -1352,3 +1352,19 @@ B8 build above:
    the next pass" of the build is now only for a deletion made outside Verso).
 4. B8 **stays recorded as an amendment** (item 9 = a), not a new ADR
    superseding this section.
+
+### Amended 2026-11-15: what a player is served of a board is an allowlist
+
+A fix, not a new decision (ADR 0120 "Fixed 2026-11-15"; the reading of ADR
+0121, B1): H says a player is served "only the elements they see", and the
+cut honoured that for `nodes`, `edges` and `verso.drawing` but let every
+other key of the file through — `verso.walls`, an imported map's walls with
+its secret doors named, reached every player and reader. The rule, as now
+built in both cuts (`canvas_secret` for whoever reads, `board_sight` for
+whoever edits): **a player or a reader is served a board's keys by an
+allowlist** — `nodes`, `edges`, and of `verso` only `version`, `drawing`,
+`background` — and any other key is the game master's (fails closed). A
+drawn element marked secret (`"verso": {"secret": …}` on it or in its
+`customData`) is *Gone* like a pin, without shutting its groups. The file
+route (`/f/`) sends a board or a note to no player of a table, whatever
+their role in the folder.

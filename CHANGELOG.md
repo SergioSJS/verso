@@ -29,6 +29,7 @@ test release.
 ### Fixed
 
 - **A phone paired with the computer at home no longer says it owns the computer's folder.** In the Verso app, Settings › Servers listed the folder the computer serves as *owner* beside **Computer at home**; it now says the role the phone was paired with, *edits* or *reads only*, as the computer's list of phones does. Only the label was wrong: the phone never could share the folder, make read links, run its table or its access, or empty its trash, and a test now keeps it so.
+- **A UniVerso no longer hands players the walls of an imported map, nor draws its secret doors for them.** Since Watabou maps could be imported (0.9.0-beta.1), a board made from a dungeon or a house kept its walls and doors in the file, a secret door named as one, and a UniVerso served that part of the file whole to every player and reader of the board — and a dungeon's secret door, drawn as a dashed line, was on their board too. Now a player or a reader is served only what a board shows (its cards, its arrows, its drawing and background): the walls, and anything else a board file holds that Verso does not know, stay with the game master, and a secret door is drawn for the game master alone, on boards imported before this too. A player of a table, whatever their role in the folder, is no longer sent a board's or a note's file through its web address either.
 
 ## 0.9.0-beta.2 — 2026-11-15
 
