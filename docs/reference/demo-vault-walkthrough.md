@@ -1608,7 +1608,11 @@ the folder `Campanha Fractal/` beside it ([ADR
    number — hover: the note's preview; click: the note opens. The map
    tools' *Mostrar o traçado* shows Verso's tracing in blue: every wall on
    the picture's walls, the columns on the picture's columns; press again:
-   hidden; ⌘Z undoes each. Drop only the JSON and the PNG: *Para o desenho
+   hidden; ⌘Z undoes each. Exported with *View › Rotate-to-fit* on
+   (the generator's default), the dialog adds *O desenho do Watabou veio
+   girado N°…* naming that menu, and the note ends with the same warning;
+   exported with it off: no such line, the map square to the board.
+   Drop only the JSON and the PNG: *Para o desenho
    do Watabou ficar alinhado às salas, solte também o SVG…* and the board
    is Verso's drawing. A house with each floor's *Export › as SVG* (and
    *as PNG*): each frame shows that floor's picture, the room names the

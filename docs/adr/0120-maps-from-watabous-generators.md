@@ -16,7 +16,9 @@
   brought a lot of information, nice — but it looks very bad. Square,
   blocky, without the old-school feel the Watabou map image itself shows.
   If we import this kind of map, we should bring the image that goes on
-  top."* (item 2, revised).
+  top."* (item 2, revised); and, later that day: *"O watabou a imagem tem
+  que exportar sem rotação pra conseguir encaixar"* (Watabou's picture has
+  to be exported without rotation to fit).
 - Status in the briefing: not present
 - Builds on: [0056](0056-embedded-web-pages.md) (revised by item 6),
   [0057](0057-board-json-canvas.md) (the board's drawing),
@@ -292,8 +294,26 @@ reads the file's head for the root's size and that transform:
   generator's own page: the JSON's key "1" at (10, −6.5) falls at (948.6,
   512.2) of a 1400 × 1000 window, where the page draws its "1"; every room
   of the sample drawn over the 4846-pixel PNG lies on its picture
-  (2026-11-15). **A PNG alone does not say the turn**: without the SVG the
-  board keeps Verso's drawing, and the dialog asks for the SVG.
+  (2026-11-15).
+- **Rotation off** (the maintainer's second word): the One Page Dungeon's
+  option is **View › Rotate-to-fit** (right-click the map; on by default).
+  Exported with it off, the map's group is `translate(…) scale(s)` with no
+  turn — checked on seed 12345, `translate(746.628 539.674)
+  scale(0.622 0.622)`, every room on its picture — and the cells are
+  square to the board (`grid` = `[40, 0, 0, 40, e, f]`), ready for 0121's
+  grid. A turned export is still imported, turned; the dialog and the note
+  (a `> [!warning]` callout after the pictures, in the interface's
+  language) name the angle and the way to export it square: *View ›
+  Rotate-to-fit* off, *Export as › SVG* and *Save as PNG*, import again.
+  Square: no word. Other settings that change the page's layout, read off
+  the same menus: *View › Zoom-to-fit* (the map's scale), the window's
+  size (the page), *Layers › Title & story* and the *Notes* (where the map
+  is put on the page) — the SVG records the result, whatever they are.
+- **A PNG alone is not placed**, square or not: where and how large the
+  map sits on the page depends on the window it was exported from, the
+  title, the story and the notes' boxes, and only the SVG writes it down;
+  the board keeps Verso's drawing and the dialog asks for the SVG in one
+  line saying so.
 - **Dwellings**: `scale(D) translate(m m)`, a cell `(j, i)` at
   `D · (j + m, i + m)`; a floor's picture is known by the generator's
   suffix in its name (`_gf` 0, `_1f` 1, `_b` −1) — or is the one floor of a
@@ -363,6 +383,10 @@ a corner of the grid, not in a cell; drawn there.
 
 - **Pins over Watabou's picture** (the report's option): set aside by item 2
   on 2026-11-12; taken by item 2's revision of 2026-11-15.
+- **Placing a PNG alone from the JSON's bounds** (2026-11-15, the
+  author, for the maintainer's question): the generator's fit of the map
+  to the page depends on the window, the title and story and the notes'
+  boxes; recomputing it would be guessing its layout. Not done.
 - **Turning the picture instead of the drawing** (2026-11-15, the author):
   a card on the board cannot be turned (JSON Canvas has no angle), and the
   picture's title and notes would read askew; the drawing is turned.
