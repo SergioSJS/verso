@@ -20,6 +20,13 @@ in the real app.
 
 ## Not yet checked
 
+### The sideways swipe for the side panels on a phone (feat/phone-home-and-board, 2026-11-15)
+
+- [ ] **Android gesture navigation** (A, the installed beta on the maintainer's phone, gesture navigation on): a swipe from the very left or right edge is still Android's Back (it closes a sheet, a drawer, then leaves the app) and never opens a panel; a swipe that starts a finger's width inside the screen, across a note, brings the right panel (right to left) or the files (left to right), following the finger, and the other way closes it. Try it in portrait and landscape, in Reading and in Edit (with the keyboard up and down), with the bottom bar hidden.
+- [ ] **What keeps the finger** (A, the same phone): selecting text in Edit and dragging its handles sideways opens nothing; a wide table and a code block scroll sideways; the kanban scrolls column by column; a board, a drawing, a map, the graph and the data graph pan and draw; a PDF zoomed in pans; the keyboard's bar scrolls. A vertical scroll of a long note never opens a panel.
+- [ ] **iPhone or iPad app and Safari** (A): the same swipes work with no edge behaviour of their own (the WebView has no back-swipe), and a vertical scroll that drifts sideways still scrolls.
+- [ ] **TalkBack and VoiceOver** (A): with the reader on, the panels open from *Arquivos* and *Painel* as before; the swipe is not needed for anything.
+
 ### The updater's channel and words, Android's allow-installs step, ⌘O (fix/beta-0.9-feedback, 2026-11-15)
 
 `cargo test -p verso-app update` covers the release picked (`update::pick`) and that nothing downloads while a phone does not allow installs; `app/ui/test/updateWords.test.mjs` the words of every code. What the tests do not see is the real update.

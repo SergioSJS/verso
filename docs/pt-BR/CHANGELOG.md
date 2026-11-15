@@ -12,7 +12,9 @@ versão de teste.
 
 ## Não lançado
 
-Nada ainda.
+### Acrescentado
+
+- No celular, deslizar o dedo para o lado traz os painéis laterais, ao alcance sem a barra de baixo: da direita para a esquerda o painel da direita, da esquerda para a direita os arquivos; o painel acompanha o dedo e deslizar ao contrário o fecha. Começa longe da borda da tela (a borda é do Voltar do Android), e um texto selecionado, os campos, o que rola para o lado e os boards, desenhos, mapas e grafos ficam com o dedo. *Deslizar para o lado abre os painéis*, na folha do botão de abas, desliga.
 
 ## 0.9.0-beta.2 — 2026-11-15
 

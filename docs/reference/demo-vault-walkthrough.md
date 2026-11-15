@@ -1031,6 +1031,20 @@ hand, on a phone and an iPad, the server's window in the browser.
    again. With no tab open the row stays with the
    folder's name. On a wide window, the tabs and the note's row as before.
    Level: H; E: `phone-top-bar.spec.mjs` (three tests).
+1b. The sideways swipe (2026-11-15, `app/ui/src/screen/swipe.ts`): at
+   390 × 844, in note 04, draw a finger across the text from right to left:
+   the right panel follows it and stays once let go past about a third (or
+   flicked), *Painel* now says it is open; from left to right beside it, it
+   goes. Left to right brings the files; right to left on the drawer takes
+   them away. Back closes a panel a swipe opened. Nothing opens from the
+   screen's edge (24 px), on an up-and-down scroll, on a short slow move, after
+   a long press, on selected text, on a wide table or code block that scrolls
+   sideways, on a board, a drawing, a map, the graph or the data graph. The
+   sheet's *Deslizar para o lado abre os painéis* turns it off (the buttons
+   still open the panels) and it stays off after a reload. With reduced
+   motion the panel does not follow: it opens once the finger has gone far
+   enough. Level: H; U: `swipePanels.test.mjs`; E: `phone-swipe.spec.mjs`
+   (Chromium only: Playwright moves a finger there).
 2. A layout split on a wide window, then narrowed: one pane at a time and a
    switcher "2/2" in the tab bar; the panes are listed and chosen from it; the
    split commands are absent from the palette and from a tab's menu; widened
