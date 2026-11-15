@@ -332,9 +332,17 @@ be on to reach them. Built (`app/ui/src/screen/swipeRule.ts`, the decision;
 - **Not from the edges.** Android's gesture navigation takes a swipe that
   starts at the very left or right edge as its own Back, and the page never
   sees it or sees it cancelled; so the swipe is not an edge swipe. It starts
-  anywhere in the content except the 24 px along each side, and the same
-  rule holds on iOS (Tauri's WKWebView has no back-swipe) — one behaviour,
-  no edge gesture of iOS's own.
+  anywhere in the content except a band along each side. On Android the
+  band is the width the system reports for its Back gesture
+  (`WindowInsets.Type.systemGestures()`, read by `MainActivity.kt` each time
+  the insets change and asked by the page at the touch's start through
+  `VersoGestures`) plus 8 px: it follows the Back sensitivity, and with
+  three-button navigation it is the 8 px alone. Where nothing reports it
+  (iOS, a browser) the band is 24 px, and the same rule holds on iOS
+  (Tauri's WKWebView has no back-swipe) — one behaviour, no edge gesture of
+  iOS's own. The swipe can be turned off in the top bar's ⋯ sheet and in
+  Settings › Appearance › Phone, for a phone where it still gets in the way
+  of the system's Back (the maintainer, 2026-11-15).
 - **What counts**: the finger goes 10 px before anything is decided; held
   still for the long press's 450 ms first (`touch.ts`), it is a long press,
   never a swipe; it must be clearly sideways — at least twice as far across
