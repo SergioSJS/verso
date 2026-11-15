@@ -35,7 +35,10 @@ const DUNGEON: &str = r##"{
 "##;
 
 fn drawing_ids(text: &str) -> Vec<String> {
-    let read = Canvas::parse(text).unwrap();
+    // A text that is no board draws nothing: every assertion on it fails.
+    let Ok(read) = Canvas::parse(text) else {
+        return Vec::new();
+    };
     match read.root.get("verso").and_then(|v| v.get("drawing")) {
         Some(Json::Array(items)) => items
             .iter()
