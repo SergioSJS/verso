@@ -49,6 +49,11 @@ fn due(said: &mut BTreeMap<String, Instant>, url: &str, now: Instant) -> bool {
 /// them, so a bad DNS reads as one: the first line is the address, each
 /// line after it an IP that was tried.
 pub(crate) fn unreachable(url: &str, cause: &str) -> ContractError {
+    // A computer at home that showed another key is not out of reach: it is
+    // refused, and said so (paired/mod.rs).
+    if let Some(changed) = crate::paired::changed(url) {
+        return changed;
+    }
     let host = reqwest::Url::parse(url)
         .ok()
         .and_then(|u| u.host_str().map(str::to_owned));

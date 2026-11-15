@@ -196,6 +196,7 @@ fn main() {
         "server_copy_open",
         "server_copy_plan",
         "server_copy_make",
+        "server_pair",
         "server_retry",
         "window_server",
         "discover_servers_start",

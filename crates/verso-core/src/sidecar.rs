@@ -151,6 +151,11 @@ pub(crate) fn write_agents(config: &Path, visible: &[String]) -> std::io::Result
 pub(crate) struct Servers {
     #[serde(default)]
     pub(crate) servers: Vec<crate::servers::ServerLogin>,
+    /// The computers this app is paired with (ADR 0117, "The Verso app
+    /// paired"): the pin of each one's key and where it was found, beside
+    /// its sign-in above.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) paired: Vec<crate::servers::Paired>,
     /// This computer's name as the person set it in Settings › Servers
     /// (ADR 0079 item 8, ADR 0074 item 8, decided 2026-10-11); none, the
     /// system's.

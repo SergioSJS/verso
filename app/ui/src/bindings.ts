@@ -979,6 +979,13 @@ export const commands = {
 	late_outside_changes?: string | null,
 } | null, ContractError>(__TAURI_INVOKE("server_copy_make", { url, folder, place })),
 	/**
+	 *  Pair this device with the computer at home whose *Pair a phone* dialog
+	 *  shows `address` and `code` (ADR 0117, "The Verso app paired"). Answers
+	 *  once the person at the computer allowed it; the computer is then a
+	 *  server of Settings › Servers, its folders picked as any server's.
+	 */
+	serverPair: (address: string, code: string) => typedError<ServerAccount, ContractError>(__TAURI_INVOKE("server_pair", { address, code })),
+	/**
 	 *  The window's reconnection tries now, its waits starting over: the
 	 *  person's "Tentar de novo" while the window's server is out of reach.
 	 *  Nothing when the window is not reconnecting.
@@ -4438,6 +4445,12 @@ export type ServerAccount = {
 	url: string,
 	email: string,
 	name: string,
+	/**
+	 *  A computer at home this device is paired with (ADR 0117, "The Verso
+	 *  app paired"): `name` is its owner's, `email` empty, the address a
+	 *  name this app resolves itself.
+	 */
+	paired: boolean,
 };
 
 /**

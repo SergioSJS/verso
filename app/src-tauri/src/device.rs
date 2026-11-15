@@ -18,7 +18,7 @@ use serde_json::json;
 use verso_contract::{DeviceName, DeviceRenamed};
 use verso_core::servers;
 
-use super::remote::{answer, http};
+use super::remote::answer;
 use super::*;
 use crate::dns::SendRetrying;
 
@@ -122,7 +122,7 @@ pub(crate) async fn set_device_name<R: tauri::Runtime>(
         logins
             .into_iter()
             .filter_map(|login| {
-                let told = http().and_then(|c| {
+                let told = crate::paired::http_to(&login.url).and_then(|c| {
                     answer(
                         c.put(format!("{}/api/me/device", login.url))
                             .bearer_auth(&login.token)

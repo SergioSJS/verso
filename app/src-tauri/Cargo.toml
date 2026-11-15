@@ -88,6 +88,13 @@ tokio-tungstenite = { version = "0.29", default-features = false, features = ["c
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
 tokio = { version = "1", default-features = false, features = ["sync", "time", "macros", "net"] }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "http2", "gzip", "json"] }
+# A computer at home this app is paired with (ADR 0117, "The Verso app
+# paired"; src/paired/): its key alone is trusted there, by a certificate
+# verifier of this app's own handed to reqwest and to the WebSocket. rustls
+# on ring (Apache-2.0 OR ISC OR MIT), the version and features already in
+# the tree (reqwest, verso-server; this crate's phones and tests named it
+# already). It replaces nothing of ours: nothing pinned a key before.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 zip = { version = "9", default-features = false, features = ["deflate"] }
 sha2 = "0.10"
 # The release files' signatures (ADR 0055, revised 2026-10-09): minisign,

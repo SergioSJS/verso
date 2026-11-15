@@ -126,6 +126,7 @@ pub(super) async fn follow<R: tauri::Runtime>(
                 url: login.url.clone(),
                 email: login.email.clone(),
                 name: login.name.clone(),
+                paired: false,
             };
             match servers::keep(config.as_deref(), login) {
                 Ok(()) => {

@@ -383,9 +383,31 @@ fn system_answer(host: &str) -> io::Result<Vec<IpAddr>> {
         .map(|a| a.map(|s| s.ip()).collect())
 }
 
+/// The system's addresses for `host`, as it answers now: where a computer
+/// paired by its name was (`paired/pair.rs`).
+pub(crate) fn system_ips(host: &str) -> Vec<IpAddr> {
+    system_answer(host).unwrap_or_default()
+}
+
 /// Resolve `host`: the system, and, once a connection to it has failed, the
-/// other servers.
+/// other servers. A paired computer's name (`paired/mod.rs`) is never asked
+/// of either: its addresses are the ones it was found at, in the order the
+/// rule below gives them.
 fn resolve(host: &str) -> io::Result<Vec<IpAddr>> {
+    if let Some(found) = crate::paired::addresses(host) {
+        let nets = networks();
+        let mut all = lock(&KNOWN);
+        let k = all.entry(host.to_owned()).or_default();
+        let candidates = plan(k, Some(&found), &nets, Instant::now());
+        k.offered.clone_from(&candidates);
+        if candidates.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("no address is known for {host}"),
+            ));
+        }
+        return Ok(candidates.into_iter().map(|c| c.ip).collect());
+    }
     let system = system_answer(host);
     let sys: Option<Vec<IpAddr>> = system.as_ref().ok().cloned();
     let ask = {
