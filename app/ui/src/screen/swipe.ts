@@ -89,12 +89,6 @@ function canOpenLeft(): boolean {
   return !files || !files.disabled;
 }
 
-/** The Table's and the Music tab's panel is a sheet from the bottom on a
- *  phone (css/table.css, css/sound.css): it does not follow a finger across. */
-function rightIsSheet(): boolean {
-  const tab = document.body.dataset["rightTab"] ?? "";
-  return tab === "table" || tab === "music";
-}
 
 type Gesture = {
   start: Start;
@@ -220,7 +214,7 @@ function onMove(e: TouchEvent): void {
     }
     gesture.aside = aside;
     gesture.width = aside.getBoundingClientRect().width || 300;
-    gesture.follow = !reduced?.matches && !(intent.endsWith("right") && rightIsSheet());
+    gesture.follow = !reduced?.matches;
     if (gesture.follow) {
       aside.style.transition = "none";
       aside.style.boxShadow = "0 0 48px oklch(0% 0 0 / .28)";

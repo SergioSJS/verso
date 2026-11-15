@@ -357,9 +357,11 @@ be on to reach them. Built (`app/ui/src/screen/swipeRule.ts`, the decision;
   it settles open (or closed); else it slides back. With
   `prefers-reduced-motion: reduce` it does not follow: it opens (or closes)
   once the finger has covered the same 35 %, without waiting for the lift.
-  The Table's and the Music tab's right panel, a sheet from the bottom on a
-  phone, does not follow a finger across either: the same rule as reduced
-  motion. A move the browser has already taken for a scroll (not
+  The Table's and the Music tab's right panel, a sheet over the page on a
+  phone, comes in from the right and follows the finger like the others
+  (it rose from the bottom until the maintainer, testing the swipe on
+  2026-11-15: *"o da direita para a esquerda faz a janela surgir de baixo
+  para cima … seria movimento mais natural"* from the right). A move the browser has already taken for a scroll (not
   cancelable) is left to it.
 - **Never stolen**, decided by one function from the touched element up,
   not by a list scattered through the views: a text selection on the page
