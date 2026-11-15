@@ -766,7 +766,7 @@ export function openPairing(): void {
     if (key === askedKey) return;
     askedKey = key;
     ask.hidden = false;
-    ask.replaceChildren(h("h3", "ls-h", w.asked));
+    ask.replaceChildren(h("h3", "ls-h", a.app ? w.askedByApp : w.asked));
     const facts = h("dl", "ls-facts");
     // The phone's name as it gave it, isolated: a name in another
     // direction does not turn the words around it.
@@ -808,6 +808,7 @@ export function openPairing(): void {
     row.append(refuse, allow);
     const byLink = askedByLink(a.link);
     if (byLink) ask.append(byLink);
+    if (a.app) ask.append(h("p", "ls-help", w.askedApp));
     ask.append(facts, editorLabel, h("p", "ls-help", w.canEditDesc), row);
     refuse.focus();
   };
@@ -906,6 +907,7 @@ function drawPairing(body: HTMLElement, p: LocalPairing, pick: (address: string)
   code.append(h("code", "ls-code", p.code));
   facts.append(h("dt", "", w.address), addr, h("dt", "", w.code), code);
   body.append(facts);
+  if (!shown.link) body.append(h("p", "ls-help", w.pairApp));
   const swap = linkSwitch(p, shown, (next) => {
     drawPairing(body, p, pick, next);
     body.querySelector<HTMLElement>(".ls-pair-link .btn")?.focus();

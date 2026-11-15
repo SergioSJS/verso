@@ -16,7 +16,7 @@ import { commands, type ServerAccount, type SyncStatus, type SyncVersions } from
 import { h, ui } from "../dom";
 import { syncHeard } from "../notify/sources";
 import { errorSentence, fail } from "../errors";
-import { addressOf, attempt, reachStrings } from "../reach";
+import { addressOf, attempt, isPairedUrl, reachStrings } from "../reach";
 import { host as appHost } from "../can";
 import { backgroundRow } from "./syncBackground";
 import { currentFolder, folderName } from "../folder";
@@ -99,9 +99,14 @@ const pt = {
     changed: "mudou durante a sincronização",
     failed: "erro",
   } as Record<string, string>,
+  // A computer at home away: the copy's ordinary day, said calmly.
+  homeAway: "Longe do computador de casa: a cópia funciona sem ele",
   problems: {
     not_signed_in: "este computador não está conectado ao servidor: conecte em Ajustes › Servidores",
     signed_out: "o servidor encerrou a sessão deste computador: conecte de novo em Ajustes › Servidores",
+    // A computer at home that showed another key (ADR 0117, "The Verso
+    // app paired"): replaced there, or another device at its address.
+    identity_changed: "a identidade do computador de casa mudou (foi trocada nele, ou outro aparelho responde no endereço dele): nada foi enviado. Pareie de novo em Ajustes › Servidores",
     table_closed: "a mesa está fechada pelo mestre: a sincronização volta sozinha quando ela abrir",
     table_moved: "a mesa mudou de servidor: peça ao mestre um convite novo",
     version: "o servidor está numa versão diferente deste app: atualize o que estiver atrás",
@@ -207,9 +212,11 @@ const en: typeof pt = {
     changed: "changed while syncing",
     failed: "error",
   },
+  homeAway: "Away from the computer at home: the copy works without it",
   problems: {
     not_signed_in: "this computer is not signed in to the server: connect in Settings › Servers",
     signed_out: "the server ended this computer's session: connect again in Settings › Servers",
+    identity_changed: "the computer at home's identity changed (it was replaced there, or another device answers at its address): nothing was sent. Pair again in Settings › Servers",
     table_closed: "the table is closed by the game master: sync resumes by itself when it opens",
     table_moved: "the table moved to another server: ask the game master for a new invitation",
     version: "the server runs another version than this app: update the one that is behind",
@@ -328,7 +335,7 @@ export function stateText(st: SyncStatus, short = false): string {
     if (said) text = `${s.states["error"]}: ${said}`;
   }
   // Offline because the server, not the network, did not answer.
-  if (st.state === "offline" && st.problem === "unreachable") text = reachStrings().unreachableShort(addressOf(st.server));
+  if (st.state === "offline" && st.problem === "unreachable") text = isPairedUrl(st.server) ? s.homeAway : reachStrings().unreachableShort(addressOf(st.server));
   // Offline, the writes waiting to go up (a browser's folder, ADR 0092).
   if (st.state === "offline" && st.sending > 0) text += ` · ${s.waitingShort(st.sending)}`;
   if (st.conflicts.length) text += ` · ${s.conflictsShort(st.conflicts.length)}`;

@@ -30,6 +30,7 @@ import { Versions } from "./harness/history";
 import { SystemNotifications } from "./harness/notifications";
 import { FakeTerminals } from "./harness/terminal";
 import { ServerCopy } from "./harness/serverCopy";
+import { PairComputer } from "./harness/pairComputer";
 import * as sanitize from "./sanitize";
 
 const vault = new URLSearchParams(location.search).get("vault");
@@ -266,6 +267,9 @@ if (params.get("host") === "mobile" || params.get("host") === "ios") {
 // maintainer, 2026-11-15; harness/serverCopy.ts), in this device's places.
 const serverCopy = new ServerCopy(core, params.get("host") === "mobile" ? ["in_app", "phone"] : params.get("host") === "ios" ? ["documents"] : ["choose"]);
 Object.assign(core.handlers, serverCopy.handlers());
+// A computer at home paired by its code (ADR 0117; harness/pairComputer.ts).
+const pairComputer = new PairComputer(core);
+Object.assign(core.handlers, pairComputer.handlers());
 const tableParam = params.get("table");
 if (tableParam === "owner" || tableParam === "player") {
   campaign.up = true;
@@ -441,6 +445,8 @@ const harness = {
   },
   /** A server's folder's copy on this device: the copies made, the sizes, the download played. */
   serverCopy,
+  /** A computer at home to pair with: its code, its answer. */
+  pairComputer,
   /** The system's notifications: its permission, its answer when asked,
    *  what was sent, a click on the last (ADR 0084 item 9). */
   notifications,

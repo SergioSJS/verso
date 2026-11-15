@@ -27,6 +27,10 @@ const pt = {
   // which, so a bad DNS reads as one.
   tried: (name: string, ip: string) => `${name} → ${ip}: sem resposta`,
   dnsHint: "Confira o DNS desta rede: o nome pode estar apontando para o endereço errado.",
+  // A computer at home paired with this app (ADR 0117, "The Verso app
+  // paired"): named for what it is, never by the name the app gives it.
+  home: "o computador de casa",
+  homeUnreachable: "O computador de casa não respondeu: ele está desligado, não está servindo, ou este aparelho não está na rede de casa. A cópia aqui continua funcionando, e sincroniza quando os dois se encontrarem.",
 };
 const en: typeof pt = {
   unreachable: (address: string) => `Couldn't reach the server ${address} — it is down or the network is off.`,
@@ -34,7 +38,24 @@ const en: typeof pt = {
   tryAgain: "Try again",
   tried: (name: string, ip: string) => `${name} → ${ip}: no answer`,
   dnsHint: "Check this network's DNS: the name may point to the wrong address.",
+  home: "the computer at home",
+  homeUnreachable: "The computer at home did not answer: it is off, not serving, or this device is not on the home network. The copy here keeps working, and syncs when the two meet again.",
 };
+
+/** The name this app gives a computer at home it is paired with
+ *  (`verso-<pin>.home.arpa`, src-tauri src/paired/), with its port. */
+const PAIRED_NAME = /^verso-[0-9a-f]{20}\.home\.arpa(:\d+)?$/i;
+
+/** Whether `url` is a computer at home this app is paired with. */
+export function isPairedUrl(url: string): boolean {
+  return isPairedAddress(url.replace(/^[a-z]+:\/\//i, "").split("/")[0] ?? url);
+}
+
+/** Whether `address` (`host[:port]`) is a computer at home this app is
+ *  paired with. */
+export function isPairedAddress(address: string): boolean {
+  return PAIRED_NAME.test(address);
+}
 
 export function reachStrings(): typeof pt {
   return document.documentElement.lang.startsWith("pt") ? pt : en;
@@ -52,6 +73,7 @@ export function reachParts(message: string): { address: string; tried: string[] 
 export function reachSentence(message: string): string {
   const s = reachStrings();
   const { address, tried } = reachParts(message);
+  if (isPairedAddress(address)) return s.homeUnreachable;
   if (tried.length === 0) return s.unreachable(address);
   const name = address.replace(/:\d+$/, "");
   const said = `${s.unreachable(address)} ${tried.map((ip) => s.tried(name, ip)).join("; ")}.`;
@@ -66,9 +88,11 @@ export function unreachableAt(e: ContractError | unknown): string | null {
   return kind === REACH ? reachParts(message).address : null;
 }
 
-/** A server's address from its URL: `host[:port]`. */
+/** A server's address from its URL: `host[:port]` — or, for a computer
+ *  at home paired with this app, what it is ("the computer at home"). */
 export function addressOf(url: string): string {
-  return url.replace(/^[a-z]+:\/\//i, "").split("/")[0] ?? url;
+  const address = url.replace(/^[a-z]+:\/\//i, "").split("/")[0] ?? url;
+  return isPairedAddress(address) ? reachStrings().home : address;
 }
 
 type Said = (e: ContractError | unknown) => string;

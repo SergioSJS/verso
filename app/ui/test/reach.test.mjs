@@ -21,7 +21,7 @@ await esbuild.build({
   outfile: "test/.bundles/reach.test-bundle.mjs",
   logLevel: "error",
 });
-const { attempt, failureText, sayFailure, unreachableAt } = await import("./.bundles/reach.test-bundle.mjs");
+const { addressOf, attempt, failureText, isPairedUrl, reachSentence, sayFailure, unreachableAt } = await import("./.bundles/reach.test-bundle.mjs");
 
 await esbuild.build({
   entryPoints: ["src/errorKinds.ts"],
@@ -137,4 +137,21 @@ describe("What the log and the console get", () => {
     assert.equal(dueToSay(said, "notas.casa", 30_000), true);
     assert.equal(dueToSay(said, "localhost:7351", 60_000), true);
   });
+});
+
+// A computer at home paired with this app (ADR 0117, "The Verso app
+// paired") is named for what it is, never by the name the app reaches it
+// by, and its absence is the copy's ordinary day, not a server down.
+test("a paired computer is named for what it is, and away is said calmly", () => {
+  document.documentElement.lang = "pt-BR";
+  const url = "https://verso-0123456789abcdef0123.home.arpa:51234";
+  assert.equal(isPairedUrl(url), true);
+  assert.equal(addressOf(url), "o computador de casa");
+  assert.match(reachSentence("verso-0123456789abcdef0123.home.arpa:51234\n192.168.1.20"), /^O computador de casa não respondeu/);
+  for (const other of ["https://notas.casa.lan", "https://verso-0123.home.arpa:1", "https://verso-0123456789abcdef0123.home.arpa.evil.com"]) {
+    assert.equal(isPairedUrl(other), false, other);
+  }
+  assert.equal(addressOf("https://notas.casa.lan:7340/x"), "notas.casa.lan:7340");
+  document.documentElement.lang = "en";
+  assert.equal(addressOf(url), "the computer at home");
 });

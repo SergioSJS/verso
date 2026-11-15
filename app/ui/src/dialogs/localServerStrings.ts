@@ -215,6 +215,11 @@ const pt = {
   // The pairing dialog.
   pairTitle: "Parear um celular",
   pairSteps: "Abra a câmera do celular e leia o QR. Se ele não ler, abra o endereço abaixo no navegador do celular e digite o código.",
+  // The Verso app pairs by the same window (ADR 0117, "The Verso app
+  // paired"): typed, with its own copy of what it is given.
+  pairApp: "No app Verso do celular, do tablet ou de outro computador: Ajustes › Servidores › Parear com um computador de casa, e digite este endereço e este código. O app guarda uma cópia que abre sem internet e sincroniza quando estiver nesta rede.",
+  askedApp: "É o app Verso, não o navegador: ele vai guardar neste aparelho uma cópia do que você der e sincronizá-la sempre que estiver na rede de casa.",
+  askedByApp: "Foi você quem digitou este código no app Verso?",
   qrLabel: "QR de pareamento",
   address: "Endereço",
   copyLink: "Copiar link",
@@ -451,6 +456,9 @@ const en: typeof pt = {
   ],
   pairTitle: "Pair a phone",
   pairSteps: "Open the phone's camera and scan the QR. If it cannot, open the address below in the phone's browser and type the code.",
+  pairApp: "In the Verso app on a phone, a tablet or another computer: Settings › Servers › Pair with a computer at home, and type this address and this code. The app keeps a copy that opens offline and syncs when it is on this network.",
+  askedApp: "It is the Verso app, not a browser: it will keep on that device a copy of what you give and sync it whenever it is on the home network.",
+  askedByApp: "Was it you who typed this code in the Verso app?",
   qrLabel: "Pairing QR",
   address: "Address",
   copyLink: "Copy link",

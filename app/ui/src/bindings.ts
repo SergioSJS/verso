@@ -3306,6 +3306,12 @@ export type LocalAsked = {
 	 *  the one the tunnel forwarded, and the question says so.
 	 */
 	link: boolean,
+	/**
+	 *  The Verso app asks, not a browser (ADR 0117, "The Verso app
+	 *  paired"): it keeps a copy of what it is given, and the question
+	 *  says so.
+	 */
+	app: boolean,
 };
 
 /**  One line of the log of what happened, kept 365 days. */

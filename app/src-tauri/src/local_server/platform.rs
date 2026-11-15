@@ -489,6 +489,7 @@ pub(super) async fn pair_state<R: tauri::Runtime>(
                 address: a.address,
                 asked: a.asked,
                 link: a.link,
+                app: a.app,
             }),
         })
     })
