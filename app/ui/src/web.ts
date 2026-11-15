@@ -68,6 +68,21 @@ async function visitor(token: string): Promise<void> {
   openHeld();
 }
 
+/** How many changes a page before this one deleted with the copy when the
+ *  server ended the session (`verso.wipedWith`, offline/manager.ts), taken
+ *  once; null when none did. */
+function takeWipedEarlier(): number | null {
+  try {
+    const kept = sessionStorage.getItem("verso.wipedWith");
+    if (kept === null) return null;
+    sessionStorage.removeItem("verso.wipedWith");
+    const n = Number(kept);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return null;
+  }
+}
+
 async function start(): Promise<void> {
   // A read link's address opens the window for whoever holds it, with no
   // account to ask for (ADR 0105); nothing of the signed-in flow runs.
@@ -94,12 +109,19 @@ async function start(): Promise<void> {
     notice(offline.keptFolders().length > 0 ? o().startOffline : o().nothingKept);
   } else if (s.account) {
     void offline.rememberState({ ...s, csrf: null });
-  } else if (offline.keptFolders().length > 0) {
-    // The server says nobody is signed in here: the session ended (signed
-    // out in another tab, or the server ended it), and what this device
-    // kept for the account goes (ADR 0092 item 6).
-    const lost = await offline.wipe();
-    notice(o().wipedByServer(lost), "error");
+  } else {
+    // A page before this one may have deleted the copy, or begun to, when
+    // its sync connection heard the session end (offline/manager.ts): its
+    // count is said here, where the person reads it, never dropped in
+    // silence. The same changes both times, so the larger count, not both.
+    const earlier = takeWipedEarlier();
+    if (offline.keptFolders().length > 0) {
+      // The server says nobody is signed in here: the session ended (signed
+      // out in another tab, or the server ended it), and what this device
+      // kept for the account goes (ADR 0092 item 6).
+      const lost = await offline.wipe();
+      notice(o().wipedByServer(Math.max(lost, earlier ?? 0)), "error");
+    } else if (earlier !== null) notice(o().wipedByServer(earlier), "error");
   }
   const path = location.pathname;
   const token = (prefix: string) => decodeURIComponent(path.slice(prefix.length));

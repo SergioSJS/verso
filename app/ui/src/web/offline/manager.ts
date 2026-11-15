@@ -342,10 +342,18 @@ export class Offline {
   private async gone(id: string, what: "session" | "folder", reason: string | null): Promise<void> {
     if (what === "session") {
       // The server ended this device's session (ADR 0092 item 6): the copy
-      // goes at this connection.
-      const lost = await this.wipe();
+      // goes at this connection. The count of changes that had not gone up
+      // is kept for the tab before the copy goes: the window is leaving for
+      // the sign-in page, which says it (web.ts), even when this page is
+      // gone before the copy is.
+      const lost = await this.waitingTotal().catch(() => 0);
+      try {
+        sessionStorage.setItem("verso.wipedWith", String(lost));
+      } catch {
+        /* no storage for the tab: the status below still says it */
+      }
+      await this.wipe();
       raise({ kind: "sync", key: "offline:wiped", state: "wiped", level: "error", title: o().section, sentence: o().wipedByServer(lost), folder: "", folderName: "" });
-      sessionStorage.setItem("verso.wipedWith", String(lost));
       return;
     }
     // The folder is not there for this account any more: the copy stays, and

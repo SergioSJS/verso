@@ -15,6 +15,7 @@
 // as base64 in the JSON (ADR 0079 item 5).
 
 import type { Wire, WireError } from "./sync";
+import { askSession, type SessionAnswer } from "../sessionAsk";
 
 export type LinkEvents = {
   /** The folder is open on the connection, and the role in it. */
@@ -55,6 +56,9 @@ export class SyncLink {
     private folder: string,
     private events: LinkEvents,
     private contract: () => string,
+    /** Whether the session is still there (`/api/state`), asked after a
+     *  connection that closed before it opened. */
+    private ask: () => Promise<SessionAnswer> = () => askSession(),
   ) {}
 
   get up(): boolean {
@@ -134,6 +138,7 @@ export class SyncLink {
         return;
       }
       this.ws = ws;
+      let opened = false;
       ws.addEventListener("message", (e) => this.onMessage(ws, String(e.data)));
       ws.addEventListener("close", () => {
         if (this.ws !== ws) return;
@@ -144,11 +149,28 @@ export class SyncLink {
         if (!this.stopped) {
           if (was || this.retry === 0) this.events.down();
           this.down();
+          // Closed before the folder opened: a session the server ended
+          // while the connection was down refuses the upgrade (401), which
+          // a browser sees only as this close. Asked at each such try; the
+          // same path as the server's `{"gone":"session"}` (ADR 0092 item 6).
+          if (!opened) void this.ask().then((said) => this.sessionAsked(said));
         }
       });
+      ws.addEventListener("open", () => (opened = true));
     };
     if (delay > 0) this.timer = window.setTimeout(go, delay);
     else go();
+  }
+
+  /** The answer about the session, after a connection closed before it
+   *  opened: heard while the link still runs and no newer connection is
+   *  trying (that one asks again if it closes the same way). */
+  private sessionAsked(said: SessionAnswer): void {
+    if (said !== "ended" || this.stopped || this.ws !== null) return;
+    this.stopped = true;
+    removeEventListener("online", this.onLine);
+    clearTimeout(this.timer);
+    this.events.gone("session", null);
   }
 
   private down(): void {

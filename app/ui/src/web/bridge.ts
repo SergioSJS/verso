@@ -29,6 +29,7 @@ import { eventCall } from "./events";
 import { w } from "./strings";
 import { linkNotePath, soleFolder, type Listed } from "./landing";
 import { sortMessage } from "../table/sound/frameHeader";
+import { askSession } from "./sessionAsk";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: unknown) => void };
 
@@ -82,6 +83,9 @@ let visitor: string | null = null;
  *  left closed, not tried again. */
 let onLinkEnded: (() => void) | null = null;
 let linkEnded = false;
+/** The server ended the session: the window is on its way to the sign-in
+ *  page, takes nothing more into the device's copy, and connects no more. */
+let sessionOver = false;
 /** Who waits for the connection to come up again: a read link's folder
  *  asked when the one before dropped. */
 const backUp: (() => void)[] = [];
@@ -142,7 +146,7 @@ function isDown(): boolean {
 /** Whether the window's commands are answered from this device's copy: the
  *  folder shown is kept here and the connection is down. */
 function onThisDevice(): boolean {
-  return folderId !== null && offline.keeps(folderId) && isDown();
+  return !sessionOver && folderId !== null && offline.keeps(folderId) && isDown();
 }
 
 function request(cmd: string, args: unknown): Promise<unknown> {
@@ -254,10 +258,7 @@ function onMessage(data: string): void {
   // 0084 item 10): the window's list keeps it across the page that
   // follows — the event's listeners run before its promise settles.
   if (m.gone === "session") {
-    notice(w().signedOut, "error");
-    void emit("server-gone", { url: location.origin, what: "session", address: null, reason: null }).finally(() => {
-      location.href = `/signin?next=${encodeURIComponent(location.pathname + location.search)}`;
-    });
+    sessionEnded();
     return;
   }
   // The link ended: revoked, expired or turned off (ADR 0105 item 5). The
@@ -284,14 +285,32 @@ function onMessage(data: string): void {
   }
 }
 
+/** The session is over (the server said so on an open connection, or
+ *  `/api/state` said nobody is signed in after a connection refused): the
+ *  window goes to the sign-in page. What the device kept goes there, said
+ *  with the count of changes that had not gone up (ADR 0092 item 6, web.ts);
+ *  meanwhile nothing more is written into it. */
+function sessionEnded(): void {
+  if (sessionOver) return;
+  sessionOver = true;
+  clearTimeout(reconnect);
+  notice(w().signedOut, "error");
+  void emit("server-gone", { url: location.origin, what: "session", address: null, reason: null }).finally(() => {
+    location.href = `/signin?next=${encodeURIComponent(location.pathname + location.search)}`;
+  });
+}
+
 function connect(): void {
+  if (sessionOver) return;
   const scheme = location.protocol === "https:" ? "wss" : "ws";
   const at = visitor ? `/r/${encodeURIComponent(visitor)}/ws` : "/api/ws";
   const ws = new WebSocket(`${scheme}://${location.host}${at}`);
   socket = ws;
   connecting = true;
+  let cameUp = false;
   ws.addEventListener("open", () => {
     connecting = false;
+    cameUp = true;
     open = true;
     everUp = true;
     const back = retry > 0 || routedOffline;
@@ -361,9 +380,18 @@ function connect(): void {
   });
   ws.addEventListener("close", (ev) => {
     connecting = false;
-    if (linkEnded) {
+    if (linkEnded || sessionOver) {
       open = false;
       return;
+    }
+    // Closed before it ever opened: the upgrade may have been refused for a
+    // session that ended while the connection was down (401, seen only as
+    // a close). The server is asked at each such try; a window of a read
+    // link has no session to ask about.
+    if (!cameUp && !visitor) {
+      void askSession().then((said) => {
+        if (said === "ended") sessionEnded();
+      });
     }
     // The computer serving this phone has its connected devices at the most
     // (ADR 0096 item 13): it accepted the socket and closed it with this
@@ -693,6 +721,9 @@ export function startBridge(choose: () => Promise<string | null>): void {
       if (cmd.startsWith("plugin:")) return null;
       const mine = await local(cmd, a);
       if (mine.answered) return mine.value;
+      // The session is over and the window leaves for the sign-in page:
+      // nothing more is asked, nor taken into the device's copy.
+      if (sessionOver) throw { kind: "unavailable", message: w().signedOut } satisfies ContractError;
       // The connection is down and the folder shown is kept on this device:
       // its copy answers (ADR 0092 item 4).
       if (onThisDevice()) return offline.answer(folderId!, cmd, a);

@@ -33,7 +33,7 @@ function safeInsets(): { top: number; right: number; bottom: number; left: numbe
   probe.remove();
   return insets;
 }
-window.addEventListener("resize", () => (insets = null));
+if (typeof window !== "undefined") window.addEventListener("resize", () => (insets = null));
 
 export function visibleBox(): Box {
   const view = window.visualViewport;

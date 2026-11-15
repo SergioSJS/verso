@@ -634,3 +634,50 @@ fn who_invites_by_the_one_answer() {
         Verdict::Deny(Reason::NotMaster)
     );
 }
+
+/// A game master invites by e-mail on a server that mails (review I2): the
+/// invitation goes, in Gil's language, and exactly one waits. Before, the
+/// mail asked for the admin after the row was written: 403, the invitation
+/// left waiting, and each retry left one more counting against the 20.
+#[test]
+fn a_game_masters_invitation_by_email_is_mailed_in_their_language() {
+    block_on(async {
+        let m = gm().await;
+        m.r.server.db.set_profile(&m.gil_id, "Gil", "en").unwrap();
+        let _ =
+            m.r.server
+                .mail
+                .set(crate::mail::Mail::Memory(std::sync::Mutex::new(Vec::new())));
+        let (status, made) = post(
+            &m.r,
+            &format!("/api/folders/{}/shares/invite", m.folder),
+            json!({ "path": "", "email": "duda@casa.lan", "role": "reader" }),
+            Some(&m.gil),
+        )
+        .await;
+        assert_eq!(status, 200, "{made}");
+        assert_eq!(made["mailed"], true, "{made}");
+        assert_eq!(m.r.server.db.pending_invitations_by(&m.gil_id).unwrap(), 1);
+        let sent = match m.r.server.mail.get() {
+            Some(crate::mail::Mail::Memory(sent)) => verso_service::lock(sent).clone(),
+            _ => Vec::new(),
+        };
+        assert_eq!(sent.len(), 1, "{sent:?}");
+        assert_eq!(sent[0].0, "duda@casa.lan");
+        assert_eq!(
+            sent[0].1, "An invitation to Verso",
+            "the inviter's language"
+        );
+        let token = made["link"]
+            .as_str()
+            .unwrap()
+            .rsplit_once("/invite/")
+            .unwrap()
+            .1;
+        assert!(
+            sent[0].2.contains(&format!("/invite/{token}")),
+            "{}",
+            sent[0].2
+        );
+    });
+}
