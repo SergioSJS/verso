@@ -20,6 +20,13 @@ in the real app.
 
 ## Not yet checked
 
+### A board on a phone: the tools' bar upright, one column sideways (feat/phone-home-and-board, 2026-11-15)
+
+- [ ] **Android, upright** (A, the installed beta on the maintainer's phone): open a board (*Panorama - Série Ironsworn.canvas*): nothing over the canvas but the drawing tools at the foot, in the bottom bar's place, above Android's navigation bar; draw, undo and redo from the top bar; select a card or a shape: its tools show, then go. ⋯ › Board: each verb works — a text card asks its text, *Imagem ou PDF…* opens the system's picker, *Buscar no board* raises the keyboard with the field visible above it, *Sumário* covers the board and its × closes it, *Exportar, fundo e ajuda* opens Excalidraw's menu on the board, *Texto* and back.
+- [ ] **Android, sideways, both rotations** (A): the eight tools in one column at the right edge; with the camera cut-out on the right (turned the other way), the column clears it; every tool takes a tap; the extra tools' ⋮ menu opens whole on the screen.
+- [ ] **A reader's board and a table's board** (A, a player of the maintainer's table): the bottom bar stays; ⋯ › Board has Buscar, Sumário and the menu; at a table, *who sees* is in the Board part for the game master.
+- [ ] **iPhone sideways** (A, the AltStore build): the column clears the notch and the home indicator; each tool still takes a tap (about 40 px tall there).
+
 ### The sideways swipe for the side panels on a phone (feat/phone-home-and-board, 2026-11-15)
 
 - [ ] **Android gesture navigation** (A, the installed beta on the maintainer's phone, gesture navigation on): a swipe from the very left or right edge is still Android's Back (it closes a sheet, a drawer, then leaves the app) and never opens a panel; a swipe that starts a finger's width inside the screen, across a note, brings the right panel (right to left) or the files (left to right), following the finger, and the other way closes it. Try it in portrait and landscape, in Reading and in Edit (with the keyboard up and down), with the bottom bar hidden. Then raise the Back sensitivity to its highest (Android Settings › System › Gestures › System navigation › ⚙): a swipe starting inside the wider band is still Back, never a panel. With three-button navigation, a swipe that starts close to the edge opens the panel. Turning **Swipe sideways to open the panels** off in Settings › Appearance › Phone stops it, and the ⋯ sheet's switch shows the same state.

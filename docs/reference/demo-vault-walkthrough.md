@@ -1045,6 +1045,26 @@ hand, on a phone and an iPad, the server's window in the browser.
    motion the panel does not follow: it opens once the finger has gone far
    enough. Level: H; U: `swipePanels.test.mjs`; E: `phone-swipe.spec.mjs`
    (Chromium only: Playwright moves a finger there).
+1c. A board on a phone (2026-11-15, `app/ui/css/boardphone.css`, note 29's
+   board item): at 390 × 844, open *Board de Demonstração*: no row above the
+   canvas (no Board | Texto, no ☰, no island of four buttons); at the foot one
+   bar — mão, seleção, lápis, borracha, retângulo, seta, texto, ⋮ — where the
+   bottom bar was; the top bar shows *Desfazer* and *Refazer*, off until a
+   rectangle is drawn, then undoing and redoing it. Selecting a shape shows
+   its colours and stroke over the bar's right end; nothing selected, they go.
+   The sheet (tap the name) has a **Board** part: Board | Texto, Cartão de
+   texto, Imagem ou PDF…, Nota ou arquivo…, Link…, Página web…, Setas soltas,
+   Buscar no board (its field at the top right, counting), Sumário (over the
+   board, × closes it), Exportar, fundo e ajuda (Excalidraw's menu, on the
+   board); under *Barra inferior sempre visível*, *Num board, as ferramentas
+   de desenho ficam no lugar dela.* Texto shows the JSON with its own row,
+   whose Board comes back. At 844 × 390 on a touch screen: the eight tools are
+   one column at the right edge, the board as tall as the screen under the top
+   bar. A reader's board (`?side=server&role=reader`) keeps the bottom bar and
+   its sheet's Board part has only Buscar, Sumário and the menu; no pencil at
+   the top right. *Desenho do Excalidraw* has one row over it: *Desenho do
+   Obsidian, só para ver*, Converter em board, Ver o texto. Level: H; U:
+   `boardPhone.test.mjs`; E: `board-phone.spec.mjs`.
 2. A layout split on a wide window, then narrowed: one pane at a time and a
    switcher "2/2" in the tab bar; the panes are listed and chosen from it; the
    split commands are absent from the palette and from a tab's menu; widened
