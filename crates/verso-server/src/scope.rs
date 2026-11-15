@@ -478,6 +478,14 @@ impl Scope {
             "create_note" => set(&mut args, "name", Use::Below)?,
             "delete_note" | "delete_entry" => set(&mut args, "path", Use::Below)?,
             "rename_note" | "rename_entry" => {
+                // A board renamed out of being a board would be read as it is
+                // written, the owner's paths in it (V.49): it keeps its kind.
+                let kept = |f: &str| args[f].as_str().is_some_and(crate::readers::is_board);
+                if kept("from") && !kept("to") {
+                    return Err(refused(
+                        "a board shared with you stays a board: keep its .canvas name",
+                    ));
+                }
                 set(&mut args, "from", Use::Below)?;
                 set(&mut args, "to", Use::Below)?;
             }

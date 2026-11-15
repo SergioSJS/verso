@@ -240,7 +240,16 @@ fn a_board_is_renamed_through_a_share_by_its_cut_and_stays_a_board() {
         let mut c = cast_with(false).await;
         let (_, hash) = fetch(&mut c.ana, REL).await;
         let (raw, _) = owners(&mut c, BOARD).await;
-        // Out of being a board: its bytes would cross as they are.
+        // Out of being a board: its bytes would cross as they are — by the
+        // window's rename as by the device's.
+        let (window, _) = exchange(
+            &mut c.ana,
+            "rename_entry",
+            json!({ "from": REL, "to": "Quadro.txt" }),
+            LEAKS,
+        )
+        .await;
+        assert_eq!(window["err"]["kind"], "refused", "{window}");
         let (out, _) = exchange(
             &mut c.ana,
             "sync_rename",
