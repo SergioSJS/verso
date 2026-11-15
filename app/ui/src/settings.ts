@@ -112,6 +112,9 @@ export type Settings = {
   /** On a phone, the bar of verbs at the bottom is shown (the default);
    *  off, its verbs are in the top bar's sheet alone (2026-11-14). */
   phoneBottomBar: boolean;
+  /** On a phone, a sideways swipe brings the side panels (2026-11-15,
+   *  screen/swipe.ts); off, only their buttons do. */
+  phoneSwipe: boolean;
   /** Organizing (ADR 0060, S1-S4). */
   stickers: boolean;
   stickerInLinks: boolean;
@@ -212,6 +215,7 @@ export const DEFAULTS: Settings = {
   devtools: true,
   previewTabs: true,
   phoneBottomBar: true,
+  phoneSwipe: true,
   stickers: true,
   stickerInLinks: false,
   covers: true,

@@ -30,6 +30,8 @@ export type ScreenStrings = {
   sheetVerbs: string;
   closeTab: (name: string) => string;
   barAlways: string;
+  /** Whether a sideways swipe brings the side panels (screen/swipe.ts). */
+  swipePanels: string;
   showBar: string;
   hideBar: string;
   /** The pane switcher of a split layout on a phone (item 2). */
@@ -140,6 +142,7 @@ const pt: ScreenStrings = {
   sheetVerbs: "Ações",
   closeTab: (name) => `Fechar ${name}`,
   barAlways: "Barra inferior sempre visível",
+  swipePanels: "Deslizar para o lado abre os painéis",
   showBar: "Mostrar a barra inferior",
   hideBar: "Ocultar a barra inferior",
   paneSwitch: (i, n) => `Painel ${i} de ${n}`,
@@ -229,6 +232,7 @@ const en: ScreenStrings = {
   sheetVerbs: "Actions",
   closeTab: (name) => `Close ${name}`,
   barAlways: "Bottom bar always shown",
+  swipePanels: "Swipe sideways to open the panels",
   showBar: "Show the bottom bar",
   hideBar: "Hide the bottom bar",
   paneSwitch: (i, n) => `Pane ${i} of ${n}`,

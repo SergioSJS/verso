@@ -27,6 +27,7 @@ import { signedIn } from "../web/api";
 import { installSelectBar } from "../tree/selectBar";
 import { installKeyboard } from "./keyboard";
 import { installRowMore } from "./rowMore";
+import { installSwipe } from "./swipe";
 import { installTableChip } from "../tableChip";
 import { st } from "./strings";
 import { barVerbs } from "./verbs";
@@ -225,6 +226,7 @@ export function installScreen(): void {
   installRowMore();
   installSelectBar();
   installKeyboard();
+  installSwipe();
   onCan(applyCan);
   // What the person may do with files changed: the lock, and the open files
   // not being typed in are read again with the answers (ADR 0113).

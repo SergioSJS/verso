@@ -6,7 +6,8 @@
  * What the one top bar (phoneHead.ts) folds away, a tap from it: the open
  * tabs, each with its close; the note's folder, each folder a link; the
  * three modes by name (and "view as a reader" when the note offers it);
- * the bottom bar's verbs; and whether that bar stays shown. It drops from
+ * the bottom bar's verbs; whether that bar stays shown, and whether a
+ * sideways swipe brings the side panels. It drops from
  * under the top bar over a veil; the veil, Escape, Android's Back and any
  * action close it. */
 
@@ -141,15 +142,27 @@ function verbGrid(): HTMLElement {
   return grid;
 }
 
-function barSwitch(): HTMLElement {
+function aSwitch(text: string, on: boolean, change: (on: boolean) => void): HTMLElement {
   const label = h("label", "phone-sheet-switch");
   const box = h("input");
   box.type = "checkbox";
   box.setAttribute("role", "switch");
-  box.checked = settings.phoneBottomBar;
-  box.addEventListener("change", () => setBottomBar(box.checked));
-  label.append(h("span", "", st.barAlways), box);
+  box.checked = on;
+  box.addEventListener("change", () => change(box.checked));
+  label.append(h("span", "", text), box);
   return label;
+}
+
+/** Whether the bottom bar stays, and whether a sideways swipe brings the
+ *  side panels (screen/swipe.ts; on by default). */
+function barSwitches(): HTMLElement[] {
+  return [
+    aSwitch(st.barAlways, settings.phoneBottomBar, setBottomBar),
+    aSwitch(st.swipePanels, settings.phoneSwipe, (on) => {
+      settings.phoneSwipe = on;
+      saveSettings();
+    }),
+  ];
 }
 
 /** The sheet of `pane`, under its top bar; a second tap closes it. */
@@ -173,7 +186,7 @@ export function openSheet(pane: Pane, from: HTMLElement): void {
     sheet.append(nav);
   }
   if (leaf instanceof NoteLeaf) sheet.append(heading(st.sheetMode), modeRow(leaf));
-  sheet.append(heading(st.sheetVerbs), verbGrid(), barSwitch());
+  sheet.append(heading(st.sheetVerbs), verbGrid(), ...barSwitches());
   veil.addEventListener("click", () => closeSheet());
   sheet.addEventListener("keydown", (e) => {
     if (e.key !== "Escape" || !isTop(sheet)) return;
