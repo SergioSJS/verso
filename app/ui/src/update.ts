@@ -4,6 +4,7 @@
 
 import { listen } from "@tauri-apps/api/event";
 import { commands, type InstallResult, type UpdateInfo, type UpdateProgress } from "./bindings";
+import { dropPassedUpdates } from "./notify/index";
 import { updateFound } from "./notify/sources";
 
 export class UpdateController {
@@ -41,8 +42,10 @@ export class UpdateController {
       const res = await commands.checkForUpdates();
       if (res.status === "ok") {
         this._info = res.data;
-        // A new version is a notification (ADR 0084 item 7): once per
-        // version, with the update card's two actions.
+        // The lines of versions this app already runs go; a new version
+        // is a notification (ADR 0084 item 7): once per version, with the
+        // update card's two actions.
+        dropPassedUpdates(res.data.current_version);
         if (res.data.has_update) updateFound(res.data);
         return res.data;
       } else {
@@ -59,7 +62,12 @@ export class UpdateController {
   }
 
   async downloadAndInstall(): Promise<InstallResult | null> {
-    if (!this._info || this._downloading) return null;
+    if (this._downloading) return null;
+    // Pressed from a notification before this window checked (a line kept
+    // from an earlier start): the check first, and a download only when
+    // it found a version — else the card says the app is up to date.
+    if (!this._info) await this.check(false);
+    if (!this._info?.has_update || this._downloading) return null;
     this._downloading = true;
     this._error = null;
     this._result = null;

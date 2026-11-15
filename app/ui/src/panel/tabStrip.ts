@@ -24,7 +24,7 @@
 //   tab always stays in the bar.
 
 import { h, ui } from "../dom";
-import { icon } from "../icons";
+import { icon, type IconName } from "../icons";
 import { showMenu, type MenuItem } from "../menu";
 import { t } from "../strings";
 import { canHide, fold, hide, mergeOff, mergeOrder, moveAmong, reveal } from "./tabModel";
@@ -263,7 +263,7 @@ export class TabStrip {
       const items: MenuItem[] = [];
       // A finger's long press: the tab's name first, as no pointer hovers for
       // its title on a phone (the tabs are icons there); choosing it opens the tab.
-      if (matchMedia("(hover: none)").matches) items.push([b.title || b.getAttribute("aria-label") || id, () => this.choose(id), b.dataset["icon"] ?? ""]);
+      if (matchMedia("(hover: none)").matches) items.push([b.title || b.getAttribute("aria-label") || id, () => this.choose(id), (b.dataset["icon"] ?? "") as IconName]);
       if (i > 0) items.push([t.tabLeft, () => this.move(b, -1), "chevronLeft"]);
       if (i >= 0 && i < shownTabs.length - 1) items.push([t.tabRight, () => this.move(b, 1), "chevronRight"]);
       items.push([w.hide, () => this.setShown(id, false), "eyeOff"]);
@@ -323,7 +323,7 @@ export class TabStrip {
   private openMore(x?: number, y?: number): void {
     const folded: MenuItem[] = this.onScreen()
       .filter((b) => b.hasAttribute("data-overflow"))
-      .map((b) => [b.title || b.getAttribute("aria-label") || "", () => this.choose(b.dataset["tab"] ?? ""), b.dataset["icon"] ?? ""]);
+      .map((b): MenuItem => [b.title || b.getAttribute("aria-label") || "", () => this.choose(b.dataset["tab"] ?? ""), (b.dataset["icon"] ?? "") as IconName]);
     const r = this.more.getBoundingClientRect();
     showMenu(x ?? r.left, y ?? r.bottom + 4, [...folded, ...this.backItems()], t.tabsMore);
   }

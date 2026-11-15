@@ -136,7 +136,13 @@ export class Pane {
       this.tabsDivider.addEventListener("pointerup", up);
     });
     this.body.addEventListener("dblclick", (e) => {
-      if (this.tabsHidden && e.target === this.body) this.setTabsHidden(false);
+      if (!this.tabsHidden) return;
+      // The pane's own ground brings the bar back: its empty page, or the
+      // bare area of a tab's view around what it shows — the body itself
+      // is always covered on a computer. Never text, a field or a canvas:
+      // their double click is their own (a word selected).
+      const at = e.target instanceof Element ? e.target : null;
+      if (at === this.body || at?.closest(".pane-empty") || (at?.classList.contains("leaf") && at.parentElement === this.body)) this.setTabsHidden(false);
     });
     const orient = this.orient;
     orient.addEventListener("click", () => this.setVertical(!this.vertical));
@@ -255,8 +261,9 @@ export class Pane {
     this.activate(leaf, true);
     return leaf;
   }
-  openGraph(path: string): Leaf {
-    let leaf = this.leaves.find((l) => l.kind === "graph" && l.path === path);
+  /** The graph around `path`: its tab found again, or with `fresh` a new one. */
+  openGraph(path: string, fresh = false): Leaf {
+    let leaf = fresh ? undefined : this.leaves.find((l) => l.kind === "graph" && l.path === path);
     if (!leaf) {
       leaf = new GraphLeaf(this);
       this.insert(leaf);
@@ -286,8 +293,9 @@ export class Pane {
   private layoutLeaves(): Leaf[] {
     return layout().panes().flatMap((p) => p.leaves);
   }
-  openFolder(path: string, preview = false): Leaf {
-    let leaf = this.leaves.find((l) => l.kind === "folder" && l.path === path);
+  /** A folder's page: its tab found again, or with `fresh` a new one. */
+  openFolder(path: string, preview = false, fresh = false): Leaf {
+    let leaf = fresh ? undefined : this.leaves.find((l) => l.kind === "folder" && l.path === path);
     if (leaf && !preview) leaf.keep();
     if (!leaf) {
       leaf = new FolderLeaf(this);
@@ -355,8 +363,10 @@ export class Pane {
       ...(leaf.path && !can("windows") && server ? [[st.openInBrowserTab, () => void commands.openWindow(leaf.path).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       ...(!popout && can("windows") ? [[t.newWindowHere, () => void commands.newWindow(true).then((r) => r.status === "ok" || fail(r.error)), "maximize"] as MenuItem] : []),
       ...(leaf.kind === "theme" || leaf.kind === "terminal" ? [] : [
-      [t.openInNewTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "tab"],
-      [t.duplicateTab, () => { const twin = leaf.kind === "folder" ? this.openFolder(leaf.path) : leaf.kind === "graph" ? this.openGraph(leaf.path) : this.open(leaf.path, false, true); void twin; }, "copy"],
+      // A second tab of the same place, a folder's page and a graph
+      // included (it used to be "Open in new tab" twice, and found the
+      // folder's or the graph's own tab again).
+      [t.duplicateTab, () => void (leaf.kind === "folder" ? this.openFolder(leaf.path, false, true) : leaf.kind === "graph" ? this.openGraph(leaf.path, true) : this.open(leaf.path, false, true)), "copy"],
       ] as MenuItem[]),
       ...(splits ? [
         [t.splitRight, () => movingFocus(leaf, () => leaf.moveTo(layout().split(this, "row"))), "split"] as MenuItem,

@@ -14,7 +14,7 @@ import { icon } from "./icons";
 import { keyOf, withKeys } from "./keys";
 import { layout, paneToOpenIn } from "./layout/spaces";
 import { paletteDialog, quick, replaceDialog, settingsDialog } from "./main";
-import { createMenuItems, showMenu } from "./menu";
+import { createMenuItems, showMenu, type MenuItem } from "./menu";
 import { reindex } from "./open";
 import { dirOf } from "./paths";
 import { t } from "./strings";
@@ -151,7 +151,7 @@ export class Ribbon {
           // What dragging a button along the column does, from the menu.
           [t.ribbonUp, () => this.move(id, -1), "chevronUp"],
           [t.ribbonDown, () => this.move(id, 1), "chevronDown"],
-          ...(id === KEPT ? [] : [[t.ribbonHide, () => this.hide(id), "close"] as [string, () => void, string]]),
+          ...(id === KEPT ? [] : [[t.ribbonHide, () => this.hide(id), "close"] as MenuItem]),
           ...this.backItems(),
         ]);
       });
@@ -207,14 +207,19 @@ export class Ribbon {
       const up = () => {
         document.removeEventListener("pointermove", move);
         document.removeEventListener("pointerup", up);
+        document.removeEventListener("pointercancel", up);
         b.classList.remove("dragging");
         if (!started) return;
         this.order = Array.from(this.el.querySelectorAll<HTMLButtonElement>(".ribbon-item")).map((x) => x.dataset["id"] ?? "").filter(Boolean);
         for (const id of RIBBON.map((i) => i.id)) if (!this.order.includes(id)) this.order.push(id);
         this.save();
+        // A drag that ended off the button fires no click (WebKit): forget
+        // it soon, or the next real click would be taken for its end.
+        window.setTimeout(() => (this.dragged = false), 0);
       };
       document.addEventListener("pointermove", move);
       document.addEventListener("pointerup", up);
+      document.addEventListener("pointercancel", up);
     });
   }
 }

@@ -113,11 +113,16 @@
 .menu li > button:hover, .menu li > button:focus-visible { background: var(--seal-wash); color: var(--seal); outline: none; }
 .menu li > button:hover .icon, .menu li > button:focus-visible .icon { color: var(--seal); }
 .menu li > button:focus-visible { outline: 2px solid var(--brass-ink); outline-offset: -2px; }
-.menu > li:last-child > button:not(.has-sub) { color: var(--seal); }
-.menu > li:last-child > button:not(.has-sub) .icon { color: var(--seal); }
+/* A row that destroys (menu.ts, `danger`) is in the accent: the row says
+   so itself, not its place at the bottom of the menu. */
+.menu li > button.menu-danger, .menu li > button.menu-danger .icon { color: var(--seal); }
+/* A list with any icon keeps an icon's room on the rows without one: every
+   label of it starts at the same x. */
+.menu li > button > .menu-icon-room { display: none; }
+.menu .menu-iconed > li > button > .menu-icon-room, .menu.menu-iconed > li > button > .menu-icon-room { display: block; width: 14px; height: 14px; flex: none; }
 .menu-sub { z-index: 21; min-width: 12rem; }
 .menu li > button.has-sub { padding-right: .35rem; }
-.menu li > button.has-sub > span:not(.icon) { flex: 1; }
+.menu li > button.has-sub > span:not(.icon):not(.menu-icon-room) { flex: 1; }
 .menu li > button .menu-chev { margin-left: auto; width: 12px; height: 12px; }
 .menu li > button.has-sub[aria-expanded="true"] { background: var(--seal-wash); }
 
@@ -167,8 +172,8 @@ input.rename:focus, .new-note-row input:focus { outline: none; }
 .editor .cm-panel.cm-search button { background: var(--paper); color: var(--ink-2); border: 1px solid var(--control-line); border-radius: 5px; padding: .2rem .55rem; margin-left: .2rem; cursor: pointer; }
 .editor .cm-panel.cm-search button:hover { color: var(--ink); background: var(--paper-3); }
 .editor .cm-panel.cm-search label { color: var(--ink-3); margin-left: .5rem; }
-.editor .cm-searchMatch { background: var(--brass-wash); outline: 1px solid var(--brass); border-radius: 2px; }
-.editor .cm-searchMatch-selected { background: var(--selection); }
+/* The match's fill is bases.css's (light-dark(), !important); its outline is this. */
+.editor .cm-searchMatch { outline: 1px solid var(--brass); }
 .editor .cm-tooltip.cm-tooltip-autocomplete { background: var(--paper); border: 1px solid var(--hair); border-radius: 8px; box-shadow: 0 10px 30px -10px oklch(0% 0 0 / .35); font-family: var(--ui); font-size: .88rem; }
 .editor .cm-tooltip-autocomplete ul li { padding: .3rem .6rem; }
 .editor .cm-tooltip-autocomplete ul li[aria-selected] { background: var(--seal-wash); color: var(--seal); outline: 2px solid var(--brass-ink); outline-offset: -2px; }

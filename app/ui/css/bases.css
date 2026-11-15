@@ -370,8 +370,8 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
 /* In-text search highlights, the reading view's and the editor's alike.
    light-dark() follows the window's scheme, the system's under "auto" too
    (a [data-theme="dark"] rule missed "auto" on a dark system). These win
-   over CodeMirror's own colours; css/chrome.css's older .cm-searchMatch
-   background is shadowed by them (its outline stays). */
+   over CodeMirror's own colours; css/chrome.css's .cm-searchMatch
+   adds only the outline. */
 ::highlight(verso-search-match) {
   background-color: light-dark(oklch(88% 0.15 95 / .4), oklch(50% 0.14 85 / .45));
   color: inherit;

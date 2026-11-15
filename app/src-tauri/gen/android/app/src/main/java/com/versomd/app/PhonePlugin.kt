@@ -271,6 +271,29 @@ class PhonePlugin(private val activity: Activity) : Plugin(activity) {
     invoke.resolve()
   }
 
+  // Whether Android lets Verso install a package, asked before an update
+  // downloads anything (src/update.rs): when not, Android's page to allow
+  // installs from Verso opens, and the person presses the update again
+  // from it — the download has not started.
+  @Command
+  fun canInstall(invoke: Invoke) {
+    val context = activity.applicationContext
+    val answer = JSObject()
+    try {
+      val allowed = context.packageManager.canRequestPackageInstalls()
+      if (!allowed) {
+        activity.startActivity(
+          Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+      }
+      answer.put("allowed", allowed)
+      invoke.resolve(answer)
+    } catch (e: Exception) {
+      invoke.reject(e.message ?: "Android did not say whether Verso may install")
+    }
+  }
+
   // A checked update (src/update.rs) handed to Android's own install
   // prompt (ADR 0118 item 5): the person confirms there. The first time,
   // Android's page to allow installs from Verso opens instead, and the

@@ -226,6 +226,51 @@ export class Book {
   find(id: string): Entry | undefined {
     return this.entries.find((e) => e.id === id);
   }
+
+  /** The entries `gone` names leave the list (an update already
+   *  installed). Whether any left. */
+  drop(gone: (e: Entry) => boolean): boolean {
+    const kept = this.entries.filter((e) => !gone(e));
+    if (kept.length === this.entries.length) return false;
+    this.entries = kept;
+    this.save();
+    return true;
+  }
+}
+
+/** A version as a release's tag spells it (`v0.9.0`, `0.9.0-beta.2`):
+ *  its numbers and its test tag, as the host reads it (version.rs). */
+function versionParts(v: string): { n: [number, number, number]; pre: [string, number] | null } | null {
+  const m = /^[vV]?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([A-Za-z]*)[.-]?(\d*))?$/.exec(v.trim());
+  if (!m) return null;
+  const num = (x: string | undefined) => (x ? Number(x) : 0);
+  return {
+    n: [num(m[1]), num(m[2]), num(m[3])],
+    pre: m[4] !== undefined || m[5] !== undefined ? [m[4] ?? "", num(m[5])] : null,
+  };
+}
+
+/** Whether version `a` is newer than `b`, by the host's rule (version.rs):
+ *  the numbers, then a final over its tests, then alpha < beta < rc. An
+ *  unreadable one is never newer. */
+export function versionNewer(a: string, b: string): boolean {
+  const x = versionParts(a);
+  const y = versionParts(b);
+  if (!x || !y) return false;
+  for (let i = 0; i < 3; i++) if (x.n[i] !== y.n[i]) return (x.n[i] ?? 0) > (y.n[i] ?? 0);
+  if (!x.pre || !y.pre) return !x.pre && !!y.pre;
+  if (x.pre[0] === y.pre[0]) return x.pre[1] > y.pre[1];
+  const ranks: Record<string, number> = { alpha: 1, beta: 2, rc: 3 };
+  const rank = (t: string) => ranks[t] ?? 0;
+  const r1 = rank(x.pre[0]);
+  const r2 = rank(y.pre[0]);
+  return r1 !== r2 ? r1 > r2 : x.pre[0] > y.pre[0];
+}
+
+/** An "update available" line (`update:<version>`, sources.ts) that the
+ *  app running at `running` has already passed: it is not news. */
+export function updatePassed(e: Pick<Entry, "key">, running: string): boolean {
+  return e.key.startsWith("update:") && !versionNewer(e.key.slice("update:".length), running);
 }
 
 /** A kind's mode as the person chose it, the default otherwise. */

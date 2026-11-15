@@ -31,7 +31,7 @@ import type { Scope } from "../organize/layerRules";
 import { periodicBody } from "../periodic/settingsView";
 import { ps } from "../periodic/strings";
 import { icon } from "../icons";
-import { allCommands, comboOf, DEFAULT_KEYS, keyOf, MAC, paintKeyHints, PLAIN_HOTKEYS, prettyKeys, reloadWindow, RESERVED } from "../keys";
+import { allCommands, comboOf, DEFAULT_KEYS, isWorkspaceKey, keyOf, MAC, paintKeyHints, PLAIN_HOTKEYS, prettyKeys, reloadWindow, RESERVED } from "../keys";
 import { LINUX, WINDOWS } from "../platform";
 import { defaultAppDesc, ls as looseWords } from "../looseStrings";
 import { paneToOpenIn, spaces } from "../layout/spaces";
@@ -49,6 +49,7 @@ import { getHiddenFromTree, pushEmbedOrigins, pushHistoryDays, pushMenuLanguage,
 import { boardText, LOCALE, t } from "../strings";
 import { listAll } from "../tree/tree";
 import { updateNews } from "../updateNews";
+import { updateWords } from "../updateWords";
 import { asDialog, closed, isTop, opened } from "./a11y";
 import { accountEntries } from "../web/account";
 import { KINDS, type Mode, MODES, modeOf } from "../notify/core";
@@ -175,12 +176,13 @@ export class SettingsDialog {
   private offlineHere(): boolean {
     return host() === "server" && !can("local_folders");
   }
+  /** Each section its own icon, so the sidebar's eye tells them apart. */
   private sections(): { id: string; label: string; icon: string; category: "app" | "editor" | "rpg" | "system" }[] {
     return [
       // 1. Aplicação / Application
       { id: "general", label: t.sGeneral, icon: "gear", category: "app" },
       { id: "appearance", label: t.sAppearance, icon: "palette", category: "app" },
-      { id: "features", label: fs.section, icon: "gear", category: "app" },
+      { id: "features", label: fs.section, icon: "grid", category: "app" },
       { id: "notify", label: notifyStrings().section, icon: "bell", category: "app" },
       { id: "hotkeys", label: t.sHotkeys, icon: "keyboard", category: "app" },
       { id: "credits", label: cs.section, icon: "heart", category: "app" },
@@ -188,7 +190,7 @@ export class SettingsDialog {
       // 2. Notas & Editor / Notes & Editing
       { id: "editor", label: t.sEditor, icon: "edit", category: "editor" },
       { id: "files", label: t.sFiles, icon: "folder", category: "editor" },
-      { id: "organizing", label: t.sOrganizing, icon: "folder", category: "editor" },
+      { id: "organizing", label: t.sOrganizing, icon: "sort", category: "editor" },
       ...(currentFolder ? [{ id: "periodic", label: ps.section, icon: "calendar", category: "editor" as const }] : []),
       ...(currentFolder && may("", "trash") ? [{ id: "trash", label: trashStrings().section, icon: "trash", category: "editor" as const }] : []),
       { id: "board", label: boardText.sBoard, icon: "board", category: "editor" },
@@ -196,13 +198,13 @@ export class SettingsDialog {
       // 3. RPG & Mesa Solo / RPG & Solo Play
       { id: "rpgfeatures", label: fs.rpgSection, icon: "dice", category: "rpg" },
       { id: "oracles", label: ss.sOracles, icon: "sparkles", category: "rpg" },
-      { id: "statblocks", label: ss.sStatblocks, icon: "dice", category: "rpg" },
+      { id: "statblocks", label: ss.sStatblocks, icon: "shield", category: "rpg" },
 
       // 4. Rede & Conexões / Network & System
       ...(can("local_folders") && currentFolder ? [{ id: "sync", label: syncStrings().section, icon: "refresh", category: "system" as const }] : []),
       ...(this.offlineHere() ? [{ id: "sync", label: offlineWords().section, icon: "refresh", category: "system" as const }] : []),
       ...(can("local_folders") ? [{ id: "servers", label: serverStrings().section, icon: "globe", category: "system" as const }] : []),
-      ...(can("local_folders") ? [{ id: "localserver", label: localStrings().section, icon: "globe", category: "system" as const }] : []),
+      ...(can("local_folders") ? [{ id: "localserver", label: localStrings().section, icon: "users", category: "system" as const }] : []),
       ...(can("agents") || can("terminal") ? [{ id: "cli", label: t.sCli, icon: "terminal", category: "system" as const }] : []),
       ...((can("account") && signedIn()) || this.masterHere() ? [{ id: "account", label: t.sAccount, icon: "user", category: "system" as const }] : []),
     ];
@@ -413,7 +415,8 @@ export class SettingsDialog {
 
         if (updateController.error) {
           card.style.display = "flex";
-          const errEl = h("div", "setting-desc", `⚠ ${updateController.error}`);
+          // The host says a code; the window words it (updateWords.ts).
+          const errEl = h("div", "setting-desc", `⚠ ${updateWords(updateController.error, LOCALE)}`);
           errEl.style.color = "var(--seal)";
           card.append(errEl);
           return;
@@ -452,7 +455,8 @@ export class SettingsDialog {
           const txt = h("div", "update-progress-text");
           const mbDownloaded = (((prog.downloaded_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1);
           const mbTotal = prog.total_bytes ? (((prog.total_bytes as number) ?? 0) / (1024 * 1024)).toFixed(1) : "?";
-          const statusMsg = prog.status === "extracting" ? t.extractingUpdate : prog.status === "installing" ? t.installingUpdate : `${t.downloadingUpdate} ${pct.toFixed(0)}% (${mbDownloaded} MB / ${mbTotal} MB)`;
+          // The percentage once, on the right; the megabytes on the left.
+          const statusMsg = prog.status === "extracting" ? t.extractingUpdate : prog.status === "installing" ? t.installingUpdate : `${t.downloadingUpdate} (${mbDownloaded} MB / ${mbTotal} MB)`;
           txt.append(h("span", "", statusMsg), h("span", "", `${pct.toFixed(0)}%`));
 
           progWrap.append(track, txt);
@@ -460,7 +464,7 @@ export class SettingsDialog {
         } else if (updateController.result) {
           const res = updateController.result;
           const resBox = h("div", "update-badge success");
-          resBox.append(icon("check"), h("span", "", res.message));
+          resBox.append(icon("check"), h("span", "", updateWords(res.message, LOCALE)));
           card.append(resBox);
 
           if (res.requires_restart) {
@@ -950,6 +954,8 @@ export class SettingsDialog {
         // copy, paste or undo away. Say so, and keep listening.
         if (!combo.startsWith("Mod-") && !PLAIN_HOTKEYS.has(combo)) return void (shown.textContent = t.hotkeyNeedsMod.replace("{mod}", prettyKeys("Mod")));
         if (RESERVED.has(combo) && DEFAULT_KEYS[id] !== combo) return void (shown.textContent = `${prettyKeys(combo)}: ${t.hotkeyReserved}`);
+        // ⌘1…⌘9 switch workspaces before any command hears them.
+        if (isWorkspaceKey(combo)) return void (shown.textContent = `${prettyKeys(combo)}: ${t.hotkeyWorkspace.replaceAll("{mod}", prettyKeys("Mod"))}`);
         stop();
         // The same keys cannot mean two things: the other command loses them.
         for (const other of allCommands(true)) if (other.id !== id && keyOf(other.id) === combo) settings.hotkeys[other.id] = "";

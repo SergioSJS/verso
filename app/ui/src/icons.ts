@@ -5,7 +5,7 @@
 // A small stroke icon set, drawn for this window: 16-unit grid, 1.5 stroke,
 // round joins. Inline SVG, so they take the text colour.
 
-const PATHS: Record<string, string> = {
+const PATHS = {
   folder: "M2 4.5A1.5 1.5 0 0 1 3.5 3h3l1.5 1.5h4.5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z",
   bug: "M5.2 7.2a2.8 2.8 0 0 1 5.6 0v2.4a2.8 2.8 0 0 1-5.6 0zM6.4 5 5.3 3.4M9.6 5l1.1-1.6M5.2 8H3M10.8 8H13M5.4 10.6 3.5 11.8M10.6 10.6l1.9 1.2",
   search: "M7 11.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM10.3 10.3 14 14",
@@ -141,7 +141,14 @@ const PATHS: Record<string, string> = {
   volume: "M2.5 6h2.5L8.5 3v10L5 10H2.5zM10.5 5.5a3.5 3.5 0 0 1 0 5M12 3.5a6 6 0 0 1 0 9",
   volumeOff: "M2.5 6h2.5L8.5 3v10L5 10H2.5zM10.5 6l3 4M13.5 6l-3 4",
   music: "M6 12V3.5l7-1.5V10.5M6 12a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 6 12zM13 10.5a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0z",
-};
+} satisfies Record<string, string>;
+
+/** The name of an icon this set draws: a menu row's icon is checked
+ *  against it when the window is compiled (a name it lacks drew nothing). */
+export type IconName = keyof typeof PATHS;
+
+/** The path of `name`, empty for a name the set lacks. */
+const pathOf = (name: string): string => (PATHS as Record<string, string>)[name] ?? "";
 
 /** A decorative line icon drawn by CSS — a mask over the text color — not
  *  an inline `<svg>`: every row of the file tree carries one, and thousands
@@ -149,7 +156,7 @@ const PATHS: Record<string, string> = {
  *  (measured on 5,000 notes, 2026-10-08). Hidden from assistive technology,
  *  as the rows' SVGs were. The mask of each name is one rule, made once. */
 const masked = new Set<string>();
-export function maskIcon(name: keyof typeof PATHS | string): HTMLSpanElement {
+export function maskIcon(name: string): HTMLSpanElement {
   if (!masked.has(name)) {
     masked.add(name);
     let style = document.getElementById("mask-icons") as HTMLStyleElement | null;
@@ -158,7 +165,7 @@ export function maskIcon(name: keyof typeof PATHS | string): HTMLSpanElement {
       style.id = "mask-icons";
       document.head.append(style);
     }
-    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='${PATHS[name] ?? ""}'/></svg>`;
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='${pathOf(name)}'/></svg>`;
     style.sheet?.insertRule(`.mi-${CSS.escape(name)} { --mi: url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}"); }`, style.sheet.cssRules.length);
   }
   const span = document.createElement("span");
@@ -167,7 +174,7 @@ export function maskIcon(name: keyof typeof PATHS | string): HTMLSpanElement {
   return span;
 }
 
-export function icon(name: keyof typeof PATHS | string, label?: string): SVGSVGElement {
+export function icon(name: string, label?: string): SVGSVGElement {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 16 16");
   svg.setAttribute("width", "16");
@@ -186,7 +193,7 @@ export function icon(name: keyof typeof PATHS | string, label?: string): SVGSVGE
     svg.setAttribute("aria-hidden", "true");
   }
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", PATHS[name] ?? "");
+  path.setAttribute("d", pathOf(name));
   svg.append(path);
   return svg;
 }

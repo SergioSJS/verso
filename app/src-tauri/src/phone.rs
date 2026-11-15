@@ -279,6 +279,17 @@ pub(crate) fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     });
 }
 
+/// Whether Android lets Verso install a package (ADR 0118 item 5), asked
+/// before an update downloads anything; when not, Android's page to allow
+/// it has opened.
+pub(crate) fn can_install() -> Result<bool, String> {
+    #[derive(serde::Deserialize)]
+    struct Answer {
+        allowed: bool,
+    }
+    call::<Answer>("canInstall", ()).map(|a| a.allowed)
+}
+
 /// A downloaded, checked APK handed to Android's own install prompt
 /// (ADR 0118 item 5): the person confirms there; the first time, Android
 /// asks to allow installs from Verso.

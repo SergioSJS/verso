@@ -8,9 +8,12 @@
 use tauri::Emitter;
 #[cfg(target_os = "android")]
 use tauri::Manager;
-use verso_contract::{ContractError, ErrorKind, InstallResult, UpdateInfo, UpdateProgress};
+use verso_contract::{ContractError, InstallResult, UpdateInfo, UpdateProgress};
 
 use crate::version::ParsedVersion;
+
+mod pick;
+use pick::{failed, failed_with, is_installer_name, pick_asset, refused, refused_with, said};
 
 pub(crate) fn github_token() -> Option<String> {
     // A token goes to GitHub only (update_source.rs).
@@ -76,10 +79,7 @@ pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
         .user_agent(format!("Verso-App/{current_str}"))
         .timeout(std::time::Duration::from_secs(12))
         .build()
-        .map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Failed to create HTTP client: {e}"),
-        })?;
+        .map_err(|e| failed_with("client", e))?;
 
     let mut req = client
         .get(crate::update_source::SOURCE.releases_url())
@@ -88,38 +88,28 @@ pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
         req = req.header("Authorization", format!("Bearer {token}"));
     }
 
-    let res = req.send().map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Não foi possível verificar atualizações: {e}"),
-    })?;
+    let res = req.send().map_err(|e| failed_with("unreachable", e))?;
 
     if !res.status().is_success() {
         let status = res.status();
-        let message = if status == reqwest::StatusCode::FORBIDDEN
-            || status == reqwest::StatusCode::TOO_MANY_REQUESTS
-        {
-            "Limite de requisições da API do GitHub atingido. Tente novamente mais tarde."
-                .to_string()
-        } else if status == reqwest::StatusCode::NOT_FOUND
-            && crate::update_source::SOURCE.is_github()
-        {
-            // The repository is public (2026-11-14): a 404 is a feed
-            // with no release, or the repository out of reach.
-            "O repositório de atualizações não tem versão publicada (o GitHub respondeu 404)."
-                .to_string()
-        } else {
-            format!("GitHub API returned HTTP {status}")
-        };
-        return Err(ContractError {
-            kind: ErrorKind::Failed,
-            message,
-        });
+        return Err(
+            if status == reqwest::StatusCode::FORBIDDEN
+                || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+            {
+                failed("rate_limited")
+            } else if status == reqwest::StatusCode::NOT_FOUND
+                && crate::update_source::SOURCE.is_github()
+            {
+                // The repository is public (2026-11-14): a 404 is a feed
+                // with no release, or the repository out of reach.
+                failed("no_release")
+            } else {
+                failed_with("http", status)
+            },
+        );
     }
 
-    res.json().map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Failed to parse GitHub releases response: {e}"),
-    })
+    res.json().map_err(|e| failed_with("bad_answer", e))
 }
 
 /// Checks GitHub releases for a new version of the application.
@@ -128,47 +118,21 @@ pub(crate) fn fetch_releases() -> Result<Vec<GhRelease>, ContractError> {
 pub(crate) async fn check_for_updates() -> Result<UpdateInfo, ContractError> {
     tauri::async_runtime::spawn_blocking(check_for_updates_blocking)
         .await
-        .map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Update check failed: {e}"),
-        })?
+        .map_err(|e| failed_with("task", e))?
 }
 
 pub(crate) fn check_for_updates_blocking() -> Result<UpdateInfo, ContractError> {
     let current_str = env!("CARGO_PKG_VERSION");
-    let current_ver = ParsedVersion::parse(current_str).ok_or_else(|| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Could not parse current app version: {current_str}"),
-    })?;
+    let current_ver =
+        ParsedVersion::parse(current_str).ok_or_else(|| failed_with("version", current_str))?;
 
     let releases = fetch_releases()?;
+    // Verso Beta takes only betas, Verso only finals (version.rs); the
+    // install takes the release offered here (pick.rs).
+    let best = pick::best_release(&releases, &current_ver);
+    pick::remember_checked(best.map(|r| r.tag_name.as_str()));
 
-    let mut best_release: Option<&GhRelease> = None;
-    let mut best_ver = current_ver.clone();
-    let mut latest_seen_ver = current_ver.clone();
-    let mut latest_seen_tag = current_str.to_string();
-
-    for rel in &releases {
-        if rel.draft {
-            continue;
-        }
-        if let Some(parsed) = ParsedVersion::parse(&rel.tag_name) {
-            // Verso Beta takes only betas, Verso only finals (version.rs).
-            if !parsed.same_channel(&current_ver) {
-                continue;
-            }
-            if parsed.is_newer_than(&latest_seen_ver) {
-                latest_seen_ver = parsed.clone();
-                latest_seen_tag = rel.tag_name.trim_start_matches(['v', 'V']).to_string();
-            }
-            if parsed.is_newer_than(&best_ver) {
-                best_ver = parsed;
-                best_release = Some(rel);
-            }
-        }
-    }
-
-    if let Some(rel) = best_release {
+    if let Some(rel) = best {
         let asset = pick_asset(rel);
         let download_url = asset.map(|a| a.browser_download_url.clone());
         let asset_url = asset.map(|a| a.url.clone());
@@ -191,7 +155,7 @@ pub(crate) fn check_for_updates_blocking() -> Result<UpdateInfo, ContractError> 
     } else {
         Ok(UpdateInfo {
             current_version: current_str.to_string(),
-            latest_version: latest_seen_tag,
+            latest_version: current_str.to_string(),
             has_update: false,
             release_name: String::new(),
             release_notes: String::new(),
@@ -204,97 +168,12 @@ pub(crate) fn check_for_updates_blocking() -> Result<UpdateInfo, ContractError> 
     }
 }
 
-/// Picks the release asset for this platform and architecture.
-pub(crate) fn pick_asset(rel: &GhRelease) -> Option<&GhAsset> {
-    // Detect current platform + arch to pick the right release asset.
-    // These are resolved at compile time — no runtime overhead.
-    let os_keywords: &[&str] = if cfg!(target_os = "macos") {
-        &["macos", "darwin", "osx"]
-    } else if cfg!(target_os = "android") {
-        &["android"]
-    } else if cfg!(target_os = "windows") {
-        &["windows", "win"]
-    } else {
-        &["linux"]
-    };
-
-    let arch_keywords: &[&str] = if cfg!(target_arch = "aarch64") {
-        &["aarch64", "arm64"]
-    } else {
-        &["x86_64", "x64", "amd64"]
-    };
-
-    // Preferred extension per platform
-    let preferred_exts: &[&str] = if cfg!(target_os = "windows") {
-        &[".msi", ".exe", ".zip"]
-    } else if cfg!(target_os = "macos") {
-        &[".dmg", ".zip"]
-    } else if cfg!(target_os = "android") {
-        &[".apk"]
-    } else {
-        #[cfg(target_os = "linux")]
-        {
-            linux_formats()
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            &[".appimage", ".deb", ".rpm"]
-        }
-    };
-
-    // Only this channel's app (`Verso-Beta-…` or `Verso-…`, version.rs).
-    let ours = |n: &str| ParsedVersion::parse(&rel.tag_name).is_none_or(|v| v.names_its_app(n));
-    // Try to find the best asset: correct OS + arch + preferred extension
-    preferred_exts.iter().find_map(|ext| {
-        // 1st pass: OS + arch + extension
-        rel.assets
-            .iter()
-            .find(|a| {
-                let n = a.name.to_lowercase();
-                ours(&n)
-                    && n.ends_with(ext)
-                    && os_keywords.iter().any(|k| n.contains(k))
-                    && arch_keywords.iter().any(|k| n.contains(k))
-            })
-            // 2nd pass: OS + extension (any arch)
-            .or_else(|| {
-                rel.assets.iter().find(|a| {
-                    let n = a.name.to_lowercase();
-                    ours(&n) && n.ends_with(ext) && os_keywords.iter().any(|k| n.contains(k))
-                })
-            })
-    })
-}
-
 /// A download URL is trusted only when it names an asset of
 /// the release place's own files (update_source.rs) — not merely any URL. The
 /// redirect GitHub answers with is followed by the client internally;
 /// what is validated is where the download starts.
 pub(crate) fn is_trusted_update_url(url: &str) -> bool {
     crate::update_source::SOURCE.trusts(url)
-}
-
-/// Whether a release asset is an installer run as downloaded (Windows'
-/// NSIS `-setup.exe`, or an `.msi`) rather than an archive to extract.
-pub(crate) fn is_installer_name(name: &str) -> bool {
-    let n = name.to_ascii_lowercase();
-    [".exe", ".msi", ".appimage", ".deb", ".rpm", ".apk"]
-        .iter()
-        .any(|ext| n.ends_with(ext))
-}
-
-/// The packages a Linux install takes, best first: the AppImage it runs
-/// from, or the package format of its system — a `.deb` where Debian's
-/// tools are, else an `.rpm` (ADR 0071, item 7).
-#[cfg(target_os = "linux")]
-fn linux_formats() -> &'static [&'static str] {
-    if std::env::var_os("APPIMAGE").is_some_and(|v| !v.is_empty()) {
-        &[".appimage"]
-    } else if std::path::Path::new("/etc/debian_version").exists() {
-        &[".deb"]
-    } else {
-        &[".rpm"]
-    }
 }
 
 /// The public half of the key Verso's release files are signed with (ADR
@@ -333,10 +212,6 @@ fn fetch_small(
     use_auth: bool,
     max: u64,
 ) -> Result<Vec<u8>, ContractError> {
-    let failed = |message: String| ContractError {
-        kind: ErrorKind::Failed,
-        message,
-    };
     let mut req = client.get(if use_auth {
         asset.url.as_str()
     } else {
@@ -349,24 +224,20 @@ fn fetch_small(
     }
     let res = req
         .send()
-        .map_err(|e| failed(format!("Erro ao baixar {}: {e}", asset.name)))?;
+        .map_err(|e| failed_with("download_failed", format!("{}: {e}", asset.name)))?;
     if !res.status().is_success() {
-        return Err(failed(format!(
-            "Erro no download de {}: HTTP {}",
-            asset.name,
-            res.status()
-        )));
+        return Err(failed_with(
+            "download_failed",
+            format!("{}: HTTP {}", asset.name, res.status()),
+        ));
     }
     let mut bytes = Vec::new();
     use std::io::Read;
     res.take(max + 1)
         .read_to_end(&mut bytes)
-        .map_err(|e| failed(format!("Erro ao ler {}: {e}", asset.name)))?;
+        .map_err(|e| failed_with("download_failed", format!("{}: {e}", asset.name)))?;
     if bytes.len() as u64 > max {
-        return Err(ContractError {
-            kind: ErrorKind::Refused,
-            message: format!("{} é grande demais para o que diz ser.", asset.name),
-        });
+        return Err(refused_with("file_too_big", &asset.name));
     }
     Ok(bytes)
 }
@@ -398,52 +269,28 @@ pub(crate) async fn download_and_install_update<R: tauri::Runtime>(
 ) -> Result<InstallResult, ContractError> {
     tauri::async_runtime::spawn_blocking(move || download_and_install_update_blocking(&app))
         .await
-        .map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Update install failed: {e}"),
-        })?
+        .map_err(|e| failed_with("task", e))?
 }
 
 pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<InstallResult, ContractError> {
     let current_str = env!("CARGO_PKG_VERSION");
-    let current_ver = ParsedVersion::parse(current_str).ok_or_else(|| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Could not parse current app version: {current_str}"),
-    })?;
+    let current_ver =
+        ParsedVersion::parse(current_str).ok_or_else(|| failed_with("version", current_str))?;
 
     let releases = fetch_releases()?;
-    let mut best_release: Option<&GhRelease> = None;
-    let mut best_ver = current_ver;
-    for rel in &releases {
-        if rel.draft {
-            continue;
-        }
-        if let Some(parsed) = ParsedVersion::parse(&rel.tag_name)
-            && parsed.is_newer_than(&best_ver)
-        {
-            best_ver = parsed;
-            best_release = Some(rel);
-        }
-    }
-    let Some(rel) = best_release else {
-        return Err(ContractError {
-            kind: ErrorKind::Failed,
-            message: "Nenhuma atualização disponível.".to_string(),
-        });
+    // The release the check offered, of this app's channel only: a beta's
+    // app never installs a final, nor a final's a beta (pick.rs).
+    let Some(rel) = pick::release_to_install(&releases, &current_ver, pick::checked().as_deref())
+    else {
+        return Err(failed("none"));
     };
     let Some(asset) = pick_asset(rel) else {
-        return Err(ContractError {
-            kind: ErrorKind::Failed,
-            message: "A versão nova não tem um pacote para esta plataforma.".to_string(),
-        });
+        return Err(failed("no_package"));
     };
     if !is_trusted_update_url(&asset.browser_download_url) || !is_trusted_update_url(&asset.url) {
-        return Err(ContractError {
-            kind: ErrorKind::Refused,
-            message: "URL de download não permitida.".to_string(),
-        });
+        return Err(refused("url_refused"));
     }
     // The digest GitHub computed at upload. Without it nothing is
     // installed: the release page in the browser is the fallback.
@@ -452,27 +299,15 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
         .as_deref()
         .and_then(|d| d.strip_prefix("sha256:"))
         .map(str::to_ascii_lowercase)
-        .ok_or_else(|| ContractError {
-            kind: ErrorKind::Refused,
-            message:
-                "O pacote não tem checksum publicado; baixe a atualização pela página de releases."
-                    .to_string(),
-        })?;
+        .ok_or_else(|| refused("no_checksum"))?;
     if asset.size > UPDATE_MAX_BYTES {
-        return Err(ContractError {
-            kind: ErrorKind::Refused,
-            message: "O pacote de atualização é grande demais.".to_string(),
-        });
+        return Err(refused("too_big"));
     }
     // The package names its release's version: a file of another release
     // (an older one, genuinely signed) is not installed under this tag.
     let version = rel.tag_name.trim_start_matches('v');
     if version.is_empty() || !asset.name.contains(&format!("-{version}-")) {
-        return Err(ContractError {
-            kind: ErrorKind::Refused,
-            message: "O pacote não é desta versão; baixe a atualização pela página de releases."
-                .to_string(),
-        });
+        return Err(refused("wrong_version"));
     }
     // The release's signed checksums list and its signature: without them
     // nothing is installed (ADR 0055, revised 2026-10-14 — one list signed
@@ -481,21 +316,52 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
     let sums_sig_name = format!("{sums_name}.sig");
     let find = |name: &str| rel.assets.iter().find(|a| a.name == name);
     let (Some(sums_asset), Some(sums_sig_asset)) = (find(&sums_name), find(&sums_sig_name)) else {
-        return Err(ContractError {
-            kind: ErrorKind::Refused,
-            message: "A versão nova não tem a lista de checksums assinada; baixe a atualização pela página de releases."
-                .to_string(),
-        });
+        return Err(refused("no_signed_list"));
     };
     for a in [sums_asset, sums_sig_asset] {
         if !is_trusted_update_url(&a.browser_download_url) || !is_trusted_update_url(&a.url) {
-            return Err(ContractError {
-                kind: ErrorKind::Refused,
-                message: "URL de download não permitida.".to_string(),
-            });
+            return Err(refused("url_refused"));
         }
     }
 
+    // A phone that does not allow installs from Verso says so before the
+    // download, not after it (ADR 0118 item 5).
+    #[cfg(target_os = "android")]
+    let can_install = crate::phone::can_install;
+    #[cfg(not(target_os = "android"))]
+    let can_install = || Ok::<bool, String>(true);
+    pick::installs_when_allowed(can_install, || {
+        let checked = Checked {
+            asset,
+            expected_sha256: &expected_sha256,
+            version,
+            sums: (sums_asset, sums_sig_asset),
+        };
+        fetch_and_install(app, &checked)
+    })
+}
+
+/// What the install checked before anything is downloaded.
+struct Checked<'a> {
+    asset: &'a GhAsset,
+    expected_sha256: &'a str,
+    version: &'a str,
+    /// The signed checksums list and its signature.
+    sums: (&'a GhAsset, &'a GhAsset),
+}
+
+/// The signed list read, the package downloaded (or, on a phone, the one
+/// kept from the last press, when it is still the list's) and installed.
+fn fetch_and_install<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    checked: &Checked<'_>,
+) -> Result<InstallResult, ContractError> {
+    let Checked {
+        asset,
+        expected_sha256,
+        version,
+        sums: (sums_asset, sums_sig_asset),
+    } = *checked;
     let token = github_token();
     let (url, use_auth) = if token.is_some() {
         (asset.url.as_str(), true)
@@ -510,19 +376,13 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
         // ends instead of hanging the update forever.
         .timeout(std::time::Duration::from_secs(600))
         .build()
-        .map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Failed to create HTTP client: {e}"),
-        })?;
+        .map_err(|e| failed_with("client", e))?;
 
     // The list and its signature first, a few kilobytes: a list that does
     // not verify, or does not name this file, stops before the download.
     let sums = fetch_small(&client, sums_asset, token.as_deref(), use_auth, 64 * 1024)?;
     let sums_sig = fetch_small(&client, sums_sig_asset, token.as_deref(), use_auth, 4096)?;
-    let sums_sig = String::from_utf8(sums_sig).map_err(|_| ContractError {
-        kind: ErrorKind::Refused,
-        message: "A assinatura publicada não é uma assinatura.".to_string(),
-    })?;
+    let sums_sig = String::from_utf8(sums_sig).map_err(|_| refused("bad_signature"))?;
     let listed_sha256 = crate::release_sums::listed_sha256(
         &sums,
         &sums_sig,
@@ -530,12 +390,17 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
         version,
         &asset.name,
     )
-    .map_err(|e| ContractError {
-        kind: ErrorKind::Refused,
-        message: format!(
-            "A lista de checksums da versão nova não confere ({e}). Nada foi instalado."
-        ),
-    })?;
+    .map_err(|e| refused_with("list_mismatch", e))?;
+
+    // The package kept from the last press on a phone — its download done,
+    // Android's prompt then refused or dismissed — is installed again when
+    // it is still the one the signed list names: not downloaded twice.
+    #[cfg(target_os = "android")]
+    {
+        if let Some(done) = android_kept_install(app, expected_sha256, &listed_sha256)? {
+            return Ok(done);
+        }
+    }
 
     let mut req = client.get(url);
     if let Some(t) = token.as_deref().filter(|_| use_auth) {
@@ -544,16 +409,13 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             .header("Accept", "application/octet-stream");
     }
 
-    let mut res = req.send().map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Erro ao baixar atualização: {e}"),
-    })?;
+    let mut res = req.send().map_err(|e| failed_with("download_failed", e))?;
 
     if !res.status().is_success() {
-        return Err(ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Erro no download: HTTP {}", res.status()),
-        });
+        return Err(failed_with(
+            "download_failed",
+            format!("HTTP {}", res.status()),
+        ));
     }
 
     let total_bytes = res.content_length();
@@ -562,22 +424,16 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
     let temp_root = app
         .path()
         .app_cache_dir()
-        .map_err(|e| crate::failed(e.to_string()))?;
+        .map_err(|e| failed_with("disk", e))?;
     #[cfg(not(target_os = "android"))]
     let temp_root = std::env::temp_dir();
     let temp_dir = temp_root.join(format!("verso-update-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&temp_dir);
-    std::fs::create_dir_all(&temp_dir).map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Não foi possível criar pasta temporária: {e}"),
-    })?;
+    std::fs::create_dir_all(&temp_dir).map_err(|e| failed_with("disk", e))?;
     let _cleaner = TempDirCleaner(temp_dir.clone());
 
     let zip_path = temp_dir.join("update.zip");
-    let mut file = std::fs::File::create(&zip_path).map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Não foi possível criar arquivo temporário: {e}"),
-    })?;
+    let mut file = std::fs::File::create(&zip_path).map_err(|e| failed_with("disk", e))?;
 
     let mut buffer = [0u8; 131072]; // 128 KB
     let mut downloaded: u64 = 0;
@@ -586,26 +442,19 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
 
     loop {
         use std::io::Read;
-        let bytes_read = res.read(&mut buffer).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Erro ao ler dados da atualização: {e}"),
-        })?;
+        let bytes_read = res
+            .read(&mut buffer)
+            .map_err(|e| failed_with("download_failed", e))?;
         if bytes_read == 0 {
             break;
         }
         use std::io::Write;
         file.write_all(&buffer[..bytes_read])
-            .map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Erro ao salvar dados da atualização: {e}"),
-            })?;
+            .map_err(|e| failed_with("disk", e))?;
         sha2::Digest::update(&mut hasher, &buffer[..bytes_read]);
         downloaded += bytes_read as u64;
         if downloaded > UPDATE_MAX_BYTES {
-            return Err(ContractError {
-                kind: ErrorKind::Refused,
-                message: "O download excedeu o tamanho máximo de uma atualização.".to_string(),
-            });
+            return Err(refused("too_big"));
         }
 
         if last_emit.elapsed() > std::time::Duration::from_millis(150) {
@@ -634,20 +483,15 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
     // The download is what GitHub says it is, or it is nothing.
     let got_sha256 = format!("{:x}", sha2::Digest::finalize(hasher));
     if got_sha256 != expected_sha256 {
-        return Err(ContractError {
-            kind: ErrorKind::Refused,
-            message: format!(
-                "O checksum do download não confere com o publicado (esperado sha256:{expected_sha256}, obtido sha256:{got_sha256}). Nada foi instalado."
-            ),
-        });
+        return Err(refused_with(
+            "checksum",
+            format!("sha256:{expected_sha256} ≠ sha256:{got_sha256}"),
+        ));
     }
     // And it is what Verso's release key signed: the checksum says the file
     // is the one GitHub holds; the signed list, that we published it.
     if let Err(e) = crate::release_sums::check_listed(&listed_sha256, &got_sha256) {
-        return Err(ContractError {
-            kind: ErrorKind::Refused,
-            message: format!("O download não é o da lista assinada ({e}). Nada foi instalado."),
-        });
+        return Err(refused_with("not_listed", e));
     }
 
     let _ = app.emit(
@@ -657,7 +501,7 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             total_bytes: Some(downloaded as f64),
             percent: Some(100.0),
             status: "extracting".to_string(),
-            message: Some("Descompactando arquivos...".to_string()),
+            message: Some(said("extracting")),
         },
     );
 
@@ -666,10 +510,7 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
     // We use the `zip` crate (pure Rust) instead of shelling out to `ditto`
     // or `unzip`, so this works identically on macOS, Windows, and Linux.
     let extract_dir = temp_dir.join("extracted");
-    std::fs::create_dir_all(&extract_dir).map_err(|e| ContractError {
-        kind: ErrorKind::Failed,
-        message: format!("Não foi possível criar pasta de extração: {e}"),
-    })?;
+    std::fs::create_dir_all(&extract_dir).map_err(|e| failed_with("disk", e))?;
 
     // Windows' installer and Linux's packages are the asset itself
     // (release.yml), not an archive: each goes where the install step looks
@@ -688,29 +529,17 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             Some(name) if ext == "deb" || ext == "rpm" => extract_dir.join(name),
             _ => extract_dir.join(format!("verso-setup.{ext}")),
         };
-        std::fs::rename(&zip_path, kept).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Não foi possível preparar o instalador: {e}"),
-        })?;
+        std::fs::rename(&zip_path, kept).map_err(|e| failed_with("disk", e))?;
         return install_extracted_update(app, &extract_dir, &temp_dir, downloaded);
     }
 
     {
-        let zip_file = std::fs::File::open(&zip_path).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Não foi possível abrir o arquivo baixado: {e}"),
-        })?;
-        let mut archive = zip::ZipArchive::new(zip_file).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Arquivo ZIP inválido: {e}"),
-        })?;
+        let zip_file = std::fs::File::open(&zip_path).map_err(|e| failed_with("disk", e))?;
+        let mut archive = zip::ZipArchive::new(zip_file).map_err(|e| failed_with("bad_zip", e))?;
 
         let mut extracted_total: u64 = 0;
         for i in 0..archive.len() {
-            let mut zf = archive.by_index(i).map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Erro ao ler entrada do ZIP: {e}"),
-            })?;
+            let mut zf = archive.by_index(i).map_err(|e| failed_with("bad_zip", e))?;
 
             // Sanitise path: strip leading `/` or `..` segments to prevent
             // path-traversal attacks (Zip Slip).
@@ -720,32 +549,18 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             };
 
             if zf.is_dir() {
-                std::fs::create_dir_all(&out_path).map_err(|e| ContractError {
-                    kind: ErrorKind::Failed,
-                    message: format!("Erro ao criar diretório: {e}"),
-                })?;
+                std::fs::create_dir_all(&out_path).map_err(|e| failed_with("disk", e))?;
             } else {
                 if let Some(parent) = out_path.parent() {
-                    std::fs::create_dir_all(parent).map_err(|e| ContractError {
-                        kind: ErrorKind::Failed,
-                        message: format!("Erro ao criar diretório pai: {e}"),
-                    })?;
+                    std::fs::create_dir_all(parent).map_err(|e| failed_with("disk", e))?;
                 }
-                let mut out_file = std::fs::File::create(&out_path).map_err(|e| ContractError {
-                    kind: ErrorKind::Failed,
-                    message: format!("Erro ao criar arquivo extraído: {e}"),
-                })?;
-                let written = std::io::copy(&mut zf, &mut out_file).map_err(|e| ContractError {
-                    kind: ErrorKind::Failed,
-                    message: format!("Erro ao escrever arquivo extraído: {e}"),
-                })?;
+                let mut out_file =
+                    std::fs::File::create(&out_path).map_err(|e| failed_with("disk", e))?;
+                let written =
+                    std::io::copy(&mut zf, &mut out_file).map_err(|e| failed_with("disk", e))?;
                 extracted_total += written;
                 if extracted_total > UPDATE_MAX_BYTES {
-                    return Err(ContractError {
-                        kind: ErrorKind::Refused,
-                        message: "O conteúdo extraído excedeu o tamanho máximo de uma atualização."
-                            .to_string(),
-                    });
+                    return Err(refused("too_big"));
                 }
 
                 // Restore Unix permissions (execute bit for binaries)
@@ -770,7 +585,7 @@ pub(crate) fn download_and_install_update_blocking<R: tauri::Runtime>(
             total_bytes: Some(downloaded as f64),
             percent: Some(100.0),
             status: "installing".to_string(),
-            message: Some("Instalando a nova versão...".to_string()),
+            message: Some(said("installing")),
         },
     );
 
@@ -795,7 +610,7 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
     temp_dir: &std::path::Path,
     downloaded: u64,
 ) -> Result<InstallResult, ContractError> {
-    let emit_done = |msg: &str, path: Option<String>, restart: bool| {
+    let emit_done = |msg: String, path: Option<String>, restart: bool| {
         let _ = app.emit(
             "verso://update-progress",
             UpdateProgress {
@@ -803,12 +618,12 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 total_bytes: Some(downloaded as f64),
                 percent: Some(100.0),
                 status: "done".to_string(),
-                message: Some(msg.to_string()),
+                message: Some(msg.clone()),
             },
         );
         InstallResult {
             success: true,
-            message: msg.to_string(),
+            message: msg,
             app_path: path,
             requires_restart: restart,
         }
@@ -832,10 +647,7 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                     }
                 })
             })
-            .ok_or_else(|| ContractError {
-                kind: ErrorKind::Failed,
-                message: "Nenhum pacote .app encontrado no arquivo baixado.".to_string(),
-            })?;
+            .ok_or_else(|| failed("mac_no_app"))?;
 
         // Remove the macOS quarantine attribute (Gatekeeper) from the
         // bundle, through the xattr crate — no shell (ADR 0029). In
@@ -871,7 +683,7 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 if copy_dir_all(&extracted_app, running_app).is_ok() {
                     let _ = std::fs::remove_dir_all(&backup);
                     return Ok(emit_done(
-                        "Atualização instalada com sucesso! Reinicie o aplicativo para usar a nova versão.",
+                        said("installed_restart"),
                         Some(running_app.display().to_string()),
                         true,
                     ));
@@ -881,13 +693,7 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 // directory and the user is left with a broken app.
                 let _ = std::fs::remove_dir_all(running_app);
                 if std::fs::rename(&backup, running_app).is_err() {
-                    return Err(ContractError {
-                        kind: ErrorKind::Failed,
-                        message: format!(
-                            "A instalação falhou e o aplicativo anterior não pôde voltar ao lugar. Uma cópia intacta está em: {}",
-                            backup.display()
-                        ),
-                    });
+                    return Err(failed_with("mac_rollback", backup.display()));
                 }
             }
         }
@@ -899,10 +705,7 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
             .unwrap_or(std::ffi::OsStr::new("Verso.app"));
         let dest = downloads.join(dest_name);
         let _ = std::fs::remove_dir_all(&dest);
-        copy_dir_all(&extracted_app, &dest).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Não foi possível copiar o app para Downloads: {e}"),
-        })?;
+        copy_dir_all(&extracted_app, &dest).map_err(|e| failed_with("downloads_failed", e))?;
 
         // Reveal in Finder via `open -R` (macOS-specific UI nicety)
         let _ = std::process::Command::new("open")
@@ -911,7 +714,7 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
             .spawn();
 
         return Ok(emit_done(
-            &format!("Nova versão copiada para Downloads: {}", dest.display()),
+            pick::said_with("mac_in_downloads", dest.display()),
             Some(dest.display().to_string()),
             false,
         ));
@@ -923,11 +726,8 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
         // The installer replaces the app itself: nothing is backed up here.
         let _ = temp_dir;
         // Look for installer (.msi preferred, then .exe)
-        let installer =
-            find_file_by_exts(extract_dir, &[".msi", ".exe"]).ok_or_else(|| ContractError {
-                kind: ErrorKind::Failed,
-                message: "Nenhum instalador (.msi/.exe) encontrado no arquivo baixado.".to_string(),
-            })?;
+        let installer = find_file_by_exts(extract_dir, &[".msi", ".exe"])
+            .ok_or_else(|| failed("no_package"))?;
 
         // Out of the temporary folder first: it is removed when this
         // returns, while the installer still runs.
@@ -939,10 +739,7 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
         } else {
             "verso-update-setup.exe"
         });
-        std::fs::copy(&installer, &kept).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Não foi possível preparar o instalador: {e}"),
-        })?;
+        std::fs::copy(&installer, &kept).map_err(|e| failed_with("disk", e))?;
         // Launch the installer — it handles the actual replacement. An
         // .msi is not a program: Windows Installer runs it.
         let mut command = if msi {
@@ -952,13 +749,12 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
         } else {
             std::process::Command::new(&kept)
         };
-        command.spawn().map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Não foi possível executar o instalador: {e}"),
-        })?;
+        command
+            .spawn()
+            .map_err(|e| failed_with("win_run_failed", e))?;
 
         return Ok(emit_done(
-            "Instalador iniciado. Siga as instruções na tela para concluir a atualização.",
+            said("win_started"),
             Some(kept.display().to_string()),
             false,
         ));
@@ -973,16 +769,10 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
 
         // Prefer AppImage, then deb, then any binary
         let payload = find_file_by_exts(extract_dir, &[".AppImage", ".appimage", ".deb", ".rpm"])
-            .ok_or_else(|| ContractError {
-            kind: ErrorKind::Failed,
-            message: "Nenhum pacote Linux (.AppImage/.deb/.rpm) encontrado.".to_string(),
-        })?;
+            .ok_or_else(|| failed("no_package"))?;
 
         // Make it executable
-        let meta = std::fs::metadata(&payload).map_err(|e| ContractError {
-            kind: ErrorKind::Failed,
-            message: format!("Não foi possível ler metadados: {e}"),
-        })?;
+        let meta = std::fs::metadata(&payload).map_err(|e| failed_with("disk", e))?;
         let mut perms = meta.permissions();
         perms.set_mode(perms.mode() | 0o755);
         let _ = std::fs::set_permissions(&payload, perms);
@@ -998,11 +788,7 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 .filter(|v| !v.is_empty())
                 .map(std::path::PathBuf::from)
             else {
-                return Err(ContractError {
-                    kind: ErrorKind::Failed,
-                    message: "Este app não roda de um AppImage; baixe a atualização pela página de releases."
-                        .to_string(),
-                });
+                return Err(failed("linux_not_appimage"));
             };
             let beside = current.with_extension("AppImage.new");
             std::fs::copy(&payload, &beside)
@@ -1015,37 +801,25 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
                 .and_then(|()| std::fs::rename(&beside, &current))
                 .map_err(|e| {
                     let _ = std::fs::remove_file(&beside);
-                    ContractError {
-                        kind: ErrorKind::Failed,
-                        message: format!("Não foi possível substituir o AppImage: {e}"),
-                    }
+                    failed_with("disk", e)
                 })?;
             return Ok(emit_done(
-                "Atualização instalada. Reinicie o aplicativo.",
+                said("installed_restart"),
                 Some(current.display().to_string()),
                 true,
             ));
         } else {
             // For .deb/.rpm: copy to Downloads and advise the user
             let downloads = get_downloads_dir();
-            std::fs::create_dir_all(&downloads).map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Erro ao criar a pasta de Downloads: {e}"),
-            })?;
+            std::fs::create_dir_all(&downloads).map_err(|e| failed_with("downloads_failed", e))?;
             let dest = downloads.join(
                 payload
                     .file_name()
                     .unwrap_or(std::ffi::OsStr::new("verso-update")),
             );
-            std::fs::copy(&payload, &dest).map_err(|e| ContractError {
-                kind: ErrorKind::Failed,
-                message: format!("Erro ao copiar pacote para Downloads: {e}"),
-            })?;
+            std::fs::copy(&payload, &dest).map_err(|e| failed_with("downloads_failed", e))?;
             return Ok(emit_done(
-                &format!(
-                    "Pacote de atualização salvo em Downloads: {}. Instale manualmente com seu gerenciador de pacotes.",
-                    dest.display()
-                ),
+                pick::said_with("linux_in_downloads", dest.display()),
                 Some(dest.display().to_string()),
                 false,
             ));
@@ -1058,19 +832,11 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
     #[cfg(target_os = "android")]
     {
         let _ = temp_dir;
-        let kept = app
-            .path()
-            .app_cache_dir()
-            .map_err(|e| crate::failed(e.to_string()))?
-            .join("verso-update.apk");
+        let kept = android_kept_apk(app)?;
         std::fs::rename(extract_dir.join("verso-setup.apk"), &kept)
-            .map_err(|e| crate::failed(e.to_string()))?;
-        crate::phone::install_apk(&kept).map_err(crate::failed)?;
-        return Ok(emit_done(
-            "O Android vai perguntar se instala a versão nova.",
-            None,
-            false,
-        ));
+            .map_err(|e| failed_with("disk", e))?;
+        crate::phone::install_apk(&kept).map_err(|e| failed_with("android_failed", e))?;
+        return Ok(emit_done(said("android_prompt"), None, false));
     }
     // No updater on iOS (ADR 0119 B14, `Can::Updates` absent): AltStore's
     // source, or a store, updates the app.
@@ -1078,10 +844,66 @@ pub(crate) fn install_extracted_update<R: tauri::Runtime>(
     let _ = (extract_dir, temp_dir, &emit_done);
     // Unreachable on supported platforms, but required for compilation
     #[allow(unreachable_code)]
-    Err(ContractError {
-        kind: ErrorKind::Failed,
-        message: "Plataforma não suportada para atualização automática.".to_string(),
-    })
+    Err(failed("unsupported"))
+}
+
+/// Where a phone keeps the checked APK it handed to Android's prompt.
+#[cfg(target_os = "android")]
+fn android_kept_apk<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<std::path::PathBuf, ContractError> {
+    Ok(app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| failed_with("disk", e))?
+        .join("verso-update.apk"))
+}
+
+/// The APK kept from the last press handed to Android's prompt again, when
+/// its sha256 is the release's (`expected`) and the signed list's
+/// (`listed`); `None`: there is none, or it is another file — downloaded.
+#[cfg(target_os = "android")]
+fn android_kept_install<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    expected: &str,
+    listed: &str,
+) -> Result<Option<InstallResult>, ContractError> {
+    let kept = android_kept_apk(app)?;
+    let Ok(mut file) = std::fs::File::open(&kept) else {
+        return Ok(None);
+    };
+    let mut hasher = <sha2::Sha256 as sha2::Digest>::new();
+    let mut buffer = [0u8; 131072];
+    loop {
+        use std::io::Read;
+        match file.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(n) => sha2::Digest::update(&mut hasher, &buffer[..n]),
+            Err(_) => return Ok(None),
+        }
+    }
+    let got = format!("{:x}", sha2::Digest::finalize(hasher));
+    if got != expected || crate::release_sums::check_listed(listed, &got).is_err() {
+        return Ok(None);
+    }
+    crate::phone::install_apk(&kept).map_err(|e| failed_with("android_failed", e))?;
+    let message = said("android_prompt");
+    let _ = app.emit(
+        "verso://update-progress",
+        UpdateProgress {
+            downloaded_bytes: 0.0,
+            total_bytes: None,
+            percent: Some(100.0),
+            status: "done".to_string(),
+            message: Some(message.clone()),
+        },
+    );
+    Ok(Some(InstallResult {
+        success: true,
+        message,
+        app_path: None,
+        requires_restart: false,
+    }))
 }
 
 /// Recursively copies `src` directory into `dst` using only `std::fs`.

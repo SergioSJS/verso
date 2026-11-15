@@ -119,6 +119,14 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
       document.removeEventListener("pointerup", up);
       document.removeEventListener("pointercancel", cancel);
       document.removeEventListener("contextmenu", cancel, true);
+      document.removeEventListener("keydown", escape, true);
+    };
+    // Escape gives the drag up: what was dragged stays where it was.
+    const escape = (e: KeyboardEvent): void => {
+      if (e.key !== "Escape" || !started) return;
+      e.preventDefault();
+      e.stopPropagation();
+      cancel();
     };
     // A menu opened meanwhile takes the release: the drag is dropped, or
     // the next click, on the menu, would drop the tab where it lands. So
@@ -139,6 +147,7 @@ export function armDrag(handle: HTMLElement, payload: () => Drag, label: () => s
     document.addEventListener("pointerup", up);
     document.addEventListener("pointercancel", cancel);
     document.addEventListener("contextmenu", cancel, { capture: true });
+    document.addEventListener("keydown", escape, true);
   });
 }
 export type DropTarget =
@@ -154,6 +163,8 @@ export function dropTargetAt(x: number, y: number): DropTarget | null {
   const at = document.elementFromPoint(x, y) as HTMLElement | null;
   ghost.hidden = false;
   if (!at) {
+    // Off the window: a tab lands nowhere (it split the last pane).
+    if (drag?.kind === "tab") return null;
     const panes = layout().panes();
     if (panes.length > 0) return { body: panes[panes.length - 1]!.body };
     return null;
@@ -166,22 +177,12 @@ export function dropTargetAt(x: number, y: number): DropTarget | null {
     const spaceTab = at.closest<HTMLElement>(".space-tab");
     const space = spaceTab ? spaces.find((s) => s.tab === spaceTab) : undefined;
     if (spaceTab && space) return { space, el: spaceTab };
-    const panes = layout().panes();
-    let closestPane: Pane | null = null;
-    let closestDist = Infinity;
-    for (const p of panes) {
-      const pr = p.el.getBoundingClientRect();
-      const dx = Math.max(pr.left - x, 0, x - pr.right);
-      const dy = Math.max(pr.top - y, 0, y - pr.bottom);
-      const dist = Math.hypot(dx, dy);
-      if (dist < closestDist) {
-        closestDist = dist;
-        closestPane = p;
-      }
-    }
-    if (closestPane) return { body: closestPane.body };
-    if (panes.length > 0) return { body: panes[panes.length - 1]!.body };
-    return null;
+    // Just off a pane's edge still lands on it (the margin a file's drag
+    // has); further — the file tree, the right panel, the status bar — the
+    // tab lands nowhere and stays where it was. It used to split the
+    // nearest pane wherever it was let go.
+    const near = paneNear(x, y);
+    return near ? { body: near.body } : null;
   }
   if (drag?.kind === "roll") {
     // A roll of the table: on a note's text, or on a board's canvas (a card that holds it).
@@ -223,14 +224,19 @@ export function dropTargetAt(x: number, y: number): DropTarget | null {
     }
     const body = at.closest<HTMLElement>(".pane-body") ?? at.closest<HTMLElement>(".pane")?.querySelector<HTMLElement>(".pane-body") ?? null;
     if (body) return { body };
-    for (const p of layout().panes()) {
-      const pr = p.el.getBoundingClientRect();
-      if (x >= pr.left - 12 && x <= pr.right + 12 && y >= pr.top - 8 && y <= pr.bottom + 8) {
-        return { body: p.body };
-      }
-    }
+    const near = paneNear(x, y);
+    if (near) return { body: near.body };
     const tabs = at.closest<HTMLElement>(".tabs");
     if (tabs) return { tabs };
+  }
+  return null;
+}
+/** The pane whose box, widened by a small margin (12 px across, 8 px up
+ *  and down), holds the point: a drop just past its edge still lands. */
+function paneNear(x: number, y: number): Pane | null {
+  for (const p of layout().panes()) {
+    const pr = p.el.getBoundingClientRect();
+    if (x >= pr.left - 12 && x <= pr.right + 12 && y >= pr.top - 8 && y <= pr.bottom + 8) return p;
   }
   return null;
 }

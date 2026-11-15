@@ -194,6 +194,12 @@ export function openFindInActiveLeaf(): void {
   }
 }
 
+/** ⌘1…⌘9 (Ctrl on Windows and Linux): the workspaces take them first
+ *  (`runHotkey`), so the hotkey settings never give them to a command. */
+export function isWorkspaceKey(combo: string): boolean {
+  return /^Mod-[1-9]$/.test(combo);
+}
+
 /** The few hotkeys that hold no Mod: a modifier and a key that types nothing. */
 export const PLAIN_HOTKEYS = new Set(["Alt-Enter"]);
 
@@ -208,7 +214,7 @@ export function runHotkey(e: KeyboardEvent): boolean {
     return true;
   }
   // ⌘1…⌘9: the workspaces.
-  const digit = /^Mod-([1-9])$/.exec(combo);
+  const digit = isWorkspaceKey(combo) ? /^Mod-([1-9])$/.exec(combo) : null;
   if (digit && spaces.length > 1) {
     const sp = spaces[Number(digit[1]) - 1];
     if (!sp) return false;

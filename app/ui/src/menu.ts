@@ -15,7 +15,8 @@ import { fail } from "./errors";
 import { deleteEntries, deleteEntry, duplicateEntry, movePrompt, turnNoteIntoFolder } from "./files";
 import { activeFocusItem, addFocusPrompt, focusesList, focusesSummary, FocusWithOrigin, getSyncFocuses, isHomeFocusName, loadFocuses, promptSyncFocusesIfNeeded, saveFocuses, selectFocus } from "./focuses";
 import { allEntries, popout } from "./folder";
-import { icon } from "./icons";
+import { icon, type IconName } from "./icons";
+import { danger as markDanger, isDanger } from "./menuDanger";
 import { showStickerPicker } from "./labels";
 import { layout, openFolder, openNote } from "./layout/spaces";
 import { convertToBoard, newBoard } from "./leaves/board";
@@ -107,8 +108,8 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
     ? [t.unpinFromFolder, () => void unpinItemFromFolder(parentFolder, path), "pin"] as MenuItem
     : [t.pinToFolder, () => void pinItemToFolder(parentFolder, path), "pin"] as MenuItem;
 
-  const moveUpItem: MenuItem = [t.moveUp, () => void moveTreeItemOrder(path, -1), "arrow-up"];
-  const moveDownItem: MenuItem = [t.moveDown, () => void moveTreeItemOrder(path, 1), "arrow-down"];
+  const moveUpItem: MenuItem = [t.moveUp, () => void moveTreeItemOrder(path, -1), "chevronUp"];
+  const moveDownItem: MenuItem = [t.moveDown, () => void moveTreeItemOrder(path, 1), "chevronDown"];
 
   const hideItem: MenuItem = [t.hideFromTree, () => {
     const list = getHiddenFromTree();
@@ -178,7 +179,7 @@ export function entryMenu(x: number, y: number, path: string, kind: Kind, rename
     group(windowItems.length ? t.menuWindowWhere : t.menuWhere, "link", [...windowItems, ...(windowItems.length ? [sep] : []), ...whereItems]),
     ...(write ? [group(t.menuNew, "plus", createMenuItems(here))] : []),
     sep,
-    ...(mayBin ? [[t.deleteEntry, () => void deleteEntry(path, kind), "close"] as MenuItem] : []),
+    ...(mayBin ? [danger([t.deleteEntry, () => void deleteEntry(path, kind), "close"])] : []),
   );
   showMenu(x, y, items);
 }
@@ -195,10 +196,14 @@ export function selectionMenu(x: number, y: number, paths: string[]): void {
     ["—", () => {}],
     [t.selection.clear, () => clearSelection(), "close"],
     ["—", () => {}],
-    ...(bins ? [[t.deleteEntry, () => void deleteEntries(paths), "close"] as MenuItem] : []),
+    ...(bins ? [danger([t.deleteEntry, () => void deleteEntries(paths), "close"])] : []),
   ]);
 }
 
+/** `item`, a row that destroys (a delete): in the accent (menuDanger.ts). */
+export function danger(item: MenuItem): MenuItem {
+  return markDanger(item);
+}
 export const menu = h("ul", "menu");
 /** Where the focus was when the menu opened, to give it back when it closes. */
 export let menuOpener: Element | null = null;
@@ -207,9 +212,9 @@ export let menuOpener: Element | null = null;
  *  (`menuitemcheckbox`): the menu stays open when it is used, so that several
  *  can be ticked, and every check row of its list is read again once its
  *  action is done. */
-export type MenuItem = [label: string, run: () => unknown, iconName?: string, sub?: MenuItem[], check?: () => boolean];
+export type MenuItem = [label: string, run: () => unknown, iconName?: IconName, sub?: MenuItem[], check?: () => boolean];
 /** A row that opens a submenu of its own. */
-export function group(label: string, iconName: string, sub: MenuItem[]): MenuItem {
+export function group(label: string, iconName: IconName, sub: MenuItem[]): MenuItem {
   return [label, () => {}, iconName, sub];
 }
 export function createMenuItems(folder = ""): MenuItem[] {
@@ -389,8 +394,12 @@ function buildList(ul: HTMLElement, items: MenuItem[]): void {
   const checks: Array<() => void> = [];
   const checkRows: HTMLElement[] = [];
   let busy = false;
+  // A list with any icon keeps an icon's room on each row, so every
+  // label of it starts at the same place.
+  ul.classList.toggle("menu-iconed", items.some((it) => it[0] !== "—" && !!it[2]));
   ul.replaceChildren(
-    ...items.map(([label, run, iconName, sub, check]) => {
+    ...items.map((item) => {
+      const [label, run, iconName, sub, check] = item;
       // The list items are layout only: the menu's items are its buttons.
       const li = h("li");
       li.setAttribute("role", "none");
@@ -401,6 +410,7 @@ function buildList(ul: HTMLElement, items: MenuItem[]): void {
       }
       const b = h("button");
       b.type = "button";
+      if (isDanger(item)) b.classList.add("menu-danger");
       let mark: HTMLElement | null = null;
       if (check) {
         mark = h("span", "menu-check");
@@ -408,6 +418,7 @@ function buildList(ul: HTMLElement, items: MenuItem[]): void {
         b.append(mark);
       }
       if (iconName) b.append(icon(iconName));
+      else b.append(h("span", "menu-icon-room"));
       b.append(h("span", "", label));
       b.setAttribute("role", check ? "menuitemcheckbox" : "menuitem");
       li.append(b);

@@ -182,3 +182,74 @@ test("a submenu stays on the screen near the right edge", async ({ app, page }) 
   expect(sub.x).toBeGreaterThanOrEqual(0);
   expect(sub.x + sub.width).toBeLessThanOrEqual(vw);
 });
+
+/** Each top row of the open menu: its words, whether it is marked as one
+ *  that destroys, its colour at rest (a hovered or focused row is left
+ *  out: the hover paints every row in the accent), and where its label
+ *  starts. */
+const rowsAtRest = (page) =>
+  topRows(page).evaluateAll((bs) =>
+    bs.map((b) => {
+      const label = b.querySelector(":scope > span:not(.icon):not(.menu-icon-room):not(.menu-check)");
+      return {
+        text: (label?.textContent ?? "").trim(),
+        danger: b.classList.contains("menu-danger"),
+        busy: b.matches(":hover, :focus-visible, :focus"),
+        color: getComputedStyle(b).color,
+        x: Math.round(label?.getBoundingClientRect().left ?? 0),
+      };
+    }),
+  );
+
+test("only a row that destroys is in the accent, wherever it falls in its menu", async ({ app, page }) => {
+  await openFileMenu(app, page);
+  await page.mouse.move(2, 2);
+  const file = await rowsAtRest(page);
+  const marked = file.filter((r) => r.danger);
+  expect(marked.map((r) => r.text)).toEqual(["Mover para a lixeira"]);
+  const accent = marked[0].color;
+  for (const r of file.filter((r) => !r.danger && !r.busy)) expect(r.color, r.text).not.toBe(accent);
+  await page.keyboard.press("Escape");
+  // A tab's menu ends with its close rows: the last row is not the accent
+  // (every menu's last row was).
+  await app.quickOpen("01 - Guia");
+  await page.locator(".pane .tab").first().click({ button: "right" });
+  await expect(page.locator(".menu:not([hidden])")).toBeVisible();
+  await page.mouse.move(2, 2);
+  const tab = await rowsAtRest(page);
+  expect(tab.filter((r) => r.danger)).toEqual([]);
+  const last = tab[tab.length - 1];
+  expect(last.busy).toBe(false);
+  expect(last.color, last.text).not.toBe(accent);
+  await page.keyboard.press("Escape");
+});
+
+test("every label of a menu starts at the same place, with or without an icon", async ({ app, page }) => {
+  await app.open();
+  await app.quickOpen("01 - Guia");
+  for (const open of [
+    () => page.locator("#notes li[data-path] > button").first().click({ button: "right" }),
+    () => page.locator(".pane .tab").first().click({ button: "right" }),
+    () => page.locator("#notes summary[data-folder]").first().click({ button: "right" }),
+  ]) {
+    await open();
+    await expect(page.locator(".menu:not([hidden])")).toBeVisible();
+    const xs = new Set((await rowsAtRest(page)).map((r) => r.x));
+    expect([...xs], "one start for every label").toHaveLength(1);
+    await page.keyboard.press("Escape");
+  }
+});
+
+test("the tab's menu duplicates a tab, a folder's page included", async ({ app, page }) => {
+  await app.open();
+  const folder = page.locator("#notes summary[data-folder]").first();
+  await folder.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Abrir a página da pasta" }).click();
+  const tabs = page.locator(".pane .tab");
+  await expect(tabs).toHaveCount(1);
+  await tabs.first().click({ button: "right" });
+  // One row for it: "Abrir em nova aba" was the same row twice.
+  await expect(page.getByRole("menuitem", { name: "Abrir em nova aba" })).toHaveCount(0);
+  await page.getByRole("menuitem", { name: "Duplicar aba" }).click();
+  await expect(tabs).toHaveCount(2);
+});
