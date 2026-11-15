@@ -14,7 +14,7 @@
 import { commands } from "../bindings";
 import { type BoardSession, joinBoard, visitBoard } from "../boardRoom";
 import { may } from "../access";
-import { type CollabHandlers, canCollab, type JoinAnswer, joinBusy, joinPending, type LocalWhy, refusedLine } from "../collab";
+import { type CollabHandlers, canCollab, type JoinAnswer, joinBusy, joinPending, type LocalWhy, refusedLine, tableMadeLine } from "../collab";
 import { localSaid } from "../coeditWords";
 import { BOARD_VERSION, parseCanvas, type CanvasDoc } from "../board/model";
 import { changedOutside, takeOutsideIn as mergeOutside } from "../board/outside";
@@ -63,7 +63,14 @@ export function holdRevision(this: BoardLeaf, revision: string): void {
 
 /** What the tab does when its board's room speaks. */
 export function boardHandlers(this: BoardLeaf): CollabHandlers {
+  // A table made in the folder (ADR 0081 item 11): said when the window
+  // joins again, after the reading that follows has had its say.
+  let tableMade = false;
   return {
+    tableMade: () => {
+      tableMade = true;
+      ui.status.textContent = tableMadeLine();
+    },
     saved: (revision) => {
       this.holdRevision(revision);
       this.setDirty(false);
@@ -79,7 +86,10 @@ export function boardHandlers(this: BoardLeaf): CollabHandlers {
         this.paintLive();
         return;
       }
-      void this.roomClosed(why);
+      void this.roomClosed(why).then(() => {
+        if (tableMade) ui.status.textContent = tableMadeLine();
+        tableMade = false;
+      });
     },
     remote: () => {},
     // The room took the board's state in again, in place: said once.

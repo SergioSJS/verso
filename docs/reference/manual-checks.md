@@ -1133,6 +1133,14 @@ in a note long enough to scroll.
   Ana's presence shows, and the outside card stays locked for her. In the
   server's log, no `ERROR`.
 
+- [ ] **A table made while a share's window is live on a board** (ADR 0081
+  item 11, 2026-11-15): Ana has a share of *Sub* (edits) and has a board of
+  it open and live next to Sérgio's window. Sérgio makes *Sub* a table:
+  his table dialog says "1 pessoa estava num board desta pasta por um
+  compartilhamento…"; Ana's status bar says "A mesa foi criada nesta pasta:
+  você agora está no board como jogador." and her board opens again as a
+  player's (its secret pins and hidden files cut by the table).
+
 - [ ] **A revoked share's sync turns off with a notice** (ADR 0081 item 8,
   `873921a`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
   removes her in *Compartilhar…*. Within seconds Ana's app shows a notice

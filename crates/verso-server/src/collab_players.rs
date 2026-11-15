@@ -34,7 +34,8 @@
 //! a shadow too, cut by the share alone (no veil): a card of a file beside
 //! the share is locked, every other card re-rooted at the share; secret
 //! pins are left out as for a player (they stay the file's). A table made
-//! while it is open closes it: its windows join again as players. A player's window never writes the
+//! while it is open closes it: its windows are told why (`TABLE_MADE`) and
+//! join again as players. A player's window never writes the
 //! whole file of a board (`write_text`, `sync_put`), and is never asked to.
 
 use std::cell::RefCell;
@@ -723,12 +724,19 @@ pub(super) fn refresh(server: &Server, r: &mut Room, fresh: bool) {
         return;
     };
     let mut closed: Vec<String> = Vec::new();
+    // The windows of a share, at no table when they joined, of a folder that
+    // holds a table now: told so, for they join again as players.
+    let mut made: Vec<String> = Vec::new();
     let judged: HashSet<&String> = sights.iter().map(|(a, _, _)| a).collect();
     for s in &accounts {
         if !judged.contains(&s.at)
             && let Some(sh) = r.readers.players.by.remove(&s.at)
         {
-            closed.extend(sh.clients);
+            if veil.is_some() && !s.veiled {
+                made.extend(sh.clients);
+            } else {
+                closed.extend(sh.clients);
+            }
         }
     }
     let waiting = r.board.waiting(&r.doc);
@@ -788,7 +796,12 @@ pub(super) fn refresh(server: &Server, r: &mut Room, fresh: bool) {
         }
     }
     close(server, r, &closed);
+    close_for(server, r, &made, Some(TABLE_MADE));
 }
+
+/// The reason a share's window is told its board closed: a table was made in
+/// the folder, and the window joins again as a player (ADR 0081 item 11).
+pub const TABLE_MADE: &str = "table-made";
 
 /// The room wrote its file: each shadow's windows are told it was saved — with
 /// the revision of the file as the account is shown it, and only when that
@@ -840,6 +853,11 @@ pub(super) fn saved(server: &Server, r: &mut Room) {
 
 /// `clients`, windows of shadows, told the room closed: out of it.
 pub(super) fn close(server: &Server, r: &mut Room, clients: &[String]) {
+    close_for(server, r, clients, None);
+}
+
+/// [`close`], saying why when there is a reason the window can put in words.
+pub(super) fn close_for(server: &Server, r: &mut Room, clients: &[String], reason: Option<&str>) {
     if clients.is_empty() {
         return;
     }
@@ -847,10 +865,32 @@ pub(super) fn close(server: &Server, r: &mut Room, clients: &[String]) {
         r.clients.remove(c);
         r.readers.forget(c);
     }
-    server.push(
-        clients,
-        &event("collab-closed", &r.path, "revision", &json!(null)),
-    );
+    let mut told = event("collab-closed", &r.path, "revision", &json!(null));
+    if let Some(why) = reason {
+        told["payload"]["reason"] = json!(why);
+    }
+    server.push(clients, &told);
+}
+
+/// How many people are live on a board of `key` under `root` through a share
+/// at no table: the ones a table made at `root` makes join again as players
+/// (ADR 0081 item 11). Each account counts once.
+pub(crate) fn share_members_under(server: &Server, key: &str, root: &str) -> usize {
+    let rooms: Vec<_> = lock(&server.rooms.map).values().map(Arc::clone).collect();
+    let mut accounts: BTreeSet<String> = BTreeSet::new();
+    for room in rooms {
+        let r = lock(&room);
+        let under = root.is_empty() || r.path == root || r.path.starts_with(&format!("{root}/"));
+        if r.key != key || !under {
+            continue;
+        }
+        for sh in r.readers.players.by.values() {
+            if sh.scope.is_some() && !sh.veiled && !sh.clients.is_empty() {
+                accounts.insert(sh.account.clone());
+            }
+        }
+    }
+    accounts.len()
 }
 
 /// A share changed (its folder moved, its paths narrowed) or went: the

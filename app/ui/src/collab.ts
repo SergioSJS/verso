@@ -30,6 +30,7 @@ import { commands, type Capabilities, type CollabJoin, type CollabOracle, type C
 import type { RoomSide, TextChange, VisitedRoom } from "./roomWrites";
 import { timed } from "./slowOps";
 import { UpdateQueue } from "./updateQueue";
+import { tableMadeText } from "./tableMade";
 
 let capabilities: Promise<Capabilities | null> | null = null;
 
@@ -207,6 +208,9 @@ export type CollabHandlers = {
   closed: (why?: "lost" | "refused") => void;
   /** Someone else's edit arrived: the reading view may be stale. */
   remote: () => void;
+  /** Heard just before `closed`: a table was made in the folder, and this
+   *  window of a share joins again as a player (ADR 0081 item 11). */
+  tableMade?: () => void;
   /** A synced folder's note went local, its text kept (ADR 0082 item 8). */
   local?: (why: LocalWhy) => void;
   /** Back in the same room, what was typed meanwhile merged (item 9). */
@@ -264,6 +268,10 @@ function fanOut(holders: Set<CollabHandlers>): CollabHandlers {
     get anew() {
       const hs = some("anew");
       return hs.length ? () => hs.forEach((h) => h.anew?.()) : undefined;
+    },
+    get tableMade() {
+      const hs = some("tableMade");
+      return hs.length ? () => hs.forEach((h) => h.tableMade?.()) : undefined;
     },
     get refused() {
       const hs = some("refused");
@@ -725,6 +733,8 @@ function hear(): void {
     const s = sessions.get(e.payload.path);
     if (!s) return;
     s.leave();
+    // A table made in the folder: said before the window joins again.
+    if (e.payload.reason === "table-made") s.handlers.tableMade?.();
     s.handlers.closed();
   }, opts);
 }
@@ -945,6 +955,12 @@ export function refusedLine(stopped = false): string {
       : "The table refused changes to the board over and over: nothing more is sent from here. Reopen the board to edit again.";
   }
   return pt ? "A mesa recusou uma alteração do quadro: ele voltou ao estado da mesa; o resto continua como estava." : "The table refused a change to the board: it went back to the table's state; the rest stays as it was.";
+}
+
+/** What the window says when a table was made in its board's folder: it was
+ *  live there through a share, and joins again as a player. */
+export function tableMadeLine(): string {
+  return tableMadeText(document.documentElement.lang.startsWith("pt"));
 }
 
 /** Whether an editor transaction came from the room, not from this window. */

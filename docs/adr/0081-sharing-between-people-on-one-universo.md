@@ -366,7 +366,14 @@ carried a recommendation; the maintainer decided. Open items answered
       in the code:* the share's shadow leaves secret pins out, as a
       player's does (they stay in the file and in its re-rooted read): the
       shadow judges by one rule; and a table made while a share's shadow is
-      open closes it, its windows joining again as players.
+      open closes it, its windows joining again as players. That switch is
+      never silent (the maintainer, 2026-11-15, "B"): the close carries the
+      reason `table-made` (`collab-closed`'s `reason`), and the window says
+      "A table was made in this folder: you are now on the board as a
+      player" as it joins again; the owner's answer to `campaign_make`
+      carries `rejoined`, how many people were live on boards of the folder
+      through shares, and the table's dialog says so in one line. Tested in
+      `tests_share_board_room.rs` and `test/tableMade.test.mjs`.
     Tests: `tests_share_board_sync.rs`, `tests_share_board_room.rs`, and
     the shadow and leak tests of `tests_board_shares.rs`.
 12. **Rooms** ([0073](0073-self-hosted-server-first.md) item 7). A note

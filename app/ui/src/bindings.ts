@@ -2066,6 +2066,12 @@ export type CampaignStatus = {
 	 *  has no account yet (only the server's admin may: ADR 0081 item 4).
 	 */
 	can_invite: boolean,
+	/**
+	 *  Only in the answer of `campaign_make`: how many people were live on
+	 *  boards of the new table's folder through a share, who now join them
+	 *  again as players (ADR 0081 item 11). 0 everywhere else.
+	 */
+	rejoined?: number,
 };
 
 /**  A folder made a table (ADR 0110 item 1). */
@@ -2440,6 +2446,12 @@ export type CollabRoll = {
 export type CollabState = {
 	path: string,
 	revision: string | null,
+	/**
+	 *  Why the room closed, when the window can say: `"table-made"` — a table
+	 *  was made in the folder of a board a share's window was live on, and it
+	 *  joins again as a player (ADR 0081 item 11). Absent otherwise.
+	 */
+	reason: string | null,
 };
 
 /**
