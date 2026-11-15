@@ -32,6 +32,8 @@
   2026-10-12 — item 11's rule is now item 3 of
   [0027](0027-runtime-capabilities.md), revised to it by the maintainer
   that day with 0027's acceptance (*"Ajuste tudo que precisar. Está aprovado os ADRs"*).
+  2026-11-14 — one top bar on a phone (item 6). 2026-11-15 — the side
+  panels follow a sideways swipe on a phone (item 6, at the end).
 
 ## Context
 
@@ -316,3 +318,74 @@ left to the text); he chose the one top bar: *"gostei muito do A"*. Under
   goes between Reading and Edit only (Source is in the sheet).
 - Tried in `e2e/phone-top-bar.spec.mjs`, and on the maintainer's phone
   through the harness (`adb reverse`).
+
+**The side panels by a sideways swipe (item 6, 2026-11-15).** The
+maintainer: on the phone, swipe horizontally to bring the side panels, as
+most apps with hidden side drawers do — right to left the right panel, left
+to right the files — especially in portrait, so that the bottom bar need not
+be on to reach them. Built (`app/ui/src/screen/swipeRule.ts`, the decision;
+`app/ui/src/screen/swipe.ts`, the page):
+
+- **Where**: the phone's frame only (`PHONE_MEDIA`, so a phone held
+  sideways too) and a finger only (touch events; a mouse never). A tablet
+  keeps its side bars, which are not drawers, and has no swipe.
+- **Not from the edges.** Android's gesture navigation takes a swipe that
+  starts at the very left or right edge as its own Back, and the page never
+  sees it or sees it cancelled; so the swipe is not an edge swipe. It starts
+  anywhere in the content except the 24 px along each side, and the same
+  rule holds on iOS (Tauri's WKWebView has no back-swipe) — one behaviour,
+  no edge gesture of iOS's own.
+- **What counts**: the finger goes 10 px before anything is decided; held
+  still for the long press's 450 ms first (`touch.ts`), it is a long press,
+  never a swipe; it must be clearly sideways — at least twice as far across
+  as down (within about 27°); decided once, for the whole touch. Right to
+  left brings the right panel, left to right the files (only when the bottom
+  bar's *Arquivos* could: not without a folder, not for a file opened
+  without its folder); with one open, the swipe the other way, on it or on
+  the page beside it, closes it, and the same way does nothing.
+- **Following the finger**: once decided the page stops the browser's own
+  move of that touch and the panel follows the finger; let go past 35 % of
+  its width, or flicked (0.35 px/ms over the last 100 ms, at least 24 px),
+  it settles open (or closed); else it slides back. With
+  `prefers-reduced-motion: reduce` it does not follow: it opens (or closes)
+  once the finger has covered the same 35 %, without waiting for the lift.
+  The Table's and the Music tab's right panel, a sheet from the bottom on a
+  phone, does not follow a finger across either: the same rule as reduced
+  motion. A move the browser has already taken for a scroll (not
+  cancelable) is left to it.
+- **Never stolen**, decided by one function from the touched element up,
+  not by a list scattered through the views: a text selection on the page
+  (its handles dragged in the editor); a field (`input`, `textarea`,
+  `select`, a slider) — the editor itself is not one, a swipe over a note is
+  the main case; anything that scrolls sideways (overflowing across with
+  `overflow-x` auto or scroll: a wide table, a code block, the kanban, a tab
+  strip, the keyboard's bar, a zoomed PDF, Source mode's long lines);
+  anything whose `touch-action` leaves the page no sideways pan (the board's
+  and the drawing's Excalidraw canvas, a map's MapLibre canvas, the graph,
+  the data graph, the image crop); one list in `swipe.ts` for the canvas-like
+  views by class (`.board-host`, `.excalidraw`, `.graph`, `.graph-stage`,
+  `.dg-stage`, `.base-map`, `.maplibregl-map`) and `data-no-swipe` for any
+  element that opts out; and a dialog, a menu, the top bar's sheet, the 3D
+  dice on screen, a drag or a resize in progress.
+- **The same toggles**: the panels open and close through `toggleSide` and
+  `toggleRight`, the bottom bar's *Arquivos* and *Painel*: the buttons'
+  `aria-expanded` and names, Android's Back (it closes a panel a swipe
+  opened), the tap outside and the Table's unread count work as for a
+  button. Focus does not move; a field typed in loses it when a panel opens,
+  so the on-screen keyboard goes as after a tap on the bar's button.
+- **Accessibility** (item 9): the swipe is an extra; *Arquivos* and *Painel*
+  stay as buttons, in the bottom bar and in the top bar's sheet. Nothing is
+  reached by the gesture alone.
+- **A switch**: *Deslizar para o lado abre os painéis* / *Swipe sideways to
+  open the panels*, in the top bar's sheet beside *Barra inferior sempre
+  visível* (`phoneSwipe`, a setting kept by the window), **on by default**.
+- Chosen in the code (the maintainer's to change): the 24 px edge band, the
+  10 px slop, the 2:1 sideways rule, 35 % or a flick to settle, and closing
+  the Table's sheet with a sideways swipe too.
+- Considered by the author and not taken: an edge-only swipe (Android's
+  Back owns the edges); pointer events (the browser cancels a pointer it
+  takes for a scroll); `touch-action: pan-y` on the work area (every child
+  would lose its own sideways scroll, a table's and a code block's).
+- Tried in `test/swipePanels.test.mjs` (the decision) and
+  `e2e/phone-swipe.spec.mjs` (Chromium, by touch, at 390 × 844); on a real
+  phone, with Android's gesture navigation, in `docs/reference/manual-checks.md`.
