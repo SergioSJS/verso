@@ -33,13 +33,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type Mouse
 import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { CardLayer, drawQueue, isBarePicture, OutlinePanel, View } from "./cards";
-import { hasSecret, keptIds, mapsOf, pinsOf } from "./maps";
+import { hasSecret, keptIds, mapsOf, pinLabel, pinsOf } from "./maps";
 import { mapActions, readerActions } from "./mapsActions";
 import { pageActions } from "./pageActions";
 import { dropActions } from "./dropActions";
 import { textCardActions } from "./textCard";
 import { MapsPanel } from "./mapsPanel";
 import { MapTools } from "./mapsTools";
+import { type Tracing, tracingOf } from "./tracing";
 import { mapStrings } from "./mapStrings";
 import { PinLayer, usePinPointer, ViewWatch, type Watch } from "./mapsView";
 import { CropDialog, ExportDialog } from "./dialogs";
@@ -180,6 +181,7 @@ function Board({
   const [cards, setCards] = useState<readonly El[]>([]);
   /** The pins (ADR 0090), drawn by `PinLayer` at one size at any zoom. */
   const [pins, setPins] = useState<readonly El[]>([]);
+  const [tracing, setTracing] = useState<Tracing>("none");
   const cardsKey = useRef("");
   /** Who asked to hear the view move (`ViewWatch`), and the pins' place. */
   const watchers = useRef(new Set<(v: View) => void>());
@@ -570,6 +572,7 @@ function Board({
   const syncCards = useCallback((els: readonly ExcalidrawElement[]) => {
     const list = (els as unknown as El[]).filter((e) => e.type === "embeddable" && !e.isDeleted && isNode(e));
     cardById.current = new Map(list.map((e) => [e.id, e]));
+    setTracing(tracingOf(els as unknown as El[]));
     const key = list.map((e) => `${e.id}:${String(e["version"])}`).join("|");
     if (key === cardsKey.current) return;
     cardsKey.current = key;
@@ -968,13 +971,14 @@ function Board({
       viewing={asReader !== null}
       actions={mapAct}
       toggleReader={() => void toggleReader()}
+      tracing={tracing}
     />
   );
   const mapsPanel = (
     <MapsPanel
       ms={ms}
       maps={mapEls.map((m) => ({ id: m.id, label: nodeName(nodeData(m) ?? ({} as CanvasNode), s) }))}
-      pins={pins.map((p) => ({ id: p.id, label: nodeName(nodeData(p) ?? ({} as CanvasNode), s), secret: isSecret(nodeData(p) ?? ({} as CanvasNode)) }))}
+      pins={pins.map((p) => ({ id: p.id, label: pinLabel(nodeData(p) ?? ({} as CanvasNode), s), secret: isSecret(nodeData(p) ?? ({} as CanvasNode)) }))}
       writable={!readOnly && asReader === null}
       onFocus={focusElement}
       onOpenPin={(id) => {
@@ -1016,6 +1020,7 @@ function Board({
       web: Boolean(host.web),
       looseOn,
       outlineOn: showOutline,
+      tracing: tracing === "none" ? undefined : { label: ms.tracing, shown: tracing === "shown", toggle: () => mapAct.showTracing(tracing !== "shown") },
       addText: () => void addText(),
       addImage: () => inBoard('[data-testid="board-image-picker"]')?.click(),
       addFile: () => void addFile(),

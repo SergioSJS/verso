@@ -25,6 +25,9 @@ export type VerbDeps = {
   web: boolean;
   looseOn: boolean;
   outlineOn: boolean;
+  /** An imported map's tracing (ADR 0120): its name, whether shown, and
+   *  the switch; none when the board has none. */
+  tracing?: { label: string; shown: boolean; toggle: () => void } | undefined;
   addText: () => void;
   addImage: () => void;
   addFile: () => void;
@@ -54,6 +57,7 @@ export function boardVerbs(d: VerbDeps): BoardVerb[] {
     );
     if (d.web) verbs.push({ id: "page", label: s.addPage, icon: ICO.page, run: d.addPage });
     verbs.push({ id: "loose", label: s.looseArrows, icon: ICO.arrow, run: d.toggleLoose, pressed: d.looseOn });
+    if (d.tracing) verbs.push({ id: "tracing", label: d.tracing.label, icon: ICO.trace, run: d.tracing.toggle, pressed: d.tracing.shown });
   }
   verbs.push(
     { id: "search", label: s.search, icon: ICO.search, run: d.search },

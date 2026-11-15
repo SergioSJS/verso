@@ -55,6 +55,8 @@ export const ICO = {
   reader: "M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8zM8 9.7a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4z",
   close: "M4 4l8 8M12 4l-8 8",
   menu: "M2.5 4h11M2.5 8h11M2.5 12h11",
+  /** A floor plan: a map's tracing (ADR 0120). */
+  trace: "M2.5 2.5h11v11h-11zM2.5 7.5h5v6M7.5 2.5v2.5M10.5 7.5h3",
 };
 
 export type ToolButtonProps = {

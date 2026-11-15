@@ -12,7 +12,7 @@
 // No Excalidraw here, no React, no contract: the view applies what these
 // say (`view.tsx`, `mapsView.tsx`).
 
-import { type CanvasNode, type El, isMap, isNode, isPin, isSecret, nodeData } from "./model";
+import { type CanvasNode, type El, isMap, isNode, isPin, isSecret, nodeData, nodeName, pinKey } from "./model";
 
 /** The side of a new pin's box on the board, in the board's units: its
  *  place and what is selected when the pin is; the mark itself is drawn at
@@ -69,6 +69,13 @@ export function pinNode(path: string, at: readonly [number, number], id: string)
     height: PIN_BOX,
     verso: { pin: true },
   };
+}
+
+/** A pin's name in the map's list: its note's, after its key when it is a
+ *  room's key of an imported map ("1 · Swamp Citadel"). */
+export function pinLabel(node: CanvasNode, strings: Parameters<typeof nodeName>[1]): string {
+  const key = pinKey(node);
+  return key !== null ? `${key} · ${nodeName(node, strings)}` : nodeName(node, strings);
 }
 
 /** Where a pin is: the middle of its box. */

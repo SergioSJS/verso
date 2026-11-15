@@ -280,6 +280,12 @@ export function pageOrigin(url: string): string | null {
 export const isMap = (node: CanvasNode): boolean => flag(node, "map");
 /** A file card that is a pin on a map: drawn at one size at any zoom. */
 export const isPin = (node: CanvasNode): boolean => flag(node, "pin");
+/** A pin's key on an imported map (ADR 0120): the room's number the pin
+ *  stands on, drawn as its mark; null for any other pin. */
+export function pinKey(node: CanvasNode): string | null {
+  const v = isRecord(node["verso"]) ? node["verso"]["key"] : undefined;
+  return typeof v === "string" && v.trim() !== "" && v.length <= 8 ? v.trim() : null;
+}
 /** A node a UniVerso does not serve to those who may only read the board. */
 export const isSecret = (node: CanvasNode): boolean => flag(node, "secret");
 
