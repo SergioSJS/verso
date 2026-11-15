@@ -20,7 +20,14 @@ test("a tab let go over the file tree lands nowhere; Escape gives a drag up", as
   await app.quickOpen("01 - Guia");
   const panes = page.locator(".pane");
   await expect(panes).toHaveCount(1);
-  const tab = page.locator(".pane .tab").first();
+  // Two tabs: a pane's only tab is never split off itself (drop(), on
+  // purpose), so with one tab no drop could split and nothing here would
+  // tell a drop that lands nowhere from one refused.
+  const tabs = page.locator(".pane .tab");
+  await tabs.first().click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Duplicar aba" }).click();
+  await expect(tabs).toHaveCount(2);
+  const tab = tabs.first();
 
   // Over the tree: no pane offered, and nothing split at the release.
   await pickUp(page, tab);
@@ -30,7 +37,7 @@ test("a tab let go over the file tree lands nowhere; Escape gives a drag up", as
   await page.mouse.up();
   await expect(page.locator(".drag-ghost")).toBeHidden();
   await expect(panes).toHaveCount(1);
-  await expect(page.locator(".pane .tab")).toHaveCount(1);
+  await expect(tabs).toHaveCount(2);
 
   // At the pane's right edge, where it would split: Escape, and the
   // release after it does nothing.
@@ -49,6 +56,7 @@ test("a tab let go over the file tree lands nowhere; Escape gives a drag up", as
   await page.mouse.move(body.x + body.width - 12, body.y + body.height / 2, { steps: 10 });
   await page.mouse.up();
   await expect(panes).toHaveCount(2);
+  await expect(page.locator(".pane .tab")).toHaveCount(2);
 });
 
 test("a hidden tab bar comes back with a double click on the pane's ground", async ({ app, page }) => {
