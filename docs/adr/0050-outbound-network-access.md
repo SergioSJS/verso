@@ -151,3 +151,9 @@ instance name of four random hexadecimal digits and a record of the
 protocol version and the port, and listens for connections inbound on the
 private addresses of its machine, only while the person has turned it on;
 nothing else of 0050 changes: the core reaches no network.
+*Revised on 2026-11-15 by the maintainer's decision (0096 item 8 and
+[0117](0117-this-app-is-a-universo-server.md) D19 item 5, in place): the
+announcement runs **while it serves on the network**, its record carrying
+the key's pin besides; and the Verso app paired browses that service (or,
+on iOS, resolves its `.local` host through the system) only when none of a
+paired computer's known addresses answers.*

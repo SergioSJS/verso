@@ -418,6 +418,17 @@ it changes an Accepted ADR; where one needs a line, the item says so.
    - A library for mDNS and one for the QR are new dependencies; each is
      justified in the pull request that adds it (CLAUDE.md
      §4), not here.
+   - *Revised in place 2026-11-15 by the maintainer (decisions of that
+     day, 4.2 "B": "O computador se anuncia na rede (mDNS) enquanto serve,
+     e o app o acha pela chave"), in [0117](../0117-this-app-is-a-universo-server.md)
+     D19 item 5: **(b)**, announced while serving on the network — no
+     longer only while the dialog is open — so that a paired Verso app
+     finds the computer at an address it never saw. The record keeps
+     `_verso-local._tcp` and the random instance and adds the key's pin
+     (TXT `pin`, host `verso-<20 digits of the pin>.local`, protocol `v=2`);
+     still no folder, account or name. Not while only the internet link
+     serves. What is found is never trusted: the app keeps an address
+     only after the pinned key answered there.*
 
 9. **`[DECIDED 2026-10-15]` The operating systems' prompts.** To confirm on the real
    machines (nothing here was run): macOS 15 and later asks for the

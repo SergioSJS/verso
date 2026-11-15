@@ -46,7 +46,14 @@
   approved *"the Verso phone APP (Android, iOS) can pair with the desktop
   app serving on the home network, and keep a synced local copy that opens
   offline on both devices"*; built the same day (`86ff3ef6`, `82f13c40`,
-  `4b3c2f9f`), D9, D12, D15 and Consequences say what changed.
+  `4b3c2f9f`), D9, D12, D15 and Consequences say what changed. The same
+  day, later — the maintainer's answers to two of D19's choices
+  (decisions of 2026-11-15, 4.1 *"B com prazo configurável"* and 4.2
+  *"B"*), built and written in place: a paired app's idle limit is the
+  owner's setting, 90 days by default (D19 item 3), and the computer is
+  announced by mDNS with its key's pin while it serves on the network,
+  where a paired app finds it at a new address (D19 item 5; 0096 item 8
+  revised in place, 0050 dated).
 - Related: [0073](0073-self-hosted-server-first.md), [0074](0074-accounts-and-access-on-the-server.md),
   [0077](0077-the-server-administration-console-and-folder-quotas.md),
   [0079](0079-sync-a-local-folder-with-a-server.md), [0081](0081-sharing-between-people-on-one-universo.md),
@@ -485,7 +492,7 @@ session). "Through the link" results are the spike's (As built).
 | Sign-in by mail, "forgot the password" | **Out** `[DECIDED 2026-11-03]`; the owner makes a new-password link (`27eece626`) | `local/players.rs` |
 | Passkeys, tokens (0074 items 3, 8) | **Built** (S13 `cd5bc9289`); a passkey only through the link; a quick link's passkey dies with it | `passkeys.rs` |
 | The owner's own browser or phone through the link (D5) | **Built** (R3 `2e7a35cb`): pairing through the link while *Pair a phone* is open; a quick link's device ends with its address | `local/routes.rs`, `local/link_pair.rs`, `web/pages.ts` |
-| The owner's own Verso app on the network, with a copy (D19) | **Built** 2026-11-15: paired by the dialog's code, pinned to the computer's key, its folders a server's folders (a copy, synced, offline); another person's app still only through the link | `local/pin.rs`, `local/pair_app.rs`, `app/src-tauri/src/paired/` |
+| The owner's own Verso app on the network, with a copy (D19) | **Built** 2026-11-15: paired by the dialog's code, pinned to the computer's key, its folders a server's folders (a copy, synced, offline); found again by its pin at an address it never saw, and paired until the owner's idle limit (90 days by default); another person's app still only through the link | `local/pin.rs`, `local/pair_app.rs`, `app/src-tauri/src/paired/` |
 | A UniVerso's own Cloudflare link (D4) | **Built** (R5, 2026-11-14): a quick link and an own address by a token, from `VERSO_TUNNEL`, `universo.sh link` and the console; through Cloudflare PASS (R5 spike: `Host`, `Origin`, a forged `X-Forwarded-For`, the switch with no restart, the stops) | `crates/verso-tunnel`, `verso-server/src/tunnel.rs`, `console.rs`, `web/consoleLink.ts` |
 
 ### D10. "My own address": a named Cloudflare Tunnel `[DECIDED 2026-11-03]`
@@ -557,7 +564,8 @@ Off by default, on until quit, *Keep on at start*; private addresses only,
 stop when the set changes; one random port, kept; own ECDSA certificate
 (398 days) or the host's files, TOFU said in words; pairing by one 256-bit
 token, 2 minutes, QR or 8-letter code, *Was it you?*, three attempts; mDNS
-only while pairing; sleep resumes on the same addresses; a phone runs an
+while serving on the network (only while pairing until 2026-11-15, D19
+item 5); sleep resumes on the same addresses; a phone runs an
 allowlist, reader or editor, never owner; 64 connections, 16 per address,
 4 phones; the audit log; *Revoke*, *Stop serving*, *Forget all devices*,
 *Replace this computer's identity*; state in the configuration directory,
@@ -753,7 +761,17 @@ with its reason, for the maintainer's reading:
    it keeps, never a cookie) with a **phone's row**: counted among the four
    phones, reader or editor as *Was it you?* chose and never the owner or
    the admin, the hide lock of a folder served in part, *Revoke*, *Forget
-   all phones*, 14 days idle and 90 at most (D12, unchanged). A bearer of
+   all phones*, and the owner's limit without speaking to this computer —
+   **90 days by default, 7 to 365 or never** (the maintainer, 2026-11-15:
+   *"B com prazo configurável"*; Settings › Turn into a server, under
+   *Paired phones*), the apps paired before taking the default; a
+   browser's phone keeps 14 days idle and 90 at most (D12). *Chosen in the
+   code:* the bounds 7–365 and never (a week is the shortest a trip makes
+   sense of, a year the longest a number says more than *never*); an app
+   in use has **no bound since its pairing** (the 90 days at most of a
+   browser's session would end an app used every day — the setting is the
+   one clock); the limit is kept in the server's database, read at each
+   look at an app's session (`db/local.rs`). A bearer of
    this computer's own accounts opened nothing before; it opens exactly
    this — the owner's device session **with** the row — narrowed as a
    browser's phone is (`devices.rs`). The folders' list (`/api/folders`,
@@ -789,13 +807,30 @@ with its reason, for the maintainer's reading:
    served on — those its certificate names, up to eight, told by
    `/api/paired` at each sync connection — the one that answered last first,
    on the kept port; no DNS server is ever asked for it. The server answers
-   to that name as `Host`. At an address it never saw, the person pairs
-   again: the same key is the same name, so the same copy stays bound and
-   the earlier session is ended over the pinned connection. *Chosen over*
-   announcing by mDNS while serving, which would revise ADR 0096 item 8 (c)
-   (announced only while the dialog is open, so the laptop stays invisible
-   the rest of the time) — the maintainer's to decide if pairing again
-   proves too often needed.
+   to that name as `Host`. **At an address it never saw** (the maintainer,
+   2026-11-15, decisions 4.2 *"B"*: *"o computador se anuncia na rede
+   (mDNS) enquanto serve, e o app o acha pela chave"*; built the same
+   day): while it serves on the network the computer announces
+   `_verso-local._tcp` with its key's pin — an instance `Verso-` and four
+   random digits, the host `verso-<20 digits of the pin>.local`, a TXT of
+   `v=2`, `port` and `pin`, nothing else (`local/announce.rs`; ADR 0096
+   item 8 revised in place) — never while only the link serves, and a
+   goodbye when serving stops or the network changes. When none of the
+   addresses known answers, the app looks for its pin (a browse on the
+   desktop and Android, under a multicast lock there; on iOS, which sends
+   no raw multicast without an entitlement, ADR 0119 A4, the system's
+   resolver for that `.local` host), at most once every 30 s per computer,
+   and keeps an address found **only after a TLS handshake there showed
+   the pinned key**, at the URL's port; then it sends again
+   (`app/src-tauri/src/paired/find.rs`, from `dns.rs`'s retry). An
+   impostor announcing the pin gets a TLS hello, is kept nowhere and is
+   not said as a changed identity. Pairing again still works as before:
+   the same key is the same name, so the same copy stays bound and the
+   earlier session is ended over the pinned connection. *Chosen in the
+   code:* the same service as the pairing's announcement (one record, the
+   window's announcement folded into it) with the pin added rather than a
+   new service type; the `.local` host made of the pin so that iOS finds it
+   by its resolver; looking only after the known addresses failed.
 6. **Another person's app** still connects only through the link (D9):
    they have no code to learn this computer's key by. Lesson 30 says so.
 
@@ -888,7 +923,9 @@ Only alternatives actually considered:
 - From D19 (2026-11-15, the session building it): the QR scanned by the
   app, a camera link into the app, the fingerprint compared by eye, a PAKE
   (`spake2`), pinning the certificate rather than its key, an account of
-  its own for the app, and mDNS while serving (D19 items 1, 2, 3, 5).
+  its own for the app (D19 items 1, 2, 3); mDNS while serving was set
+  aside by that session (item 5) and chosen the same day by the
+  maintainer.
 
 ## Status
 
@@ -936,6 +973,12 @@ approval of that day and built on `feat/phone-home-and-board`
 (`86ff3ef6`, `82f13c40`, `4b3c2f9f`) by an Opus session; D9, D12, D15 and
 Consequences carry what changed. Its items are the session's choices, each
 with its reason, for the maintainer's reading; no Fable reading.
+
+**2026-11-15, later.** The maintainer answered two of D19's choices (the
+idle limit, item 3; mDNS while serving, item 5); built on
+`feat/after-beta3` by an Opus session and written in place, with the
+smallest choices of the build marked *chosen in the code*; 0096 item 8 and
+0050 carry their revisions, the threat model its rows. No Fable reading.
 
 ## As built: the spike (2026-11-03)
 
