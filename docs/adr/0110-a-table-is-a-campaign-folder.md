@@ -184,11 +184,30 @@ for V1, not built. *(History, until 2026-10-28: Proposed.)* `[DECIDED]` items ar
    the hidden notes with "Liberar", the invitation link, per-note grants and
    the players list. Players see the player half.
 
+   **Answered 2026-11-15** (`decisoes-v43-mesa.md`): **P1 `[DECIDED 2026-11-15]`
+   (a), *"A"*:** on opening a table folder the dashboard **is** its home page
+   (not a bigger card on the folder page). **P2 `[DECIDED 2026-11-15]` (a),
+   *"A"*:** the contents above, as proposed. **S2: the "next session".** His
+   words, *"Deveria ser mais simples, nao sei se as pessoas vão digitar deta
+   com antecedencia e tal"*: he did not pick (a) a date field or (b) none, and
+   asked for something simpler. `[PROPOSED]`, for his confirmation: **no date
+   field.** The dashboard shows the **last session** (from item 10's session
+   notes) and, optionally, **one free-text line** the game master writes
+   (*"próxima: …"*, as long as he likes, kept on the server beside the table's
+   settings, empty by default and then not shown). Nothing is parsed, no date is
+   required, nothing reminds or schedules.
+
 9. **"Show to the table".** `[DECIDED]` (author's addition, accepted)
    `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. The game master pushes a released note, image or map to
    every player's screen at once (a card over the window, dismissible), as
    Foundry's "show players". Pushing a hidden note releases it first, after
    asking.
+
+   **Answered 2026-11-15:** **M1 `[DECIDED 2026-11-15]` (a), *"A"*:** a card over
+   each player's window, which the player closes when he wants; each player gets
+   only what he may see. **M2 `[DECIDED 2026-11-15]` (a), *"A"*:** showing a
+   hidden note asks the game master, and on confirmation **releases the note**
+   to the table, then shows it.
 
 10. **Sessions.** `[DECIDED]` (addition, accepted) `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. "Abrir
     sessão" / "Encerrar sessão": opening creates the session note
@@ -198,10 +217,18 @@ for V1, not built. *(History, until 2026-10-28: Proposed.)* `[DECIDED]` items ar
     session's rolls and messages to the session note as a recap the game
     master edits before writing.
 
+    **S1 `[DECIDED 2026-11-15]` (a), *"A"*:** as above.
+
 11. **"New" notices.** `[DECIDED]` (addition, accepted) `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. When a
     note is released, players at the table get a notice ("Novo: Diário do
     farol foi revelado") through [0084](0084-notifications-in-the-window.md),
     and a "Novidades" list on the dashboard.
+
+    **A1 `[DECIDED 2026-11-15]` (b), *"B"*:** not one notice per note. When many
+    notes are released at once ("Liberar tudo", or several in one action) the
+    players get **one grouped notice** ("5 notas reveladas"); the dashboard's
+    "Novidades" list still shows each note. A single release keeps its own
+    notice ("Novo: … foi revelado").
 
 12. **A player's private journal.** `[DECIDED]` (addition, accepted)
     `[PROPOSED]` Each player has a note only they and the game master see
@@ -217,9 +244,32 @@ for V1, not built. *(History, until 2026-10-28: Proposed.)* `[DECIDED]` items ar
     game master previews the table exactly as one chosen player sees it
     (extends today's "Ver como leitor").
 
+    **V1 `[DECIDED 2026-11-15]` (a), *"A"*:** **view-only.** The game master
+    chooses a player and the window shows the table exactly as that player sees
+    it (notes, links with a lock, pins, later scene, fog and sight); he does
+    not write, roll or act as the player, so the log and the files stay
+    truthful about who did what. It is the prerequisite of T7.
+
 14. **Maps with secret pins.** `[DECIDED]` (addition, accepted)
     `[DECIDED 2026-10-28]` In V1 scope (phase 2, not built); the design below stays `[PROPOSED]`. On a table, [0090](0090-maps-on-the-board.md)'s secret pins
     are revealed one by one like notes.
+
+    **R1 `[DECIDED 2026-11-15]`, *"Sua sugestão"* (a): where "this pin is
+    revealed" lives.** The two accepted ADRs disagreed for pins: [0090](0090-maps-on-the-board.md)
+    keeps a secret pin as a mark **on the pin, inside the board's file**, and
+    item 4 keeps the revealed state of notes **in the server's database, never in
+    the file**. The contradiction is resolved by his choice: **the "revealed"
+    state of a pin is a flag in the board file** (revealing edits the board; it
+    travels with the file and shows in Obsidian; it works with no server and is
+    not a second place for the truth, the game master being the one who edits the
+    board). **Item 4 is amended for pins only:** notes' state stays on the
+    server; a pin's is in the board. **R2 `[DECIDED 2026-11-15]`, *"B e A,
+    deveria ter as duas opções"*:** revealing a pin offers **both**: to the
+    whole table (the secret mark turned off) and to **chosen players**, as a
+    note is. The chosen-players form needs a per-player state that the board's
+    flag alone cannot hold, so how it is kept (in the file or on the server, the
+    item 4 split again) is `[PROPOSED]` for the build to bring back to him, the
+    whole-table form being the flag.
 
 15. **Who is the game master.** `[DECIDED 2026-10-28 — accepted as built]` The folder's owner(s): two game
     masters are two owners. No new role now; a "mestre" role comes when a
@@ -285,7 +335,10 @@ seat, access per path (any file and folder), rights per player. Items 4, 5 and
 **Accepted (2026-10-28) for phase 1** (as built; 0113 supersedes items 4, 5, 12
 and "Chosen in the code" (2) as stated at the top and above). **Phase 2 is not
 built and is scheduled for V1** (*"Fase 2 entra na V1"*, 2026-10-28; roadmap row
-[V.43](../roadmap.md)); its design details stay `[PROPOSED]`. The root-only chip
+[V.43](../roadmap.md)); its design details stay `[PROPOSED]` **except what he answered on 2026-11-15**
+(`decisoes-v43-mesa.md`: P1, P2, M1, M2, S1, A1, V1, R1, R2 decided in items 8–11, 13
+and 14; S2's shape, and where a pin revealed to chosen players is kept,
+`[PROPOSED]` for his confirmation; designs decided, to build). The root-only chip
 the maintainer rejected stays rejected.
 
 *History (2026-10-22):* Proposed. The maintainer's words above decide the direction

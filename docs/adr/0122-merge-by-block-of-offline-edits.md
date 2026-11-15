@@ -72,19 +72,20 @@ the merge undoable as one step.
 
 ## Decision
 
-Proposed (2026-11-15). Nothing here is decided: each real choice is a
-question `[OPEN]` with a recommendation, for the maintainer.
+Accepted (2026-11-15): the maintainer answered Q1–Q11 the same day in
+`decisoes-v50-merge.md` (his answers quoted at each item). Each item keeps its
+options for the record; the chosen one is marked `[DECIDED 2026-11-15]`.
 
 1. **Scope.** Offline edits of one file on two sides (desktop, Android, iOS —
    one host, `app/src-tauri` — and the browser's offline copy), met by sync's
    conflict path. Live rooms (0082) already merge live and are untouched. A
    file that does not merge stays a conflict copy exactly as today: the merge
    only ever replaces a copy, never a one-sided change.
-2. **Q1 `[OPEN]` — automatic, or offered?** (a) the device merges by itself,
+2. **Q1 `[DECIDED 2026-11-15]` (a), *"A"* — automatic, or offered?** (a) the device merges by itself,
    writes, sends, and says "merged" with a way to see and undo it (item 9) — as
    the append-merge does today; (b) the copy is made as today, and the conflict
    in the window offers "Merge by block" with the result's diff before writing.
-   *Recommended: (a).* Invariant 8 ("conversion only by user action, with a
+   *Recommended and chosen: (a).* Invariant 8 ("conversion only by user action, with a
    visible diff") is about changing a file's form — another dialect's syntax,
    normalized frontmatter. A merge converts nothing: every byte of the result is
    a byte of the base, of this device's version or of the server's, in their
@@ -97,7 +98,7 @@ question `[OPEN]` with a recommendation, for the maintainer.
    change since refuses and the next pass starts over; the result is written
    here atomically (invariant 9) and sent over the server's revision just
    downloaded, a refusal there being a new pass.
-3. **Q2 `[OPEN]` — where the base's bytes are kept.** (a) **on the device**: a
+3. **Q2 `[DECIDED 2026-11-15]` (a), *"A"* — where the base's bytes are kept.** (a) **on the device**: a
    base store beside the sync state, outside the folder (0011) — per synced
    folder one SQLite file in the configuration directory through `verso-index`
    (the declared exception for index databases; invariant 5), path → hash and
@@ -106,7 +107,7 @@ question `[OPEN]` with a recommendation, for the maintainer.
    received; at a first sync's agreement), dropped with the base; in the browser
    an IndexedDB store `bases` (`DB_VERSION` 2); (b) **fetched from the server's
    history** by hash when a conflict needs it (a new sync command, sync protocol
-   3); (c) both, (b) when (a) has none. *Recommended: (a).* (b) fails in each
+   3); (c) both, (b) when (a) has none. *Recommended and chosen: (a).* (b) fails in each
    case of Context (coalesced, thinned, projections, clouds), needs a wire change
    and a network round-trip at the worst moment; (a) works offline, for clouds
    and for projections, with no protocol change. A stored base is used only when
@@ -115,7 +116,7 @@ question `[OPEN]` with a recommendation, for the maintainer.
    merges by block from each file's next agreement on. The template a periodic
    note was made from (0093 item 12, `State.made`) is kept in the same store,
    so two periodic notes made apart merge by block too.
-4. **Q3 `[OPEN]` — what a block is, for merging.** (a) the dialect parser's
+4. **Q3 `[DECIDED 2026-11-15]` (b), *"B"* — what a block is, for merging.** (a) the dialect parser's
    blocks (`crates/verso-dialect`, pulldown-cmark spans), and in the browser a
    second parser that must agree; (b) **a small line splitter written for the
    merge**, the same in Rust and TypeScript, held by shared vectors: the
@@ -124,7 +125,7 @@ question `[OPEN]` with a recommendation, for the maintainer.
    (bullet, numbered, task, at every depth — its nested items are the blocks
    after it); anything else — paragraph, quote, callout, table, HTML — up to the
    next blank line; blank lines belong to the block before them; (c) lines, as
-   git. *Recommended: (b).* It follows spec Q21's units where lines can find
+   git. *Recommended and chosen: (b).* It follows spec Q21's units where lines can find
    them, and where it errs it errs coarse (a setext heading or a lazy line joins
    its neighbour), which only makes a conflict, never a wrong merge. The
    concatenation of the blocks is the file byte for byte, whatever the bytes. It
@@ -141,41 +142,90 @@ question `[OPEN]` with a recommendation, for the maintainer.
    insert, so a move against an edit of the moved block is a conflict. The
    result is split again and must give the planned blocks (and its frontmatter
    still parse, item 6), or it is discarded for the copy.
-   **Q4 `[OPEN]` — one block changed by both.** (a) **no merge**: the whole file
-   is a conflict copy, as today; (b) the rest merged, both versions of that block
-   one after the other inside a `> [!conflict]` callout in the note; (c) git's
-   markers in the note; (d) the server's block kept, the rest merged, this
-   device's whole version as the copy. *Recommended: (a)* — nothing written that
-   someone must clean up, the copy and its diff are already understood; (b) can
-   follow once merges have been seen in use. (c) breaks the reading view and
-   Obsidian; (d) leaves two files that differ in many places.
-   **Q5 `[OPEN]` — both inserted blocks in the same place.** (a) both kept, the
+   **Q4 `[DECIDED 2026-11-15]` (b), *"B agora"* — one block changed by both.**
+   Options: (a) no merge, the whole file a conflict copy as today; (b) the rest
+   merged, both versions of that block one after the other inside a
+   `> [!conflict]` callout in the note; (c) git's markers in the note; (d) the
+   server's block kept, the rest merged, this device's whole version as the
+   copy. *Recommended was (a) now, (b) later; the maintainer chose (b) now.*
+   (c) breaks the reading view and Obsidian; (d) leaves two files that differ in
+   many places. What (b) means:
+   - **The rest is merged by item 5's rule; only the blocks changed by both are
+     marked.** Each such block is replaced, in the result, by one callout.
+   - **The callout's exact format**, the server's version first (the order of
+     Q5), every line of a version prefixed with `> ` (a blank line of the block
+     becomes `>`), the base's version not written:
+
+         > [!conflict] Edited on both devices: pick one and delete the rest
+         > **Server's version** (<its device or "server">, <date>)
+         >
+         > <the server's block, each line prefixed "> ">
+         >
+         > **This device's version** (<device name>, <date>)
+         >
+         > <this device's block, each line prefixed "> ">
+
+     A block deleted on one side and changed on the other is also marked: the
+     deleted side's version reads "(deleted here)" in its place. The title and
+     the two labels are strings in both languages (`strings.ts`), written in the
+     language of the device that merges; dates in that device's local time.
+   - **How it reads in Obsidian**: `[!conflict]` is not one of Obsidian's
+     built-in callout types, so Obsidian draws it as a plain callout with the
+     title, in its default style, both versions readable inside it, no plugin
+     and no Verso needed (Verso gives the type its own colour and icon, in the
+     reading view and Live Preview, from its callout styles). Nothing in it is
+     special to Obsidian's parser: it is a quote block.
+   - **The person resolves it by editing**: keep one version's text (or write a
+     third), delete the callout. There is no "resolve" command and no state
+     outside the note: the file is the whole conflict. A callout left in the note
+     syncs like any text; a later merge sees it as one block (a quote).
+   - **No conflict copy is made** for a note merged this way, since both versions
+     are in the note; the log says so: "merged, 1 block changed on both sides is
+     marked in the note (`[!conflict]`)", with the counts of item 9. The undo of
+     item 9 still puts the server's version under the name and this device's as
+     the copy.
+   - **What still ends as a copy**: a property changed by both (item 6, Q6), an
+     element of a board changed by both (item 7, Q7), a file past the bounds
+     (item 12), a file whose result fails the re-split, mixed line ends: a
+     callout cannot live in frontmatter or in a board's JSON.
+   - **The merge's guarantee, restated**: the result is made of slices of the
+     three inputs, the joining newline, and, for a marked block, the callout's
+     fixed lines and the `> ` prefixes; no byte of either person's text is
+     dropped. The callout's lines are fixed strings, so the guardrail can check
+     the result against exactly that.
+   **Q5 `[DECIDED 2026-11-15]` (a), *"A"* — both inserted blocks in the same place.** (a) both kept, the
    server's first, then this device's — the append-merge's rule, which is this
-   case at the file's end; (b) a conflict. *Recommended: (a)*: it is what was
+   case at the file's end; (b) a conflict. *Recommended and chosen: (a)*: it is what was
    accepted for appends, and the append-merge becomes its special case. The
    append-merge stays first anyway: it needs no stored base.
-6. **Q6 `[OPEN]` — frontmatter.** (a) **per top-level key**, by its lines: a key
+6. **Q6 `[DECIDED 2026-11-15]` (a), *"A"* — frontmatter.** (a) **per top-level key**, by its lines: a key
    is a line at column 0 (not `-`, not `#`) with its following indented or `- `
    lines and the comment lines just above it; keys merged by item 5's rule, two
    new keys at the end the server's first; only when all three frontmatters
    parse as a YAML mapping with unique keys, before and after; never
    re-serialized, so quotes, order and spacing stay each person's (invariant
-   7's spirit); (b) the frontmatter as one block. *Recommended: (a)* — the
+   7's spirit); (b) the frontmatter as one block. *Recommended and chosen: (a)* — the
    properties panel makes a status change on one device and a tag on another
    the most common offline pair.
-7. **Q7 `[OPEN]` — boards (`.canvas`).** (a) **per element id**: each node and
+7. **Q7 `[DECIDED 2026-11-15]` (a), *"sua sugestão"* — boards (`.canvas`).** (a) **per element id**: each node and
    edge of the JSON Canvas a unit, the three-way rule by id (an element changed
    on both, or deleted against changed, a conflict → the whole board a copy, as
    Q4 (a)), order as the server's with this device's new elements after; the
    result written by the board's own writer (0057 point 2), as every save of a
-   board in Verso is; (b) boards stay conflict copies. *Recommended: (a), as a
+   board in Verso is; (b) boards stay conflict copies. *Recommended and chosen: (a), as a
    later step (B7)*: the table's boards are edited a lot, mostly live; notes
    first.
-8. **Q8 `[OPEN]` — bases and other files.** (a) **copies, as today**, for
-   `.base`, `.txt`, `.json`, `.csv` and every attachment; (b) `.base` per
-   top-level key like item 6; (c) `.txt` by item 4's blocks. *Recommended: (a)*
-   — rarely edited apart, nested YAML; the list can grow after use.
-9. **Q9 `[OPEN]` — what the person sees, and undo.** The sync log says
+8. **Q8 `[DECIDED 2026-11-15]` (b), *"B"* — bases and other files.** (a) copies,
+   as today, for `.base`, `.txt`, `.json`, `.csv` and every attachment; (b)
+   **`.base` per top-level key like item 6**; (c) `.txt` by item 4's blocks.
+   *Recommended was (a); the maintainer chose (b).* So: a `.base` file is merged
+   with item 6's rule (keys by their lines, only when all three parse as a YAML
+   mapping with unique keys, never re-serialized; the same key changed by both,
+   a copy). Nested YAML under a key is one unit with its key, so two edits of
+   one view in a base are a conflict (a copy, not a callout). `.txt`, `.json`,
+   `.csv` and every attachment stay copies; the list can grow after use. B3
+   covers it (the same function, a `.base` entry), tests included.
+9. **Q9 `[DECIDED 2026-11-15]` (a), *"A"* — what the person sees, and undo.** The sync log says
    "merged" with the counts ("3 blocks from here, 2 from the server"), and a copy
    that was not merged says why ("both changed the same paragraph"). (a) **"See
    what was merged"** opens the conflicts' existing diff, base against result,
@@ -184,25 +234,25 @@ question `[OPEN]` with a recommendation, for the maintainer.
    and this device's as the conflict copy — refused, pointing to the history
    (0091), when the note changed since the merge; the three inputs of each merge
    kept in the base store for 30 days, like the trash; (b) undo leaves the note
-   and only makes the copy; (c) no undo, the history alone. *Recommended: (a).*
+   and only makes the copy; (c) no undo, the history alone. *Recommended and chosen: (a).*
    Default chosen, not a question: always on, no setting (as the append-merge);
    Obsidian's per-device switch exists because its merge duplicates text, which
    item 5 does not.
-10. **Q10 `[OPEN]` — the browser's offline copy.** (a) the same merge in
+10. **Q10 `[DECIDED 2026-11-15]` (a), *"A"* — the browser's offline copy.** (a) the same merge in
     TypeScript (a new `app/ui/src/web/offline/blocks.ts`) beside `engine.ts`,
     every case of the Rust tests written into `sync-vectors.json` by
     `the_browsers_vectors_are_the_engines`, as today; (b) the browser keeps
-    making copies. *Recommended: (a)* — 0092 item 1 is "no second protocol";
+    making copies. *Recommended and chosen: (a)* — 0092 item 1 is "no second protocol";
     a browser that copies where the desktop merges is two behaviours of one
     folder.
-11. **Q11 `[OPEN]` — the outside program's edit into a live room** (0082 item
+11. **Q11 `[DECIDED 2026-11-15]` (a), *"A"* — the outside program's edit into a live room** (0082 item
     11, named beside this one in 0082 Consequences and in After V1 item 8,
     while row V.50 names only offline edits). With item 3's store the device
     holds the room's last save as the base, so the same merge applies: base =
     the last save, this side = the file Obsidian wrote, the other = the room's
     text, the result entered into the room as one edit. (a) in this ADR, its last
-    step (B8); (b) stays after V1. *Recommended: (a)*, as the last step: same
-    function, a small adapter; if V.50 meant offline edits only, (b).
+    step (B8); (b) stays after V1. *Recommended and chosen: (a)*, as the last step (B8): same
+    function, a small adapter. V.50 includes it.
 12. **Bounds** (defaults chosen here, changed by the maintainer at will): each of
     the three versions at most **4 MiB** and **50 000 blocks**, the diff stopped
     past 10 000 edits — beyond, a copy, its reason said; the base store holds
@@ -213,6 +263,10 @@ question `[OPEN]` with a recommendation, for the maintainer.
 
 ## Consequences
 
+- **A merge can now write to the note**: with Q4 (b), a block changed on both
+  sides is written into the note as a `[!conflict]` callout. It is the only
+  case where the merge adds text that is in none of the three inputs (fixed
+  lines and `> ` prefixes), and it is why the log says so.
 - **No wire change, no contract change for the merge itself**: it runs on the
   device that meets the conflict, inside today's `Action::Conflict`, after the
   append-merge; a device of before keeps making copies (the N/N-1 window holds).
@@ -221,7 +275,7 @@ question `[OPEN]` with a recommendation, for the maintainer.
 - **Guardrails, seen failing first (0029)**, in `crates/verso-core/src/sync/blocks.rs`
   like `append.rs`: the split's concatenation is the input for any bytes (CRLF,
   no final newline, BOM); for random blocks and edits on disjoint blocks the
-  merge applies both; an edit on a shared block gives `None`; the result is made
+  merge applies both; an edit on a shared block gives the callout of Q4 (b), whose lines are exactly the template, and the two versions are recoverable from it; the result is made
   only of slices of the three inputs plus the joining newline; `merge(b, b, r)
   = r`; and 0079's engine property test (two devices, a server, random edits)
   gains block edits: same files at the end, no edit lost (each in the result or
@@ -235,13 +289,13 @@ question `[OPEN]` with a recommendation, for the maintainer.
 | Step | What | Size |
 |---|---|---|
 | B1 | Base store on the device (item 3, Q2 a), written at every base move; no behaviour change | ~350 |
-| B2 | Merge splitter and three-way rule, pure, in `verso-core` (items 4–5) with the properties | ~750 |
-| B3 | Frontmatter by key (Q6 a) | ~250 |
-| B4 | Into the conflict path; the log's "merged" and its reasons; the inputs kept 30 days | ~250 |
-| B5 | The window: see what was merged, undo (Q9), strings, lesson, e2e | ~600 |
+| B2 | Merge splitter and three-way rule, pure, in `verso-core` (items 4–5), including the `> [!conflict]` callout of Q4 (b), with the properties | ~850 |
+| B3 | Frontmatter by key (Q6 a) and `.base` files by key (Q8 b) | ~300 |
+| B4 | Into the conflict path; the log's "merged", the callout's mention and the reasons for a copy; the inputs kept 30 days | ~250 |
+| B5 | The window: see what was merged, undo (Q9), the callout's strings and style, lesson, e2e | ~650 |
 | B6 | The browser: `blocks.ts`, IndexedDB `bases`, vectors (Q10 a) | ~550 |
 | B7 | Boards by element id (Q7 a), Rust and TypeScript | ~550 |
-| B8 | An outside edit into a live room (Q11 a) | ~250 |
+| B8 | An outside edit into a live room (Q11 a), the last step | ~250 |
 
 B1–B5 make the feature on the apps; B6 before it ships, so that one folder does
 not behave two ways; B7 and B8 each alone.
@@ -251,10 +305,16 @@ not behave two ways; B7 and B8 each alone.
 - **The base fetched from the server's history only** (Q2 b, raised by this
   ADR's author on reading the history's code): kept as an option in Q2, not
   recommended for the reasons in Context.
-- Otherwise none recorded: the other options are open in their questions.
+- Q4's (a), (c) and (d), Q1's (b), Q2's (b)/(c) and the others listed under
+  each item were options put to the maintainer and not chosen; the reason for
+  each is in its item. Nothing else recorded.
 
 ## Status
 
-**Proposed (2026-11-15).** Q1–Q11 `[OPEN]`, each with a recommendation. In V1
-as row V.50, after the terminal and the music are polished (the maintainer,
+**Accepted (2026-11-15).** The maintainer answered Q1–Q11 in
+`decisoes-v50-merge.md`: Q1 (a), Q2 (a), Q3 (b), **Q4 (b), *"B agora"*** (the
+`[!conflict]` callout, not the recommended (a)), Q5 (a), Q6 (a), Q7 *"sua
+sugestão"* (per element id, a later step), **Q8 (b)** (`.base` merged by key;
+other files stay copies), Q9 (a), Q10 (a), Q11 (a) as the last step. In V1 as
+row V.50, after the terminal and the music are polished (the maintainer,
 2026-11-01). Not built.
