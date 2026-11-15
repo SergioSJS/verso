@@ -718,7 +718,9 @@ async function showTree(page) {
   if ((page.viewportSize()?.width ?? 1000) >= 760) return;
   const open = page.locator("body.side-open");
   await expect(async () => {
-    if ((await open.count()) === 0) await page.locator(".bottom-bar .bar-files").click();
+    // The bottom bar's Files, or, over a board whose tools took the bar's
+    // place, the edge's tab (ADR 0076 item 6).
+    if ((await open.count()) === 0) await page.locator(".bottom-bar .bar-files:visible, .edge-handle.edge-left:visible").first().click();
     await expect(open).toHaveCount(1, { timeout: 2000 });
   }).toPass({ timeout: 30_000 });
 }

@@ -30,6 +30,11 @@
   .phone-title-name { max-width: 100%; font: 600 15px/1.2 var(--ui); color: var(--ink); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .phone-title-path { max-width: 100%; font: 12px/1.2 var(--ui); color: var(--ink-3); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .phone-title-path[hidden] { display: none; }
+  /* The folder, then who is here live, on the line under the name. */
+  .phone-title-line { display: flex; gap: .4rem; max-width: 100%; min-width: 0; align-items: baseline; }
+  .phone-title-line .phone-title-path { flex: 0 1 auto; min-width: 0; }
+  .phone-head .phone-live { flex: 0 1 auto; min-width: 0; margin: 0; font-size: 12px; line-height: 1.2; }
+  .phone-head .phone-live[hidden] { display: none; }
   .phone-tabs:active, .phone-title:active, .phone-mode:active { background: var(--paper-3); }
 
   /* The leaf's own row gives way: its folder is in the bar, a note's
