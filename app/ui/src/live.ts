@@ -663,7 +663,12 @@ export function livePreview(opts: LiveOptions) {
       const target = a.dataset["target"];
       if (target) {
         event.preventDefault();
-        opts.navigate(target);
+        // Followed once the press has been through the window (the pane
+        // taking the focus, the sheet's own mousedown): a jump within the
+        // note redraws its lines at once, the link's left the DOM, and the
+        // sheet, seeing a press outside the editor, put the caret at the
+        // note's end (`[[#Heading]]` landed on the last line).
+        setTimeout(() => opts.navigate(target), 0);
         return true;
       }
       return false;

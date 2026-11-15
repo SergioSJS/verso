@@ -41,16 +41,21 @@ test("Live Preview: ⌘-click on [[Note#Heading]] lands on the heading, on [[#He
   await expect(here).toHaveText("Fim");
   await expect(there).toHaveAttribute("data-target", "Alvo#Seção Longe");
   await expect(here).toHaveAttribute("data-target", "#Fim");
-  // `[[#Fim]]`: the caret moves to the heading, in this note.
-  await page.evaluate(`${view}.scrollDOM.scrollTop = 0`);
+  // `[[#Fim]]`: the caret moves to the heading, in this note. The caret at
+  // the top, the heading far below: the jump draws other lines, the link's
+  // goes from the DOM (the sheet took that press for one outside the
+  // editor and put the caret at the note's end).
+  await page.evaluate(`${view}.dispatch({ selection: { anchor: 0 }, scrollIntoView: true })`);
   await here.click({ modifiers: ["ControlOrMeta"] });
   await expect.poll(() => page.evaluate(`${view}.state.doc.lineAt(${view}.state.selection.main.head).text`)).toBe("## Fim");
-  await expect(page.locator(".leaf:not([hidden]) .cm-line", { hasText: /^Fim$/ })).toBeInViewport();
+  await expect(page.locator(".leaf:not([hidden]) .cm-line.cm-lp-h2", { hasText: "Fim" })).toBeInViewport();
   // `[[Alvo#Seção Longe]]`: Alvo opens, at its heading.
   await page.evaluate(`${view}.dispatch({ selection: { anchor: 0 }, scrollIntoView: true })`);
   await page.locator(".leaf:not([hidden]) .cm-lp-wikilink", { hasText: "Seção Longe" }).click({ modifiers: ["ControlOrMeta"] });
   await expect(page.locator(".note-title:visible")).toHaveText("Alvo");
-  await expect(page.locator(".leaf:not([hidden]) :is(h2, .cm-line)", { hasText: "Seção Longe" }).first()).toBeInViewport();
+  // At its heading, in whichever mode it opened.
+  const heading = page.locator(".leaf:not([hidden]) div.preview:visible h2, .leaf:not([hidden]) .editor:visible .cm-line").filter({ hasText: "Seção Longe" }).first();
+  await expect(heading).toBeInViewport();
   // Nothing was written.
   expect(await app.file("Origem.md")).toBe(ORIGEM);
   expect(await app.file("Alvo.md")).toBe(ALVO);
