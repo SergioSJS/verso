@@ -6,7 +6,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- The phone as a server (ADR 0118 item 3): the foreground service that
          keeps it serving with the screen off, its notification, the CPU and
-         Wi-Fi kept awake, multicast (mDNS) while a device pairs. -->
+         Wi-Fi kept awake, multicast (mDNS) while a device pairs, and while
+         the app looks for the computer at home it is paired with by its
+         key's pin (ADR 0117 D19 item 5, paired/find.rs). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- The sound of the phone's other apps shared at the table

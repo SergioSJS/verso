@@ -50,7 +50,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Verso lets a phone on this network open the folders you choose, only while &quot;Turn into a server&quot; is on, and looks for Verso servers on this network while Settings &gt; Servers is open.</string>
+	<string>Verso lets a phone on this network open the folders you choose, only while &quot;Turn into a server&quot; is on, looks for Verso servers on this network while Settings &gt; Servers is open, and finds the computer at home it is paired with when that computer gets a new address.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Verso records the sound of the app or the Mac that you choose to share, only while Share audio is on, and sends it to the people at your table. Verso saves nothing. / O Verso grava o som do app ou do Mac que você escolher compartilhar, só enquanto o Compartilhar áudio estiver ligado, e o envia às pessoas da sua mesa. O Verso não guarda nada.</string>
 	<key>NSBonjourServices</key>

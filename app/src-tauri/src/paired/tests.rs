@@ -377,3 +377,122 @@ fn a_replaced_identity_ends_the_pairing_in_words() {
         e.message
     );
 }
+
+/// The computer kept at `addresses` only, under `key`'s pin, at `port`.
+fn held_at(key: &rcgen::KeyPair, port: u16, addresses: &[&str]) -> (String, tempfile::TempDir) {
+    let (url, config) = held(key, port);
+    let mut kept = verso_core::servers::paired(Some(config.path())).unwrap();
+    kept[0].addresses = addresses.iter().map(|a| (*a).to_owned()).collect();
+    verso_core::servers::keep_paired(Some(config.path()), kept.remove(0)).unwrap();
+    super::load(Some(config.path()));
+    (url, config)
+}
+
+fn host_of(url: &str) -> String {
+    reqwest::Url::parse(url)
+        .unwrap()
+        .host_str()
+        .unwrap()
+        .to_owned()
+}
+
+/// Someone on the network announcing the computer's pin at their own
+/// address, with their own key: the probe there fails the pin, nothing is
+/// kept, and the request is said as out of reach — never as the computer's
+/// identity changed, which it did not.
+#[test]
+fn an_impostor_announcing_the_pin_is_tried_and_never_kept() {
+    use crate::dns::SendRetrying as _;
+    let key = rcgen::KeyPair::generate().unwrap();
+    let other = rcgen::KeyPair::generate().unwrap();
+    let (port, impostor) = serve_once(served_over(&other, "127.0.0.1"));
+    // Known only at an address where nothing listens now.
+    let (url, config) = held_at(&key, port, &["::1"]);
+    use rcgen::PublicKeyData as _;
+    let pinned = pin::of_key(&key.subject_public_key_info());
+    super::find::pretend_found(&pinned, vec![format!("127.0.0.1:{port}").parse().unwrap()]);
+    let e = http_client(&url, Duration::from_secs(10))
+        .unwrap()
+        .unwrap()
+        .get(format!("{url}/x"))
+        .send_retrying()
+        .unwrap_err();
+    impostor.join().unwrap();
+    assert!(changed(&url).is_none(), "not said as the identity changed");
+    let said = crate::reach::unsent(&url, &e);
+    assert_eq!(
+        said.kind,
+        verso_contract::ErrorKind::Unreachable,
+        "{}",
+        said.message
+    );
+    let kept = verso_core::servers::paired(Some(config.path())).unwrap();
+    assert_eq!(
+        kept[0].addresses,
+        vec!["::1".to_owned()],
+        "the impostor's address is kept nowhere"
+    );
+    assert_eq!(
+        super::addresses(&host_of(&url)),
+        Some(vec!["::1".parse().unwrap()])
+    );
+    // A second look inside 30 s is not made: away from home, a retry does
+    // not browse the network each time.
+    assert!(!super::find_again(&host_of(&url)));
+}
+
+/// The computer got an address this app never saw: none of the known ones
+/// answers, the network says where its pin is announced, the handshake
+/// there shows the pinned key — the address is kept, first, and the copy
+/// syncs, both ways, on the sync's own first try.
+#[test]
+fn a_computer_at_a_new_address_is_found_by_its_pin_and_syncs() {
+    let h = home();
+    let code = h.local.pair_open().unwrap().code;
+    let made = pair_at(&h, &code, true, Role::Editor).unwrap();
+    let config = tempfile::tempdir().unwrap();
+    let account = keep(Some(config.path()), made).unwrap();
+    let login = verso_core::servers::find(Some(config.path()), &account.url)
+        .unwrap()
+        .unwrap();
+    let folders: serde_json::Value = http_client(&login.url, Duration::from_secs(10))
+        .unwrap()
+        .unwrap()
+        .get(format!("{}/api/folders", login.url))
+        .bearer_auth(&login.token)
+        .send()
+        .unwrap()
+        .json()
+        .unwrap();
+    let id = folders["folders"][0]["id"].as_str().unwrap().to_owned();
+    // The address it was paired at is gone (a new DHCP lease).
+    let mut kept = verso_core::servers::paired(Some(config.path())).unwrap();
+    let pinned = kept[0].pin.clone();
+    kept[0].addresses = vec!["::1".to_owned()];
+    verso_core::servers::keep_paired(Some(config.path()), kept.remove(0)).unwrap();
+    super::load(Some(config.path()));
+    super::find::pretend_found(
+        &pinned,
+        vec![format!("127.0.0.1:{}", h.port).parse().unwrap()],
+    );
+    let d = device_at(&login.url, &id, &login.token, &[]);
+    sync(&d);
+    assert_eq!(text(&d, "Sessao.md").as_deref(), Some("# Sessao\n"));
+    let kept = verso_core::servers::paired(Some(config.path())).unwrap();
+    assert_eq!(
+        kept[0].addresses.first().map(String::as_str),
+        Some("127.0.0.1"),
+        "{:?}",
+        kept[0].addresses
+    );
+    assert!(changed(&login.url).is_none());
+    write(&d, "Achado.md", b"# Achado\n");
+    told_changed(&d, &["Achado.md"]);
+    sync(&d);
+    let index = tempfile::tempdir().unwrap();
+    let mut computer = verso_core::Workspace::open(&h.folder, Some(index.path())).unwrap();
+    assert_eq!(
+        computer.read_note("Achado.md").unwrap().lines,
+        vec!["# Achado"]
+    );
+}
