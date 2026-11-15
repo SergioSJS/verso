@@ -157,6 +157,32 @@ pub fn told<'local>(
     if was != (wifi, charging) {
         tell();
     }
+    // Wi-Fi came back: Android says so before the network carries anything,
+    // so the syncs try now and twice more while it settles, each with a
+    // short wait again (the maintainer's phone waited minutes, 2026-11-15).
+    if wifi && !was.0 {
+        network_back();
+    }
+}
+
+/// The syncs told the network is back, now and after 3 s and 10 s.
+#[cfg(target_os = "android")]
+fn network_back() {
+    let Some(app) = APP.get() else { return };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        use tauri::Manager;
+        for after in [0u64, 3, 10] {
+            tokio::time::sleep(std::time::Duration::from_secs(after)).await;
+            let syncs: Vec<_> = verso_service::lock(&app.state::<crate::App>().syncs)
+                .values()
+                .cloned()
+                .collect();
+            for s in syncs {
+                s.network_back();
+            }
+        }
+    });
 }
 
 /// `Conditions.shown(on)`: Verso on screen or not.

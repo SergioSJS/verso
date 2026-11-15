@@ -89,6 +89,9 @@ pub(crate) struct Syncer {
     /// The person asked for a pass (Sync now): a server out of reach is
     /// tried at once, and its wait starts over.
     asked: AtomicBool,
+    /// The phone's network came back since the last try: the next wait
+    /// after a failed one starts short again (`network_back`).
+    net_back: AtomicBool,
     stopped: AtomicBool,
     paused: AtomicBool,
     /// How many deletions the person said yes to, as the pause showed them
@@ -154,6 +157,7 @@ impl Syncer {
             cloud: state.cloud.clone(),
             wake: tokio::sync::Notify::new(),
             asked: AtomicBool::new(false),
+            net_back: AtomicBool::new(false),
             stopped: AtomicBool::new(false),
             paused: AtomicBool::new(state.paused),
             confirmed: AtomicUsize::new(0),
@@ -299,6 +303,21 @@ impl Syncer {
 
     pub(crate) fn poke(&self) {
         self.wake.notify_one();
+    }
+
+    /// The device's network came back (Android's Wi-Fi, background.rs): a
+    /// try now, and a short wait again if it fails — the first try often
+    /// comes before the new network carries anything, and the wait after
+    /// a long time offline had grown to minutes.
+    #[cfg(target_os = "android")]
+    pub(crate) fn network_back(&self) {
+        self.net_back.store(true, Ordering::Relaxed);
+        self.wake.notify_one();
+    }
+
+    /// Whether the network came back since this was last asked (task.rs).
+    pub(crate) fn took_network_back(&self) -> bool {
+        self.net_back.swap(false, Ordering::Relaxed)
     }
 
     /// A pass the person asked for (Sync now).

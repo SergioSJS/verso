@@ -86,6 +86,9 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
                 });
                 // A closed table is tried again gently (15 s), not every five minutes.
                 let closed = e.message.contains(verso_contract::TABLE_CLOSED);
+                if s.took_network_back() {
+                    wait.reset();
+                }
                 let pause = if offline {
                     wait.next()
                 } else if closed {
@@ -208,6 +211,9 @@ pub(crate) async fn run(ctx: Arc<Ctx>, s: Arc<Syncer>) {
             s.set(&ctx, |st| st.state = "offline".to_owned());
             // Connected again after the wait (5 s after a pass that went
             // through, longer each time none did), or when the person asks.
+            if s.took_network_back() {
+                wait.reset();
+            }
             tokio::select! {
                 () = s.wake.notified() => {}
                 () = tokio::time::sleep(wait.next()) => {}
