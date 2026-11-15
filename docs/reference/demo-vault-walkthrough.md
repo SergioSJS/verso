@@ -1619,7 +1619,13 @@ the folder `Campanha Fractal/` beside it ([ADR
    number — hover: the note's preview; click: the note opens. The map
    tools' *Mostrar o traçado* shows Verso's tracing in blue: every wall on
    the picture's walls, the columns on the picture's columns; press again:
-   hidden; ⌘Z undoes each. Exported with *View › Rotate-to-fit* on
+   hidden; ⌘Z undoes each. The recommended export: *Export as › PNG…*
+   (Shift+E, cell size 70) and *Export as › JSON* alone: the dialog says
+   *alinhado às salas* with no word about turning; the map (no title, no
+   numbers, transparent round it) lies square at the board's origin and
+   the four numbered pins sit in rooms 1–4. A *Save as PNG* page with the
+   JSON and no SVG: *Este PNG não se encaixa nas salas do JSON…*, Verso's
+   drawing. Exported with *View › Rotate-to-fit* on
    (the generator's default), the dialog adds *O desenho do Watabou veio
    girado N°…* naming that menu, and the note ends with the same warning;
    exported with it off: no such line, the map square to the board.

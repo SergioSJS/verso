@@ -18,7 +18,15 @@
   If we import this kind of map, we should bring the image that goes on
   top."* (item 2, revised); and, later that day: *"O watabou a imagem tem
   que exportar sem rotação pra conseguir encaixar"* (Watabou's picture has
-  to be exported without rotation to fit).
+  to be exported without rotation to fit). The same day the maintainer
+  approved for 0.9.0-beta.3 the survey's first proposal
+  ([survey](../reference/watabou-importers-survey-2026-11-15.md), "What
+  Verso could adopt" 1–2): One Page Dungeon's *Export as › PNG…* placed by
+  arithmetic and asked for first. **For the maintainer's judgement:** to
+  know what to capture, the survey read the export functions of Watabou's
+  minified page code (the menu's entries and the export dialog); nothing of
+  it is reproduced, and the rule Verso uses is the one the captured
+  exports show.
 - Status in the briefing: not present
 - Builds on: [0056](0056-embedded-web-pages.md) (revised by item 6),
   [0057](0057-board-json-canvas.md) (the board's drawing),
@@ -267,7 +275,7 @@ heads of two in `app/ui/test/watabou/`):
 
 | Generator | Export menu | The picture |
 |---|---|---|
-| One Page Dungeon (v1.2.7) | *Save as PNG*; *Export as* › PNG…, SVG, JSON, VOX, Markdown | the whole page — title, story, the keys' boxes, the map **turned to fit** (*View › Rotate-to-fit*, on by default) — at the window's size; the PNG the same picture about 3.5 times larger |
+| One Page Dungeon (v1.2.7) | *Save as PNG* (E); *Export as* › PNG… (Shift+E), SVG, JSON, VOX, Markdown | *Export as › PNG…*: **the map alone**, never turned, no title, story, notes or room numbers, transparent outside the drawing, at the *Cell size in pixels* asked (default 70). *Save as PNG* and *SVG*: the whole page — title, story, the keys' boxes, the map **turned to fit** (*View › Rotate-to-fit*, on by default) — at the window's size, the PNG about 3.5 times larger |
 | Dwellings (v1.4.x) | *Export* › as PNG, as SVG, as JSON, Advanced… | **one floor**, the one shown, on the whole house's grid with three cells of margin; files named `<house>_gf`, `_1f`, `_b`…; *Advanced…* lays several floors out as a table in one picture |
 | Village Generator (v1.6.9), City Generator | *Export as* › PNG, SVG, JSON | the settlement; its JSON is GeoJSON with no name (the file is named after it) |
 
@@ -282,9 +290,25 @@ into the person's own folder, beside the note that credits Watabou
 (`credit`); nothing of his code or pictures ships with Verso. Item 7's
 permission concerns embedding the generators, not this.
 
-**Where the cells are on the picture** (`picture.ts`, `align.ts`). Every
-SVG export puts its map in the first group with a `transform`; the import
-reads the file's head for the root's size and that transform:
+**Where the cells are on the picture** (`picture.ts`, `align.ts`).
+
+- **One Page Dungeon's map alone — the recommended export** (*Export as ›
+  PNG…*, Shift+E, with *Export as › JSON*; built 2026-11-15 from the
+  [survey](../reference/watabou-importers-survey-2026-11-15.md), observed
+  on 14 exports of 9 dungeons): the PNG is `(R.w · c) × (R.h · c)` pixels,
+  `R` the union of the JSON's rooms — every rect but a door's 1 × 1 cell —
+  each grown by one cell, `c` the cell size typed; cell `(x, y)` is at
+  pixel `((x − R.x) · c, (y − R.y) · c)`. A PNG whose size gives one whole
+  `c` on both axes (within a pixel; the samples are exact) is placed with
+  no SVG: box `R.w · 40 × R.h · 40` at the board's origin, `cells = [40, 0,
+  0, 40, −40 · R.x, −40 · R.y]`, never turned. It is taken before a page's
+  SVG when both came. The dialog, the lesson and the note's warning ask for
+  this export first, the page's SVG as the other way. The picture has no
+  room numbers: the key pins carry them.
+
+Every SVG export (the whole page) puts its map in the first group with a
+`transform`; the import reads the file's head for the root's size and that
+transform:
 
 - **One Page Dungeon**: `translate(…) rotate(θ) scale(s)`, the map's own
   units 30 to a cell (a room of 6 × 7 cells is 180 × 210 units). A cell
@@ -309,7 +333,7 @@ reads the file's head for the root's size and that transform:
   the same menus: *View › Zoom-to-fit* (the map's scale), the window's
   size (the page), *Layers › Title & story* and the *Notes* (where the map
   is put on the page) — the SVG records the result, whatever they are.
-- **A PNG alone is not placed**, square or not: where and how large the
+- **A page's PNG alone** (*Save as PNG*) **is not placed**, square or not: where and how large the
   map sits on the page depends on the window it was exported from, the
   title, the story and the notes' boxes, and only the SVG writes it down;
   the board keeps Verso's drawing and the dialog asks for the SVG in one
@@ -383,10 +407,11 @@ a corner of the grid, not in a cell; drawn there.
 
 - **Pins over Watabou's picture** (the report's option): set aside by item 2
   on 2026-11-12; taken by item 2's revision of 2026-11-15.
-- **Placing a PNG alone from the JSON's bounds** (2026-11-15, the
+- **Placing a page's PNG alone from the JSON's bounds** (2026-11-15, the
   author, for the maintainer's question): the generator's fit of the map
   to the page depends on the window, the title and story and the notes'
-  boxes; recomputing it would be guessing its layout. Not done.
+  boxes; recomputing it would be guessing its layout. Not done — and not
+  needed since *Export as › PNG…* (above) is placed by arithmetic.
 - **Turning the picture instead of the drawing** (2026-11-15, the author):
   a card on the board cannot be turned (JSON Canvas has no angle), and the
   picture's title and notes would read askew; the drawing is turned.
@@ -416,6 +441,17 @@ that were `[OPEN]` here, each as recommended:
 
 The mechanism under every item is the author's, built under these
 decisions and labelled as such above.
+
+**`[OPEN]` for the maintainer — a players' picture without the secret
+rooms** (survey, "What Verso could adopt" 3; recorded, not built): *Export
+as › PNG…* with *View › Secret rooms* off gives a second PNG of the same
+size and placement without the secret rooms and their passages (observed,
+seed 202). The import could take both and serve players and readers the
+one without, as the drawing's secret doors are already cut for them (Status,
+fix of 2026-11-15). Open: how the two are told apart (same size: the person
+says which, or a name convention), and how this meets
+[ADR 0121](0121-a-virtual-tabletop-layer-on-the-board.md)'s fog and sight,
+which may hide those rooms anyway.
 
 **Revised 2026-11-15** (item 2): the generator's picture is the map, built
 on `feat/phone-home-and-board`. Chosen in the code, for the maintainer to
