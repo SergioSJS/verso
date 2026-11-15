@@ -1,5 +1,5 @@
-// A board on a phone (2026-11-15, the maintainer's option C; ADR 0076 item
-// 15): the board's verbs move to the ⋯ sheet's "Board" section
+// A board on a phone (2026-11-15, the maintainer's option C; ADR 0076 items
+// 1 and 10): the board's verbs move to the ⋯ sheet's "Board" section
 // (board/phoneVerbs.ts) — a writer's what-to-put-on-it first, then what reads
 // it; a reader keeps only the latter. The layout (css/boardphone.css): held
 // upright the tools are one bar at the foot, held sideways one column at the

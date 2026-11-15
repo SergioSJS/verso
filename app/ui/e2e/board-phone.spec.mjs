@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// A board on a phone (2026-11-15, the maintainer's option C; ADR 0076 item
-// 15): the canvas keeps only the drawing tools — one bar at the foot held
+// A board on a phone (2026-11-15, the maintainer's option C; ADR 0076 items
+// 1 and 10): the canvas keeps only the drawing tools — one bar at the foot held
 // upright, in the app's bottom bar's place; one column at the right edge
 // held sideways, all eight tools in it — and everything else is a tap away:
 // undo and redo in the top bar, Board | Text and the board's verbs in the

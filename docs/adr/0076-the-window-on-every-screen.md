@@ -299,8 +299,8 @@ left to the text); he chose the one top bar: *"gostei muito do A"*. Under
   button sits at the right end, under the thumb (the maintainer,
   2026-11-15: *"como ele é muito usado … no alcance do dedão"*). The tabs, the
   note's own row of folder and modes (`.note-head`) and the folder in any
-  other leaf's row are not drawn; a base's, a board's or a data file's modes
-  stay in their row.
+  other leaf's row are not drawn; a base's or a data file's modes stay in
+  their row; a board's are the sheet's (below, 2026-11-15).
 - The count and the name open a **sheet** under the bar
   (`app/ui/src/screen/phoneSheet.ts`): the open tabs (to the front, ×
   closes), the folder path as links, the three modes by name (and *View as a
@@ -397,3 +397,32 @@ be on to reach them. Built (`app/ui/src/screen/swipeRule.ts`, the decision;
 - Tried in `test/swipePanels.test.mjs` (the decision) and
   `e2e/phone-swipe.spec.mjs` (Chromium, by touch, at 390 × 844); on a real
   phone, with Android's gesture navigation, in `docs/reference/manual-checks.md`.
+
+**A board on a phone (items 1 and 10, 2026-11-15).** The maintainer, from his
+phone: a board's controls *"badly placed, scattered everywhere, taking space,
+the useful area becomes tiny"* — the clear canvas was about 62 % of the
+screen upright and a band of about 68 px sideways. Three prototypes on the
+real board (one bar replacing the bottom bar; a rail at the right edge; the
+two by orientation); he chose the third, with one column sideways. Built
+(`app/ui/css/boardphone.css`, details in
+[0057](0057-board-json-canvas.md)):
+
+- **Upright**: the drawing tools are one flush bar at the board's foot, and
+  while a board that draws is in front it **takes the bottom bar's place**,
+  even with *Bottom bar always shown* on — the switch says so beneath it
+  (*On a board, the drawing tools take its place*); the bar's verbs are in
+  the sheet. A board that only reads keeps the bottom bar. About 89 % of the
+  screen is canvas.
+- **Sideways**: one column at the right edge, the thumb's, clear of the
+  right safe area, all eight tools sharing the height under the top bar;
+  the bottom bar gives way too. About 79 % of the screen is canvas.
+- **The top bar** holds the board's undo and redo; **the sheet** a *Board*
+  section: Board | Text, what puts something on the board, Loose arrows,
+  the search, the outline, Excalidraw's menu and, at a table, who sees it.
+- Targets stay 44 px (the column's 43 px on a 390 px screen, each 52 px
+  wide). Chosen in the code (the maintainer's to change): the order of the
+  sheet's verbs, and the hand tool kept in the column rather than moved to
+  "more".
+- Tried in `e2e/board-phone.spec.mjs` (both sizes) and
+  `test/boardPhone.test.mjs`; on a real phone in
+  `docs/reference/manual-checks.md`.
