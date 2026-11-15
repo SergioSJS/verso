@@ -12,7 +12,8 @@
 
 import { test, expect } from "./fixtures.mjs";
 
-const TWO = JSON.stringify({ nodes: [{ id: "a", type: "text", text: "Alfa", x: 0, y: 0, width: 300, height: 120 }, { id: "b", type: "text", text: "Beta", x: 400, y: 0, width: 300, height: 120 }], edges: [] });
+// In Obsidian's own layout, so a save writes it as it is (no "rewrite in Obsidian's layout?").
+const TWO = '{\n\t"nodes":[\n\t\t{"id":"a","type":"text","text":"Alfa","x":0,"y":0,"width":300,"height":120},\n\t\t{"id":"b","type":"text","text":"Beta","x":400,"y":0,"width":300,"height":120}\n\t],\n\t"edges":[]\n}';
 
 async function openBoard(app, query = "") {
   await app.open(query);
@@ -24,7 +25,8 @@ async function openBoard(app, query = "") {
 }
 
 const sheet = (page) => page.locator(".pane.focused .phone-title").click();
-const TOOLS = ["toolbar-hand", "toolbar-selection", "toolbar-freedraw", "toolbar-eraser", "toolbar-rectangle", "toolbar-arrow", "toolbar-text"];
+// The desktop toolbar's order (one order on every size, ADR 0076 item 6).
+const TOOLS = ["toolbar-hand", "toolbar-selection", "toolbar-rectangle", "toolbar-arrow", "toolbar-freedraw", "toolbar-text", "toolbar-eraser"];
 
 test.describe("held upright", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -39,7 +41,14 @@ test.describe("held upright", () => {
     const bar = await page.locator(".board-canvas .App-bottom-bar").boundingBox();
     expect(Math.round(bar.y + bar.height)).toBe(844);
     expect(bar.height).toBeLessThan(60);
-    // Every tool in it, the text tool too, each a finger's target.
+    // Every tool in it, the text tool too, each a finger's target, in the desktop's order, "more" last.
+    let lastX = -1;
+    for (const id of TOOLS) {
+      const x = (await page.getByTestId(id).boundingBox()).x;
+      expect(x, `${id} after the one before`).toBeGreaterThan(lastX);
+      lastX = x;
+    }
+    expect((await page.locator(".board-canvas .App-toolbar__extra-tools-trigger").boundingBox()).x).toBeGreaterThan(lastX);
     for (const id of TOOLS) {
       const b = await page.getByTestId(id).boundingBox();
       expect(b, id).not.toBeNull();
@@ -78,7 +87,7 @@ test.describe("held upright", () => {
     await sheet(page);
     const section = page.locator(".phone-sheet-board");
     await expect(section.getByRole("heading", { name: "Board" })).toBeVisible();
-    await expect(section.locator("[data-verb]")).toHaveText(["Cartão de texto", "Imagem ou PDF…", "Nota ou arquivo…", "Link…", "Página web…", "Setas soltas", "Buscar no board", "Sumário", "Exportar, fundo e ajuda"].map((t) => new RegExp(t)));
+    await expect(section.locator("[data-verb]")).toHaveText(["Exportar, fundo e ajuda", "Cartão de texto", "Imagem ou PDF…", "Nota ou arquivo…", "Link…", "Página web…", "Setas soltas", "Buscar no board", "Sumário"].map((t) => new RegExp(t)));
     // The switch of the bottom bar says the board's tools take its place.
     await expect(page.locator(".phone-sheet-switch-note")).toHaveText("Num board, as ferramentas de desenho ficam no lugar dela.");
     // The outline: over the board, closed by its own button.
@@ -144,7 +153,7 @@ test.describe("held upright", () => {
     await expect(page.locator(".pane.focused .phone-undo")).toBeHidden();
     await expect(page.locator(".board-canvas .disable-view-mode")).toBeHidden();
     await sheet(page);
-    await expect(page.locator(".phone-sheet-board [data-verb]")).toHaveText([/Buscar no board/, /Sumário/, /Exportar, fundo e ajuda/]);
+    await expect(page.locator(".phone-sheet-board [data-verb]")).toHaveText([/Exportar, fundo e ajuda/, /Buscar no board/, /Sumário/]);
     await expect(page.locator(".phone-sheet-switch-note")).toHaveCount(0);
   });
 });
@@ -180,5 +189,90 @@ test.describe("held sideways", () => {
     await expect(page.locator(".pane.focused .phone-undo")).toBeVisible();
     await sheet(page);
     await expect(page.locator('.phone-sheet-board [data-verb="text"]')).toBeVisible();
+  });
+});
+
+// The side panels' handles (2026-11-15, the maintainer: on a board the
+// sideways swipe never starts — the canvas keeps the finger — and the
+// bottom bar's Files and Panel are the board's tools now; app/ui/src/screen/edgeHandles.ts).
+test.describe("the side panels' handles, upright", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test("a board shows a tab on each edge: the left opens the files, the right the panel; hidden while one is open", async ({ app, page }) => {
+    await openBoard(app);
+    const left = page.locator(".edge-left");
+    const right = page.locator(".edge-right");
+    await expect(left).toBeVisible();
+    await expect(left).toHaveAccessibleName("Abrir os arquivos");
+    await expect(right).toHaveAccessibleName("Abrir o painel da direita");
+    for (const b of [await left.boundingBox(), await right.boundingBox()]) {
+      expect(b.width).toBeGreaterThanOrEqual(44);
+      expect(b.height).toBeGreaterThanOrEqual(44);
+      expect(b.y + b.height / 2).toBeCloseTo(844 / 2, -1);
+    }
+    expect(Math.round((await left.boundingBox()).x)).toBe(0);
+    expect(Math.round((await right.boundingBox()).x + 44)).toBe(390);
+    await left.click();
+    await expect(page.locator("body")).toHaveClass(/side-open/);
+    await expect(left).toBeHidden();
+    await expect(right).toBeHidden();
+    // A tap beside the drawer closes it; the tabs are back.
+    await page.mouse.click(370, 700);
+    await expect(page.locator("body")).not.toHaveClass(/side-open/);
+    await expect(right).toBeVisible();
+    await right.click();
+    await expect(page.locator("body")).toHaveClass(/right-open/);
+    await expect(right).toBeHidden();
+  });
+
+  test("a drawing has them too; a note does not, nor the board's outline over its edge", async ({ app, page }) => {
+    await app.open();
+    await app.quickOpen("Desenho do Excalidraw");
+    await expect(page.locator(".drawing-host .excalidraw")).toBeVisible();
+    await expect(page.locator(".edge-left")).toBeVisible();
+    await expect(page.locator(".edge-right")).toBeVisible();
+    await app.quickOpen("04 - Escrevendo no Editor");
+    await expect(page.locator(".edge-left")).toBeHidden();
+    await expect(page.locator(".edge-right")).toBeHidden();
+    await app.quickOpen("Board de Demonstração");
+    await app.boardReady();
+    await expect(page.locator(".edge-right")).toBeVisible();
+    await app.boardVerb("outline", "board-tool-outline");
+    await expect(page.locator(".board-outline")).toBeVisible();
+    await expect(page.locator(".edge-right")).toBeHidden();
+  });
+
+  test("a swipe that starts on a handle, past Android's Back band, drags its panel out", async ({ app, page, browserName }) => {
+    test.skip(browserName !== "chromium", "touch moves need Chromium's DevTools protocol");
+    await openBoard(app);
+    const b = await page.locator(".edge-right").boundingBox();
+    // Inside the handle's target, left of the 24 px band at the screen's edge.
+    const x = b.x + 8;
+    const y = b.y + b.height / 2;
+    const cdp = await page.context().newCDPSession(page);
+    const at = (px) => [{ x: px, y, id: 1 }];
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: at(x) });
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: at(x - 18 * i) });
+      await page.waitForTimeout(16);
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await cdp.detach();
+    await expect(page.locator("body")).toHaveClass(/right-open/);
+  });
+});
+
+test.describe("the side panels' handles, sideways", () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+
+  test("the panel's tab stands at the left of the board's column, clear of its tools", async ({ app, page, browserName }) => {
+    test.skip(browserName !== "chromium", "a phone held sideways is a coarse pointer under 500 px: Playwright's touch screen is Chromium's");
+    await openBoard(app);
+    const right = await page.locator(".edge-right").boundingBox();
+    const tool = await page.getByTestId("toolbar-eraser").boundingBox();
+    expect(right.x + right.width).toBeLessThanOrEqual(tool.x + 1);
+    await expect(page.locator(".edge-left")).toBeVisible();
+    await page.locator(".edge-right").click();
+    await expect(page.locator("body")).toHaveClass(/right-open/);
   });
 });
