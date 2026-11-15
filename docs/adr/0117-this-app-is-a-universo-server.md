@@ -42,6 +42,11 @@
   2026-11-14 — R9 built (`fd543a30`), D8 says how; five `[OPEN]` details
   of the build there. The same day, the review's blocking finding: undoing
   a moved table takes its players' places with it (D8 item 4, `7522d16b`).
+  2026-11-15 — **the Verso app paired** (D19, new): the maintainer
+  approved *"the Verso phone APP (Android, iOS) can pair with the desktop
+  app serving on the home network, and keep a synced local copy that opens
+  offline on both devices"*; built the same day (`86ff3ef6`, `82f13c40`,
+  `4b3c2f9f`), D9, D12, D15 and Consequences say what changed.
 - Related: [0073](0073-self-hosted-server-first.md), [0074](0074-accounts-and-access-on-the-server.md),
   [0077](0077-the-server-administration-console-and-folder-quotas.md),
   [0079](0079-sync-a-local-folder-with-a-server.md), [0081](0081-sharing-between-people-on-one-universo.md),
@@ -480,6 +485,7 @@ session). "Through the link" results are the spike's (As built).
 | Sign-in by mail, "forgot the password" | **Out** `[DECIDED 2026-11-03]`; the owner makes a new-password link (`27eece626`) | `local/players.rs` |
 | Passkeys, tokens (0074 items 3, 8) | **Built** (S13 `cd5bc9289`); a passkey only through the link; a quick link's passkey dies with it | `passkeys.rs` |
 | The owner's own browser or phone through the link (D5) | **Built** (R3 `2e7a35cb`): pairing through the link while *Pair a phone* is open; a quick link's device ends with its address | `local/routes.rs`, `local/link_pair.rs`, `web/pages.ts` |
+| The owner's own Verso app on the network, with a copy (D19) | **Built** 2026-11-15: paired by the dialog's code, pinned to the computer's key, its folders a server's folders (a copy, synced, offline); another person's app still only through the link | `local/pin.rs`, `local/pair_app.rs`, `app/src-tauri/src/paired/` |
 | A UniVerso's own Cloudflare link (D4) | **Built** (R5, 2026-11-14): a quick link and an own address by a token, from `VERSO_TUNNEL`, `universo.sh link` and the console; through Cloudflare PASS (R5 spike: `Host`, `Origin`, a forged `X-Forwarded-For`, the switch with no restart, the stops) | `crates/verso-tunnel`, `verso-server/src/tunnel.rs`, `console.rs`, `web/consoleLink.ts` |
 
 ### D10. "My own address": a named Cloudflare Tunnel `[DECIDED 2026-11-03]`
@@ -558,6 +564,7 @@ allowlist, reader or editor, never owner; 64 connections, 16 per address,
 `0600`; OpenSSL on Windows; both languages (`crates/verso-server/src/local/`,
 `app/src-tauri/src/local_server/`). **Changed:** 0096 item 2 (the folders
 ticked in Settings, whole or in part) by D2. **Gone:** 0096 item 11 by D4.
+*2026-11-15 — the native client's pin, which item 5 (a) named and nothing built, is built (D19): the Verso app pairs on the network by the same window and keeps a copy; a phone's browser pairs and works as before, with no copy.*
 *2026-11-08 — "phone" here is the window served to a phone's browser; the native Android app of [0118](0118-a-native-android-app-from-the-same-core-and-ui.md) has the desktop app's role: it syncs, and may host.*
 *2026-11-12 — *Keep on at start* (0096 item 1), amended for iOS by the maintainer (*"bora"*, to the question of [0119](0119-an-ios-and-ipados-app-through-altstore.md) B12/A2): iOS may end the app while it serves off the screen (a locked device); a start less than ten minutes after it went away, when the person had turned serving on, serves again by itself once the app is on the screen, and says so; later, serving stays off and says why. Elsewhere, and on iOS after a stop by hand, a start serves only with *Keep on at start*.*
 
@@ -666,6 +673,7 @@ directory, its guard moved with it in `scripts/check.sh` and `ci.yml`
 | Changed | A game master who may make folders invites into their own tables (D7 (e), decided 2026-11-04; revises 0081 item 4) | **Built** 2026-11-13 (R6, `205cdfb8`) | `admin/acts.rs` (`Inviter`), `campaign_cmds.rs`, `shares.rs`, `db/invitations.rs` |
 | Changed | Moving a table to the other host (D8, decided 2026-11-04; in V1 2026-11-13) | **Built** 2026-11-14 (R9, `fd543a30`): made there, closed and marked moved here; its undo takes its players' places (`7522d16b`); details `[OPEN]` in D8 | `local_server/moving.rs`, `campaign_cmds.rs` (`moved`), `db/campaign.rs` (schema 23), `tableMoveCard.ts` |
 | Changed | A UniVerso's own link, reusing the tunnel module (D4.2) | **Built** 2026-11-14 (R5, `80f32160`, `b04eaca7`, `b58d71e0`) | `app/src-tauri/src/tunnel/` → `crates/verso-tunnel`; `verso-server/src/tunnel.rs` |
+| Changed | The owner's Verso app pairs on the network and keeps a copy (D19, approved 2026-11-15) | **Built** 2026-11-15 (`86ff3ef6` server, `82f13c40` app, `4b3c2f9f` window) | `local/pin.rs`, `local/pair_app.rs`, `app/src-tauri/src/paired/`, `dialogs/pairComputer.ts` |
 | To build | Lessons 22, 23 and the UniVerso's 31 for its link; manual checks; the threat model's rows | Partly (29 and 28 say the folder's page, synced folders, received ones) | `demo-vault*/`, `docs/reference/` |
 
 ### D16. The build that remains (one commit each, with tests; was D8)
@@ -690,6 +698,96 @@ lessons and checks.
 0107 item 9 says a desktop serving its folder holds the table. Since S4 the
 owner's window sits at that table, so the sentence now holds; 0107 is not
 edited.
+
+### D19. The Verso app paired with a computer at home `[DECIDED 2026-11-15]`
+
+The maintainer, 2026-11-15: *"the Verso phone APP (Android, iOS) can pair
+with the desktop app serving on the home network, and keep a synced local
+copy that opens offline on both devices"*. Until then the phone's
+**browser** paired (D12) and kept no copy; the **app** could not connect at
+all: the host's client trusts the system's roots only, and this computer's
+certificate is its own (ADR 0096 item 5 (a), whose "a native Verso client
+pins the fingerprint the QR carries" nothing built). Built the same day;
+what the decision left open was chosen by the session building it, each
+with its reason, for the maintainer's reading:
+
+1. **How the app learns the computer's key: the dialog's code, typed, with
+   proofs** (`local/pin.rs`). *Settings › Servers › Pair with a computer
+   at home* takes the address and the eight letters *Pair a phone* shows —
+   the same window, two minutes, three attempts, *Was it you?*. The app
+   opens TLS to the address accepting whatever key it is shown once
+   (`FirstSight`: a later handshake of the same pairing must show the same
+   key) and **never sends the code**: it sends
+   `HMAC-SHA256(K, "phone" | nonce | the key it saw)`, `K` = Argon2id of
+   the code salted by its fresh nonce (32 MiB, three passes). The computer
+   checks it against **its own** key before anyone is asked — a proof over
+   another key is refused and counts among the three — and, allowed, answers
+   with `HMAC(K, "computer" | nonce | its key)` beside the session, which the
+   app checks against the key it saw before it keeps anything. Someone in
+   the middle shows the app their key: the app's proof names it, the
+   computer refuses it; they cannot make either proof for the other key;
+   what they hold is one proof to guess the code from offline — 20⁸ codes,
+   an Argon2id of 32 MiB each, against a window that ends in two minutes, at
+   one try. *Chosen over* the QR scanned by the app (no app of this project
+   reads the camera; a scanner is a new native dependency on each phone,
+   ML Kit's on Android under its own terms), a link the phone's camera
+   would open in the app (a URL scheme and native glue on both phones, its
+   behaviour unlike from one camera app to another), comparing the
+   fingerprint by eye (64 digits a layperson does not compare) and a PAKE
+   (`spake2`, a new dependency, for the same guarantee). The QR still opens
+   the phone's **browser**, which pairs as before.
+2. **What is pinned: the key, not the certificate** — SHA-256 of its
+   SubjectPublicKeyInfo. The certificate is made again over the same key
+   when the addresses change or it nears its end (`cert.rs`); the pin holds
+   across those. The host's verifier (`app/src-tauri/src/paired/`) accepts
+   that key alone: not the system's roots, not the name, not the dates;
+   TLS 1.3 only, the handshake's signature checked **with the pinned key
+   itself** (`verify_tls13_signature_with_raw_key`), no SNI. Safe Rust; no
+   `danger_accept_invalid_certs`; every other server is reached as before.
+   *Replace this computer's identity* makes a new key: the app's next
+   connection is refused at the handshake and said as *this computer's
+   identity changed… pair again* — never as a server out of reach — and
+   the sync waits on it as on a refusal (problem `identity_changed`).
+3. **The credential: one of the owner's phones, as a device.** Allowed, the
+   app's session is a **device's** session of the owner (a bearer token
+   it keeps, never a cookie) with a **phone's row**: counted among the four
+   phones, reader or editor as *Was it you?* chose and never the owner or
+   the admin, the hide lock of a folder served in part, *Revoke*, *Forget
+   all phones*, 14 days idle and 90 at most (D12, unchanged). A bearer of
+   this computer's own accounts opened nothing before; it opens exactly
+   this — the owner's device session **with** the row — narrowed as a
+   browser's phone is (`devices.rs`). It runs the phone's allowlist and,
+   besides, the sync's commands at its role (`APP_READ`, `APP_EDIT` in
+   `allow.rs`); a browser's phone runs none of them. **Never through the
+   internet link**: the app pins the computer's own key, which the tunnel
+   does not show (the route refuses it in words); away from home the copy
+   waits. *Chosen over* an account of its own for the app (the owner's
+   devices are phones here, D12).
+4. **The copy** is a server's copy (ADR 0079 item 14 as revised 2026-11-15,
+   `server_copy.rs`): the paired computer is one of Settings › Servers'
+   servers — *Computer at home*, its owner's name — and *Open here* makes,
+   binds and opens the copy. Its sync goes on whenever the device is on the
+   home network with the computer serving; away, the status says *Away
+   from the computer at home: the copy works without it* and the existing
+   backoff tries again (5 s doubling to 5 minutes).
+5. **Finding the computer again: a name of the app's own, resolved to the
+   addresses the computer served on.** The app reaches the computer at
+   `https://verso-<20 digits of the pin>.home.arpa:<port>` (RFC 8375's
+   names of a home network, which no public registry sells and no page can
+   make resolve), so the URL the copy is bound to never changes; the app
+   resolves the name itself (`dns.rs`) to the addresses the computer has
+   served on — those its certificate names, up to eight, told by
+   `/api/paired` at each sync connection — the one that answered last first,
+   on the kept port; no DNS server is ever asked for it. The server answers
+   to that name as `Host`. At an address it never saw, the person pairs
+   again: the same key is the same name, so the same copy stays bound and
+   the earlier session is ended over the pinned connection. *Chosen over*
+   announcing by mDNS while serving, which would revise ADR 0096 item 8 (c)
+   (announced only while the dialog is open, so the laptop stays invisible
+   the rest of the time) — the maintainer's to decide if pairing again
+   proves too often needed.
+6. **Another person's app** still connects only through the link (D9):
+   they have no code to learn this computer's key by. Lesson 30 says so.
 
 ### D18. One function per administrator's act, for both hosts `[DECIDED 2026-11-04]`
 
@@ -742,6 +840,10 @@ until the folder was opened again; the folder's windows now hear it
 - D7's gaps are decided (2026-11-04): (e) closes the invitation gap (R6,
   built 2026-11-13);
   (f) keeps the console's folder list, said in the lesson.
+- The owner's own phone, tablet or other computer keeps a copy of what
+  this computer serves, synced at home and open offline everywhere (D19),
+  trusting this computer's key and nothing else; a computer whose identity
+  is replaced ends those copies' sync, in words.
 - The laptop faces the internet while a link is on; the mitigations are
   D11's. The residual risk is a bug in the HTTP stack reachable by anyone
   with the link.
@@ -773,6 +875,10 @@ Only alternatives actually considered:
   (Q8 (b)); Tailscale Funnel (D10).
 - From 0111: port forwarding or UPnP; a secret token in the URL instead of
   accounts; downloading "latest".
+- From D19 (2026-11-15, the session building it): the QR scanned by the
+  app, a camera link into the app, the fingerprint compared by eye, a PAKE
+  (`spake2`), pinning the certificate rather than its key, an account of
+  its own for the app, and mDNS while serving (D19 items 1, 2, 3, 5).
 
 ## Status
 
@@ -814,6 +920,12 @@ the decided text of D4.2 kept, *Built* and its `[OPEN]` items added there;
 D9, D11 item 5, D14, D15, D16 and Consequences say what was built. 0050
 and 0077 item 6 carry their dated revisions; the threat model its rows.
 Awaits the maintainer's reading; no Fable reading.
+
+**2026-11-15, the Verso app paired.** D19 written from the maintainer's
+approval of that day and built on `feat/phone-home-and-board`
+(`86ff3ef6`, `82f13c40`, `4b3c2f9f`) by an Opus session; D9, D12, D15 and
+Consequences carry what changed. Its items are the session's choices, each
+with its reason, for the maintainer's reading; no Fable reading.
 
 ## As built: the spike (2026-11-03)
 
