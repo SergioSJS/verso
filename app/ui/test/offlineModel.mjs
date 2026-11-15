@@ -8,7 +8,14 @@
 // are checked against the hash when the last arrives, and a reader whose
 // changes are refused.
 
-import { sha256 } from "./.bundles/offline-sync.test-bundle.mjs";
+import * as esbuild from "esbuild";
+
+// Its own bundle of the browser's sync, named for this process: the test
+// files that import this model run in parallel processes, and one of them
+// read a bundle another had not written yet (CI, 2026-11-15).
+const own = `test/.bundles/offline-model-${process.pid}.test-bundle.mjs`;
+await esbuild.build({ entryPoints: ["src/web/offline/index.ts"], bundle: true, format: "esm", platform: "node", outfile: own, logLevel: "error" });
+const { sha256 } = await import(`./.bundles/offline-model-${process.pid}.test-bundle.mjs`);
 
 const enc = new TextEncoder();
 
