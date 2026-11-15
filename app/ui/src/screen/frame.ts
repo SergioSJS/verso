@@ -167,7 +167,8 @@ function footButton(label: string, iconName: string, run: () => void): HTMLButto
 }
 
 function buildSideFoot(): void {
-  sideFoot.append(footButton(t.settings, "gear", () => settingsDialog.show()), footAccount);
+  // The account, then the gear: the ribbon's order (one order on every size).
+  sideFoot.append(footAccount, footButton(t.settings, "gear", () => settingsDialog.show()));
   footAccount.hidden = true;
   document.querySelector("aside.side")?.append(sideFoot);
 }

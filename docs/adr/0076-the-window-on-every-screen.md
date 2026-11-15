@@ -487,3 +487,15 @@ rest. Applied to the board:
 - The selection: Verso's tools of the selected card are the same island,
   in the same order, on both; Excalidraw's own phone island (colours, then
   the other properties, then text) follows its desktop panel's sequence.
+
+Applied to the rest of the window (an audit of every group that changes
+shape on a phone, 2026-11-15): the ribbon now has *New note* before the
+palette, as the status bar and the phone's bottom bar have them (the
+maintainer chose that order when the desktop disagreed with itself; a
+ribbon the person reordered keeps their order); the drawer's foot has the
+account before the gear, as the ribbon; the pane's ⋯ menu has *New note*
+after the tabs' entries, as the pane's buttons; the oracle dialog's and the
+world wizard's actions stack top to bottom in their desktop order (they were
+reversed). The phone's top bar keeps its own order (the tabs' button at the
+right end, under the thumb): it has no single desktop row to follow, and the
+maintainer kept it.
