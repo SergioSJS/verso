@@ -17,7 +17,12 @@
 //!   token opens nothing outside its door, and a phone, which is a browser
 //!   session of the owner, never becomes a device;
 //! - a personal access token (`verso_pat_`) of an invited account, as on
-//!   a UniVerso (S13), never one of this computer's accounts.
+//!   a UniVerso (S13), never one of this computer's accounts;
+//! - the Verso app paired (ADR 0117, "The Verso app paired"): a device's
+//!   session of the owner **with a phone's row**, opened as that phone —
+//!   its role, never the admin or the owner the account is
+//!   (`pair_app.rs`). A device's session of the owner without the row (the
+//!   seat's, outside its door) opens nothing.
 //!
 //! A phone has none of the device routes (`routes.rs`, as an unknown route)
 //! and still runs no `sync_*` (the allowlist, `allow.rs`). The hide lock of
@@ -66,9 +71,11 @@ impl Policy {
         };
         // A phone is a browser's session of the owner, which a bearer never
         // opens; the owner's devices — the seat's token outside its door —
-        // and the holder's are this computer's.
+        // and the holder's are this computer's. The one exception is the
+        // Verso app paired: the owner's device session with a phone's row,
+        // narrowed to that phone as a browser's phone is (`auth::who`).
         if is_this_computer(&who.account.email) {
-            return Ok(None);
+            return paired_app(server, who);
         }
         Ok(Some(who))
     }
@@ -78,6 +85,25 @@ impl Policy {
     pub fn is_seat(&self, id: &str) -> bool {
         self.seat_session().is_some_and(|s| s == id)
     }
+}
+
+/// The Verso app paired, when `who` — a bearer of one of this computer's
+/// accounts — is one: the owner's device session with a phone's row, as
+/// that phone.
+fn paired_app(server: &Server, mut who: Who) -> Result<Option<Who>, String> {
+    let crate::auth::Via::Device { session } = &who.via else {
+        return Ok(None);
+    };
+    if who.account.email != crate::db::LOCAL_OWNER {
+        return Ok(None);
+    }
+    let Some(role) = server.db.phone_role(session)? else {
+        return Ok(None);
+    };
+    who.account.admin = false;
+    who.account.may_create = false;
+    who.phone = Some(role);
+    Ok(Some(who))
 }
 
 /// The device sessions of the invited accounts, the newest use first.

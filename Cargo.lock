@@ -6665,6 +6665,7 @@ dependencies = [
  "rcgen",
  "regex",
  "reqwest",
+ "ring",
  "rusqlite",
  "rustls-pki-types",
  "serde",

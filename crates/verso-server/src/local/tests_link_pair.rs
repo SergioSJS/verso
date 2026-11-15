@@ -392,7 +392,7 @@ fn a_quick_links_phone_does_not_outlive_serving() {
             let db = crate::db::Db::open(&lab.dir.path().join("local")).unwrap();
             let owner = db.local_owner().unwrap();
             let (_, _, id) = db
-                .pair_phone(&owner.id, "Left", CLIENT, Role::Editor, 4)
+                .pair_phone(&owner.id, "Left", CLIENT, Role::Editor, 4, false)
                 .unwrap();
             super::link_pair::remember(&db, &id).unwrap();
             assert_eq!(db.phones().unwrap().len(), 1);

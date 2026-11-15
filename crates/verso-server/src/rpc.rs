@@ -585,8 +585,11 @@ async fn handle(
     // A paired phone runs the commands on the allowlist and no other (ADR
     // 0096 item 12): default deny, before anything else looks at the
     // command.
+    // The Verso app paired (a device's session) runs the sync's commands
+    // at its role besides (ADR 0117, "The Verso app paired").
+    let app = matches!(who.via, crate::auth::Via::Device { .. });
     if let Some(role) = who.phone
-        && let Err(refused) = crate::local::allow::check(&r.cmd, role)
+        && let Err(refused) = crate::local::allow::check_as(&r.cmd, role, app)
     {
         crate::local::refused_command(server, &r.cmd);
         return Err(refused);

@@ -33,8 +33,10 @@ mod live;
 mod names;
 pub mod net;
 mod owner;
+mod pair_app;
 pub mod pairing;
 mod parts;
+pub mod pin;
 mod players;
 mod policy;
 pub mod qr;
@@ -55,6 +57,8 @@ mod tests_link;
 mod tests_link_load;
 #[cfg(test)]
 mod tests_link_pair;
+#[cfg(test)]
+mod tests_pair_app;
 #[cfg(test)]
 mod tests_parts;
 #[cfg(test)]
@@ -90,7 +94,7 @@ use verso_service::lock;
 use self::bind::bind_all;
 pub use self::bind::reachable;
 use self::net::{IfNet, Interfaces};
-use self::pairing::{Ended, PendingView, Ready};
+use self::pairing::{Ended, PendingView};
 use crate::config::Config;
 use crate::db::{Audit, Db, Phone, Role};
 use crate::state::Server;
@@ -747,26 +751,33 @@ impl LocalServer {
         let ips: Vec<IpAddr> = nets.iter().map(|n| n.ip).collect();
         // The certificate: the host's own files when given, else ours. The
         // link alone needs none: the tunnel ends HTTPS (ADR 0117 D3 item 4).
-        let (fingerprint, certificate, acceptor) = match (&settings.cert_file, &settings.key_file) {
-            _ if !lan => (String::new(), "own", None),
-            (Some(c), Some(k)) if !c.is_empty() && !k.is_empty() => {
-                let (c, k) = (PathBuf::from(c), PathBuf::from(k));
-                (
-                    cert::from_files(&c, &k)?,
-                    "files",
-                    Some(crate::tls::acceptor(&c, &k)?),
-                )
-            }
-            _ => {
-                let id = cert::load_or_make(&db, &ips, crate::db::now())?;
-                let (chain, key) = id.der();
-                (
-                    id.fingerprint.clone(),
-                    "own",
-                    Some(crate::tls::acceptor_from(chain, key)?),
-                )
-            }
-        };
+        // With the pin of its key, which a paired Verso app holds it to
+        // (ADR 0117, "The Verso app paired"; `pin.rs`).
+        let (fingerprint, certificate, acceptor, pin) =
+            match (&settings.cert_file, &settings.key_file) {
+                _ if !lan => (String::new(), "own", None, None),
+                (Some(c), Some(k)) if !c.is_empty() && !k.is_empty() => {
+                    let (c, k) = (PathBuf::from(c), PathBuf::from(k));
+                    let (fingerprint, pin) = cert::from_files(&c, &k)?;
+                    (
+                        fingerprint,
+                        "files",
+                        Some(crate::tls::acceptor(&c, &k)?),
+                        Some(pin),
+                    )
+                }
+                _ => {
+                    let id = cert::load_or_make(&db, &ips, crate::db::now())?;
+                    let pin = pin::of_cert(&id.cert)?;
+                    let (chain, key) = id.der();
+                    (
+                        id.fingerprint.clone(),
+                        "own",
+                        Some(crate::tls::acceptor_from(chain, key)?),
+                        Some(pin),
+                    )
+                }
+            };
         let _ = tokio_rustls::rustls::crypto::ring::default_provider().install_default();
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
@@ -781,11 +792,13 @@ impl LocalServer {
         };
         let policy = Policy::new(Arc::clone(&self.shared.events));
         policy.set_connected_most(settings.max_connected);
+        policy.set_pin(pin);
         let extra: Vec<String> = settings
             .host_name
             .iter()
             .filter(|h| !h.is_empty())
             .map(|h| format!("{h}:{port}"))
+            .chain(policy.paired_host(port))
             .collect();
         #[cfg(any(test, feature = "test-support"))]
         policy
@@ -1211,90 +1224,6 @@ impl LocalServer {
             remaining: p.remaining(now).map_or(0, |d| d.as_secs()),
             asked: p.pending(),
         }
-    }
-
-    /// The laptop's answer to "Was it you?": Allow, at a role, or Refuse.
-    pub fn answer(&self, allow: bool, role: Role) -> Result<(), String> {
-        let running = lock(&self.shared.inner);
-        let r = running
-            .as_ref()
-            .ok_or_else(|| "serving is off".to_owned())?;
-        let asked = r
-            .policy
-            .pairing()
-            .pending()
-            .ok_or_else(|| "no phone is waiting".to_owned())?;
-        if !allow {
-            r.policy.pairing().answer(None);
-            r.policy.audit(
-                &r.server,
-                "pair_refused",
-                Some(&asked.device),
-                Some(&asked.address),
-            );
-            crate::log::info(&format!(
-                "a pairing was refused at the computer: {} ({})",
-                asked.device, asked.address
-            ));
-            drop(running);
-            (self.shared.events)(Event::Changed);
-            return Ok(());
-        }
-        let quick = match link_pair::before_allowing(r, &asked) {
-            Ok(quick) => quick,
-            Err(why) => {
-                r.policy.pairing().answer(None);
-                crate::log::warn(&format!("a pairing through the internet link: {why}"));
-                return Err(why);
-            }
-        };
-        let owner = owner_of(&r.server);
-        // Never an owner: a phone reads or edits (item 12), through the
-        // link as on the network (ADR 0117 D5).
-        let role = if role.writes() {
-            Role::Editor
-        } else {
-            Role::Reader
-        };
-        let (token, csrf, session) = r
-            .server
-            .db
-            .pair_phone(&owner, &asked.device, &asked.address, role, PAIRED)
-            .map_err(|e| {
-                if e == "full" {
-                    format!("{PAIRED} phones are paired already: revoke one first")
-                } else {
-                    e
-                }
-            })?;
-        // Kept, or the pairing is not made: a quick link's phone that
-        // outlived its address would hold a place (D5 (3)).
-        if quick && let Err(why) = link_pair::remember(&r.server.db, &session) {
-            let _ = r.server.db.end_session(&owner, &session);
-            r.policy.pairing().answer(None);
-            return Err(why);
-        }
-        r.policy.pairing().answer(Some(Ready {
-            token,
-            csrf,
-            session,
-        }));
-        r.policy.stop_announcing();
-        r.policy.audit(
-            &r.server,
-            &format!("pair_allowed_{}", role.as_str()),
-            Some(&asked.device),
-            Some(&asked.address),
-        );
-        crate::log::info(&format!(
-            "a pairing was approved at the computer: {} ({}) as {}",
-            asked.device,
-            asked.address,
-            role.as_str()
-        ));
-        drop(running);
-        (self.shared.events)(Event::Changed);
-        Ok(())
     }
 
     /// The phones paired.

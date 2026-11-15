@@ -76,6 +76,9 @@ pub struct Policy {
     /// 0117 D4 Q3): the one bearer credential this server takes, and only
     /// through the seat's door (`seat.rs`).
     pub(super) seat: RwLock<Option<String>>,
+    /// The pin of this computer's key while it serves on the network
+    /// (`pin.rs`): what a paired Verso app holds it to, and its name.
+    pub(super) pin: RwLock<Option<String>>,
     /// Loopback let in as a peer, for the tests only.
     #[cfg(any(test, feature = "test-support"))]
     pub(super) test_loopback: std::sync::atomic::AtomicBool,
@@ -100,6 +103,7 @@ impl Policy {
             link: super::link::LinkOrigin::default(),
             net_base: RwLock::new(None),
             seat: RwLock::new(None),
+            pin: RwLock::new(None),
             #[cfg(any(test, feature = "test-support"))]
             test_loopback: std::sync::atomic::AtomicBool::new(false),
         })

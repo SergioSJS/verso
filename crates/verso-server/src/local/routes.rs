@@ -164,6 +164,7 @@ pub fn router(server: Arc<Server>) -> Router {
         .route("/r/{token}/f/{*path}", get(crate::visit::file))
         .route("/api/pair", post(pair))
         .route("/api/pair/poll", post(poll))
+        .route("/api/paired", get(paired))
         .merge(accounts)
         // Everything else under /api/ is what an unknown route answers.
         .route("/api/{*rest}", any(crate::http::no_route))
@@ -218,7 +219,12 @@ fn gone() -> ApiError {
 #[derive(Deserialize)]
 pub struct Presented {
     /// The token of the QR's fragment, or the code typed by hand.
+    #[serde(default)]
     token: String,
+    /// The Verso app's proof of the code, in place of the code (ADR 0117,
+    /// "The Verso app paired"; `pair_app.rs`).
+    #[serde(default)]
+    app: Option<super::pair_app::AppProof>,
     /// The browser's own name for the phone, when it gives one.
     #[serde(default)]
     device: Option<String>,
@@ -242,6 +248,23 @@ async fn pair(ctx: Ctx, Json(body): Json<Presented>) -> ApiResult<Response> {
     }
     let device = crate::device::kept_name(body.device.as_deref().unwrap_or(""))
         .unwrap_or_else(|| auth::device_name(&ctx.headers));
+    // The Verso app pins this computer's own key, on the network: through
+    // the link the tunnel shows its own, and there the browser pairs.
+    if let Some(ask) = &body.app {
+        if ctx.peer.link {
+            return Err(ApiError::forbidden(
+                "pair the Verso app on the home network, where it reaches this computer itself",
+            ));
+        }
+        return match policy
+            .redeem_app(&ctx.server, ask, &device, &ctx.address(), Instant::now())
+            .await?
+        {
+            Redeemed::Asked { poll } => Ok(ok(json!({ "poll": poll, "interval": 2 }))),
+            Redeemed::Closed => Err(ApiError::not_found()),
+            Redeemed::Refused { .. } => Err(gone()),
+        };
+    }
     // What is compared is bounded: a token is 43 characters.
     let presented: String = body.token.chars().take(64).collect();
     match policy.redeem(
@@ -275,6 +298,17 @@ async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
         // No pairing at all: as an unknown route.
         None => Err(ApiError::not_found()),
         Some(Polled::Waiting) => Ok(ok(json!({ "state": "waiting", "interval": 2 }))),
+        // The Verso app: its session as a bearer token, never a cookie, and
+        // this computer's proof, which the app checks before it keeps either.
+        Some(Polled::Allowed(ready)) if ready.proof.is_some() => {
+            let name = ctx.server.db.local_owner()?.name;
+            Ok(ok(json!({
+                "state": "allowed",
+                "token": ready.token,
+                "proof": ready.proof,
+                "name": name,
+            })))
+        }
         Some(Polled::Allowed(ready)) => {
             let mut response = ok(json!({ "state": "allowed", "csrf": ready.csrf }));
             if let Ok(v) = HeaderValue::from_str(&auth::session_cookie(&ctx.peer, &ready.token)) {
@@ -284,4 +318,21 @@ async fn poll(ctx: Ctx, Json(body): Json<Poll>) -> ApiResult<Response> {
         }
         Some(Polled::Refused | Polled::Gone) => Err(gone()),
     }
+}
+
+/// Where a paired Verso app finds this computer (ADR 0117, "The Verso app
+/// paired", item 5): the addresses it serves on now and has served on, and
+/// the port. To the app alone — a device's session with a phone's row —
+/// and as an unknown route to everyone else.
+async fn paired(ctx: Ctx) -> ApiResult<Response> {
+    let policy = local(&ctx)?;
+    let app = ctx
+        .who
+        .as_ref()
+        .is_some_and(|w| w.phone.is_some() && matches!(w.via, crate::auth::Via::Device { .. }));
+    if !app {
+        return Err(ApiError::not_found());
+    }
+    let (addresses, port) = super::pair_app::whereabouts(&ctx.server.db, &policy);
+    Ok(ok(json!({ "addresses": addresses, "port": port })))
 }

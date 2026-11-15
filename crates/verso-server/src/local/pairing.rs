@@ -39,6 +39,11 @@ pub struct Ready {
     pub token: String,
     pub csrf: String,
     pub session: String,
+    /// The Verso app's answer (ADR 0117, "The Verso app paired"): this
+    /// computer's proof that it knows the code, over its own key
+    /// (`pin.rs`), which the app checks before it pins the key. A browser's
+    /// has none: its session goes in a cookie.
+    pub proof: Option<String>,
 }
 
 /// Why a window ended.
@@ -79,6 +84,9 @@ struct Request {
     /// It came through the internet link (ADR 0117 D5), not the network:
     /// the link's origin as it was then.
     link: Option<String>,
+    /// It came from the Verso app, whose proof held: this computer's proof,
+    /// handed to it with its session if the laptop allows.
+    app: Option<String>,
     at: Instant,
     answer: Answer,
 }
@@ -97,6 +105,12 @@ pub struct PendingView {
     /// (`link_pair::before_allowing`).
     #[serde(skip)]
     pub origin: Option<String>,
+    /// The Verso app asks, not a browser: it will keep a copy of what it
+    /// is given and sync it (ADR 0117, "The Verso app paired").
+    pub app: bool,
+    /// This computer's proof for the app, when it is the app.
+    #[serde(skip)]
+    pub proof: Option<String>,
 }
 
 /// The token and the code a new window shows, once.
@@ -146,8 +160,10 @@ fn new_code() -> Result<String, String> {
     Ok(format!("{}-{}", &letters[..4], &letters[4..]))
 }
 
-/// A code as a person typed it: spaces and the dash dropped, upper case.
-fn read_code(text: &str) -> Option<String> {
+/// A code as a person typed it: spaces and the dash dropped, upper case —
+/// `BCDF-GHJK`, as the dialog shows it; none when it is not one.
+#[must_use]
+pub fn read_code(text: &str) -> Option<String> {
     let letters: String = text
         .chars()
         .take(64)
@@ -255,12 +271,76 @@ impl Pairing {
                 address: address.to_owned(),
                 asked: asked.to_owned(),
                 link: link.map(str::to_owned),
+                app: None,
                 at: now,
                 answer: Answer::Waiting,
             });
             return Ok(Redeemed::Asked { poll });
         }
         // Wrong, or right but used: both count (item 6, point 4).
+        window.failures += 1;
+        let closing = window.failures >= FAILURES;
+        if closing {
+            self.close();
+        }
+        Ok(Redeemed::Refused {
+            ended: closing.then_some(Ended::TooManyFailures),
+        })
+    }
+
+    /// The code a Verso app's proof is checked against, and the window it
+    /// belongs to (its opening), while one is open and its code unused:
+    /// the proof is checked outside this state, its Argon2id being slow,
+    /// and handed back to [`Self::redeem_app`] with the window it was for.
+    pub fn for_app(&mut self, now: Instant) -> Option<(String, Instant)> {
+        if self.expire(now).is_some() {
+            return None;
+        }
+        self.window
+            .as_ref()
+            .filter(|w| !w.spent)
+            .map(|w| (w.code.clone(), w.opened))
+    }
+
+    /// A Verso app presented its proof for the window opened at `opened`
+    /// (ADR 0117, "The Verso app paired"): `back` is this computer's own
+    /// proof when the app's held, none when it did not. As [`Self::redeem`]
+    /// in all else — once, the same three attempts, the laptop asked — and
+    /// never through the internet link (the route refuses it before).
+    pub fn redeem_app(
+        &mut self,
+        opened: Instant,
+        back: Option<String>,
+        device: &str,
+        address: &str,
+        asked: &str,
+        now: Instant,
+    ) -> Result<Redeemed, String> {
+        if self.expire(now).is_some() {
+            return Ok(Redeemed::Closed);
+        }
+        let Some(window) = self.window.as_mut() else {
+            return Ok(Redeemed::Closed);
+        };
+        // Another window since the proof was read: its code was not this.
+        if window.opened != opened {
+            return Ok(Redeemed::Refused { ended: None });
+        }
+        if let Some(back) = back.filter(|_| !window.spent) {
+            window.spent = true;
+            let poll = crypto::token()?;
+            self.requests.push(Request {
+                poll: crypto::hash(&poll),
+                device: device.to_owned(),
+                address: address.to_owned(),
+                asked: asked.to_owned(),
+                link: None,
+                app: Some(back),
+                at: now,
+                answer: Answer::Waiting,
+            });
+            return Ok(Redeemed::Asked { poll });
+        }
         window.failures += 1;
         let closing = window.failures >= FAILURES;
         if closing {
@@ -283,6 +363,8 @@ impl Pairing {
                 asked: r.asked.clone(),
                 link: r.link.is_some(),
                 origin: r.link.clone(),
+                app: r.app.is_some(),
+                proof: r.app.clone(),
             })
     }
 
@@ -378,6 +460,7 @@ mod tests {
             token: "t".into(),
             csrf: "c".into(),
             session: "s".into(),
+            proof: None,
         }
     }
 
@@ -568,5 +651,53 @@ mod tests {
             ask(&mut p, &new.token, now),
             Redeemed::Asked { .. }
         ));
+    }
+
+    /// The app's proof redeems the window once, as the code would; a proof
+    /// that did not hold counts among the three; a window opened since is
+    /// not the one the proof was for.
+    #[test]
+    fn the_apps_proof_redeems_once_and_counts_when_it_fails() {
+        let (mut p, o, now) = open();
+        let (code, opened) = p.for_app(now).unwrap();
+        assert_eq!(code, o.code);
+        let app = |p: &mut Pairing, back: Option<&str>, opened| {
+            p.redeem_app(
+                opened,
+                back.map(str::to_owned),
+                "Pixel",
+                "192.168.1.9",
+                "t",
+                now,
+            )
+            .unwrap()
+        };
+        assert_eq!(app(&mut p, None, opened), Redeemed::Refused { ended: None });
+        let Redeemed::Asked { poll } = app(&mut p, Some("back"), opened) else {
+            panic!("a proof that held is asked about");
+        };
+        let asked = p.pending().unwrap();
+        assert!(asked.app);
+        assert_eq!(asked.proof.as_deref(), Some("back"));
+        assert!(p.for_app(now).is_none(), "the code is spent");
+        assert_eq!(
+            app(&mut p, Some("back"), opened),
+            Redeemed::Refused { ended: None },
+            "used again: counted"
+        );
+        assert_eq!(p.poll(&poll, now), Polled::Waiting, "the first still asks");
+
+        let (mut p, _, now) = open();
+        let (_, opened) = p.for_app(now).unwrap();
+        p.open(now + Duration::from_secs(1)).unwrap();
+        assert_eq!(
+            app(&mut p, Some("back"), opened),
+            Redeemed::Refused { ended: None },
+            "another window"
+        );
+        assert!(p.pending().is_none());
+        let mut closed = Pairing::default();
+        assert!(closed.for_app(now).is_none());
+        assert_eq!(app(&mut closed, Some("back"), opened), Redeemed::Closed);
     }
 }
