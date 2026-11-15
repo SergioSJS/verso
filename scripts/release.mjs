@@ -33,6 +33,7 @@
 //   node scripts/release.mjs files 0.8.3-beta.1
 //   node scripts/release.mjs assets 0.8.3-beta.1
 //   node scripts/release.mjs per-file-signatures
+//   node scripts/release.mjs ios-config
 //     For the release workflow (ADR 0055, revised 2026-10-14): the files a
 //     release's checksums list covers; every file it publishes, the list
 //     and the signatures included; and whether each file still gets its
@@ -61,7 +62,7 @@ const FUZZ = [
   ["crates/verso-server/fuzz/Cargo.toml", "crates/verso-server/fuzz/Cargo.lock", "verso-server"],
 ];
 
-const USAGE = "usage: release.mjs prepare|tag|notes|preview|files|assets X.Y.Z[-beta.N] [--dry-run] | verify vX.Y.Z[-beta.N] | per-file-signatures";
+const USAGE = "usage: release.mjs prepare|tag|notes|preview|files|assets X.Y.Z[-beta.N] [--dry-run] | verify vX.Y.Z[-beta.N] | per-file-signatures | ios-config";
 
 const CHANGELOGS = [
   { file: "CHANGELOG.md", unreleased: "## Unreleased", empty: "Nothing yet." },
@@ -113,6 +114,15 @@ function iosVersion(v) {
   const [maj, min, pat, beta] = [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 99 : Number(m[4])];
   if (min > 99 || pat > 99 || beta > 98 && m[4] !== undefined) fail(`${v}: too large for the iOS build number`);
   return { short: `${maj}.${min}.${pat}`, build: String(((maj * 100 + min) * 100 + pat) * 100 + beta) };
+}
+
+/** The `--config` JSON the iOS build is given (ADR 0119 A16): `tauri ios
+ *  build` regenerates the bundle's Info.plist from Tauri's own config, which
+ *  names no version (it said 1.0.0), so the release job passes the numbers
+ *  from the workspace version, the one source. */
+function iosConfig(v) {
+  const ios = iosVersion(v);
+  return JSON.stringify({ version: ios.short, bundle: { iOS: { bundleVersion: ios.build } } });
 }
 
 /** The workspace's version, from `[workspace.package]` in Cargo.toml. */
@@ -299,6 +309,7 @@ function verify(tagName) {
 }
 
 if (command === "verify") verify(version);
+else if (command === "ios-config") console.log(iosConfig(workspaceVersion(readHere("Cargo.toml"))));
 else if (command === "per-file-signatures") console.log(String(PER_FILE_SIGNATURES));
 else if (!parse(version)) fail(USAGE);
 else if (command === "files") console.log(Object.values(releaseFiles(version)).join("\n"));

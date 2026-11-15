@@ -692,7 +692,11 @@ jobs:
         run: npm ci && npm run build
       - name: the .ipa
         working-directory: app/src-tauri
-        run: npm --prefix ../ui exec -- tauri ios build --no-sign --export-method debugging
+        # Tauri's config names no version, so the regenerated Info.plist
+        # said 1.0.0: the numbers come from the workspace version (ADR 0119 A16).
+        run: |
+          config="$(node ../../scripts/release.mjs ios-config)"
+          npm --prefix ../ui exec -- tauri ios build --no-sign --export-method debugging --config "$config"
       - name: the release's files
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -704,6 +708,19 @@ jobs:
           # The static library is linked, not shipped (433 MB before).
           if unzip -l "$ipa" | grep -q 'libapp\.a'; then
             echo "::error::the .ipa carries libapp.a"
+            exit 1
+          fi
+          # The bundle carries the version AltStore's source states
+          # (it said 1.0.0 in 0.9.0-beta.3).
+          want="$(node scripts/release.mjs ios-config)"
+          want_short="$(printf '%s' "$want" | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version')"
+          want_build="$(printf '%s' "$want" | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).bundle.iOS.bundleVersion')"
+          plist="$(mktemp -d)/Info.plist"
+          unzip -p "$ipa" 'Payload/*.app/Info.plist' > "$plist"
+          got_short="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")"
+          got_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
+          if [ "$got_short" != "$want_short" ] || [ "$got_build" != "$want_build" ]; then
+            echo "::error::the .ipa says $got_short ($got_build), not $want_short ($want_build)"
             exit 1
           fi
           cp "$ipa" "$slug-$VERSION-ios.ipa"

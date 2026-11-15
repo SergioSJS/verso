@@ -708,7 +708,14 @@ iOS suspende"*):
   `CFBundleVersion` `1.0.0`, not the `0.9.0` / `90003` the sources hold
   (A16); AltStore requires the source's version and build to match the
   `.ipa`, so the install through the source is unproven until the release
-  build carries the right numbers.
+  build carries the right numbers. **Fixed 2026-11-15:** `tauri ios build`
+  regenerates the plist from Tauri's config, so the release job now passes
+  `--config "$(node scripts/release.mjs ios-config)"` (`version` and
+  `bundle.iOS.bundleVersion` from the workspace version through the same
+  `iosVersion` rule), as Android reads the workspace version in its Gradle
+  file; and the job unzips the built `.ipa` and fails when its
+  `CFBundleShortVersionString` or `CFBundleVersion` differ (PlistBuddy). What
+  only the next release run proves: that Tauri honours the override.
 
 ## Consequences
 

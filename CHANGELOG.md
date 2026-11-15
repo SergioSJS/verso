@@ -12,6 +12,8 @@ test release.
 
 ## Unreleased
 
+- **The iPad and iPhone build carries the release's version.** The `.ipa` said `1.0.0` instead of the version AltStore's source states; the release now builds it with the version and build number derived from the workspace version, and fails if the built `.ipa` disagrees.
+
 - **The Mac beta installed from this checkout is signed with a fixed local certificate.** Run `scripts/mac/local-signing-cert.sh` once (it makes "Verso Local Signing" in your login keychain, trusted for code signing only; `--remove` undoes it) and `scripts/install-beta.sh` signs every build with it, so macOS keeps the folder and Keychain permissions it gave the beta instead of asking again after each install. Without the certificate the script signs ad hoc, as before, and says so. Releases are unchanged.
 
 - **A Watabou map's tracing is shown in your window only.** *Show the tracing* no longer changes the board's file or what the others see: it is a view of the window that pressed it, kept for that board there, and the tracing stays hidden and locked in the file for everyone else.
