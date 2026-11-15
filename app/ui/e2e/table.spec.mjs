@@ -252,7 +252,7 @@ test("add to note (the entry's menu) shows the roll block that will be written, 
   expect(await app.calls("write_note")).toHaveLength(1);
 });
 
-test("the phone: the table is a sheet from the bottom, reached from the bottom bar @layout", async ({ app, page }) => {
+test("the phone: the table is a sheet over the page, reached from the bottom bar @layout", async ({ app, page }) => {
   await app.open();
   await openNote(app);
   const preview = page.locator(".preview:visible");
