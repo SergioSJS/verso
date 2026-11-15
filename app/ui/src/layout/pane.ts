@@ -418,7 +418,6 @@ export class Pane {
     showMenu(x, y, [
       ...(this.canGo(-1) ? [[t.navBack, () => this.go(-1), "chevronLeft"] as MenuItem] : []),
       ...(this.canGo(1) ? [[t.navForward, () => this.go(1), "chevron"] as MenuItem] : []),
-      ...(mayHere() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
       ...(active ? [[st.tabActions, () => {
         const r = active.tab.getBoundingClientRect();
         this.tabMenu(active, r.left + 12, r.bottom);
@@ -428,6 +427,9 @@ export class Pane {
       sep,
       [this.vertical ? t.horizontalTabs : t.verticalTabs, () => this.setVertical(!this.vertical), "vtabs"],
       [t.hideTabs, () => this.setTabsHidden(true), "collapse"],
+      // After the tabs' own entries, as the pane's buttons have it (back,
+      // forward, the tabs, vertical, +): one order on every size (ADR 0076).
+      ...(mayHere() ? [[t.newNote, () => void newUntitled(this), "plus"] as MenuItem] : []),
       // On a phone the bar of verbs at the bottom comes and goes from here too.
       ...(narrow.matches ? [[settings.phoneBottomBar ? st.hideBar : st.showBar, () => setBottomBar(!settings.phoneBottomBar), "panelRight"] as MenuItem] : []),
       ...(many && !narrow.matches ? [[layout().maximized === this ? t.restore : t.maximize, () => layout().toggleMaximize(this), "maximize"] as MenuItem] : []),

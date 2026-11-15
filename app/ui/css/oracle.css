@@ -546,8 +546,9 @@
   .oracle-spark-cards {
     grid-template-columns: 1fr;
   }
+  /* Stacked in the desktop's order, top to bottom (ADR 0076: one order on every size). */
   .oracle-actions {
-    flex-direction: column-reverse;
+    flex-direction: column;
     align-items: stretch;
     gap: 0.5rem;
   }
