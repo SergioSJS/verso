@@ -443,9 +443,47 @@ two by orientation); he chose the third, with one column sideways. Built
   section: Board | Text, what puts something on the board, Loose arrows,
   the search, the outline, Excalidraw's menu and, at a table, who sees it.
 - Targets stay 44 px (the column's 43 px on a 390 px screen, each 52 px
-  wide). Chosen in the code (the maintainer's to change): the order of the
-  sheet's verbs, and the hand tool kept in the column rather than moved to
-  "more".
+  wide). Chosen in the code (the maintainer's to change): the hand tool kept
+  in the column rather than moved to "more".
+- **The side panels' handles** (the maintainer, the same day: on a board
+  the sideways swipe never starts — the canvas keeps the finger — and the
+  bottom bar's Files and Panel are the board's tools now; *"deveria ter
+  esses botões de atalho ali no board"*): while a board, a plugin drawing,
+  the graph, the data graph or a base's map is in front on a phone, a slim
+  tab sits centred on each edge of the screen — 20 px marks, see-through
+  until touched, 44 × 64 px targets — the left one opening the files, the
+  right one the right panel, through the bottom bar's toggles (Back, the tap
+  outside, the buttons' state as for them). A swipe that starts on one, past
+  Android's Back band, drags its panel out as anywhere else. Sideways, the
+  panel's tab stands at the left of the board's column. Hidden while a panel
+  is open, while the board's menus, dialogs or outline lie over the edge,
+  off a phone, and the files' one for a file opened without its folder
+  (`app/ui/src/screen/edgeHandles.ts`, `app/ui/css/edgehandles.css`). The
+  selection's island sits at the bottom, clear of them.
 - Tried in `e2e/board-phone.spec.mjs` (both sizes) and
-  `test/boardPhone.test.mjs`; on a real phone in
+  `test/boardPhone.test.mjs`, `test/edgeHandles.test.mjs`; on a real phone in
   `docs/reference/manual-checks.md`.
+
+**One order on every size (item 6, 2026-11-15).** The maintainer: the board's
+buttons came on the phone in another order than on the desktop; *"seria mais
+intuitivo … ter sempre a mesma sequência"*, for every screen that changes
+shape on a phone. The rule: **the phone shows the desktop's sequence, in the
+desktop's order; what does not fit goes into "more" (or the ⋯ sheet) keeping
+that order** — the phone shows a prefix of the desktop's order, then the
+rest. Applied to the board:
+
+- The tools, bar and column alike: hand, selection, the shapes, the arrows,
+  the pencil, text, eraser, then "more" (Excalidraw's phone toolbar drew
+  hand, selection, pencil, eraser, shapes, arrows, text). Excalidraw's props
+  set no order: its buttons are put back in the desktop's by CSS `order` on
+  their test ids (`app/ui/css/boardphone.css`), the least fragile way — a
+  renamed id leaves the tool in place before "more", never lost; the e2e
+  test reads the order. Where Excalidraw's phone toolbar cannot follow:
+  the desktop's lock is not on it, the sticky note (between text and eraser
+  on the desktop) is in its "more", and its "more" takes no eraser.
+- The sheet's *Board* section, in the desktop's top row: Excalidraw's menu
+  (☰, at the left), the text card and Insert's items (after the tools),
+  then the search and the outline.
+- The selection: Verso's tools of the selected card are the same island,
+  in the same order, on both; Excalidraw's own phone island (colours, then
+  the other properties, then text) follows its desktop panel's sequence.

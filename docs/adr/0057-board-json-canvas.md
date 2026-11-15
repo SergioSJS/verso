@@ -289,17 +289,19 @@ Three prototypes on the real board; he chose C with one change (one column
 sideways). Under the phone's measure (`PHONE_MEDIA`, ADR 0076; Excalidraw's
 form factor follows it through `UIOptions.getFormFactor`):
 
-- The canvas keeps **only the drawing tools**: held upright, one flush bar at
+- The canvas keeps **only the drawing tools**, in the desktop toolbar's order
+  (hand, selection, shapes, arrows, pencil, text, eraser, more): held upright, one flush bar at
   the board's foot, in the place of the app's bottom bar while a board that
   draws is in front; held sideways, one column at the right edge (clear of
   the right safe area), all eight tools in it, sharing the height under the
   top bar (43 px each on a 390 px screen). Excalidraw shows its text tool
   outside "more" only on a toolbar at least 316 px wide: the toolbar keeps
   that width, see-through, its tools at the column's edge.
-- **Board | Text**, the **Text card**, Insert's items (picture or PDF, note
-  or file, link, web page), **Loose arrows**, the **search**, the
-  **outline** and Excalidraw's menu (*Export, background and help*) move to
-  a **Board** section of the top bar's ⋯ sheet, with *Who sees* at a table
+- **Board | Text**, then, in the desktop's order (ADR 0076, one order on
+  every size), Excalidraw's menu (*Export, background and help*), the
+  **Text card**, Insert's items (picture or PDF, note or file, link, web
+  page), **Loose arrows**, the **search** and the **outline** move to a
+  **Board** section of the top bar's ⋯ sheet, with *Who sees* at a table
   (`app/ui/src/board/phoneVerbs.ts`, `app/ui/src/leaves/boardSheet.ts`).
   The text face keeps its row, the way back to the board.
 - **Undo and redo** are the top bar's (pressing Excalidraw's own, off as
@@ -312,6 +314,8 @@ form factor follows it through `UIOptions.getFormFactor`):
   view mode of a reader's board and of a plugin drawing) and its picture tool
   (off on a board) are not drawn; a plugin drawing's bar is one row on a
   phone.
+- On a phone the files and the right panel are a tab on each edge of the
+  board (ADR 0076), the swipe never starting on its canvas.
 - Desktop and tablet are unchanged. Tried in `e2e/board-phone.spec.mjs` and
   `test/boardPhone.test.mjs`; the stylesheet is `app/ui/css/boardphone.css`.
 
