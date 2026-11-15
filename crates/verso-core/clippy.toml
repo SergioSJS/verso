@@ -61,5 +61,8 @@ disallowed-methods = [
 # std::fs::read_dir (the recents listing, ratified 2026-09-29), and
 # std::fs::OpenOptions::open, to append one line to agents.log — allowed by
 # the maintainer on 2026-10-09 ("Liberado", ADR 0054): rewriting the whole
-# log on every call lost a line when two servers logged at once. Only
+# log on every call lost a line when two servers logged at once. The same
+# call opens a synced folder's state's temporary and the configuration
+# directory to flush them to the disk (invariant 9; the sync review's I5,
+# 2026-11-15): nothing else is opened. Only
 # src/sidecar.rs may call any of them (scripts/check.sh).

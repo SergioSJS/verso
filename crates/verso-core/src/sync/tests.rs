@@ -1350,3 +1350,72 @@ fn case_twins_on_the_server_keep_one_here_and_hold_the_other() {
     );
     assert_eq!(p.held, vec![]);
 }
+
+/// A long pass saved as it goes ([`super::Checkpoint`]) and cut short:
+/// the next pass does only what was not done and saved — each file
+/// fetched once more at most, the one done after the last save agreed,
+/// not a conflict — and the saved base never names a step not done.
+#[test]
+fn a_pass_cut_short_goes_on_from_its_last_save() {
+    use super::{Checkpoint, Loaded, load_checked, save};
+    let config = tempfile::tempdir().unwrap();
+    let remote = files(&[
+        ("1.md", "a"),
+        ("2.md", "b"),
+        ("3.md", "c"),
+        ("4.md", "d"),
+        ("5.md", "e"),
+    ]);
+    let mut local = Files::new();
+    let mut st = State::default();
+    let p = plan(&local, &remote, &st, false, false, &copy);
+    assert_eq!(p.actions.len(), 5);
+    let mut checkpoint = Checkpoint::new(2, std::time::Duration::from_secs(3600));
+    // The host's loop: a step carried out, its base entry, then perhaps a
+    // save; the link drops after the third step.
+    for action in p.actions.iter().take(3) {
+        let Action::Download { path, hash } = action else {
+            panic!("{action:?}")
+        };
+        local.insert(path.clone(), f(hash));
+        st.base.insert(path.clone(), hash.clone());
+        if checkpoint.step() {
+            save(Some(config.path()), "k", &st).unwrap();
+        }
+    }
+    let Loaded::Found(kept) = load_checked(Some(config.path()), "k").unwrap() else {
+        panic!("no state saved");
+    };
+    assert_eq!(kept.base.len(), 2);
+    assert!(kept.base.keys().all(|p| local.contains_key(p)));
+    let again = plan(&local, &remote, &kept, false, false, &copy);
+    let downloads: Vec<&str> = again
+        .actions
+        .iter()
+        .filter_map(|a| match a {
+            Action::Download { path, .. } => Some(path.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(downloads, vec!["4.md", "5.md"]);
+    assert!(
+        again
+            .actions
+            .iter()
+            .all(|a| matches!(a, Action::Download { .. } | Action::Agree { .. }))
+    );
+    assert!(again.pause.is_none());
+}
+
+#[test]
+fn a_checkpoint_comes_by_steps_or_by_time() {
+    use super::Checkpoint;
+    let mut by_steps = Checkpoint::new(3, std::time::Duration::from_secs(3600));
+    let said: Vec<bool> = (0..7).map(|_| by_steps.step()).collect();
+    assert_eq!(said, [false, false, true, false, false, true, false]);
+    let mut by_time = Checkpoint::new(1000, std::time::Duration::ZERO);
+    assert!(by_time.step() && by_time.step());
+    // Never zero steps: every step at most.
+    let mut every = Checkpoint::new(0, std::time::Duration::from_secs(3600));
+    assert!(every.step());
+}

@@ -309,6 +309,9 @@ pub struct DavMode {
     /// Every this-many-th `PUT` of a file is followed at once by another
     /// device's conditional write on the same file; 0 is never.
     pub intrude: u32,
+    /// The `GET` of a file of this number (the first is 1) answers 500, as
+    /// a link that drops mid-listing would end it; 0 is never.
+    pub fail_get: u32,
 }
 
 #[derive(Default)]
@@ -323,6 +326,7 @@ struct DavStore {
     hidden: BTreeSet<String>,
     after: Vec<Intrusion>,
     puts: u32,
+    gets: u32,
 }
 
 /// A fake WebDAV server rooted at `/dav`.
@@ -596,6 +600,14 @@ fn dav(s: &mut DavStore, mode: &DavMode, r: &Req) -> Resp {
             }
             out.push_str("</d:multistatus>");
             Resp::new(207).xml(out)
+        }
+        "GET"
+            if s.files.contains_key(&rel) && {
+                s.gets += 1;
+                s.gets == mode.fail_get
+            } =>
+        {
+            Resp::new(500)
         }
         "GET" | "HEAD" => match s.files.get(&rel) {
             Some((bytes, etag)) => {
