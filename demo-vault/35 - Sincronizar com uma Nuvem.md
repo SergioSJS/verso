@@ -13,8 +13,8 @@ status: ativo
 
 Esta nota mostra como manter uma pasta do Verso **igual** a uma pasta de uma nuvem que você **já tem** — um Nextcloud (ou outro servidor WebDAV) ou um bucket S3 — sem instalar servidor nenhum. É a alternativa curta ao [[31 - Verso num Servidor|UniVerso]]: as notas continuam arquivos Markdown na sua pasta, e uma cópia fica na nuvem, para os seus outros computadores.
 
-> [!NOTE] Só no computador
-> Uma pasta ligada a uma nuvem sincroniza **entre computadores com o app desktop**. O celular, o tablet e o navegador não sincronizam com uma nuvem: para eles, use um [[31 - Verso num Servidor|UniVerso]]. Também não há, numa pasta de nuvem, edição ao mesmo tempo, compartilhamento com outras pessoas, papéis nem a lixeira do servidor.
+> [!NOTE] Nos apps, não no navegador
+> Uma pasta ligada a uma nuvem sincroniza **entre os apps Verso**: o do computador e os do celular e do tablet ([[29 - Verso no Celular e no Tablet|Android, iPhone e iPad]]), em **Ajustes › Sincronizar** da pasta. O navegador não sincroniza com uma nuvem: para ele, use um [[31 - Verso num Servidor|UniVerso]]. Também não há, numa pasta de nuvem, edição ao mesmo tempo, compartilhamento com outras pessoas, papéis nem a lixeira do servidor.
 
 > [!TIP] Dropbox, OneDrive e Google Drive
 > Aparecem na lista de **Sincronizar com…** como "em breve": dependem de contas de desenvolvedor que ainda não existem. WebDAV e S3 já funcionam.

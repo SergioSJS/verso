@@ -342,7 +342,7 @@ The app now says *Connected as* your name. A new server has no folders yet, and 
 
 ### On the phone and the tablet
 
-There is no app to install: open `http://<machine IP>:7340` (or the `https://` address, if there is one) in the phone's browser and sign in with the e-mail and password. (With Tailscale, the phone must have it connected.) Without HTTPS, offline mode is off and the window tells you. How the window behaves on a small screen is in [[29 - Verso on Phone and Tablet]].
+With the **Verso app** (Android, iPhone, iPad): **Settings › Servers › Connect**, and picking a server folder in the switcher downloads a copy that also opens offline ([[29 - Verso on Phone and Tablet]]). With the **browser**, nothing to install: open `http://<machine IP>:7340` (or the `https://` address, if there is one) in the phone's browser and sign in with the e-mail and password. (With Tailscale, the phone must have it connected.) Without HTTPS, offline mode is off and the window tells you. How the window behaves on a small screen is in [[29 - Verso on Phone and Tablet]].
 
 For a second person, the admin syncs (or creates) the folder, then makes an invitation in the console (`/admin/invitations`) and sends the link: [[31 - Verso on a Server#The first admin and the accounts|the accounts and the invitations]].
 

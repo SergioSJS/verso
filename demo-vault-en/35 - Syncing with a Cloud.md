@@ -13,8 +13,8 @@ status: active
 
 This note shows how to keep a Verso folder **the same as** a folder in a cloud you **already have** — a Nextcloud (or another WebDAV server) or an S3 bucket — without installing any server. It is the short alternative to the [[31 - Verso on a Server|UniVerso]]: your notes stay Markdown files in your folder, and a copy sits in the cloud for your other computers.
 
-> [!NOTE] Computers only
-> A folder tied to a cloud syncs **between computers running the desktop app**. The phone, the tablet and the browser do not sync with a cloud: for them, use a [[31 - Verso on a Server|UniVerso]]. A cloud folder also has no simultaneous editing, no sharing with other people, no roles and no server bin.
+> [!NOTE] In the apps, not the browser
+> A folder tied to a cloud syncs **between the Verso apps**: the computer's and the phone's and tablet's ([[29 - Verso on Phone and Tablet|Android, iPhone and iPad]]), in the folder's **Settings › Sync**. The browser does not sync with a cloud: for it, use a [[31 - Verso on a Server|UniVerso]]. A cloud folder also has no simultaneous editing, no sharing with other people, no roles and no server bin.
 
 > [!TIP] Dropbox, OneDrive and Google Drive
 > They show in the **Sync with…** list as "coming soon": they depend on developer accounts that do not exist yet. WebDAV and S3 work now.
