@@ -6,7 +6,7 @@
 // with codes is never rewritten by opening or reading it (invariant 7).
 
 import { mkdirSync } from "node:fs";
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const SHOTS = `${process.env.HOME}/.cache/swatch-shots`;
 mkdirSync(SHOTS, { recursive: true });
@@ -148,7 +148,7 @@ test("the switch removes the swatches everywhere, and bringing it back draws the
   await expect(swatches(page, ".preview:visible")).toHaveCount(0);
   // The property's swatch goes too, without leaving and coming back.
   await expect(page.locator(".prop-value .swatch:visible")).toHaveCount(0);
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".cm-content:visible .cm-swatch")).toHaveCount(0);
   expect(await app.file(NOTE)).toBe(TEXT);
   await app.key("Mod+,");
@@ -190,7 +190,7 @@ test("the property's swatch opens the picker; the pick is written into the front
 test("the picker is keyboard operable and named @layout", async ({ app, page }, info) => {
   await app.open();
   await openNote(app);
-  await page.getByRole("button", { name: "Fonte", exact: true }).click();
+  await modeOn(page, "Fonte");
   const editor = page.locator(".cm-content:visible").first();
   const hex = editor.getByRole("button", { name: "Cor #112233 — ajustar", exact: true });
   await hex.focus();

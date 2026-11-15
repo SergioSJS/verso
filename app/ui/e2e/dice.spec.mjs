@@ -4,7 +4,7 @@
 // shows with their name; the palette's roller rolls without a note. The
 // harness plays the server's room (`src/harness/room.ts`).
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const NOTE = "Mesa.md";
 const TEXT = [
@@ -61,7 +61,7 @@ test("a dice code rolls in the reading view and in Live Preview, and the note is
   await expect(row).toHaveText(/^(Lobos|Nada)$/);
 
   // Live Preview: the die off the caret's line, a click rolls.
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   const editor = page.locator(".cm-content").first();
   const die = editor.getByRole("button", { name: "Rolar 2d6" });
   await expect(die).toBeVisible();
@@ -167,7 +167,7 @@ test("Live Preview counts a note's identical dice as the reading view does, so a
   await app.folderChanged(["Ficha.md"], true);
   await app.quickOpen("Ficha");
   await expect(page.locator('.preview:visible .dice[data-dice="1d20"]')).toHaveCount(2);
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   const dice = page.locator('.cm-content .dice[data-dice="1d20"]');
   await expect(dice).toHaveCount(2);
   // The first die of the note is the first, whatever the fence holds.

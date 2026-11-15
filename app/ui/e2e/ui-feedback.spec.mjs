@@ -2,7 +2,7 @@
 // the Table leaves no text selected; the right bar resizes on every tab and
 // starts wider; the oracle's die falls in 3D; the / menu has a dice item.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const phone = (page) => (page.viewportSize()?.width ?? 1500) <= 760;
 const mesaTab = (page) => page.locator("#right-tabs").getByRole("tab", { name: /^Mesa/ });
@@ -21,7 +21,7 @@ async function withFeature(page, name, value) {
 
 async function editing(app, page, name) {
   await app.quickOpen(name);
-  await page.getByRole("button", { name: "Editar", exact: true }).first().click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".editor.live .cm-content")).toBeVisible();
 }
 

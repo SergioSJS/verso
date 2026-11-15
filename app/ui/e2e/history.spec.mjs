@@ -9,7 +9,7 @@
 // when the note is live; a copy beside the file; a reader has none; a
 // synced folder whose server is out of reach says what it shows.
 
-import { expect, test } from "./fixtures.mjs";
+import { expect, test, modeOn } from "./fixtures.mjs";
 
 const NOTE = "Diario.md";
 
@@ -23,7 +23,7 @@ async function note(app, text = "# Diário\n\num\n") {
 /** Type `text` at the end of the note in the editor, and wait for its save. */
 async function typed(app, text) {
   const { page } = app;
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   const editor = page.locator(".cm-content").first();
   await editor.click();
   await app.key("Mod+End");
@@ -136,7 +136,7 @@ test("a restore over a live note goes through its room, and the others see it", 
   await app.writeOutside(NOTE, "# Diário\n\num\n");
   await app.folderChanged([NOTE], true);
   await app.quickOpen("Diario");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".live-mark:visible")).toHaveText(/^ao vivo/);
   // Bia types; the room saves.
   await page.evaluate((n) => {

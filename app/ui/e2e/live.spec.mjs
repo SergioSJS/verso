@@ -3,7 +3,7 @@
 // the server's room (`src/harness/room.ts`), and a test says the sync's
 // state (`sync-status`) as the host would.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const NOTE = "Sessao ao vivo.md";
 
@@ -26,7 +26,7 @@ async function openNote(app) {
   await app.writeOutside(NOTE, "# Sessao\n\num\n");
   await app.folderChanged([NOTE], true);
   await app.quickOpen("Sessao ao vivo");
-  await app.page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(app.page, "Editar");
 }
 
 test("a synced folder's note is live with the others, goes local when the link drops, and comes back", async ({ app, page }) => {

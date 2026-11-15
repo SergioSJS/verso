@@ -4,14 +4,14 @@
 // a press on a graph node leaves the view alone, and Alt+Enter follows the
 // link under the caret.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 test("a routine save is shown but not announced; a failure is both", async ({ app, page }) => {
   await app.open("?vault=empty");
   await app.writeOutside("Nota.md", "# Nota\n\n");
   await app.folderChanged(["Nota.md"], true);
   await app.quickOpen("Nota");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await page.locator(".cm-content").click();
   await page.keyboard.type("texto");
   await expect(page.locator("#status")).toHaveText("Salvo.");
@@ -146,8 +146,8 @@ test.describe("Alt+Enter follows the link under the caret", () => {
     for (const [p, text] of Object.entries(FILES)) await app.writeOutside(p, text);
     await app.folderChanged(Object.keys(FILES), true);
     await app.quickOpen("Origem");
-    if (mode === "Fonte") await app.page.getByRole("button", { name: "Fonte", exact: true }).click();
-    else await app.page.getByRole("button", { name: "Editar", exact: true }).click();
+    if (mode === "Fonte") await modeOn(app.page, "Fonte");
+    else await modeOn(app.page, "Editar");
     await app.page.locator(".pane.focused .cm-content").filter({ visible: true }).click();
   }
   /** The caret `n` characters into the first line. */

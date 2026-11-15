@@ -13,7 +13,7 @@
 
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const SHOTS = "/logs/shots/embeds";
 const phone = (page) => (page.viewportSize()?.width ?? 1500) <= 760;
@@ -160,7 +160,8 @@ test("an audio embed in a note is Verso's player: play, pause, the bar and its t
   // The name opens the file.
   await taverna.getByRole("button", { name: "Abrir taverna.wav" }).click();
   // In a tab of its own: the player, never a text tab that cannot read it.
-  await expect(page.getByRole("tab", { name: /taverna\.wav/ }).first()).toBeVisible();
+  // (On a phone the tabs fold into the one top bar: the tab is there, not shown.)
+  await expect(page.locator(".tab", { hasText: "taverna.wav" }).first()).toBeAttached();
   await expect(page.locator(".audio-leaf:visible").getByRole("group", { name: "Áudio: taverna.wav" })).toBeVisible();
   expect(await app.file("Sons.md")).toBe(text);
 });
@@ -188,19 +189,19 @@ test("Editar draws the player where the embed is written; Fonte shows the text, 
   await stubPlay(page);
   const text = await folder(app, page);
   await app.quickOpen("Sons");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   const editor = page.locator(".cm-content:visible");
   await expect(editor.locator(".audio-embed")).toHaveCount(2);
   const taverna = editor.getByRole("group", { name: "Áudio: taverna.wav" });
   await taverna.getByRole("button", { name: "Tocar “taverna”" }).click();
   await expect.poll(() => plays(page)).toHaveLength(1);
-  await page.getByRole("button", { name: "Fonte", exact: true }).click();
+  await modeOn(page, "Fonte");
   await expect(editor).toContainText("![[taverna.wav]]");
   await expect(editor).toContainText("![](Música/estrada.wav)");
   await expect(editor.locator(".audio-embed")).toHaveCount(0);
   // The player left with the text shown: its sound stops a moment later.
   await expect.poll(() => page.evaluate(() => [...document.querySelectorAll("audio")].filter((a) => !a.paused).length), { timeout: 6000 }).toBe(0);
-  await page.getByRole("button", { name: "Leitura", exact: true }).click();
+  await modeOn(page, "Leitura");
   await expect.poll(() => app.file("Sons.md")).toBe(text);
 });
 

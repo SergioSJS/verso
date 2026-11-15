@@ -13,7 +13,7 @@
 // taps the chip; in a live note the accepted link is an edit through the
 // room; a reader gets none.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 const FILES = {
   "Capitão Ruy.md": "---\naliases: [O Capitão]\n---\n# Capitão Ruy\n",
@@ -36,7 +36,7 @@ async function seeded(app, settings = {}, { open = DRAFT, query = "?vault=empty"
   for (const [path, text] of Object.entries(FILES)) await app.writeOutside(path, text);
   await app.folderChanged(Object.keys(FILES), true);
   await app.quickOpen(open.replace(/\.md$/, ""));
-  await app.page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(app.page, "Editar");
   await atEnd(app.page);
 }
 
@@ -191,7 +191,7 @@ test("the setting is in Settings › Editor, off, with its two lists, and turnin
   expect(stored.suggestIgnoreNames).toEqual(["Mesa", "mesa", "Porto"]);
   await page.keyboard.press("Escape");
   await app.quickOpen("Rascunho");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await atEnd(page);
   await page.keyboard.type("Um Porto");
   // The name is ignored: no chip (the longer names it begins are listed).
@@ -225,7 +225,7 @@ test("in a live note the accepted link is an edit through the room", async ({ ap
   for (const [path, text] of Object.entries(FILES)) await app.writeOutside(path, text);
   await app.folderChanged(Object.keys(FILES), true);
   await app.quickOpen("Rascunho");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".live-mark:visible")).toContainText("ao vivo");
   await atEnd(page);
   await page.keyboard.type("Fomos ao Capitão Ruy");

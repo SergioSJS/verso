@@ -4,7 +4,7 @@
 // twice in a note is said, the last one counting. The id itself is not
 // shown when reading, and is shown quiet in Editar, as in Obsidian.
 
-import { test, expect } from "./fixtures.mjs";
+import { test, expect, modeOn } from "./fixtures.mjs";
 
 async function open(app, files, note) {
   await app.open();
@@ -80,6 +80,6 @@ test("a block's ^id is hidden when reading and quiet in Editar", async ({ app, p
   await expect(preview).toContainText("Um parágrafo.");
   await expect(preview).not.toContainText("^par");
   await expect(preview).not.toContainText("^tab");
-  await page.getByRole("button", { name: "Editar", exact: true }).click();
+  await modeOn(page, "Editar");
   await expect(page.locator(".leaf:not([hidden]) .cm-blockid")).toHaveText(["^par", "^tab"]);
 });
