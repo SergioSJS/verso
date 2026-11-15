@@ -40,7 +40,7 @@ import { dropActions } from "./dropActions";
 import { textCardActions } from "./textCard";
 import { MapsPanel } from "./mapsPanel";
 import { MapTools } from "./mapsTools";
-import { type Tracing, tracingOf } from "./tracing";
+import { hideLocal, type ShownTracing, type Tracing, tracingOf } from "./tracing";
 import { mapStrings } from "./mapStrings";
 import { PinLayer, usePinPointer, ViewWatch, type Watch } from "./mapsView";
 import { CropDialog, ExportDialog } from "./dialogs";
@@ -182,6 +182,9 @@ function Board({
   /** The pins (ADR 0090), drawn by `PinLayer` at one size at any zoom. */
   const [pins, setPins] = useState<readonly El[]>([]);
   const [tracing, setTracing] = useState<Tracing>("none");
+  /** The tracing this window shows (ADR 0120); what is saved or sent is
+   *  `hideLocal` of the scene. */
+  const shownTrace = useRef<ShownTracing<ExcalidrawElement>>(new Map());
   const cardsKey = useRef("");
   /** Who asked to hear the view move (`ViewWatch`), and the pins' place. */
   const watchers = useRef(new Set<(v: View) => void>());
@@ -492,12 +495,12 @@ function Board({
     // In a room the board saves nothing itself: what it changed goes to the
     // room, which writes the file.
     if (host.room) {
-      host.room.scene(a.getSceneElementsIncludingDeleted() as unknown as El[], a.getAppState().viewBackgroundColor, edited.current);
+      host.room.scene(hideLocal(a.getSceneElementsIncludingDeleted(), shownTrace.current) as unknown as El[], a.getAppState().viewBackgroundColor, edited.current);
       edited.current = false;
       host.room.push();
       return Promise.resolve();
     }
-    const next = fromElements(a.getSceneElementsIncludingDeleted() as unknown as El[], doc.current, a.getAppState().viewBackgroundColor);
+    const next = fromElements(hideLocal(a.getSceneElementsIncludingDeleted(), shownTrace.current) as unknown as El[], doc.current, a.getAppState().viewBackgroundColor);
     const json = JSON.stringify(next);
     if (json === sent.current) {
       // An edit undone before its save: nothing is left to write, and the
@@ -648,7 +651,7 @@ function Board({
         workKey.current = key;
         noteUser();
         if (host.room && !readOnly && !reading.current) {
-          host.room.scene(els as unknown as El[], state.viewBackgroundColor, edited.current);
+          host.room.scene(hideLocal(els, shownTrace.current) as unknown as El[], state.viewBackgroundColor, edited.current);
           edited.current = false;
         }
         dropMarkers(els);
@@ -935,7 +938,7 @@ function Board({
   // Maps (ADR 0090): the commands, the pointer on the pins, and the
   // writer's "view as a reader".
   const dragFrom = useRef(new Map<string, [number, number]>());
-  const mapAct = mapActions({ api, host, touched, center, dragFrom });
+  const mapAct = mapActions({ api, host, touched, center, dragFrom, shownTrace });
   const watch = useCallback<Watch>((cb) => {
     watchers.current.add(cb);
     if (liveRef.current.width > 0) cb(liveRef.current);
@@ -1202,6 +1205,9 @@ function Board({
                 // are: Excalidraw says nothing until something changes.
                 setLayerHost(container.current?.querySelector<HTMLElement>(".excalidraw") ?? null);
                 syncCards(a.getSceneElements());
+                // This window's choice for this board (ADR 0120): the
+                // tracing shown again, without a word and no undo step.
+                if (host.tracingShown?.() && !readOnly) mapAct.showTracing(true, true);
                 scheduleOverlays(a.getSceneElements());
                 remeasureWhenFontsIn(a.getSceneElements());
                 // The others already on the board, before any of them moves;

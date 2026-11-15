@@ -383,9 +383,14 @@ Any other GeoJSON generator stays named, not imported.
 the board when it holds a tracing — a map tool beside *Pin a note here…*
 and a verb of the phone's ⋯ sheet, Board section, both pressed while
 shown. One step shows every traced element (`opacity` 100, unlocked, to be
-edited) or hides it again; one undo each. It is the elements' own state,
-saved in the file, so whoever has the board open sees it shown while the
-game master edits.
+edited) or hides it again. It is **per viewer** (the maintainer, 2026-11-15,
+"B"): the window that pressed it holds the elements seen in its own scene and
+remembers the choice for that board in its own storage
+(`verso.boardView:<folder>:<board>:tracing`); what the board writes to the
+file and sends to a room is always the hidden form (`hideLocal`), so showing
+the tracing changes no byte of the file, is no undo step, and nobody else
+sees it. A wall edited while shown is a real change, saved and sent, but
+hidden.
 
 **Columns** (a fix seen over the picture): a column of the JSON stands on
 a corner of the grid, not in a cell; drawn there.
@@ -415,10 +420,10 @@ a corner of the grid, not in a cell; drawn there.
 - **Turning the picture instead of the drawing** (2026-11-15, the author):
   a card on the board cannot be turned (JSON Canvas has no angle), and the
   picture's title and notes would read askew; the drawing is turned.
-- **Hiding the tracing per viewer** (2026-11-15, the author): a view-only
-  switch would have to keep the hidden elements out of the scene and put
-  them back on every save; the elements' own opacity is saved like any
-  edit, and Obsidian, which draws no `verso.drawing`, is untouched.
+- **Hiding the tracing in the file for everyone** (2026-11-15, the author;
+  reversed the same day by the maintainer, "B"): the elements' own opacity
+  saved like any edit showed the tracing to everyone viewing. Built per
+  viewer instead (above); the elements stay hidden and locked in the file.
 - **One note per town and danger at import** (the report's question 7):
   set aside by item 4.
 - **Capturing the export by a script injected into his page** (the report,
@@ -458,7 +463,7 @@ on `feat/phone-home-and-board`. Chosen in the code, for the maintainer to
 confirm: villages and cities imported with their picture (the importer's
 first generators widened); a floor's picture known by Dwellings' suffix in
 its name (the exports' own content is still what says what a JSON or
-Markdown file is); the tracing's shown/hidden state saved in the file; the
+Markdown file is); the tracing's shown/hidden state saved in the file (now per viewer, never saved); the
 PNG shown over the SVG when both came.
 
 ### Fixed 2026-11-15: the walls and the secret doors were served to players

@@ -1619,7 +1619,9 @@ the folder `Campanha Fractal/` beside it ([ADR
    number — hover: the note's preview; click: the note opens. The map
    tools' *Mostrar o traçado* shows Verso's tracing in blue: every wall on
    the picture's walls, the columns on the picture's columns; press again:
-   hidden; ⌘Z undoes each. The recommended export: *Export as › PNG…*
+   hidden. It is this window's own view: the file's bytes do not change (check the
+   .canvas), no undo step, and a second window or browser on the same
+   board still sees none; reopening the board shows it again. The recommended export: *Export as › PNG…*
    (Shift+E, cell size 70) and *Export as › JSON* alone: the dialog says
    *alinhado às salas* with no word about turning; the map (no title, no
    numbers, transparent round it) lies square at the board's origin and

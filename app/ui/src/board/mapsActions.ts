@@ -15,7 +15,7 @@ import { isBarePicture } from "./cards";
 import { flagged, keptIds, mapAt, mapGroup, mapsOf, pinNode } from "./maps";
 import { mapStrings } from "./mapStrings";
 import { type CanvasDoc, type CanvasNode, type El, fromElements, isMap, isSecret, nodeData, nodeName, parseCanvas, toElements } from "./model";
-import { isTraced, tracingLook } from "./tracing";
+import { isTraced, type ShownTracing, tracingLook } from "./tracing";
 import { BoardHost } from "./types";
 import { randomId } from "./util";
 import { Api } from "./view";
@@ -30,13 +30,15 @@ export type MapDeps = {
   center: () => [number, number];
   /** Where each pin being dragged began (kept across the board's renders). */
   dragFrom: RefObject<Map<string, [number, number]>>;
+  /** The tracing this window shows (ADR 0120): view-only, never written. */
+  shownTrace: RefObject<ShownTracing<ExcalidrawElement>>;
 };
 
 const withNode = (e: ExcalidrawElement, node: CanvasNode): ExcalidrawElement =>
   newElementWith(e, { customData: { ...(e.customData ?? {}), canvas: node } } as never);
 
 /** The map commands of one board. */
-export function mapActions({ api, host, touched, center, dragFrom }: MapDeps) {
+export function mapActions({ api, host, touched, center, dragFrom, shownTrace }: MapDeps) {
   const ms = mapStrings(host.lang);
   const scene = (): readonly ExcalidrawElement[] => api.current?.getSceneElementsIncludingDeleted() ?? [];
   const find = (id: string): ExcalidrawElement | undefined => scene().find((e) => e.id === id && !e.isDeleted);
@@ -138,14 +140,28 @@ export function mapActions({ api, host, touched, center, dragFrom }: MapDeps) {
       });
       if (done) from.delete(id);
     },
-    /** The map's tracing shown to edit, or hidden again (ADR 0120): one
-     *  step, undone as one. */
-    showTracing(show: boolean): void {
+    /** The map's tracing shown to edit, or hidden again (ADR 0120): this
+     *  window's own view. The scene holds it seen and unlocked; the file
+     *  and the room never do (`hideLocal`), and it is no undo step. */
+    showTracing(show: boolean, quiet = false): void {
       const a = api.current;
       if (!a) return;
-      touched.current = true;
-      a.updateScene({ elements: scene().map((e) => (isTraced(e) ? newElementWith(e, tracingLook(show)) : e)), captureUpdate: CaptureUpdateAction.IMMEDIATELY });
-      host.status(show ? ms.tracingShown : ms.tracingHidden);
+      const kept = shownTrace.current;
+      const elements = scene().map((e) => {
+        if (!isTraced(e)) return e;
+        if (show) {
+          if (kept.has(e.id)) return e;
+          const next = newElementWith(e, tracingLook(true));
+          kept.set(e.id, { version: next.version, original: e });
+          return next;
+        }
+        const s = kept.get(e.id);
+        return s && s.version === e.version ? s.original : newElementWith(e, tracingLook(false));
+      });
+      if (!show) kept.clear();
+      a.updateScene({ elements, captureUpdate: CaptureUpdateAction.NEVER });
+      host.rememberTracing?.(show);
+      if (!quiet) host.status(show ? ms.tracingShown : ms.tracingHidden);
     },
   };
 }

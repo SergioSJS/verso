@@ -50,9 +50,9 @@ const pt = {
   pinKey: (name: string, key: string) => `Abrir ${name}, número ${key}`,
   /** The tracing of an imported map (ADR 0120). */
   tracing: "Mostrar o traçado",
-  tracingTitle: "Mostra o traçado do Verso por cima do desenho do Watabou — salas, paredes e portas — para editar; aperte de novo para esconder",
-  tracingShown: "Traçado do mapa à mostra: as paredes e portas podem ser editadas.",
-  tracingHidden: "Traçado do mapa escondido.",
+  tracingTitle: "Mostra o traçado do Verso por cima do desenho do Watabou — salas, paredes e portas — para editar; aperte de novo para esconder. Só você vê o traçado",
+  tracingShown: "Traçado do mapa à mostra só para você: as paredes e portas podem ser editadas.",
+  tracingHidden: "Traçado do mapa escondido para você.",
 };
 
 const en: typeof pt = {
@@ -93,9 +93,9 @@ const en: typeof pt = {
   secretCard: "secret",
   pinKey: (name, key) => `Open ${name}, number ${key}`,
   tracing: "Show the tracing",
-  tracingTitle: "Shows Verso's tracing over Watabou's drawing — rooms, walls and doors — to edit it; press again to hide it",
-  tracingShown: "The map's tracing is shown: its walls and doors can be edited.",
-  tracingHidden: "The map's tracing is hidden.",
+  tracingTitle: "Shows Verso's tracing over Watabou's drawing — rooms, walls and doors — to edit it; press again to hide it. Only you see it",
+  tracingShown: "The map's tracing is shown to you only: its walls and doors can be edited.",
+  tracingHidden: "The map's tracing is hidden for you.",
 };
 
 export type MapStrings = typeof pt;

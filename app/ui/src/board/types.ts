@@ -120,6 +120,10 @@ export type BoardHost = {
   /** Where this board was last looked at, kept in this window's storage. */
   lastView: () => SavedView | null;
   rememberView: (v: SavedView) => void;
+  /** Whether this window shows this board's tracing (ADR 0120): kept in
+   *  this window's storage, never in the file nor in a room. */
+  tracingShown?: () => boolean;
+  rememberTracing?: (shown: boolean) => void;
   /** The board's name, for an exported picture's. */
   name: () => string;
   /** Write a picture of the board into the folder, beside the board; the
