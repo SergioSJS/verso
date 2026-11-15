@@ -424,7 +424,7 @@ pre { position: relative; }
   gap: .3rem;
   z-index: 2;
 }
-pre:hover .copy-code-btn, .copy-code-btn:focus-visible {
+pre:hover .copy-code-btn, .mermaid-block:hover .copy-code-btn, .copy-code-btn:focus-visible {
   opacity: 1;
 }
 .copy-code-btn:hover {

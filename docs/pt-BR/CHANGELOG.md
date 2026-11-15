@@ -19,6 +19,30 @@ versão de teste.
 
 ### Corrigido
 
+- Live Preview: ⌘/Ctrl-clique em `[[Nota#Título]]` abre a nota no título, e em `[[#Título]]` vai até esse título; antes, o título se perdia e `[[#Título]]` não fazia nada. Esses links agora aparecem como "Nota › Título" e "Título", como na Leitura (onde `[[#Título]]` aparecia " › Título"), e o título de uma nota incorporada no Live Preview é o da Leitura.
+- Live Preview: uma seleção dentro de uma citação desenhada como painel (Blue Topaz, Rosé Pine, Rosé Pine Moon, Tokyo Night) não aparecia; com avisos com contorno ou título em faixa, uma seleção dentro de um aviso aparecia em dois tons.
+- Notas tipadas: uma imagem declarada escrita como wikilink volta a mostrar a miniatura ao lado do link no painel de propriedades.
+- Leitura: cada botão de recolher diz o que recolhe (seção, lista, citação, bloco de código) em vez de "callout", e um título é lido só pelas suas palavras; o recolher de um bloco de código diz se está aberto e é lembrado quando a nota é desenhada de novo ou aberta depois; uma citação ou lista aberta para chegar a um título diz que está aberta.
+- Leitura: uma imagem incorporada como `![[imagem.png]]` tem a alça no canto para redimensionar, como uma imagem em Markdown.
+- Live Preview: os botões de copiar e de "ver como diagrama" de cada bloco de código ficam no próprio bloco; antes ficavam todos empilhados no alto, à direita da nota.
+- O botão de copiar de um diagrama Mermaid na Leitura, e o "</>" de um diagrama Mermaid ou de um PDF no Live Preview, aparecem ao passar o mouse; o "</>" de uma base tem nome para leitores de tela.
+- Busca: os destaques na Leitura e no editor seguem o modo escuro do sistema em "automático" (ficavam claros ali); os outros lugares da palavra selecionada e o colchete par do que está no cursor usam as cores do tema em vez do verde e do azul-petróleo do CodeMirror.
+- Temas: a seleção se destaca do segundo papel e do papel do código em todos os temas do catálogo (quase não aparecia no Gruvbox claro, Ayu Light, Everforest e Solarized), e a cor de destaque sobre o seu fundo mantém 3:1 (Everforest, Yin and Yang, Ayu Light, Sanctum, Atom); a verificação do catálogo mede as duas.
+- Configurações: ligar ou desligar os adesivos antes dos links, a correção ortográfica ou a edição de notas incorporadas no lugar chega às notas já abertas; antes, só as notas abertas depois seguiam. Uma nota incorporada na Leitura tem os botões dos seus blocos de código e os seus links marcados, como os da própria nota.
+- Atualizações: uma versão de teste (Verso Beta) instala só a versão de teste mais nova, e uma final só a final mais nova, a que a verificação ofereceu; antes, a instalação pegava a versão mais nova de qualquer tipo, e um beta podia instalar uma final (no Android, ao lado do beta).
+- Atualizações no Android: a primeira atualização pede para permitir instalações do Verso antes de baixar qualquer coisa, diz isso no idioma da janela, e depois de permitido instala o pacote já baixado e conferido em vez de baixá-lo de novo.
+- Atualizações: toda mensagem do atualizador (uma falha, onde o pacote ficou, "reinicie") sai no idioma da janela, português ou inglês; antes, todas saíam em português.
+- Depois de atualizar, a notificação "nova versão disponível" da versão instalada sai da lista em vez de ficar 30 dias, e o botão "Baixar e atualizar" dela, tocado antes de uma verificação, verifica primeiro em vez de não fazer nada.
+- O progresso da atualização mostra a porcentagem uma vez, não duas.
+- Menus: só uma linha que apaga fica na cor de destaque; antes, a última linha de todo menu ficava (o "Fechar todas" de uma aba, por exemplo).
+- Menus: "Mover para cima" e "Mover para baixo" da árvore mostram as setas (os ícones saíam em branco), e num menu em que algumas linhas têm ícone e outras não, todo rótulo começa no mesmo lugar.
+- Arrastar uma aba e soltá-la sobre a árvore de arquivos, o painel direito ou a barra de status não divide mais o painel mais próximo: a aba fica onde estava. Esc desiste do arrasto.
+- Menu de uma aba: "Duplicar aba" abre uma segunda aba do mesmo lugar, a página de uma pasta e o grafo também (achava a aba deles de novo); a linha "Abrir em nova aba", a mesma ação duas vezes, saiu dele.
+- Uma barra de abas oculta volta com um clique duplo na área livre do painel ou na página vazia dele, como dito; num computador o clique duplo nunca chegava lá.
+- macOS: Arquivo › Abrir pasta mostra ⌘O, a tecla que a abre (e a definida em Ajustes › Atalhos), em vez de ⌘⇧O.
+- A barra lateral dos Ajustes dá a cada seção um ícone próprio (Recursos, Organização, Fichas e Templates e Transformar em servidor dividiam o seu com outra seção).
+- Um atalho não pode ser ⌘1…⌘9 (Ctrl no Windows e no Linux): o gravador diz que eles são dos espaços de trabalho, que os pegam primeiro.
+- Um botão da barra lateral arrastado e solto fora dele não faz mais o clique seguinte não fazer nada.
 - Modo Leitura: o botão de recolher de um bloco de código tem o mesmo tamanho dos botões de copiar e de diagrama, e os três ficam numa fileira com o mesmo espaço entre eles, em vez do botão de recolher encostar no de copiar.
 - A propriedade `image` de uma nota tipada escrita como wikilink (`"[[mapa.png|Apelido]]"`) aparece como um link com o apelido, que abre a imagem, em vez do texto `[[…]]` cru.
 - Mudar um schema (por exemplo, acrescentar `layout: infobox`) agora redesenha na hora as notas abertas do tipo, quer o schema tenha sido salvo aqui, quer tenha mudado por fora; antes, uma nota aberta ficava com o layout antigo até ser aberta de novo.
@@ -27,6 +51,13 @@ versão de teste.
 - Android: Voltar fecha a busca na nota ou a busca da leitura e fica no Verso, em vez de também sair do app.
 - No celular deitado, as ferramentas do painel continuam recolhidas no ⋯ (apareciam como botões pequenos de computador), e as abas verticais mantêm a barra do alto como uma fileira.
 - No celular, menus e sugestões não ficam mais sob a barra de status nem sob a barra de navegação.
+- Sincronização: o estado da sincronização de uma pasta é gravado no disco de vez ao ser escrito, então uma queda de energia ou um celular que desliga no meio da gravação não o deixa mais vazio ou cortado; um que não se consegue ler é guardado à parte (nunca apagado) e a sincronização da pasta desliga dizendo isso, em vez de recomeçar calada como uma primeira sincronização.
+- Sincronização: uma primeira sincronização longa — uma pasta na nuvem lida pela primeira vez, ou uma pasta inteira do servidor sendo baixada — guarda o que já fez enquanto anda, então uma conexão que cai ou o app fechado retomam dali em vez de ler ou baixar tudo de novo.
+- Servidor, no navegador: uma sessão que terminou enquanto a conexão estava fora (o admin encerrando as sessões do aparelho, a sessão vencendo) não deixa mais a janela dizendo "sem rede" para sempre e aceitando edições na cópia guardada neste aparelho; quando a rede volta, a janela pergunta ao servidor, vai para a página de entrar e diz quantas mudanças ainda não tinham subido quando a cópia guardada é apagada (ADR 0092 item 6).
+- Servidor: uma conta que cria pastas (sem ser o admin) convidando alguém por e-mail num servidor que manda e-mail tem o convite enviado, na língua dela, em vez de "só o admin" depois de o convite já ter sido feito — e tentar de novo não deixa mais convites a mais esperando, contando contra os 20 que ela pode ter de uma vez.
+- Servidor: `VERSO_PUBLIC_URL` escrito com a porta padrão do esquema (`https://notas.exemplo:443`, `http://notas.exemplo:80`) não recusa mais toda página como host errado; a porta sai quando o endereço é lido.
+- Servidor, no navegador com uma pasta guardada para uso sem rede: quando a janela trabalha com a cópia do aparelho enquanto a sincronização da pasta continua (a conexão da janela caiu, ou outra aba está sem rede), salvar uma nota em que a sincronização acabou de trazer a edição de outra pessoa não escreve mais por cima dessa edição nem a envia por cima da dela; o salvamento é recusado como alterado e mostra a diferença, como uma nota alterada no disco, e a janela lê a versão nova.
+- Servidor, no navegador com uma pasta guardada para uso sem rede: uma nota editada enquanto estava sendo enviada não volta mais como cópia de conflito, nem com as últimas linhas juntadas duas vezes, na sincronização seguinte; o texto mais novo simplesmente sobe.
 
 ## 0.9.0-beta.1 — 2026-11-14
 

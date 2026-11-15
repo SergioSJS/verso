@@ -33,6 +33,9 @@
   padding-left: 1.1em;
   padding-right: 1.1em;
 }
+/* The block's first line holds its copy and diagram buttons (absolute, at
+   its top right): without a positioned line they all sat at the note's top. */
+.editor .cm-line:is(.cm-lp-fence-first, .cm-lp-fence-single) { position: relative; }
 .editor .cm-line.cm-lp-fence-first {
   border-top-left-radius: 6px;
   border-top-right-radius: 6px;

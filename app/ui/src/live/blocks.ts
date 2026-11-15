@@ -170,12 +170,27 @@ function writeStatblock(view: EditorView, el: HTMLElement, text: string, key: Va
   return { ok: true };
 }
 
+/** An embedded note's title as the reading view gives it: the note's
+ *  name, "Note › Heading" for a section, the name alone for a block. */
+export function embedTitle(target: string): string {
+  const raw = (target.split("|")[0] ?? "").trim();
+  const hash = raw.indexOf("#");
+  const file = hash >= 0 ? raw.slice(0, hash) : raw;
+  const base = (file.split("/").pop() ?? file).replace(/\.md$/i, "");
+  const heading = hash >= 0 && !raw.includes("#^") ? raw.slice(hash + 1) : "";
+  return heading ? `${base} › ${heading}` : base;
+}
+
 export class BlockWidget extends WidgetType {
+  /** Whether an embedded note gets its edit button: the setting as it is
+   *  when drawn, so a change of it draws the block again. */
+  readonly editable: boolean;
   constructor(readonly block: Block, readonly opts: LiveOptions, readonly html: string | null | undefined) {
     super();
+    this.editable = block.kind === "embed" && opts.editEmbed !== undefined && opts.canEditEmbed?.() !== false;
   }
   override eq(other: BlockWidget): boolean {
-    return other.block.kind === this.block.kind && other.block.text === this.block.text && other.html === this.html;
+    return other.block.kind === this.block.kind && other.block.text === this.block.text && other.html === this.html && other.editable === this.editable;
   }
   toDOM(view: EditorView): HTMLElement {
     const el = document.createElement("div");
@@ -188,6 +203,8 @@ export class BlockWidget extends WidgetType {
       code.type = "button";
       code.className = "cm-lp-base-source";
       code.textContent = "</>";
+      code.title = t.baseEditCode;
+      code.setAttribute("aria-label", t.baseEditCode);
       code.addEventListener("mousedown", (e) => {
         e.preventDefault();
         const at = startOf(view, el);
@@ -223,6 +240,7 @@ export class BlockWidget extends WidgetType {
       editBtn.className = "cm-lp-base-source";
       editBtn.textContent = "</>";
       editBtn.title = t.mermaidEditCode;
+      editBtn.setAttribute("aria-label", t.mermaidEditCode);
       editBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -294,6 +312,7 @@ export class BlockWidget extends WidgetType {
       editBtn.className = "cm-lp-base-source";
       editBtn.textContent = "</>";
       editBtn.title = t.pdfEditLink;
+      editBtn.setAttribute("aria-label", t.pdfEditLink);
       editBtn.addEventListener("mousedown", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -376,7 +395,7 @@ export class BlockWidget extends WidgetType {
       frame.className = "embed-note";
       const title = document.createElement("div");
       title.className = "embed-note-title";
-      title.textContent = b.text;
+      title.textContent = embedTitle(b.text);
       frame.append(title);
       const body = document.createElement("div");
       // And its text as the reading view's (`.preview`), not the editor's.
@@ -387,7 +406,7 @@ export class BlockWidget extends WidgetType {
       frame.append(body);
       el.append(frame);
 
-      if (this.opts.editEmbed && this.opts.canEditEmbed?.() !== false) {
+      if (this.opts.editEmbed && this.editable) {
         const labels = this.opts.embedLabels;
         const edit = document.createElement("button");
         edit.type = "button";

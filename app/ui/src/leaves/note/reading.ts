@@ -49,6 +49,8 @@ import { audioImages, audioTarget, placeAudio } from "../../audio/embed";
 import { wireSwatches } from "../../colour/reading";
 import { fitWhenSizeless } from "../../imageFit";
 import { diagramLang, openBlockDiagram } from "../../datagraph/block";
+// Open notes follow the settings they are drawn with.
+import "./settingsFollow";
 import { dgw } from "../../datagraph/words";
 
 /** What a roll block's card needs of the window: to find its link's note and to open it. */
@@ -153,11 +155,14 @@ export function wireCodeBlocks(this: NoteLeaf, root: HTMLElement): void {
     // A statblock's source and its error text have the card's own buttons.
     if (pre.querySelector(".copy-code-btn") || pre.closest(".statblock-host, .statblock-card")) continue;
     pre.style.position = "relative";
-    const foldBtn = button("code-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+    const foldBtn = button("code-fold-btn", t.foldCode, "chevron");
     foldBtn.type = "button";
+    foldBtn.setAttribute("aria-expanded", String(!pre.classList.contains("code-folded")));
     foldBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      pre.classList.toggle("code-folded");
+      const folded = pre.classList.toggle("code-folded");
+      foldBtn.setAttribute("aria-expanded", String(!folded));
+      this.setFold(pre.dataset["foldKey"], folded);
     });
     const btn = h("button", "copy-code-btn");
     btn.type = "button";
@@ -321,9 +326,11 @@ export function wireHeadingFolds(this: NoteLeaf, root: HTMLElement): void {
   for (const h of headings) {
     // A statblock's headings are the card's, not the note's sections.
     if (h.querySelector(".heading-fold-btn") || h.closest(".statblock-card")) continue;
-    const btn = button("heading-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+    const btn = button("heading-fold-btn", t.foldSection, "chevron");
     btn.type = "button";
     btn.setAttribute("aria-expanded", "true");
+    // The heading is named by its words, not by its button's too.
+    h.setAttribute("aria-label", (h.textContent ?? "").trim());
     h.prepend(btn);
     const toggle = () => {
       const folded = !h.classList.contains("heading-folded");
@@ -350,7 +357,7 @@ export function wireListFolds(this: NoteLeaf, root: HTMLElement): void {
     if (li.querySelector(":scope > .list-fold-btn")) continue;
     const childList = li.querySelector<HTMLElement>(":scope > ul, :scope > ol");
     if (!childList) continue;
-    const btn = button("list-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+    const btn = button("list-fold-btn", t.foldList, "chevron");
     btn.type = "button";
     btn.setAttribute("aria-expanded", "true");
     li.prepend(btn);
@@ -377,7 +384,7 @@ export function wireBlockquoteFolds(this: NoteLeaf, root: HTMLElement): void {
   for (const bq of root.querySelectorAll<HTMLQuoteElement>("blockquote")) {
     if (bq.querySelector(":scope > .quote-fold-btn")) continue;
     if (bq.classList.contains("callout")) continue;
-    const btn = button("quote-fold-btn", t.foldCallout ?? "Recolher / Expandir", "chevron");
+    const btn = button("quote-fold-btn", t.foldQuote, "chevron");
     btn.type = "button";
     btn.setAttribute("aria-expanded", "true");
     bq.prepend(btn);
@@ -654,7 +661,7 @@ export async function relink(this: NoteLeaf, path: string): Promise<void> {
 
 /** The reading view's links marked when nothing answers them, embedded
  *  notes filled in. */
-export function dressLinks(this: NoteLeaf, path: string, root: ParentNode = this.preview): void {
+export function dressLinks(this: NoteLeaf, path: string, root: ParentNode = this.preview, embeds = true): void {
   for (const a of root.querySelectorAll<HTMLAnchorElement>("a.wikilink")) {
     const target = a.dataset["target"] ?? "";
     const to = this.resolve(target);
@@ -676,9 +683,12 @@ export function dressLinks(this: NoteLeaf, path: string, root: ParentNode = this
       a.title = sh.notShared;
       a.setAttribute("aria-description", sh.notShared);
     }
-    // `[[Note#Heading]]` reads as "Note › Heading" when it has no alias.
-    if (a.textContent === target && /[#^]/.test(target)) a.textContent = target.replace(/#\^?/g, " › ");
-    if (settings.stickerInLinks && to) {
+    // `[[Note#Heading]]` reads as "Note › Heading" when it has no alias,
+    // `[[#Heading]]` as "Heading" (and Live Preview the same).
+    if (a.textContent === target && /[#^]/.test(target)) a.textContent = target.replace(/^\s*#\^?/, "").replace(/#\^?/g, " › ");
+    // The setting turned off: the stickers drawn go (settingsFollow.ts).
+    if (!settings.stickerInLinks) a.querySelector(".wikilink-sticker")?.remove();
+    else if (to) {
       const stk = allEntries.get(to)?.label?.sticker;
       if (stk && !a.querySelector(".wikilink-sticker")) {
         const s = renderSticker(stk, 12);
@@ -689,7 +699,8 @@ export function dressLinks(this: NoteLeaf, path: string, root: ParentNode = this
       }
     }
   }
-  this.dress(path, root);
+  // An embedded note's own links are dressed, its embeds left as drawn.
+  if (embeds) this.dress(path, root);
 }
 
 /** Where a link target goes: the index's answer, else the same rule
@@ -779,6 +790,9 @@ export function dress(this: NoteLeaf, forPath: string, root: ParentNode = this.p
       void noteImages(body, to);
       this.wireStatblocks(body, to);
       wireRollBlocks(body, to, ROLL_HOST);
+      // Its code blocks' buttons and its links, as the note's own.
+      this.wireCodeBlocks(body);
+      this.dressLinks(forPath, body, false);
 
       let activeCard: CardEditing | null = null;
       let destroyed = false;
@@ -805,7 +819,9 @@ export function dress(this: NoteLeaf, forPath: string, root: ParentNode = this.p
           void this.embedImages(forPath, body, to);
           void noteImages(body, to);
           this.wireStatblocks(body, to);
-      wireRollBlocks(body, to, ROLL_HOST);
+          wireRollBlocks(body, to, ROLL_HOST);
+          this.wireCodeBlocks(body);
+          this.dressLinks(forPath, body, false);
         }
         destroyed = false;
       };
@@ -1081,6 +1097,7 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
     });
   }
   if (this.path !== forPath || root.dataset["abandoned"]) return;
+  const pictures: HTMLImageElement[] = [];
   for (const span of spans) {
     const spec = parsePdfSpec(span.dataset["target"] ?? "", span.textContent);
     const rel = found.get(spec.file);
@@ -1100,6 +1117,7 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
       const p = span.parentElement;
       span.replaceWith(img);
       if (p && p.tagName === "P" && p.childNodes.length === 1) p.classList.add("figure");
+      pictures.push(img);
     } else if (kindOf(rel) === "base") {
       // A base's view (ADR 0053), the one `#Name` names if any.
       const box = h("div", "embed-base");
@@ -1146,4 +1164,9 @@ export async function embedImages(this: NoteLeaf, forPath: string, root: HTMLEle
       span.addEventListener("click", () => openNote(rel, false));
     }
   }
+  // The pictures came after the view's own were given their corner grip
+  // (`root` may have handed its blocks to the view by now): the note's own
+  // get theirs here, an embedded note's stay as drawn.
+  if (source !== forPath) return;
+  for (const parent of new Set(pictures.map((img) => img.parentElement))) if (parent) this.wirePreviewImages(parent);
 }

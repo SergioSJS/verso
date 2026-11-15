@@ -19,6 +19,30 @@ test release.
 
 ### Fixed
 
+- Live Preview: ⌘/Ctrl-click on `[[Note#Heading]]` opens the note at its heading, and on `[[#Heading]]` moves to that heading; before, the heading was dropped and `[[#Heading]]` did nothing. Such links now read "Note › Heading" and "Heading", as in Reading (where `[[#Heading]]` read " › Heading"), and an embedded note's title in Live Preview is the reading view's.
+- Live Preview: a selection inside a quote drawn as a panel (Blue Topaz, Rosé Pine, Rosé Pine Moon, Tokyo Night) showed nothing; with outlined or title-bar callouts, a selection inside a callout showed in two shades.
+- Typed notes: a declared picture written as a wikilink shows its thumbnail beside the link again in the properties panel.
+- Reading: each fold button says what it folds (section, list, quote, code block) instead of "callout", and a heading is read by its words alone; a code block's fold says whether it is open and is kept when the note is drawn again or opened later; a quote or list opened to reach a heading says it is open.
+- Reading: a picture embedded as `![[picture.png]]` has its corner grip to resize it, as a Markdown picture has.
+- Live Preview: each code block's copy and "view as diagram" buttons sit at their own block; they were all stacked at the note's top right.
+- The copy button of a Mermaid diagram in Reading, and the "</>" of a Mermaid diagram or a PDF in Live Preview, show on hover; the "</>" of a base is named for screen readers.
+- Search: the highlights in Reading and in the editor follow the system's dark mode under "auto" (they stayed light there); the other places of the selected word and the bracket matching the one at the caret take the theme's colours instead of CodeMirror's green and teal.
+- Themes: the selection stands out from the second paper and the code's paper in every catalogue theme (it was nearly invisible in light Gruvbox, Ayu Light, Everforest and Solarized), and the accent on its wash keeps 3:1 (Everforest, Yin and Yang, Ayu Light, Sanctum, Atom); the catalogue check measures both.
+- Settings: turning the stickers before links, spell checking or editing embedded notes in place on or off reaches the notes already open; before, only notes opened afterwards followed. An embedded note in Reading has its code blocks' buttons and its links marked, as the note's own.
+- Updates: a test version (Verso Beta) installs only the newest test version and a final only the newest final, the one the check offered; before, the install took the newest release of either kind, so a beta could install a final (on Android, beside the beta).
+- Updates on Android: the first update asks to allow installs from Verso before anything is downloaded, says so in the window's language, and once allowed installs the package already downloaded and checked instead of downloading it again.
+- Updates: every message of the updater (a failure, where the package went, "restart") is in the window's language, English or Portuguese; before, all were in Portuguese.
+- After updating, the "new version available" notification of the installed version leaves the list instead of staying for 30 days, and its "Download and update" button, pressed before a check, checks first instead of doing nothing.
+- The update's progress shows its percentage once, not twice.
+- Menus: only a row that deletes is painted in the accent colour; before, the last row of every menu was (a tab's "Close all", for one).
+- Menus: the tree's "Move up" and "Move down" show their arrows (the icons were blank), and in a menu where some rows have an icon and others none, every label starts at the same place.
+- Dragging a tab and letting go over the file tree, the right panel or the status bar no longer splits the nearest pane: the tab stays where it was. Escape gives a drag up.
+- A tab's menu: "Duplicate tab" opens a second tab of the same place, a folder's page and the graph included (it found their own tab again); the "Open in new tab" row, the same action twice, is gone from it.
+- A hidden tab bar comes back with a double click on the pane's bare area or its empty page, as said; on a computer the double click never reached it.
+- macOS: File › Open Folder shows ⌘O, the key that opens it (and the one set in Settings › Hotkeys), instead of ⌘⇧O.
+- The Settings sidebar gives each section its own icon (Features, Organizing, Statblock Templates and Turn into a server shared theirs with another section).
+- A hotkey cannot be set to ⌘1…⌘9 (Ctrl on Windows and Linux): the recorder says they are kept for the workspaces, which take them first.
+- A sidebar button dragged and let go off itself no longer makes its next click do nothing.
 - Reading mode: a code block's fold button is the same size as its copy and diagram buttons, and the three sit in one evenly spaced row instead of the fold button overlapping the copy button.
 - A typed note's `image` property written as a wikilink (`"[[map.png|Alias]]"`) shows as a link named by its alias, which opens the picture, instead of the raw `[[…]]` text.
 - Changing a schema (say, adding `layout: infobox`) now redraws the open notes of its type at once, whether the schema was saved here or changed outside; before, an open note kept its old layout until it was opened again.
@@ -27,6 +51,13 @@ test release.
 - Android: Back closes the find bar in a note or the reading search and stays in Verso, instead of also leaving the app.
 - On a phone held sideways, the pane's tools stay folded in ⋯ (they showed as small desktop buttons), and vertical tabs keep the one top bar a row.
 - On a phone, menus and suggestions keep clear of the status bar and the navigation bar.
+- Sync: a folder's sync state is flushed to the disk as it is written, so a power cut or a phone that dies mid-write no longer leaves it empty or cut short; one found unreadable is kept aside (never deleted) and the folder's sync turns off saying so, instead of quietly starting over as a first sync.
+- Sync: a long first sync — a cloud folder being read for the first time, or a whole server folder being downloaded — keeps what it has done as it goes, so a dropped link or a closed app resumes from there instead of reading or fetching everything again.
+- Server, in a browser: a session that ended while the connection was down (an admin ending the device's sessions, the session expiring) no longer leaves the window saying "offline" for ever and taking edits into the copy kept on this device; once the network is back the window asks the server, goes to the sign-in page and says how many changes had not gone up when the kept copy is deleted (ADR 0092 item 6).
+- Server: an account that makes folders (not the admin) inviting someone by e-mail on a server that sends mail gets the invitation sent, in their own language, instead of "admins only" after the invitation was already made — and retrying no longer leaves extra invitations waiting that count against the 20 they may have at once.
+- Server: `VERSO_PUBLIC_URL` written with its scheme's own port (`https://notes.example:443`, `http://notes.example:80`) no longer refuses every page as the wrong host; the port is dropped when the address is read.
+- Server, in a browser with a folder kept offline: when the window works from the device's copy while the folder's sync still runs (its own connection dropped, or another tab offline), saving a note that sync has just brought another person's edit of no longer writes over that edit and sends it over theirs; the save is refused as changed and shows the difference, as a note changed on disk does, and the window reads the new version.
+- Server, in a browser with a folder kept offline: a note edited while it was being sent no longer comes back as a conflict copy, or with its last lines joined twice, on the next sync; the newer text simply goes up.
 
 ## 0.9.0-beta.1 — 2026-11-14
 

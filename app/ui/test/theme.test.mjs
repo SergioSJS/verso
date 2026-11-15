@@ -4,7 +4,7 @@
 // validation against hostile files, and the profile list.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import * as esbuild from "esbuild";
 
 await esbuild.build({
@@ -150,6 +150,42 @@ describe("The shipped palettes and what the derivation keeps", () => {
     const faint = T.parseColor("#bbbbbb");
     const out = T.resolve("light", f, { "--ink-2": faint });
     assert.equal(T.toHex(out["--ink-3"]), "#bbbbbb");
+  });
+});
+
+describe("The catalogue's derived colours (review of 2026-11-15)", () => {
+  const dir = new URL("../themes/catalogue/", import.meta.url);
+  const themes = readdirSync(dir).filter((f) => f.endsWith(".verso-theme")).map((f) => [f, JSON.parse(readFileSync(new URL(f, dir), "utf8"))]);
+  const paper = everyShipped[0].full;
+  test("the selection stands out from the paper, the second paper and the code's paper; the seal keeps 3:1 on its wash", () => {
+    assert.ok(themes.length > 20);
+    for (const [file, theme] of themes) {
+      for (const side of ["light", "dark"]) {
+        const values = theme.values[side];
+        if (!values) continue;
+        const custom = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, T.parseColor(v)]));
+        const f = T.resolve(side, paper[side], custom);
+        const at = `${file} ${side}`;
+        for (const bg of ["--paper", "--paper-2", "--code-paper"]) {
+          const r = T.contrast(f["--selection"], f[bg]);
+          assert.ok(r >= T.SELECTION_MIN - 1e-9, `${at}: selection on ${bg} ${r.toFixed(2)}`);
+        }
+        const seal = T.contrast(f["--seal"], f["--seal-wash"]);
+        assert.ok(seal >= T.FLOOR - 1e-9, `${at}: seal on its wash ${seal.toFixed(2)}`);
+      }
+    }
+  });
+  test("Verso's own palettes re-entered keep their selection: the rule only adds brass where it is needed", () => {
+    for (const { palette, tone, full } of everyShipped) {
+      for (const side of ["light", "dark"]) {
+        const f = full[side];
+        const custom = {};
+        for (const token of T.COLOR_TOKENS) custom[token] = f[token];
+        const again = T.resolve(side, f, custom);
+        const plain = T.mix(f["--paper"], f["--brass-ink"], side === "light" ? 0.2 : 0.33);
+        assert.ok(T.contrast(again["--selection"], plain) < 1.01, `${palette}/${tone}/${side}`);
+      }
+    }
   });
 });
 

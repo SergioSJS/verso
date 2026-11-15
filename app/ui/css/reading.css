@@ -330,8 +330,24 @@ html:not(.show-line-numbers-source) .editor.source .cm-lineNumbers {
 .editor .cm-selectionBackground { background: var(--selection) !important; }
 .editor .cm-selectionLayer .cm-selectionBackground { display: none; }
 .editor .cm-editor .cm-line::selection, .editor .cm-editor .cm-line ::selection { background: transparent !important; }
-.editor .cm-editor :is(.cm-lp-fence, .cm-lp-callout, .cm-lp-code, .cm-lp-mark)::selection,
-.editor .cm-editor :is(.cm-lp-fence, .cm-lp-callout, .cm-lp-code, .cm-lp-mark) ::selection { background: var(--selection) !important; }
+/* The lines and spans that paint a background, in one list: code (block
+   and inline) and highlights always; a callout when its style is tinted
+   (outlined and title-bar leave its lines clear, title-bar paints the head);
+   a quote only in the panel style. A line left clear keeps the drawn layer,
+   so the browser's selection there would be a second shade. */
+.editor .cm-editor :is(.cm-lp-fence, .cm-lp-code, .cm-lp-mark)::selection,
+.editor .cm-editor :is(.cm-lp-fence, .cm-lp-code, .cm-lp-mark) ::selection,
+:root:not([data-callout-style="outlined"], [data-callout-style="title-bar"]) .editor .cm-editor .cm-lp-callout::selection,
+:root:not([data-callout-style="outlined"], [data-callout-style="title-bar"]) .editor .cm-editor .cm-lp-callout ::selection,
+[data-callout-style="title-bar"] .editor .cm-editor .cm-lp-callout-head::selection,
+[data-callout-style="title-bar"] .editor .cm-editor .cm-lp-callout-head ::selection,
+[data-blockquote-style="panel"] .editor .cm-editor .cm-lp-quote::selection,
+[data-blockquote-style="panel"] .editor .cm-editor .cm-lp-quote ::selection { background: var(--selection) !important; }
+/* The other places the selected word stands, and the bracket matching the
+   one at the caret: from the tokens, not CodeMirror's green and teal. */
+.editor .cm-editor .cm-selectionMatch { background: color-mix(in oklch, var(--selection) 60%, transparent); border-radius: 2px; }
+.editor .cm-editor .cm-matchingBracket, .editor .cm-editor.cm-focused .cm-matchingBracket { background: var(--brass-wash); color: inherit; outline: 1px solid color-mix(in oklch, var(--brass) 55%, transparent); border-radius: 2px; }
+.editor .cm-editor .cm-nonmatchingBracket, .editor .cm-editor.cm-focused .cm-nonmatchingBracket { background: var(--seal-wash); color: inherit; }
 .editor.source .cm-scroller { font-family: var(--mono); font-size: calc(.9rem * var(--note-scale, 1)); line-height: 1.6; }
 .editor.source .cm-gutters { display: flex; background: none; border: 0; color: var(--ink-3); font-size: .78rem; }
 .editor.source .cm-editor .cm-activeLine, .editor.source .cm-editor .cm-activeLineGutter { background: var(--paper-2) !important; }

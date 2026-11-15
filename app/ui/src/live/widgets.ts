@@ -151,6 +151,20 @@ export class TaskCheckboxWidget extends WidgetType {
   }
 }
 
+/** The " › " a link's `#` reads as, `[[Note#Heading]]` drawn as the
+ *  reading view draws it: "Note › Heading". */
+export class LinkSepWidget extends WidgetType {
+  override eq(): boolean {
+    return true;
+  }
+  override toDOM(): HTMLElement {
+    const sep = document.createElement("span");
+    sep.className = "cm-lp-link-sep";
+    sep.textContent = " › ";
+    return sep;
+  }
+}
+
 export class CodeCopyWidget extends WidgetType {
   constructor(readonly code: string, readonly labels: { copy: string; copied: string }) {
     super();

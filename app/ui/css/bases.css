@@ -160,7 +160,8 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
 .embed-base { margin: 1rem 0; padding: .6rem .8rem .8rem; border: 1px solid var(--hair); border-radius: 9px; font-size: .95rem; }
 .cm-lp-base { position: relative; margin: .6rem 0; padding: .6rem .8rem .8rem; border: 1px solid var(--hair); border-radius: 9px; white-space: normal; font-family: var(--ui); }
 .cm-lp-base-source { position: absolute; top: .35rem; right: .45rem; z-index: 1; padding: .1rem .35rem; border-radius: 5px; font-family: var(--mono); font-size: .72rem; color: var(--ink-3); opacity: 0; }
-.cm-lp-base:hover .cm-lp-base-source, .cm-lp-base-source:focus-visible { opacity: 1; }
+/* The same "</>" on a Mermaid diagram and a PDF (live/blocks.ts), shown on hover too. */
+.cm-lp-block:hover > .cm-lp-base-source, .cm-lp-base-source:focus-visible { opacity: 1; }
 .cm-lp-base-source:hover { background: var(--paper-3); color: var(--ink); }
 
 /* The month of the daily notes, in the side panel. */
@@ -366,26 +367,22 @@ tfoot .base-summary td { border-top: 1px solid var(--hair); border-bottom: 0; }
   border-color: var(--ink-3) !important;
 }
 
-/* In-text search highlights for both CodeMirror and Reading Mode */
+/* In-text search highlights, the reading view's and the editor's alike.
+   light-dark() follows the window's scheme, the system's under "auto" too
+   (a [data-theme="dark"] rule missed "auto" on a dark system). These win
+   over CodeMirror's own colours; css/chrome.css's older .cm-searchMatch
+   background is shadowed by them (its outline stays). */
 ::highlight(verso-search-match) {
-  background-color: oklch(88% 0.15 95 / .4);
-  color: inherit;
-}
-[data-theme="dark"] ::highlight(verso-search-match) {
-  background-color: oklch(50% 0.14 85 / .45);
+  background-color: light-dark(oklch(88% 0.15 95 / .4), oklch(50% 0.14 85 / .45));
   color: inherit;
 }
 ::highlight(verso-search-active) {
   background-color: var(--brass);
   color: var(--paper);
 }
-
 .cm-searchMatch {
-  background-color: oklch(88% 0.15 95 / .4) !important;
+  background-color: light-dark(oklch(88% 0.15 95 / .4), oklch(50% 0.14 85 / .45)) !important;
   border-radius: 2px;
-}
-[data-theme="dark"] .cm-searchMatch {
-  background-color: oklch(50% 0.14 85 / .45) !important;
 }
 .cm-searchMatch-selected {
   background-color: var(--brass) !important;

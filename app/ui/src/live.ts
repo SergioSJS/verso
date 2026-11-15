@@ -19,7 +19,7 @@ import { tableArrows, type TableEditorOptions } from "./tableEditor";
 import { heldImage } from "./sanitize";
 import { hasCapability } from "./capabilities";
 import { audioTarget } from "./audio/state";
-import { ImageWidget, HeldImageWidget, TaskCheckboxWidget, CodeCopyWidget, DiagramButtonWidget, IframeWidget } from "./live/widgets";
+import { ImageWidget, HeldImageWidget, TaskCheckboxWidget, CodeCopyWidget, DiagramButtonWidget, IframeWidget, LinkSepWidget } from "./live/widgets";
 import { inlineText, mathSpans, aloneInParagraph, InlineMathWidget } from "./live/math";
 import { blankGaps } from "./live/gaps";
 import { gapArrowsKeymap } from "./live/gapNav";
@@ -530,7 +530,10 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       const embed = m[1] === "!";
       if (inCode(start + 2)) continue;
       if (math.some((r) => start < r.to && end > r.from)) continue;
-      const target = (inner.split("|")[0] ?? "").split("#")[0] ?? "";
+      // The whole link target (`Note#Heading`, `#Heading`) is what a
+      // Mod-click follows; the file part alone says image or sound.
+      const linkTarget = (inner.split("|")[0] ?? "").trim();
+      const target = linkTarget.split("#")[0] ?? "";
       const alias = inner.includes("|") ? (inner.split("|")[1] ?? "") : null;
       const sound = embed && audioTarget(target);
       const shown = embed && (IMAGE.test(target) || sound)
@@ -554,7 +557,7 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
       out.push({
         from: start,
         to: end,
-        deco: Decoration.mark({ class: embed ? "cm-lp-wikilink cm-lp-embed" : "cm-lp-wikilink", attributes: { "data-target": target } }),
+        deco: Decoration.mark({ class: embed ? "cm-lp-wikilink cm-lp-embed" : "cm-lp-wikilink", attributes: { "data-target": linkTarget } }),
       });
       const play = opts.sound?.(target, start);
       if (play) out.push({ from: end, to: end, deco: Decoration.widget({ widget: play, side: 1 }) });
@@ -563,6 +566,16 @@ function build(view: EditorView, opts: LiveOptions): DecorationSet {
         hide(start, start + (embed ? 3 : 2));
         if (alias !== null) hide(start + (embed ? 3 : 2), end - 2 - alias.length);
         hide(end - 2, end);
+        // Without an alias, `Note#Heading` reads "Note › Heading" and
+        // `#Heading` "Heading", as in the reading view.
+        if (alias === null && !embed) {
+          const HASH = /#\^?/g;
+          for (let h = HASH.exec(inner); h; h = HASH.exec(inner)) {
+            const at = start + 2 + h.index;
+            if (inner.slice(0, h.index).trim() === "") hide(at, at + h[0].length);
+            else out.push({ from: at, to: at + h[0].length, deco: Decoration.replace({ widget: new LinkSepWidget() }) });
+          }
+        }
       }
     }
 

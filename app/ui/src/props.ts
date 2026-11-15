@@ -635,6 +635,11 @@ export class PropertiesView {
       // The infobox groups the links under its rule; the picture's row keeps its place.
       if (!imageLink) row.classList.add("links");
       this.linkValue(value, p, fixed, label);
+      // The picture beside its link, as beside an address; in the infobox the head shows it.
+      if (imageLink && !inCard && p.value.kind === "text") {
+        const thumb = pictureNode(p.value.value, this.pictureHost(), "prop-thumb");
+        if (thumb) value.prepend(thumb);
+      }
     } else if (isList) this.listEditor(value, p.key, p.value.kind === "list" ? p.value.value : [], fixed);
     else if (p.value.kind === "checkbox") {
       const box = h("input");
