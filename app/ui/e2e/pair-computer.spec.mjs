@@ -47,6 +47,8 @@ test("a phone pairs by the computer's address and code, and its folder is picked
 });
 
 test("a wrong code, an address with no port and a refusal are said in the person's language, with a try again", async ({ app }) => {
+  // The host's refusals are logged as such; here they are the point.
+  app.expected.push(/refused: the address has its port/, /refused: the code was not right/, /refused: the computer said no/);
   await app.open("?host=mobile");
   await openServers(app);
   const f = form(app);

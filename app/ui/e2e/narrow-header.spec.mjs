@@ -110,9 +110,12 @@ test("at 760 px, a phone-sized drawer layout: the bars' toggles are in sight", a
   await app.quickOpen(BOARD.replace(/\.canvas$/, ""));
   await app.boardReady();
   await inColumn(page);
-  const bar = page.locator(".bar-right");
-  await expect(bar).toBeVisible();
-  await bar.click();
+  // A board you draw on gives the bottom bar's place to its tools (ADR 0076
+  // item 6, option C): the panel is one tap away on the edge's tab.
+  await expect(page.locator(".bar-right")).toBeHidden();
+  const tab = page.locator(".edge-handle.edge-right");
+  await expect(tab).toBeVisible();
+  await tab.click();
   await expect(page.locator("body")).toHaveClass(/right-open/);
   await expect(page.locator("#right")).toBeVisible();
 });
