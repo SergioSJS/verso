@@ -50,13 +50,16 @@ describe("What the files are", () => {
     assert.equal(detect.see(given("notes.md", "# A note\n\nNothing of a generator.")).kind, "unknown");
   });
 
-  test("a city's GeoJSON is named as another generator's; a house with no floor is none", () => {
+  test("a city's GeoJSON is named as another generator's; without its picture it is not imported; a house with no floor is none", () => {
     const city = JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", id: "values", generator: "mfcg", version: "0.11.5" }] });
-    assert.deepEqual(detect.see(given("c.json", city)), { kind: "other", generator: "mfcg" });
+    assert.deepEqual(detect.see(given("c.json", city)), { kind: "other", generator: "mfcg", version: "0.11.5" });
     assert.deepEqual(detect.see(given("h.json", '{"floors":[]}')), { kind: "unknown" });
     const p = detect.plan([given("c.json", city)]);
     assert.equal(p.kind, "none");
-    assert.equal(p.why, "other");
+    assert.equal(p.why, "noPicture");
+    // A generator this import does not know stays named, not imported.
+    const other = JSON.stringify({ type: "FeatureCollection", features: [{ type: "Feature", id: "values", generator: "dg" }] });
+    assert.equal(detect.plan([given("n.json", other)]).why, "other");
   });
 
   test("the JSON and the Markdown of a dungeon make one import, the Markdown giving the seed", () => {

@@ -8,13 +8,16 @@
 // makes. Recognised by what
 // the files hold, never by their names. Pure.
 
+import { type Fit, type FloorPicture, dungeonFit, houseFit, settlementPicture } from "./align";
 import { type Dungeon, type DungeonText, isDungeonJson, isDungeonMarkdown, readDungeon, readDungeonMarkdown } from "./dungeon";
 import { type House, houseTitle, isDwellingJson, readDwelling } from "./dwelling";
+import type { PictureInfo } from "./picture";
 import { type Region, isRegionJson, readRegion } from "./region";
 
 /** A file as the dialog read it: text for JSON and Markdown, the size for
- *  a picture (its bytes stay in the dialog). */
-export type Given = { name: string; text: string | null; size: number };
+ *  a picture (its bytes stay in the dialog) and what its first bytes say
+ *  of it (`picture.ts`). */
+export type Given = { name: string; text: string | null; size: number; picture?: PictureInfo | null };
 
 /** What a file is, one by one. */
 export type Seen =
@@ -24,7 +27,7 @@ export type Seen =
   | { kind: "dwelling"; house: House }
   | { kind: "picture" }
   /** A map of another of the generators: a city, a village. */
-  | { kind: "other"; generator: string }
+  | { kind: "other"; generator: string; version: string | null }
   | { kind: "unknown" };
 
 /** The pictures an import keeps beside the note. */
@@ -59,7 +62,7 @@ export function see(f: Given): Seen {
       return house ? { kind: "dwelling", house } : { kind: "unknown" };
     }
     const other = otherGenerator(v);
-    return other ? { kind: "other", generator: other } : { kind: "unknown" };
+    return other ? { kind: "other", ...other } : { kind: "unknown" };
   }
   if (isDungeonMarkdown(t)) {
     const text = readDungeonMarkdown(t);
@@ -68,18 +71,26 @@ export function see(f: Given): Seen {
   return { kind: "unknown" };
 }
 
-/** The generator of an export this import does not take yet: the cities',
- *  villages' and neighbourhoods' GeoJSON names it. */
-function otherGenerator(v: unknown): string | null {
+/** The generator of a GeoJSON export — a city's (`mfcg`), a village's
+ *  (`vg`), a neighbourhood's — and its version, from its `values` feature. */
+function otherGenerator(v: unknown): { generator: string; version: string | null } | null {
   if (v === null || typeof v !== "object" || Array.isArray(v)) return null;
   const o = v as Record<string, unknown>;
   if (o["type"] === "FeatureCollection" && Array.isArray(o["features"])) {
-    const values = (o["features"] as unknown[]).find((f) => f !== null && typeof f === "object" && (f as Record<string, unknown>)["id"] === "values");
-    const g = values ? (values as Record<string, unknown>)["generator"] : undefined;
-    return typeof g === "string" && /^[a-z]{1,10}$/.test(g) ? g : null;
+    const values = (o["features"] as unknown[]).find((f) => f !== null && typeof f === "object" && (f as Record<string, unknown>)["id"] === "values") as Record<string, unknown> | undefined;
+    const g = values ? values["generator"] : undefined;
+    const ver = values ? values["version"] : undefined;
+    return typeof g === "string" && /^[a-z]{1,10}$/.test(g) ? { generator: g, version: typeof ver === "string" && /^[\w.-]{1,20}$/.test(ver) ? ver : null } : null;
   }
   return null;
 }
+
+/** The generators whose map is its picture alone (no rooms to draw): the
+ *  GeoJSON's name for each, and the generator's path on watabou.github.io. */
+export const SETTLEMENTS: Readonly<Record<string, { slug: string; name: string }>> = {
+  vg: { slug: "village-generator", name: "Village Generator" },
+  mfcg: { slug: "city-generator", name: "Medieval Fantasy City Generator" },
+};
 
 /** What an import of the chosen files makes, or why it cannot. */
 export type Plan =
@@ -91,10 +102,25 @@ export type Plan =
       pictures: string[];
       rooms: number;
       keys: number;
+      /** Where the generator's picture lies over the rooms, when an SVG
+       *  of the export came (`align.ts`); and whether a picture came. */
+      fit: Fit | null;
+      pictured: boolean;
     }
   | { kind: "region"; title: string; json: { name: string; region: Region }; pictures: string[] }
-  | { kind: "dwelling"; title: string; json: { name: string; house: House }; pictures: string[]; floors: number; rooms: number }
-  | { kind: "none"; why: "empty" | "unknown" | "two" | "other"; names: string[]; generator?: string };
+  | {
+      kind: "dwelling";
+      title: string;
+      json: { name: string; house: House };
+      pictures: string[];
+      floors: number;
+      rooms: number;
+      /** Each floor's picture that came, by level. */
+      fit: Map<number, FloorPicture>;
+    }
+  /** A village or a city: its picture is its map. */
+  | { kind: "settlement"; title: string; generator: string; version: string | null; json: { name: string }; pictures: string[]; shown: PictureInfo }
+  | { kind: "none"; why: "empty" | "unknown" | "two" | "other" | "noPicture"; names: string[]; generator?: string };
 
 /** The plan for the files as a whole: one map at a time; a dungeon's JSON
  *  and Markdown go together (the Markdown carries the seed, the JSON the
@@ -107,6 +133,7 @@ export function plan(files: Given[]): Plan {
   const regions = seen.filter((x) => x.s.kind === "region");
   const houses = seen.filter((x) => x.s.kind === "dwelling");
   const pictures = seen.filter((x) => x.s.kind === "picture").map((x) => x.f.name);
+  const infos = seen.map((x) => (x.s.kind === "picture" ? (x.f.picture ?? null) : null)).filter((p): p is PictureInfo => p !== null);
   const unknown = seen.filter((x) => x.s.kind === "unknown" || x.s.kind === "other").map((x) => x.f.name);
   const other = seen.find((x) => x.s.kind === "other");
   const maps = (djson.length + dmd.length > 0 ? 1 : 0) + regions.length + houses.length;
@@ -126,6 +153,8 @@ export function plan(files: Given[]): Plan {
       pictures,
       rooms: dungeon ? dungeon.rects.filter((r) => r.w * r.h > 1).length : 0,
       keys: (text?.keys.length ?? 0) || (dungeon?.keys.length ?? 0),
+      fit: dungeon ? dungeonFit(infos) : null,
+      pictured: infos.length > 0,
     };
   }
   const r = regions[0];
@@ -134,8 +163,20 @@ export function plan(files: Given[]): Plan {
   if (d && d.s.kind === "dwelling") {
     const house = d.s.house;
     const rooms = house.floors.reduce((n, f) => n + f.rooms.length, 0);
-    return { kind: "dwelling", title: houseTitle(d.f.name), json: { name: d.f.name, house }, pictures, floors: house.floors.length, rooms };
+    const cells = house.floors.flatMap((f) => f.rooms.flatMap((r) => r.cells));
+    const grid = { cols: Math.max(...cells.map((c) => c.j)) + 1, rows: Math.max(...cells.map((c) => c.i)) + 1 };
+    const fit = houseFit(house.floors.map((f) => f.level), grid, infos);
+    return { kind: "dwelling", title: houseTitle(d.f.name), json: { name: d.f.name, house }, pictures, floors: house.floors.length, rooms, fit };
   }
-  if (other && other.s.kind === "other") return { kind: "none", why: "other", names: unknown, generator: other.s.generator };
+  if (other && other.s.kind === "other") {
+    const known = SETTLEMENTS[other.s.generator];
+    const others = seen.filter((x) => x.s.kind === "other");
+    const shown = settlementPicture(infos);
+    if (known && others.length === 1 && unknown.length === 1) {
+      if (!shown) return { kind: "none", why: "noPicture", names: unknown, generator: known.name };
+      return { kind: "settlement", title: houseTitle(other.f.name), generator: known.slug, version: other.s.version, json: { name: other.f.name }, pictures, shown };
+    }
+    return { kind: "none", why: "other", names: unknown, generator: other.s.generator };
+  }
   return { kind: "none", why: pictures.length > 0 && unknown.length === 0 ? "empty" : "unknown", names: unknown };
 }
