@@ -27,7 +27,7 @@ Se você já guarda suas notas no **Obsidian**, não precisa mover nada para exp
 **A pasta `.obsidian` fica em paz.** O Verso não a apaga, não grava nela e não entra nela. Só três arquivos dela são *lidos*, nunca gravados, e só para te oferecer algo:
 
 - os ajustes das Notas diárias (`daily-notes.json`) e os do plugin Periodic Notes — **Ajustes › Notas periódicas** passa a oferecer **Usar os ajustes do Obsidian** ([[12 - Notas Diárias, Calendário e Templates]]);
-- a única chave `attachmentFolderPath` do `app.json`, para que uma pasta servida a um celular mostre a pasta de anexos do cofre, só para leitura ([[30 - Verso num Servidor]]).
+- a única chave `attachmentFolderPath` do `app.json`, para que uma pasta servida a um celular mostre a pasta de anexos do cofre, só para leitura ([[31 - Verso num Servidor]]).
 
 Nada mais dos ajustes do Obsidian é lido: temas, atalhos e escolha de plugins ficam no Obsidian.
 
@@ -66,7 +66,7 @@ Os *arquivos* de quatro plugins também funcionam, porque o Verso lê o que o pl
 As extensões do Verso são Markdown comum que **degrada bem**: quem só tem o Obsidian vê um callout, um bloco de código ou propriedades simples, e nada no arquivo perde o sentido.
 
 - **Notas tipadas** — `type:` no frontmatter, ligado a um bloco `verso-schema`, transforma o painel de propriedades num formulário. No Obsidian a nota mostra as propriedades do jeito do Obsidian. Um cofre que já usa `type:` para outra coisa continua válido: sem esquema correspondente, a nota é Markdown puro — [[13 - Notas Tipadas]].
-- **O callout secreto** — `> [!secret]` é um callout comum no arquivo, no Obsidian e numa pasta do seu computador. Só um UniVerso (o Verso num servidor) o usa: serve a quem pode apenas *ler* a nota sem aquele bloco — [[22 - Dados e Tabelas Sorteadas]], [[30 - Verso num Servidor]].
+- **O callout secreto** — `> [!secret]` é um callout comum no arquivo, no Obsidian e numa pasta do seu computador. Só um UniVerso (o Verso num servidor) o usa: serve a quem pode apenas *ler* a nota sem aquele bloco — [[22 - Dados e Tabelas Sorteadas]], [[31 - Verso num Servidor]].
 - **O callout de oráculo e o bloco roll** — `> [!oracle]` é um callout em qualquer outro lugar; um bloco `roll` é um bloco de código — [[24 - Oráculos e Criação de Mundos]], [[25 - A Mesa]].
 - **Blocos, capas, figurinhas, cartões de infobox, relações tipadas** — de novo frontmatter e Markdown — [[05 - Blocos como no Notion]], [[11 - Organizando com figurinhas, capas e páginas]], [[13 - Notas Tipadas]].
 
@@ -81,7 +81,7 @@ Desligar um recurso de RPG no Verso não muda nenhum arquivo; a ficha vira um bl
 - **HTML embutido.** O HTML cru numa nota é desenhado por uma lista permitida: `<iframe>`, `<video>` e `<audio>` são descartados na leitura. Isso ainda é uma pergunta em aberto na especificação, então não conte com isso nem num sentido nem no outro. E um `[[link]]` dentro de um `%%comentário%%` ou dentro de HTML é contado como link pelo índice do Verso.
 - **Desenhos do Excalidraw.** O desenho do plugin abre mostrando o desenho; transformá-lo num board do Verso é um passo que você dá de propósito, com o resultado mostrado antes, e o original é mantido.
 - **As formas aceitas de `tags` e `aliases`** no frontmatter (lista, texto separado por espaços, as duas) não estão fechadas na especificação. O exemplo documentado é a forma de lista.
-- **Ajustes.** Temas, snippets de CSS e atalhos do Obsidian não são lidos (seção 1). O Verso tem os dele — [[36 - Ajustes, Aparência e Atalhos]].
+- **Ajustes.** Temas, snippets de CSS e atalhos do Obsidian não são lidos (seção 1). O Verso tem os dele — [[37 - Ajustes, Aparência e Atalhos]].
 
 ---
 
@@ -108,4 +108,4 @@ Desligar um recurso de RPG no Verso não muda nenhum arquivo; a ficha vira um bl
 
 Quando terminar, o cofre continua sendo um cofre do Obsidian.
 
-Anterior: [[37 - Ajuda, Atualizações e Diagnóstico]] · Última lição · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[38 - Ajuda, Atualizações e Diagnóstico]] · Última lição · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

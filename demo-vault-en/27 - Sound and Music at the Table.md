@@ -10,7 +10,7 @@ status: active
 
 # Sound and Music at the Table
 
-In a session, music is half the mood: the noisy tavern, the road at night, the battle. In Verso, **the game master presses play and everyone at the table hears the same thing, at the same point**, each with their own volume. Music has a tab of its own, **Music**, in the right panel, beside the **Table** ([[25 - The Table]]); it works on a UniVerso ([[26 - Running a Table]]) and at the table your own Verso serves, with the window sitting at the table ([[29 - A Table over the Internet]]).
+In a session, music is half the mood: the noisy tavern, the road at night, the battle. In Verso, **the game master presses play and everyone at the table hears the same thing, at the same point**, each with their own volume. Music has a tab of its own, **Music**, in the right panel, beside the **Table** ([[25 - The Table]]); it works on a UniVerso ([[26 - Running a Table]]) and at the table your own Verso serves, with the window sitting at the table ([[30 - A Table over the Internet]]).
 
 No sound crosses the network: each window plays **its own copy** of the file, and only "what plays and where" is shared, by the server's clock. So the quality is the file's, and nobody lags behind. Nothing of it is written to any file: what is playing lives in the server's memory and goes away when the last person leaves the table.
 
@@ -151,4 +151,4 @@ The two sample tracks
 
 The two sample tracks (`assets/sons/`) are by **RandomMind**, in the public domain (CC0 1.0): `taverna.mp3` is “The Old Tower Inn” (<https://opengameart.org/content/medieval-the-old-tower-inn>) and `estrada.mp3` is “The Bard's Tale” (<https://opengameart.org/content/medieval-the-bards-tale>), their loop versions, re-encoded in mono to weigh little.
 
-Previous: [[26 - Running a Table]] · Next: [[28 - Verso on Phone and Tablet]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[26 - Running a Table]] · Next: [[28 - How Will You Use Verso]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

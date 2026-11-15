@@ -56,7 +56,7 @@ At the bottom of the window: the button to show and hide the files, the app's me
 
 ## The Mac Menu
 
-Besides Verso's commands (see [[36 - Settings, Appearance and Shortcuts#The Menu Bar (macOS)]]), the bar has the window's own items:
+Besides Verso's commands (see [[37 - Settings, Appearance and Shortcuts#The Menu Bar (macOS)]]), the bar has the window's own items:
 
 - **Verso**: **Settings…** (`⌘,`) and **Quit Verso** (`⌘Q`).
 - **File**: **New Window**, **Open Folder…** (`⌘⇧O`), **Open File…**, **Open Recent**, **Close Tab** (`⌘W`) and **Close Window**.
@@ -73,4 +73,4 @@ This demo folder came from **Import the demo content** (in the palette, in the m
 
 ---
 
-Previous: [[36 - Settings, Appearance and Shortcuts]] · Next: [[38 - Compatibility with Obsidian]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[37 - Settings, Appearance and Shortcuts]] · Next: [[39 - Compatibility with Obsidian]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

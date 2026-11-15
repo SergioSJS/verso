@@ -19,7 +19,7 @@ Várias notas abertas ao mesmo tempo: em abas, lado a lado, em espaços de traba
 
 - **Aba de pré-visualização**: um clique numa nota da árvore, da busca ou do **Abrir…** abre uma aba temporária, com o nome em itálico; o clique seguinte a substitui. Um duplo clique, uma edição ou fixar a aba a mantém. Desligue em **Ajustes › Editor › Abas de pré-visualização**.
 - **Fixar aba** (menu da aba): a aba encolhe para o ícone, como no navegador, e não fecha com **Fechar as outras**.
-- O menu de uma aba (botão direito) também tem **Abrir em nova aba**, **Duplicar aba**, **Dividir à direita**, **Dividir abaixo**, **Mover aba para o painel seguinte**, **Mostrar na árvore**, **Renomear**, **Mover para…**, **Copiar caminho relativo** e as opções de fechar.
+- O menu de uma aba (botão direito) também tem **Duplicar aba** (uma segunda aba do mesmo lugar, a página de uma pasta e o grafo também), **Dividir à direita**, **Dividir abaixo**, **Mover aba para o painel seguinte**, **Mostrar na árvore**, **Renomear**, **Mover para…**, **Copiar caminho relativo** e as opções de fechar.
 
 | Atalho | Faz |
 | :--- | :--- |

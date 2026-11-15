@@ -11,7 +11,7 @@ status: active
 
 # UniVerso on a Free Oracle Server
 
-This note is the route for someone who has **never set up a server** and wants their own UniVerso working on the phone, for free, in about 30 minutes. You will make a small machine in Oracle's cloud, get into it, download the installer and pick options from a **menu**: the installer does the rest (the safe address, the admin account, saying what is wrong in plain words). For the more manual roads (Docker, CasaOS, your own domain), the note is [[31 - Installing Your UniVerso, Step by Step]]; what the UniVerso does once it is up is in [[30 - Verso on a Server]].
+This note is the route for someone who has **never set up a server** and wants their own UniVerso working on the phone, for free, in about 30 minutes. You will make a small machine in Oracle's cloud, get into it, download the installer and pick options from a **menu**: the installer does the rest (the safe address, the admin account, saying what is wrong in plain words). For the more manual roads (Docker, CasaOS, your own domain), the note is [[32 - Installing Your UniVerso, Step by Step]]; what the UniVerso does once it is up is in [[31 - Verso on a Server]].
 
 > [!WARNING] Verso is in testing
 > What Oracle gives for free is Oracle's decision and may change: check its "Always Free" page first. The Oracle console menus below are written from its documentation and may be named or placed differently; the installer's commands were tested on Ubuntu 24.04 with systemd, not on a real Oracle machine.
@@ -83,7 +83,7 @@ Choose **Make the first admin**. Type the **e-mail** and the **password** (12 ch
 
 ## 8. Open it on the phone
 
-In the phone's browser, open the `https://…` address the installer printed, sign in with the e-mail and password — and that is it: the UniVerso in your pocket. With HTTPS, offline mode and notifications work ([[28 - Verso on Phone and Tablet]]). In the desktop app: Settings › Servers, with the same address ([[31 - Installing Your UniVerso, Step by Step#6. The first admin, and connecting the app|connect the app]]).
+In the phone's browser, open the `https://…` address the installer printed, sign in with the e-mail and password — and that is it: the UniVerso in your pocket. With HTTPS, offline mode and notifications work ([[29 - Verso on Phone and Tablet]]). In the desktop app: Settings › Servers, with the same address ([[32 - Installing Your UniVerso, Step by Step#6. The first admin, and connecting the app|connect the app]]).
 
 ---
 
@@ -97,6 +97,6 @@ In the phone's browser, open the `https://…` address the installer printed, si
 > [!NOTE] Oracle may take the machine back
 > A free machine that Oracle judges idle (low CPU, network and memory use over seven days) may be reclaimed by it. A notes server for a few people can look idle: **keep backups off the machine**.
 
-For what to do with the server up, see [[30 - Verso on a Server]]; for the game table, [[26 - Running a Table]].
+For what to do with the server up, see [[31 - Verso on a Server]]; for the game table, [[26 - Running a Table]].
 
-Previous: [[32 - Installing the server on a NAS or a VPS]] · Next: [[34 - Syncing with a Cloud]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[33 - Installing the server on a NAS or a VPS]] · Next: [[35 - Syncing with a Cloud]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

@@ -155,4 +155,4 @@ To give the agent Verso's tools over this folder (search, read notes, backlinks,
 
 ---
 
-Previous: [[34 - Syncing with a Cloud]] · Next: [[36 - Settings, Appearance and Shortcuts]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[35 - Syncing with a Cloud]] · Next: [[37 - Settings, Appearance and Shortcuts]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

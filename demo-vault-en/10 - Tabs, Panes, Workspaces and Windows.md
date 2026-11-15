@@ -19,7 +19,7 @@ Several notes open at the same time: in tabs, side by side, in separate workspac
 
 - **Preview tab**: a click on a note in the tree, in the search or in **Open…** opens a temporary tab, with the name in italics; the next click replaces it. A double click, an edit or pinning the tab keeps it. Turn it off under **Settings › Editor › Preview tabs**.
 - **Pin tab** (the tab's menu): the tab shrinks to its icon, as in the browser, and does not close with **Close others**.
-- A tab's menu (right click) also has **Open in new tab**, **Duplicate tab**, **Split right**, **Split down**, **Move tab to the next pane**, **Reveal in file tree**, **Rename**, **Move to…**, **Copy relative path** and the close options.
+- A tab's menu (right click) also has **Duplicate tab** (a second tab of the same place, a folder's page and the graph too), **Split right**, **Split down**, **Move tab to the next pane**, **Reveal in file tree**, **Rename**, **Move to…**, **Copy relative path** and the close options.
 
 | Shortcut | Does |
 | :--- | :--- |

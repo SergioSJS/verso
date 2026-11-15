@@ -105,12 +105,12 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 /** Lessons merged into another: old path → the lesson that holds it now. */
 const MERGED = {
   pt: {
-    "17 - Terminal, CLI e Agentes.md": "35 - Terminal, CLI e Agentes de IA.md",
-    "35 - Terminal e Agentes de IA.md": "35 - Terminal, CLI e Agentes de IA.md",
+    "17 - Terminal, CLI e Agentes.md": "36 - Terminal, CLI e Agentes de IA.md",
+    "35 - Terminal e Agentes de IA.md": "36 - Terminal, CLI e Agentes de IA.md",
   },
   en: {
-    "17 - Terminal, CLI and Agents.md": "35 - Terminal, CLI and AI Agents.md",
-    "35 - Terminal and AI Agents.md": "35 - Terminal, CLI and AI Agents.md",
+    "17 - Terminal, CLI and Agents.md": "36 - Terminal, CLI and AI Agents.md",
+    "35 - Terminal and AI Agents.md": "36 - Terminal, CLI and AI Agents.md",
   },
 };
 

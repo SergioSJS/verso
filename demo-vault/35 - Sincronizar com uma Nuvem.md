@@ -11,10 +11,10 @@ status: ativo
 
 # Sincronizar com uma Nuvem
 
-Esta nota mostra como manter uma pasta do Verso **igual** a uma pasta de uma nuvem que você **já tem** — um Nextcloud (ou outro servidor WebDAV) ou um bucket S3 — sem instalar servidor nenhum. É a alternativa curta ao [[30 - Verso num Servidor|UniVerso]]: as notas continuam arquivos Markdown na sua pasta, e uma cópia fica na nuvem, para os seus outros computadores.
+Esta nota mostra como manter uma pasta do Verso **igual** a uma pasta de uma nuvem que você **já tem** — um Nextcloud (ou outro servidor WebDAV) ou um bucket S3 — sem instalar servidor nenhum. É a alternativa curta ao [[31 - Verso num Servidor|UniVerso]]: as notas continuam arquivos Markdown na sua pasta, e uma cópia fica na nuvem, para os seus outros computadores.
 
 > [!NOTE] Só no computador
-> Uma pasta ligada a uma nuvem sincroniza **entre computadores com o app desktop**. O celular, o tablet e o navegador não sincronizam com uma nuvem: para eles, use um [[30 - Verso num Servidor|UniVerso]]. Também não há, numa pasta de nuvem, edição ao mesmo tempo, compartilhamento com outras pessoas, papéis nem a lixeira do servidor.
+> Uma pasta ligada a uma nuvem sincroniza **entre computadores com o app desktop**. O celular, o tablet e o navegador não sincronizam com uma nuvem: para eles, use um [[31 - Verso num Servidor|UniVerso]]. Também não há, numa pasta de nuvem, edição ao mesmo tempo, compartilhamento com outras pessoas, papéis nem a lixeira do servidor.
 
 > [!TIP] Dropbox, OneDrive e Google Drive
 > Aparecem na lista de **Sincronizar com…** como "em breve": dependem de contas de desenvolvedor que ainda não existem. WebDAV e S3 já funcionam.
@@ -126,4 +126,4 @@ O nome do seu computador, que aparece na cópia de um conflito, se muda em **Aju
 
 ---
 
-Anterior: [[33 - UniVerso num Servidor Grátis da Oracle]] · Próxima: [[35 - Terminal, CLI e Agentes de IA]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[34 - UniVerso num Servidor Grátis da Oracle]] · Próxima: [[36 - Terminal, CLI e Agentes de IA]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

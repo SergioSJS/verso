@@ -64,7 +64,7 @@ Com os **Dados 3D** ligados, a rolagem dos outros também cai em 3D na sua tela.
 
 **Som da Mesa.** Quando outra pessoa manda uma **mensagem** (ou uma rolagem que não cai em 3D) na Mesa, a janela toca um som curto — nunca para o que **você** manda, e não enquanto você escreve na caixa da Mesa. Em **Ajustes › Notificações** escolha **Som da Mesa** (Suave, Sino, Estalo ou Desligado; vem em Suave) e o **volume**; ao escolher, o som toca uma vez para você ouvir. Os dados têm o seu próprio som, ligado à parte. Se o navegador ainda não liberou o áudio (ele só libera depois que você toca na página), o som fica mudo em vez de tocar atrasado.
 
-Numa pasta que **não** é de um UniVerso (só do seu computador), a Mesa mostra as suas rolagens e as que você ouve nas notas compartilhadas **desta sessão**, e diz que não é compartilhada nem guardada. Numa pasta de um UniVerso, ou numa que o seu próprio Verso serve com a janela sentada à mesa ([[29 - Mesa pela Internet]]), ela é **a mesa de todos**: veja abaixo.
+Numa pasta que **não** é de um UniVerso (só do seu computador), a Mesa mostra as suas rolagens e as que você ouve nas notas compartilhadas **desta sessão**, e diz que não é compartilhada nem guardada. Numa pasta de um UniVerso, ou numa que o seu próprio Verso serve com a janela sentada à mesa ([[30 - Mesa pela Internet]]), ela é **a mesa de todos**: veja abaixo.
 
 ---
 

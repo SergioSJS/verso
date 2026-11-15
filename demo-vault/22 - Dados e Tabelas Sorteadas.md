@@ -70,7 +70,7 @@ O tempo hoje: `dice: [[22 - Dados e Tabelas Sorteadas#^tempo]]`
 
 ## Numa nota compartilhada
 
-Num [[30 - Verso num Servidor|UniVerso]], com outras pessoas na mesma nota, quem rola é o **servidor**: ninguém escolhe o próprio número. Todos na nota veem a rolagem com o nome de quem rolou — *Ana rolou* —, e quem entra depois vê as últimas rolagens da sala. Sem conexão, o dado rola nesta janela e o cartão avisa que ninguém mais viu.
+Num [[31 - Verso num Servidor|UniVerso]], com outras pessoas na mesma nota, quem rola é o **servidor**: ninguém escolhe o próprio número. Todos na nota veem a rolagem com o nome de quem rolou — *Ana rolou* —, e quem entra depois vê as últimas rolagens da sala. Sem conexão, o dado rola nesta janela e o cartão avisa que ninguém mais viu.
 
 ---
 
@@ -81,7 +81,7 @@ Um callout do tipo `secret` guarda o que só quem escreve a nota deve ver. Digit
 > [!secret] O que os jogadores não sabem
 > A estalajadeira é irmã do barão, e a adega dá no túnel do porto.
 
-Num [[30 - Verso num Servidor|UniVerso]], quem só pode **ler** a nota a recebe **sem** esse bloco — na tela, na busca, nos links e nas tags, no que sincroniza para o aparelho dela, numa nota ao vivo. Quem pode editar vê tudo, com um cadeado e *Oculto para leitores*; o botão **Ver como leitor**, ao lado de Ler e Editar, mostra a nota como um leitor a recebe, e **Ver a nota inteira** volta. Numa pasta deste computador nada se esconde, e o bloco diz *Visível para quem tiver o arquivo*.
+Num [[31 - Verso num Servidor|UniVerso]], quem só pode **ler** a nota a recebe **sem** esse bloco — na tela, na busca, nos links e nas tags, no que sincroniza para o aparelho dela, numa nota ao vivo. Quem pode editar vê tudo, com um cadeado e *Oculto para leitores*; o botão **Ver como leitor**, ao lado de Ler e Editar, mostra a nota como um leitor a recebe, e **Ver a nota inteira** volta. Numa pasta deste computador nada se esconde, e o bloco diz *Visível para quem tiver o arquivo*.
 
 > [!WARNING] Não é criptografia
 > Quem pode editar a nota vê o segredo — senão o apagaria na próxima edição. Quem tem o arquivo também: o Obsidian, um computador que sincroniza como editor, uma cópia dada à mão. O segredo é escondido dos leitores do servidor, não cifrado; e um leitor sabe que a nota mudou só quando muda o que ele vê.

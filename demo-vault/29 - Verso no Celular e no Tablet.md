@@ -65,7 +65,7 @@ No tablet (de 760 a 1180 px) as barras laterais ficam, e as linhas da árvore s�
 
 ## Num Servidor
 
-O que é o servidor e como instalá-lo: [[30 - Verso num Servidor]].
+O que é o servidor e como instalá-lo: [[31 - Verso num Servidor]].
 
 - **Quem só lê** a pasta vê um cadeado fechado ao lado do nome dela (*Você só lê esta pasta*), e nada que muda a pasta aparece; se tentar escrever, mover ou renomear algo, um aviso curto diz que só lê, perto de onde tentou.
 - **Copiar link** dá o endereço da nota no servidor, e **Abrir numa nova aba do navegador** faz o papel da nova janela.
@@ -75,7 +75,7 @@ O que é o servidor e como instalá-lo: [[30 - Verso num Servidor]].
 
 ## Parear o Celular com o Seu Computador
 
-Sem instalar nada: o próprio Verso do computador pode servir as pastas que você marcar ao navegador do celular, **pela rede em que os dois estão** (a sua casa, por exemplo). É o mesmo servidor do `verso serve`, dentro do app. Em **Transformar em servidor** há duas caixas, **Na minha rede** e **Por um link na internet (Cloudflare, modo de teste)**; o celular pareia **só pela rede**, e o link para jogar com gente de fora é a [[29 - Mesa pela Internet]]. Fica **desligado** até você ligar, e desliga de novo quando o app fecha. Enquanto serve, o **ícone do Verso** (a marca do app) aparece na barra de menus do Mac (ou na área de notificação do Windows), com um menu **Servindo N pastas… / Parar / Abrir Ajustes**; no Linux a marca fica na barra de status do app.
+Sem instalar nada: o próprio Verso do computador pode servir as pastas que você marcar ao navegador do celular, **pela rede em que os dois estão** (a sua casa, por exemplo). É o mesmo servidor do `verso serve`, dentro do app. Em **Transformar em servidor** há duas caixas, **Na minha rede** e **Por um link na internet (Cloudflare, modo de teste)**; o celular pareia **só pela rede**, e o link para jogar com gente de fora é a [[30 - Mesa pela Internet]]. Fica **desligado** até você ligar, e desliga de novo quando o app fecha. Enquanto serve, o **ícone do Verso** (a marca do app) aparece na barra de menus do Mac (ou na área de notificação do Windows), com um menu **Servindo N pastas… / Parar / Abrir Ajustes**; no Linux a marca fica na barra de status do app.
 
 1. No computador, **Ajustes › Transformar em servidor**. O cofre aberto na janela vem primeiro, com a árvore de pastas dele; as outras pastas que você já abriu estão no grupo **Recentes**. Marque as pastas que o celular pode ver — nenhuma vem marcada. Para servir **só algumas pastas de dentro** de uma pasta, marque-a e escolha na árvore dela (a do cofre aberto já está aberta; nas recentes, **Escolher pastas**). Marque só o que o celular pode ver: cada pasta marcada chega ao celular como uma pasta própria, o resto da pasta não aparece para ele nem pelo nome, e a pasta de anexos do cofre (a que o Obsidian configura) vai junto, só para ler e só arquivos (desmarcar a última para de servir o cofre; para servi-lo inteiro, **Servir a pasta inteira** na árvore). Em **Onde servir**, deixe **Na minha rede** marcada (ela vem marcada). Depois toque em **Ligar o servidor**. Na primeira vez o Verso explica o que o sistema vai perguntar (rede local, firewall) antes de pedir; se você negar, ele diz como liberar, sem mexer no firewall por conta própria.
 2. Toque em **Parear um celular**. O computador mostra um **QR**, o endereço e um **código de oito letras**, que valem **2 minutos** e uma vez só.
@@ -85,7 +85,7 @@ Sem instalar nada: o próprio Verso do computador pode servir as pastas que voc�
 
 O que fica de fora de propósito: o celular **nunca** abre pastas que você não marcou, não vê o seu disco, não manda o computador abrir nada no sistema, não muda os ajustes do app e não abre uma pasta que outra pessoa compartilhou com você num UniVerso (nesse caso, abra o endereço do UniVerso no celular; a página dessa pasta e os Ajustes dizem *compartilhada com você em …: só quem é dona dela pode servi-la*). Se o endereço do computador mudar — outra rede, uma VPN que liga —, o servidor **para sozinho** e avisa; é preciso ligar e parear de novo. Numa rede com isolamento de clientes (um café, um hotel) o celular não alcança o computador, e o Verso diz isso.
 
-O celular **nunca sincroniza**: ele usa a janela do navegador, e só o Verso de outra pessoa que você convidou sincroniza (veja a [[29 - Mesa pela Internet]]). O certificado do app **não é de uma autoridade conhecida**, então o navegador do celular o trata como inseguro e não deixa a pasta ficar [[#Sem Rede|disponível sem rede]]. Para isso, use um UniVerso com HTTPS de verdade, ou o `tailscale serve` — veja [[30 - Verso num Servidor]].
+O celular **nunca sincroniza**: ele usa a janela do navegador, e só o Verso de outra pessoa que você convidou sincroniza (veja a [[30 - Mesa pela Internet]]). O certificado do app **não é de uma autoridade conhecida**, então o navegador do celular o trata como inseguro e não deixa a pasta ficar [[#Sem Rede|disponível sem rede]]. Para isso, use um UniVerso com HTTPS de verdade, ou o `tailscale serve` — veja [[31 - Verso num Servidor]].
 
 ---
 
@@ -99,7 +99,7 @@ Num servidor com HTTPS (por HTTP simples esta opção fica desligada, e o Verso 
 4. O que você muda espera, e a barra de status diz quantas mudanças esperam. Quando a rede volta, elas sobem **pelas mesmas regras de sincronização do app de computador**: duas notas que só ganharam linhas no fim viram uma só; uma nota mudada nos dois lados fica com a versão do servidor e a sua numa cópia, listada em **Ajustes › Sem rede**; apagar muitos arquivos de uma vez pede a sua confirmação. Um aviso diz *Voltou a rede: n mudanças enviadas*.
 5. **Sair** da conta apaga a cópia deste aparelho, depois de dizer quantas mudanças ainda não subiram; se o servidor encerrar a sessão, a cópia some na próxima conexão. A cópia **não é cifrada**: o armazenamento do navegador é tão seguro quanto o aparelho desbloqueado.
 
-Quem só lê a pasta guarda o que o servidor lhe entrega — sem o que está escondido dos leitores ([[30 - Verso num Servidor]]).
+Quem só lê a pasta guarda o que o servidor lhe entrega — sem o que está escondido dos leitores ([[31 - Verso num Servidor]]).
 
 ---
 
@@ -107,7 +107,7 @@ Quem só lê a pasta guarda o que o servidor lhe entrega — sem o que está esc
 
 O app para Android é o mesmo Verso do computador, num APK que você instala no celular (fora da loja: o Android pede para permitir instalar apps de fora uma vez). A tela é a deste resto da nota; o que muda:
 
-- **A pasta do celular** fica **dentro do app**: na primeira vez ele cria a pasta *Verso* e oferece este tutorial. Nenhum outro app a vê, e ela é **apagada junto se o Verso for desinstalado** — **Ajustes › Sincronizar** diz isso. Para guardar uma cópia, sincronize-a com um UniVerso ou com uma nuvem (WebDAV, S3, veja [[34 - Sincronizar com uma Nuvem]]); a senha da nuvem fica no cofre cifrado do Android. A sincronização corre **enquanto o app está aberto** e continua de onde parou quando ele abre de novo; com **Sincronizar em segundo plano** ligado (**Ajustes › Sincronizar**, desligado de saída) ela segue com o Verso fechado, sob uma notificação — se quiser, **Só no Wi-Fi** ou **Só carregando**.
+- **A pasta do celular** fica **dentro do app**: na primeira vez ele cria a pasta *Verso* e oferece este tutorial. Nenhum outro app a vê, e ela é **apagada junto se o Verso for desinstalado** — **Ajustes › Sincronizar** diz isso. Para guardar uma cópia, sincronize-a com um UniVerso ou com uma nuvem (WebDAV, S3, veja [[35 - Sincronizar com uma Nuvem]]); a senha da nuvem fica no cofre cifrado do Android. A sincronização corre **enquanto o app está aberto** e continua de onde parou quando ele abre de novo; com **Sincronizar em segundo plano** ligado (**Ajustes › Sincronizar**, desligado de saída) ela segue com o Verso fechado, sob uma notificação — se quiser, **Só no Wi-Fi** ou **Só carregando**.
 - **Um UniVerso**: em **Ajustes › Servidores**, **Conectar** abre a página do servidor no navegador do celular para você entrar; depois as pastas dele aparecem no seletor de pastas (o nome da pasta, no alto da gaveta). O nome do celular para o servidor é o que você deu a ele nos ajustes do Android.
 - **Uma pasta do servidor vira uma cópia no celular, que abre sem internet**: tocar numa pasta do servidor no seletor (ou em **Abrir aqui**, em **Ajustes › Servidores**) pergunta onde guardar a cópia e mostra antes quanto ela ocupa (*12 arquivos · 3,4 MB*):
   - **Dentro do app** — só o Verso vê; é **apagada se o app for desinstalado** (o servidor fica com tudo).
@@ -134,7 +134,7 @@ Pela **AltStore PAL** (sem computador), o Verso vem depois, e **por enquanto só
 
 O que muda em relação ao Android:
 
-- **A pasta do app** aparece no app **Arquivos**, em *No meu iPad › Verso* (ou *No meu iPhone*): outros apps abrem as notas dali, e o que eles mudam o Verso vê ao voltar para a tela. Ela é apagada junto se o Verso for desinstalado, a não ser que sincronize.
+- **A pasta do app** aparece no app **Arquivos**, em *No meu iPad › Verso* (ou *No meu iPhone*): outros apps abrem as notas dali, e o que eles mudam o Verso vê ao voltar para a tela. Ela é apagada junto se o Verso for desinstalado, a não ser que sincronize. O iOS abre só as pastas dos **Documentos** do Verso: o seletor de pastas não tem *Abrir outra pasta…*, que no Android percorre o armazenamento do celular.
 - **Um UniVerso** e **o aparelho como servidor** funcionam como no Android, mas o iOS só deixa servir com o Verso na tela. Uma pasta do servidor escolhida também vira uma cópia que abre sem internet, sempre nos **Documentos** do Verso: aparece no Arquivos em *No meu iPad › Verso*, ao lado da pasta *Verso*, com o nome da pasta do servidor.
 - **Não tem** no iOS: o link pela internet, o terminal, a linha de comando e os agentes, e as atualizações pelo próprio app (a AltStore as traz).
 
@@ -144,4 +144,4 @@ Com o VoiceOver (iPhone e iPad) ou o TalkBack (Android), tocar duas vezes e segu
 
 ---
 
-Anterior: [[27 - Som e Música na Mesa]] · Próxima: [[29 - Mesa pela Internet]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[28 - Como Você Vai Usar o Verso]] · Próxima: [[30 - Mesa pela Internet]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

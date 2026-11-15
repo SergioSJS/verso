@@ -12,9 +12,9 @@ status: active
 
 # Mesa pela Internet
 
-Você quer jogar com gente que não está na sua casa, sem alugar servidor nem entender de rede? O Verso do seu computador pode **virar um servidor** por algumas horas: você liga, manda um **link** às jogadoras, elas entram pelo navegador e jogam na [[25 - A Mesa|Mesa]], como num UniVerso ([[30 - Verso num Servidor]]). É a mesma ideia de rodar o Foundry no seu computador: **o computador precisa ficar ligado e acordado** enquanto a mesa acontece.
+Você quer jogar com gente que não está na sua casa, sem alugar servidor nem entender de rede? O Verso do seu computador pode **virar um servidor** por algumas horas: você liga, manda um **link** às jogadoras, elas entram pelo navegador e jogam na [[25 - A Mesa|Mesa]], como num UniVerso ([[31 - Verso num Servidor]]). É a mesma ideia de rodar o Foundry no seu computador: **o computador precisa ficar ligado e acordado** enquanto a mesa acontece.
 
-É **um recurso só**, o **Transformar em servidor**, com duas caixas: servir **na sua rede** (os celulares que você [[28 - Verso no Celular e no Tablet|pareia]]) e servir **por um link na internet**. Marque uma, a outra ou as duas.
+É **um recurso só**, o **Transformar em servidor**, com duas caixas: servir **na sua rede** (os celulares que você [[29 - Verso no Celular e no Tablet|pareia]]) e servir **por um link na internet**. Marque uma, a outra ou as duas.
 
 > [!WARNING] O link é um modo de teste
 > O link usa um serviço de teste da Cloudflare: sem garantia de funcionamento, até 200 pedidos ao mesmo tempo. O Verso diz isso na própria caixa. Só entra quem você convidar, e ninguém vê uma pasta que você não compartilhou. **Desligue quando a sessão acabar.**
@@ -58,7 +58,7 @@ Você convida pela **página da pasta**, como num UniVerso, na janela da pasta s
 2. A jogadora abre o link, cria a conta com **qualquer e-mail dela** (**nada é enviado**: o e-mail só serve de nome de entrada), um nome e uma senha, e depois entra pelo endereço da mesa.
 3. Em **Ajustes › Transformar em servidor**, a lista **Convites** mostra todos os convites deste servidor (esperando, aceito por…, encerrado, expirado) e **Encerrar** fecha um que ainda espera.
 
-Com a caixa do link desmarcada, o convite sai pelo endereço da **sua rede**: só abre quem estiver nela, e o navegador vai reclamar do certificado do computador — é o mesmo aviso do [[28 - Verso no Celular e no Tablet#Parear o Celular com o Seu Computador|pareamento do celular]]; aceite só numa rede em que você confia.
+Com a caixa do link desmarcada, o convite sai pelo endereço da **sua rede**: só abre quem estiver nela, e o navegador vai reclamar do certificado do computador — é o mesmo aviso do [[29 - Verso no Celular e no Tablet#Parear o Celular com o Seu Computador|pareamento do celular]]; aceite só numa rede em que você confia.
 
 Quem entra vê só o que você compartilhou, com o papel que você deu. Como mestrar a mesa (liberar notas, jogadoras, direitos) está em [[26 - Rodando uma Mesa]].
 
@@ -123,6 +123,6 @@ Depois, marque **Usar meu endereço no link (em vez de um link rápido)** com o 
 
 ---
 
-Se preferir um servidor que fique ligado sozinho, veja a [[30 - Verso num Servidor]] e a [[32 - Instalar o servidor num NAS ou VPS]].
+Se preferir um servidor que fique ligado sozinho, veja a [[31 - Verso num Servidor]] e a [[33 - Instalar o servidor num NAS ou VPS]].
 
-Anterior: [[28 - Verso no Celular e no Tablet]] · Próxima: [[30 - Verso num Servidor]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[29 - Verso no Celular e no Tablet]] · Próxima: [[31 - Verso num Servidor]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+### Added
+
+- Tutorial: a new lesson, **28 - How Will You Use Verso** (pt-BR *Como Você Vai Usar o Verso*), opens block VI: seven ways to set Verso and UniVerso up — only on the computer, computer and phone at home with the app as the server, sync without a server (a WebDAV or S3 cloud, or a folder Syncthing or iCloud Drive keeps), your own UniVerso with synced copies in the apps, an RPG table from the computer or on a UniVerso, a family or team sharing folders with roles, and alongside Obsidian — each with who it is for, what to install in what order with the menu paths, what works offline, a Mermaid diagram of where the files live, and the lessons with the details. The lessons after it move up one (28–38 become 29–39), with their links, the tour's cards and the walkthrough.
+
 ### Changed
 
 - **Picking a UniVerso's folder downloads it to this device, and that copy opens offline too** (the maintainer, 2026-11-15, after a folder opened from his server on the Android app would not open again in airplane mode). On every app — desktop, Android, iPhone and iPad — choosing a server's folder in the folder switcher or with **Open here** in Settings › Servers now asks where to keep a copy, shows its size first (how many files and how many MB), downloads the whole folder, keeps it synced with the server and opens it. On Android the copy goes **Inside the app** (only Verso sees it; uninstalling the app deletes it, the server keeps everything) or in **Phone/Documents** (Obsidian and other apps see it; asks for the access to all files first); on the iPhone and iPad it goes in Verso's Documents, which the Files app shows; on a computer you choose the folder it goes in. The dialog says the download's progress, file by file, and when it is done. Offline, the copy opens and what changes syncs when the network is back. Once a copy is there, picking that folder again opens it with nothing asked. The old way stays as the second button: **Open on the server only, no copy** (online only). A reader gets only what the server lets them read, as with sync.
@@ -19,6 +23,13 @@ test release.
 
 ### Fixed
 
+- Sync: a connection whose first pass fails on the connection (a folder of ~110,000 files, whose list passed the WebSocket's 16 MiB frame) no longer reconnects in a tight loop: it waits the growing wait (5 s to 5 min) like a server out of reach, the wait starts over only after a pass goes through, and the app now takes a server's message up to 256 MiB.
+- Sync and Settings › Servers: a proxy's 502, 503, 504 or Cloudflare's 52x/530 (the server behind it down) is said as the server out of reach, by its address, and tried again on the growing wait; before, it was "something went wrong" and waited five minutes.
+- Phone: with background sync set to Wi-Fi only or charging only, a pass begun on Wi-Fi stops before its next file when the phone leaves Wi-Fi or the charger, and says paused; before, a big first download went on over mobile data.
+- Settings › Servers: a sign-in refused on the server's page, a code whose ten minutes ran out, or a sign-in that failed is said in words, with Try again; before, the code and "Waiting…" stayed forever. Signed in again, the folders that sync with that server try at once instead of in up to five minutes.
+- A window on a server's folder whose server, on reconnecting, runs a version this app does not follow says to update one of the two, not "sign in again".
+- Sync: a folder whose saved sync state cannot be read says so (the file is kept aside, named) instead of looking never synced; a cloud's half-read first listing, and a long pass's progress every 50 files, are kept, so an interrupted first sync resumes instead of starting over; the watcher's changes are not lost when listing the folder fails.
+- iPhone and iPad: the folder switcher no longer offers "Open another folder…", which opened Android's shared storage and failed in English; the iOS app opens the folders in its own Documents.
 - Live Preview: ⌘/Ctrl-click on `[[Note#Heading]]` opens the note at its heading, and on `[[#Heading]]` moves to that heading; before, the heading was dropped and `[[#Heading]]` did nothing. Such links now read "Note › Heading" and "Heading", as in Reading (where `[[#Heading]]` read " › Heading"), and an embedded note's title in Live Preview is the reading view's.
 - Live Preview: a selection inside a quote drawn as a panel (Blue Topaz, Rosé Pine, Rosé Pine Moon, Tokyo Night) showed nothing; with outlined or title-bar callouts, a selection inside a callout showed in two shades.
 - Typed notes: a declared picture written as a wikilink shows its thumbnail beside the link again in the properties panel.

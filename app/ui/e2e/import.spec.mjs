@@ -85,7 +85,7 @@ test("a note the tutorial renamed: the untouched old copy goes to the trash, the
   const files = await app.files();
   expect(files).not.toContain("24 - Dados e Tabelas Sorteadas.md");
   expect(files).toContain("22 - Dados e Tabelas Sorteadas.md");
-  expect(files).toContain("31 - Instalar o seu UniVerso, Passo a Passo.md");
+  expect(files).toContain("32 - Instalar o seu UniVerso, Passo a Passo.md");
   // Restorable, not deleted: it is in the trash, whole.
   expect(await app.page.evaluate(() => window.__harness.bytes(".trash/24 - Dados e Tabelas Sorteadas.md"))).toBe(Buffer.from(old).toString("base64"));
   expect(await app.file("daily/2026-09-24.md")).toBe("# O meu dia\\n");

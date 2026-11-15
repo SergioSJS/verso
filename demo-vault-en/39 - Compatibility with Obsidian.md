@@ -27,7 +27,7 @@ If you already keep notes in **Obsidian**, you do not need to move anything to t
 **The `.obsidian` folder is left alone.** Verso does not delete it, does not write to it and does not walk into it. Only three of its files are *read*, never written, and only to offer you something:
 
 - the Daily notes settings (`daily-notes.json`) and the Periodic Notes plugin's settings — **Settings › Periodic notes** then offers **Use Obsidian's settings** ([[12 - Daily Notes, Calendar and Templates]]);
-- the one key `attachmentFolderPath` of `app.json`, so a folder served to a phone can show the vault's attachments folder, read-only ([[30 - Verso on a Server]]).
+- the one key `attachmentFolderPath` of `app.json`, so a folder served to a phone can show the vault's attachments folder, read-only ([[31 - Verso on a Server]]).
 
 Nothing else of Obsidian's settings is read: themes, hotkeys and plugin choices stay in Obsidian.
 
@@ -66,7 +66,7 @@ Four plugins' *files* also work, because Verso reads what the plugin writes:
 Verso's extensions are ordinary Markdown that **degrades**: a person with only Obsidian sees a callout, a code block or plain properties, and nothing in the file is meaningless to them.
 
 - **Typed notes** — `type:` in the frontmatter, matched to a `verso-schema` block, turns the properties panel into a form. In Obsidian the note shows its properties the Obsidian way. A vault that already uses `type:` for something else stays valid: with no matching schema, the note is plain Markdown — [[13 - Typed Notes]].
-- **The secret callout** — `> [!secret]` is an ordinary callout in the file, in Obsidian and in a folder on your computer. Only a UniVerso (Verso on a server) uses it: it serves people who may only *read* the note without that block — [[22 - Dice and Random Tables]], [[30 - Verso on a Server]].
+- **The secret callout** — `> [!secret]` is an ordinary callout in the file, in Obsidian and in a folder on your computer. Only a UniVerso (Verso on a server) uses it: it serves people who may only *read* the note without that block — [[22 - Dice and Random Tables]], [[31 - Verso on a Server]].
 - **The oracle callout and the roll block** — `> [!oracle]` is a callout elsewhere; a `roll` block is a code block elsewhere — [[24 - Oracles and World Building]], [[25 - The Table]].
 - **Blocks, covers, stickers, infobox cards, typed relations** — frontmatter and Markdown again — [[05 - Blocks Like in Notion]], [[11 - Organizing with Stickers, Covers and Pages]], [[13 - Typed Notes]].
 
@@ -81,7 +81,7 @@ Turning an RPG feature off in Verso changes no file; the statblock becomes a cod
 - **Embedded HTML.** Raw HTML in a note is drawn through an allowlist: `<iframe>`, `<video>` and `<audio>` are dropped from the reading view. This is still an open question in the spec, so do not rely on it either way. And a `[[link]]` inside a `%%comment%%` or inside HTML is counted as a link by Verso's index.
 - **Excalidraw drawings.** The plugin's drawing opens showing the drawing; turning it into a Verso board is a step you take on purpose, with the result shown first, and the original is kept.
 - **The accepted forms of `tags` and `aliases`** in the frontmatter (list, text separated by spaces, both) are not settled in the spec. The documented example is the list form.
-- **Settings.** Themes, CSS snippets and hotkeys of Obsidian are not read (section 1). Verso has its own — [[36 - Settings, Appearance and Shortcuts]].
+- **Settings.** Themes, CSS snippets and hotkeys of Obsidian are not read (section 1). Verso has its own — [[37 - Settings, Appearance and Shortcuts]].
 
 ---
 
@@ -108,4 +108,4 @@ Turning an RPG feature off in Verso changes no file; the statblock becomes a cod
 
 When you are done, the vault is still an Obsidian vault.
 
-Previous: [[37 - Help, Updates and Diagnostics]] · The last lesson · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[38 - Help, Updates and Diagnostics]] · The last lesson · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

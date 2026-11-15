@@ -11,10 +11,10 @@ status: active
 
 # Syncing with a Cloud
 
-This note shows how to keep a Verso folder **the same as** a folder in a cloud you **already have** — a Nextcloud (or another WebDAV server) or an S3 bucket — without installing any server. It is the short alternative to the [[30 - Verso on a Server|UniVerso]]: your notes stay Markdown files in your folder, and a copy sits in the cloud for your other computers.
+This note shows how to keep a Verso folder **the same as** a folder in a cloud you **already have** — a Nextcloud (or another WebDAV server) or an S3 bucket — without installing any server. It is the short alternative to the [[31 - Verso on a Server|UniVerso]]: your notes stay Markdown files in your folder, and a copy sits in the cloud for your other computers.
 
 > [!NOTE] Computers only
-> A folder tied to a cloud syncs **between computers running the desktop app**. The phone, the tablet and the browser do not sync with a cloud: for them, use a [[30 - Verso on a Server|UniVerso]]. A cloud folder also has no simultaneous editing, no sharing with other people, no roles and no server bin.
+> A folder tied to a cloud syncs **between computers running the desktop app**. The phone, the tablet and the browser do not sync with a cloud: for them, use a [[31 - Verso on a Server|UniVerso]]. A cloud folder also has no simultaneous editing, no sharing with other people, no roles and no server bin.
 
 > [!TIP] Dropbox, OneDrive and Google Drive
 > They show in the **Sync with…** list as "coming soon": they depend on developer accounts that do not exist yet. WebDAV and S3 work now.
@@ -126,4 +126,4 @@ Your computer's name, which shows in a conflict's copy, is changed in **Settings
 
 ---
 
-Previous: [[33 - UniVerso on a Free Oracle Server]] · Next: [[35 - Terminal, CLI and AI Agents]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[34 - UniVerso on a Free Oracle Server]] · Next: [[36 - Terminal, CLI and AI Agents]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

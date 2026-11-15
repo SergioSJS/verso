@@ -22,7 +22,7 @@ A lista da esquerda vem em quatro grupos. Uma seção só aparece onde vale: a d
 - **Geral**: o idioma (**Sistema**, **Português (Brasil)** ou **English**), o tempo do salvamento automático, as atualizações e a versão do app, o console do desenvolvedor, o conteúdo remoto, os sites permitidos nas notas e o **Fundo dos mapas**.
 - **Aparência**: tema, tom do escuro, tamanho e largura do texto e a galeria de **Temas** — um clique troca o visual; **Copiar** e **Editar** abrem o **Construtor de tema** —, com temas para compartilhar.
 - **Recursos**: liga e desliga os recursos opcionais (diagrama de dados, amostras de cor, terminal), com os atalhos **Tudo**, **Só escrita** e **Personalizado**. Desligar um recurso não muda nenhum arquivo.
-- **Notificações**: para cada tipo — sincronização, conflitos, compartilhamento, atualizações, cota, lixeira, presença, mesa — **Aviso e lista**, **Só na lista** ou **Desligado**, o **Som da Mesa** e as notificações do sistema (veja [[37 - Ajuda, Atualizações e Diagnóstico#Notificações]]).
+- **Notificações**: para cada tipo — sincronização, conflitos, compartilhamento, atualizações, cota, lixeira, presença, mesa — **Aviso e lista**, **Só na lista** ou **Desligado**, o **Som da Mesa** e as notificações do sistema (veja [[38 - Ajuda, Atualizações e Diagnóstico#Notificações]]).
 - **Atalhos**: as teclas de cada comando.
 - **Créditos e agradecimentos**: quem e o que o Verso usa, com os avisos que cada licença pede.
 
@@ -38,15 +38,15 @@ A lista da esquerda vem em quatro grupos. Uma seção só aparece onde vale: a d
 - **Dados e RPG**, **Oráculos e Solo RPG** e **Fichas e Templates**: os recursos de RPG, um por chave, e os seus ajustes (veja [[22 - Dados e Tabelas Sorteadas]]).
 
 **Rede & Conexões**
-- **Sincronizar**, **Servidores** e **Transformar em servidor**: a pasta com um servidor ou uma nuvem, os servidores em que você entra e este computador servindo as pastas dele (veja [[30 - Verso num Servidor]] e [[28 - Verso no Celular e no Tablet]]).
-- **Terminal e agentes**: o comando `verso`, o terminal e o Verso nos agentes de IA (veja [[35 - Terminal, CLI e Agentes de IA]]).
+- **Sincronizar**, **Servidores** e **Transformar em servidor**: a pasta com um servidor ou uma nuvem, os servidores em que você entra e este computador servindo as pastas dele (veja [[31 - Verso num Servidor]] e [[29 - Verso no Celular e no Tablet]]).
+- **Terminal e agentes**: o comando `verso`, o terminal e o Verso nos agentes de IA (veja [[36 - Terminal, CLI e Agentes de IA]]).
 - **Conta**: a sua conta, quando a janela é de um servidor.
 
 ---
 
 ## Da pasta ou desta máquina
 
-Quatro ajustes são da pasta, não do computador: as **pastas de build** e o **`.gitignore`** (em **Arquivos e links**), e o **Nome da nota da pasta** e os **Favoritos** (em **Organização**). Eles ficam dentro da própria pasta, em `.verso/settings.json`, e viajam com ela: abra a pasta sincronizada em outro computador — pela sincronização do Verso (veja [[30 - Verso num Servidor]]), iCloud, OneDrive, Syncthing ou git — e eles estão lá. Ao lado de cada um, os Ajustes dizem **Da pasta** ou **Desta máquina**: desta máquina enquanto a pasta não tem o arquivo, que só aparece na primeira mudança — abrir uma pasta nunca o cria. Quem só lê uma pasta de servidor guarda os favoritos dela neste computador, e a estrela funciona do mesmo jeito: ao lado deles, os Ajustes dizem **Desta máquina**.
+Quatro ajustes são da pasta, não do computador: as **pastas de build** e o **`.gitignore`** (em **Arquivos e links**), e o **Nome da nota da pasta** e os **Favoritos** (em **Organização**). Eles ficam dentro da própria pasta, em `.verso/settings.json`, e viajam com ela: abra a pasta sincronizada em outro computador — pela sincronização do Verso (veja [[31 - Verso num Servidor]]), iCloud, OneDrive, Syncthing ou git — e eles estão lá. Ao lado de cada um, os Ajustes dizem **Da pasta** ou **Desta máquina**: desta máquina enquanto a pasta não tem o arquivo, que só aparece na primeira mudança — abrir uma pasta nunca o cria. Quem só lê uma pasta de servidor guarda os favoritos dela neste computador, e a estrela funciona do mesmo jeito: ao lado deles, os Ajustes dizem **Desta máquina**.
 
 Experimente: em **Arquivos e links**, desligue **Ignorar pastas de build** e veja a etiqueta passar a **Da pasta**; ligue de novo para voltar.
 
@@ -128,4 +128,4 @@ Os botões da faixa da esquerda (busca, abrir, nota de hoje, grafo…) se arrast
 
 ---
 
-Anterior: [[35 - Terminal, CLI e Agentes de IA]] · Próxima: [[37 - Ajuda, Atualizações e Diagnóstico]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[36 - Terminal, CLI e Agentes de IA]] · Próxima: [[38 - Ajuda, Atualizações e Diagnóstico]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

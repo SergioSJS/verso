@@ -10,7 +10,7 @@ status: ativo
 
 # Som e Música na Mesa
 
-Numa sessão, a música faz metade do clima: a taverna barulhenta, a estrada à noite, a batalha. No Verso, **o mestre aperta tocar e todo mundo da mesa ouve a mesma coisa, no mesmo ponto**, cada um com o próprio volume. A música tem uma aba só dela, **Música**, no painel da direita, ao lado da **Mesa** ([[25 - A Mesa]]); funciona num UniVerso ([[26 - Rodando uma Mesa]]) e na mesa que o seu próprio Verso serve, com a janela sentada à mesa ([[29 - Mesa pela Internet]]).
+Numa sessão, a música faz metade do clima: a taverna barulhenta, a estrada à noite, a batalha. No Verso, **o mestre aperta tocar e todo mundo da mesa ouve a mesma coisa, no mesmo ponto**, cada um com o próprio volume. A música tem uma aba só dela, **Música**, no painel da direita, ao lado da **Mesa** ([[25 - A Mesa]]); funciona num UniVerso ([[26 - Rodando uma Mesa]]) e na mesa que o seu próprio Verso serve, com a janela sentada à mesa ([[30 - Mesa pela Internet]]).
 
 Nenhum som passa pela rede: cada janela toca a **sua própria cópia** do arquivo, e só o "o que toca e em que ponto" é dividido, pelo relógio do servidor. Por isso a qualidade é a do arquivo e ninguém fica atrás de ninguém. Nada disso é escrito em arquivo nenhum: o que está tocando fica na memória do servidor e some quando a última pessoa sai da mesa.
 
@@ -151,4 +151,4 @@ As duas faixas
 
 As duas faixas de amostra (`assets/sons/`) são de **RandomMind**, em domínio público (CC0 1.0): `taverna.mp3` é “The Old Tower Inn” (<https://opengameart.org/content/medieval-the-old-tower-inn>) e `estrada.mp3` é “The Bard's Tale” (<https://opengameart.org/content/medieval-the-bards-tale>), as versões em loop, regravadas em mono para pesar pouco.
 
-Anterior: [[26 - Rodando uma Mesa]] · Próxima: [[28 - Verso no Celular e no Tablet]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[26 - Rodando uma Mesa]] · Próxima: [[28 - Como Você Vai Usar o Verso]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

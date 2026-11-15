@@ -70,7 +70,7 @@ The weather today: `dice: [[22 - Dice and Random Tables#^tempo]]`
 
 ## In a shared note
 
-In a [[30 - Verso on a Server|UniVerso]], with other people in the same note, the one who rolls is the **server**: nobody picks their own number. Everyone in the note sees the roll with the name of who rolled — *Ana rolled* — and whoever joins later sees the room's latest rolls. With no connection, the die rolls in this window and the card says that nobody else saw it.
+In a [[31 - Verso on a Server|UniVerso]], with other people in the same note, the one who rolls is the **server**: nobody picks their own number. Everyone in the note sees the roll with the name of who rolled — *Ana rolled* — and whoever joins later sees the room's latest rolls. With no connection, the die rolls in this window and the card says that nobody else saw it.
 
 ---
 
@@ -81,7 +81,7 @@ A callout of the `secret` kind keeps what only whoever writes the note should se
 > [!secret] What the players don't know
 > The innkeeper is the baron's sister, and the cellar opens onto the harbor tunnel.
 
-In a [[30 - Verso on a Server|UniVerso]], whoever may only **read** the note gets it **without** this block — on screen, in search, in links and tags, in what syncs to their device, in a live note. Whoever can edit sees everything, with a padlock and *Hidden from readers*; the **View as a reader** button, beside Reading and Edit, shows the note the way a reader receives it, and **See the whole note** goes back. In a folder on this computer nothing is hidden, and the block says *Visible to anyone with the file*.
+In a [[31 - Verso on a Server|UniVerso]], whoever may only **read** the note gets it **without** this block — on screen, in search, in links and tags, in what syncs to their device, in a live note. Whoever can edit sees everything, with a padlock and *Hidden from readers*; the **View as a reader** button, beside Reading and Edit, shows the note the way a reader receives it, and **See the whole note** goes back. In a folder on this computer nothing is hidden, and the block says *Visible to anyone with the file*.
 
 > [!WARNING] Not encryption
 > Whoever can edit the note sees the secret — otherwise they would erase it on the next edit. So does whoever has the file: Obsidian, a computer that syncs as an editor, a copy handed over by hand. The secret is hidden from the server's readers, not encrypted; and a reader knows the note changed only when what they see changes.

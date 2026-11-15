@@ -11,13 +11,13 @@ status: ativo
 
 # Instalar o seu UniVerso, Passo a Passo
 
-Esta nota leva você, sem pressa, de uma máquina vazia a um **UniVerso** funcionando: o Verso num servidor seu, aberto no navegador do computador, do celular e do tablet. O que o UniVerso faz depois de instalado está em [[30 - Verso num Servidor]]; aqui é só o caminho até lá. Não precisa ser programador: precisa copiar e colar com atenção.
+Esta nota leva você, sem pressa, de uma máquina vazia a um **UniVerso** funcionando: o Verso num servidor seu, aberto no navegador do computador, do celular e do tablet. O que o UniVerso faz depois de instalado está em [[31 - Verso num Servidor]]; aqui é só o caminho até lá. Não precisa ser programador: precisa copiar e colar com atenção.
 
 > [!WARNING] O Verso está em testes
 > Os comandos abaixo baixam o programa das releases públicas do Verso no GitHub; **não precisa de conta nem de token**. Eles são os do guia de referência do projeto (`docs/reference/server-hands-on.md`), escritos a partir da versão **0.8.0-beta.1** e conferidos passo a passo, em 2026-10-15, numa máquina Ubuntu 26.04 de 1 núcleo e 1 GB com a **0.8.2-beta.1** (o Caminho 1 inteiro; o Caminho 2 com a imagem montada à mão). O que ficou sem rodar num navegador de verdade: o HTTPS com nome ou Tailscale, o app de desktop e o celular. Se algo não bater, vá a [[#Se algo der errado]] e conte ao mantenedor.
 
 > [!TIP] Nunca montou um servidor?
-> A nota [[33 - UniVerso num Servidor Grátis da Oracle]] é o roteiro com o **menu do instalador** (`sh universo.sh`): HTTPS com um nome grátis e o primeiro admin em poucos passos, numa máquina grátis da Oracle. Num NAS (ZimaOS, CasaOS) ou num VPS, o roteiro é a [[32 - Instalar o servidor num NAS ou VPS]]; para jogar algumas horas sem servidor nenhum, o próprio app do computador serve a mesa: [[29 - Mesa pela Internet]]. O que está abaixo é o caminho manual.
+> A nota [[34 - UniVerso num Servidor Grátis da Oracle]] é o roteiro com o **menu do instalador** (`sh universo.sh`): HTTPS com um nome grátis e o primeiro admin em poucos passos, numa máquina grátis da Oracle. Num NAS (ZimaOS, CasaOS) ou num VPS, o roteiro é a [[33 - Instalar o servidor num NAS ou VPS]]; para jogar algumas horas sem servidor nenhum, o próprio app do computador serve a mesa: [[30 - Mesa pela Internet]]. O que está abaixo é o caminho manual.
 
 > [!NOTE] O caminho mais curto
 > Cole o arquivo compose, abra `http://<IP da máquina>:7340` e use o link de configuração que aparece no log. **Sem HTTPS, sem nome, sem proxy.** O HTTPS é um passo opcional, depois, para liberar o modo offline e as notificações (seção 5). Isso vale desde a 0.8.3-beta.2; as anteriores recusam entrar por HTTP vindo de outra máquina.
@@ -297,7 +297,7 @@ Pronto: `https://notas.exemplo.com` abre a página de entrada do UniVerso, e o m
 
 ### Sem domínio e sem abrir porta: o link da Cloudflare
 
-O próprio UniVerso pode abrir um link na internet pela Cloudflare, sem domínio, sem certificado e sem abrir porta no roteador — o mesmo link do app do computador ([[29 - Mesa pela Internet]]).
+O próprio UniVerso pode abrir um link na internet pela Cloudflare, sem domínio, sem certificado e sem abrir porta no roteador — o mesmo link do app do computador ([[30 - Mesa pela Internet]]).
 
 - **No script:** `sh universo.sh link quick` liga um **link rápido**; `sh universo.sh link own` pede o seu endereço e o token do túnel; `sh universo.sh link off` desliga. No menu do script é o item **11**.
 - **No Docker, CasaOS ou ZimaOS:** a variável `VERSO_TUNNEL=quick` (ou `own`, com `VERSO_TUNNEL_HOSTNAME` e `VERSO_TUNNEL_TOKEN_FILE`) no `universo.env` ou no compose.
@@ -342,9 +342,9 @@ O app passa a dizer *Conectado como* o seu nome. Um servidor novo ainda não tem
 
 ### No celular e no tablet
 
-Não há app a instalar: abra `http://<IP da máquina>:7340` (ou o endereço `https://`, se houver) no navegador do celular e entre com o e-mail e a senha. (Com o Tailscale, o celular precisa estar com ele conectado.) Sem HTTPS, o modo offline fica desligado e a janela avisa. Como a janela se comporta numa tela pequena está em [[28 - Verso no Celular e no Tablet]].
+Não há app a instalar: abra `http://<IP da máquina>:7340` (ou o endereço `https://`, se houver) no navegador do celular e entre com o e-mail e a senha. (Com o Tailscale, o celular precisa estar com ele conectado.) Sem HTTPS, o modo offline fica desligado e a janela avisa. Como a janela se comporta numa tela pequena está em [[29 - Verso no Celular e no Tablet]].
 
-Para uma segunda pessoa, o admin sincroniza (ou cria) a pasta, depois um convite no console (`/admin/invitations`) e manda o link: [[30 - Verso num Servidor#O primeiro admin e as contas|as contas e os convites]].
+Para uma segunda pessoa, o admin sincroniza (ou cria) a pasta, depois um convite no console (`/admin/invitations`) e manda o link: [[31 - Verso num Servidor#O primeiro admin e as contas|as contas e os convites]].
 
 ---
 
@@ -423,6 +423,6 @@ Mais fundo: o manual completo do projeto é o `docs/reference/server-install.md`
 
 ---
 
-Para o celular, veja [[28 - Verso no Celular e no Tablet]]; numa mesa com o seu UniVerso, todos veem a mesma rolagem dos [[22 - Dados e Tabelas Sorteadas|dados]].
+Para o celular, veja [[29 - Verso no Celular e no Tablet]]; numa mesa com o seu UniVerso, todos veem a mesma rolagem dos [[22 - Dados e Tabelas Sorteadas|dados]].
 
-Anterior: [[30 - Verso num Servidor]] · Próxima: [[32 - Instalar o servidor num NAS ou VPS]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[31 - Verso num Servidor]] · Próxima: [[33 - Instalar o servidor num NAS ou VPS]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

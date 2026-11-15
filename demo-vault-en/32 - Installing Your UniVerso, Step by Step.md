@@ -11,13 +11,13 @@ status: active
 
 # Installing Your UniVerso, Step by Step
 
-This note takes you, with no rush, from an empty machine to a working **UniVerso**: Verso on a server of your own, open in the browser of your computer, your phone and your tablet. What the UniVerso does once it is installed is in [[30 - Verso on a Server]]; here is only the road to get there. You do not need to be a programmer: you need to copy and paste carefully.
+This note takes you, with no rush, from an empty machine to a working **UniVerso**: Verso on a server of your own, open in the browser of your computer, your phone and your tablet. What the UniVerso does once it is installed is in [[31 - Verso on a Server]]; here is only the road to get there. You do not need to be a programmer: you need to copy and paste carefully.
 
 > [!WARNING] Verso is in testing
 > The commands below fetch the program from Verso's public releases on GitHub; **no account or token needed**. They are the ones in the project's reference guide (`docs/reference/server-hands-on.md`), written from version **0.8.0-beta.1** and checked step by step, on 2026-10-15, on an Ubuntu 26.04 machine with 1 core and 1 GB, running **0.8.2-beta.1** (all of Path 1; Path 2 with the image built by hand). What was left unrun in a real browser: HTTPS with a name or Tailscale, the desktop app and the phone. If something does not match, go to [[#If something goes wrong]] and tell the maintainer.
 
 > [!TIP] Never set up a server?
-> The note [[33 - UniVerso on a Free Oracle Server]] is the route with the **installer's menu** (`sh universo.sh`): HTTPS with a free name and the first admin in a few steps, on a free Oracle machine. On a NAS (ZimaOS, CasaOS) or a VPS, the route is [[32 - Installing the server on a NAS or a VPS]]; to play for a few hours with no server at all, the desktop app itself serves the table: [[29 - A Table over the Internet]]. What is below is the manual road.
+> The note [[34 - UniVerso on a Free Oracle Server]] is the route with the **installer's menu** (`sh universo.sh`): HTTPS with a free name and the first admin in a few steps, on a free Oracle machine. On a NAS (ZimaOS, CasaOS) or a VPS, the route is [[33 - Installing the server on a NAS or a VPS]]; to play for a few hours with no server at all, the desktop app itself serves the table: [[30 - A Table over the Internet]]. What is below is the manual road.
 
 > [!NOTE] The shortest path
 > Paste the compose file, open `http://<machine IP>:7340` and use the setup link that shows up in the log. **No HTTPS, no name, no proxy.** HTTPS is an optional step, later, to unlock offline mode and notifications (section 5). This holds since 0.8.3-beta.2; earlier ones refuse to let you in over HTTP from another machine.
@@ -297,7 +297,7 @@ Done: `https://notas.exemplo.com` opens the UniVerso's sign-in page, and offline
 
 ### No domain and no open port: the Cloudflare link
 
-The UniVerso itself can open a link on the internet through Cloudflare, with no domain, no certificate and no port opened on the router — the same link as the computer's app ([[29 - A Table over the Internet]]).
+The UniVerso itself can open a link on the internet through Cloudflare, with no domain, no certificate and no port opened on the router — the same link as the computer's app ([[30 - A Table over the Internet]]).
 
 - **With the script:** `sh universo.sh link quick` turns on a **quick link**; `sh universo.sh link own` asks for your address and the tunnel's token; `sh universo.sh link off` turns it off. In the script's menu it is item **11**.
 - **With Docker, CasaOS or ZimaOS:** the variable `VERSO_TUNNEL=quick` (or `own`, with `VERSO_TUNNEL_HOSTNAME` and `VERSO_TUNNEL_TOKEN_FILE`) in `universo.env` or the compose file.
@@ -342,9 +342,9 @@ The app now says *Connected as* your name. A new server has no folders yet, and 
 
 ### On the phone and the tablet
 
-There is no app to install: open `http://<machine IP>:7340` (or the `https://` address, if there is one) in the phone's browser and sign in with the e-mail and password. (With Tailscale, the phone must have it connected.) Without HTTPS, offline mode is off and the window tells you. How the window behaves on a small screen is in [[28 - Verso on Phone and Tablet]].
+There is no app to install: open `http://<machine IP>:7340` (or the `https://` address, if there is one) in the phone's browser and sign in with the e-mail and password. (With Tailscale, the phone must have it connected.) Without HTTPS, offline mode is off and the window tells you. How the window behaves on a small screen is in [[29 - Verso on Phone and Tablet]].
 
-For a second person, the admin syncs (or creates) the folder, then makes an invitation in the console (`/admin/invitations`) and sends the link: [[30 - Verso on a Server#The first admin and the accounts|the accounts and the invitations]].
+For a second person, the admin syncs (or creates) the folder, then makes an invitation in the console (`/admin/invitations`) and sends the link: [[31 - Verso on a Server#The first admin and the accounts|the accounts and the invitations]].
 
 ---
 
@@ -423,6 +423,6 @@ Going deeper: the project's full manual is `docs/reference/server-install.md` an
 
 ---
 
-For the phone, see [[28 - Verso on Phone and Tablet]]; at a table with your UniVerso, everyone sees the same roll of the [[22 - Dice and Random Tables|dice]].
+For the phone, see [[29 - Verso on Phone and Tablet]]; at a table with your UniVerso, everyone sees the same roll of the [[22 - Dice and Random Tables|dice]].
 
-Previous: [[30 - Verso on a Server]] · Next: [[32 - Installing the server on a NAS or a VPS]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[31 - Verso on a Server]] · Next: [[33 - Installing the server on a NAS or a VPS]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

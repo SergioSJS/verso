@@ -63,7 +63,7 @@ O que você apaga fica na **Lixeira** da pasta por 30 dias, e depois some de vez
 - **Apagar agora** e **Esvaziar a lixeira** apagam de vez, e perguntam antes, ali mesmo, com o tamanho.
 - **Manter arquivos apagados por** muda o prazo desta pasta: de 1 dia a **Para sempre**. Encurtar apaga na hora o que já passou do novo prazo.
 - No servidor, a lixeira de cada pasta tem um **limite de tamanho** (1 GiB, a menos que quem cuida do servidor mude): passando dele, os itens mais antigos saem antes do prazo — mas **nunca um item com menos de 1 dia**, que espera. Se o que você vai apagar sozinho passa desse limite, a pergunta avisa: ficará 1 dia na lixeira e depois sairá de vez, sem poder ser restaurado.
-- Numa pasta de um servidor ([[30 - Verso num Servidor]]), fora de uma mesa, **só a dona da pasta apaga**: quem edita cria, renomeia e move, e não vê **Mover para a lixeira** — `Delete` diz por quê. Quem pode editar vê a lixeira e restaura; apagar de vez e encurtar o prazo também é da dona. Quando um aparelho sincronizado grava por cima de uma nota, a versão que ele substituiu também vai para a lixeira, como **substituído por** aquele aparelho — se outro programa salvou um texto velho por cima, dá para voltar.
+- Numa pasta de um servidor ([[31 - Verso num Servidor]]), fora de uma mesa, **só a dona da pasta apaga**: quem edita cria, renomeia e move, e não vê **Mover para a lixeira** — `Delete` diz por quê. Quem pode editar vê a lixeira e restaura; apagar de vez e encurtar o prazo também é da dona. Quando um aparelho sincronizado grava por cima de uma nota, a versão que ele substituiu também vai para a lixeira, como **substituído por** aquele aparelho — se outro programa salvou um texto velho por cima, dá para voltar.
 
 ---
 
@@ -76,7 +76,7 @@ Cada nota, quadro e base guarda as suas **versões**: o que estava escrito a cad
 - **Restaurar esta versão** pergunta antes e escreve aquela versão como uma versão nova: o texto atual continua no histórico, nada se perde. Se o arquivo mudou enquanto você olhava, nada é escrito e a diferença é refeita.
 - **Copiar como nova nota** põe a versão ao lado do arquivo, como `Nome (versão 2026-10-14 15h04).md`.
 - As escritas seguidas viram uma versão a cada dez minutos de edição. Todas ficam por um dia, uma por hora até 30 dias e uma por dia depois, por um ano — **Ajustes › Arquivos e links › Manter versões por** muda isso. O histórico fica fora da pasta, na configuração do Verso: nada dele aparece entre os seus arquivos. Imagens e PDFs não entram; um anexo substituído vai para a [[#A Lixeira|lixeira]].
-- Numa pasta de servidor ([[30 - Verso num Servidor]]), quem pode editar vê o histórico e restaura — também numa nota que outras pessoas estão editando junto, que todos veem mudar —, e quem só lê não vê histórico.
+- Numa pasta de servidor ([[31 - Verso num Servidor]]), quem pode editar vê o histórico e restaura — também numa nota que outras pessoas estão editando junto, que todos veem mudar —, e quem só lê não vê histórico.
 
 ---
 

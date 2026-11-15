@@ -26,7 +26,7 @@ Hover over a block: in the left margin a **+** and a **⋮⋮** handle appear, a
 
 One `⌘Z` undoes a whole drag. With a stretch of text selected, the handle moves every block the selection touches.
 
-On a touch screen there is no mouse to hover over the block: the handle and the **+** do not appear, and the bar above the keyboard does the same for the block where the cursor is — **move block up** and **down**, **Turn block into…**, **delete** and the **block menu**. See [[28 - Verso on Phone and Tablet]].
+On a touch screen there is no mouse to hover over the block: the handle and the **+** do not appear, and the bar above the keyboard does the same for the block where the cursor is — **move block up** and **down**, **Turn block into…**, **delete** and the **block menu**. See [[29 - Verso on Phone and Tablet]].
 
 ---
 

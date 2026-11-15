@@ -155,4 +155,4 @@ Para dar ao agente as ferramentas do Verso sobre esta pasta (buscar, ler notas, 
 
 ---
 
-Anterior: [[34 - Sincronizar com uma Nuvem]] · Próxima: [[36 - Ajustes, Aparência e Atalhos]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[35 - Sincronizar com uma Nuvem]] · Próxima: [[37 - Ajustes, Aparência e Atalhos]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

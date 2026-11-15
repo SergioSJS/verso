@@ -12,9 +12,9 @@ status: active
 
 # A Table over the Internet
 
-Do you want to play with people who are not at your home, without renting a server or knowing about networks? Verso on your computer can **turn into a server** for a few hours: you turn it on, send the players a **link**, they come in through the browser and play at the [[25 - The Table|Table]], as on a UniVerso ([[30 - Verso on a Server]]). It is the same idea as running Foundry on your computer: **the computer has to stay on and awake** while the table runs.
+Do you want to play with people who are not at your home, without renting a server or knowing about networks? Verso on your computer can **turn into a server** for a few hours: you turn it on, send the players a **link**, they come in through the browser and play at the [[25 - The Table|Table]], as on a UniVerso ([[31 - Verso on a Server]]). It is the same idea as running Foundry on your computer: **the computer has to stay on and awake** while the table runs.
 
-It is **one feature**, **Turn into a server**, with two boxes: serving **on your network** (the phones you [[28 - Verso on Phone and Tablet|pair]]) and serving **by an internet link**. Tick one, the other, or both.
+It is **one feature**, **Turn into a server**, with two boxes: serving **on your network** (the phones you [[29 - Verso on Phone and Tablet|pair]]) and serving **by an internet link**. Tick one, the other, or both.
 
 > [!WARNING] The link is a testing mode
 > The link uses a Cloudflare testing service: no guarantee it works, up to 200 requests at once. Verso says so in the box itself. Only people you invite get in, and nobody sees a folder you did not share. **Turn it off when the session ends.**
@@ -58,7 +58,7 @@ You invite from the **folder's page**, as on a UniVerso, in the window of the se
 2. The player opens the link, makes the account with **any e-mail of theirs** (**nothing is sent**: the e-mail is only a sign-in name), a name and a password, and then signs in at the table address.
 3. In **Settings › Turn into a server**, the **Invitations** list shows every invitation of this server (waiting, accepted by…, ended, expired) and **End** closes one still waiting.
 
-With the link box unticked, an invitation goes out with your **network's** address: only someone on it can open it, and the browser will complain about the computer's certificate — the same warning as [[28 - Verso on Phone and Tablet#Pair the Phone with Your Computer|pairing a phone]]; accept it only on a network you trust.
+With the link box unticked, an invitation goes out with your **network's** address: only someone on it can open it, and the browser will complain about the computer's certificate — the same warning as [[29 - Verso on Phone and Tablet#Pair the Phone with Your Computer|pairing a phone]]; accept it only on a network you trust.
 
 Whoever comes in sees only what you shared, with the role you gave. How to run the table (releasing notes, players, rights) is in [[26 - Running a Table]].
 
@@ -123,6 +123,6 @@ Then tick **Use my address for the link (instead of a quick link)** with the lin
 
 ---
 
-If you would rather have a server that stays on by itself, see [[30 - Verso on a Server]] and [[32 - Installing the server on a NAS or a VPS]].
+If you would rather have a server that stays on by itself, see [[31 - Verso on a Server]] and [[33 - Installing the server on a NAS or a VPS]].
 
-Previous: [[28 - Verso on Phone and Tablet]] · Next: [[30 - Verso on a Server]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[29 - Verso on Phone and Tablet]] · Next: [[31 - Verso on a Server]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

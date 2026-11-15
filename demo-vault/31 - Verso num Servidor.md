@@ -17,7 +17,7 @@ O **UniVerso** é o Verso sem janela, numa máquina sua — um servidor em casa,
 
 ## Instalar
 
-Um passo a passo para quem nunca montou um servidor, com os comandos para copiar, está em [[31 - Instalar o seu UniVerso, Passo a Passo]]. O resumo:
+Um passo a passo para quem nunca montou um servidor, com os comandos para copiar, está em [[32 - Instalar o seu UniVerso, Passo a Passo]]. O resumo:
 
 Três jeitos, do mesmo programa (o guia completo está em `docs/reference/server-install.md`):
 
@@ -25,7 +25,7 @@ Três jeitos, do mesmo programa (o guia completo está em `docs/reference/server
 - **CasaOS e ZimaOS**, por um arquivo compose;
 - um pacote **`.deb` ou `.rpm`** com um serviço do systemd, para uma máquina sem Docker — ou o **instalador guiado** `universo.sh`, que baixa, confere e instala o pacote certo num Linux com systemd (Ubuntu, Debian, Fedora…) e cuida do HTTPS, do primeiro admin e dos backups.
 
-Num NAS ou num VPS, passo a passo: [[32 - Instalar o servidor num NAS ou VPS]]; no servidor grátis da Oracle: [[33 - UniVerso num Servidor Grátis da Oracle]]. E, para uma sessão de jogo, o próprio app do computador pode ser o servidor, sem instalar nada: [[29 - Mesa pela Internet]].
+Num NAS ou num VPS, passo a passo: [[33 - Instalar o servidor num NAS ou VPS]]; no servidor grátis da Oracle: [[34 - UniVerso num Servidor Grátis da Oracle]]. E, para uma sessão de jogo, o próprio app do computador pode ser o servidor, sem instalar nada: [[30 - Mesa pela Internet]].
 
 Duas pastas importam: `VERSO_DATA_DIR`, num disco local, com as contas e os índices; e `VERSO_FOLDERS_DIR`, com as pastas de notas, que pode ficar num NAS. O backup é das duas.
 
@@ -75,13 +75,13 @@ Numa nota, num board ou num arquivo de texto que mudou em disco enquanto você d
 
 ## Do app desktop
 
-Em **Ajustes › Servidores**, escolha o servidor em **Encontrados nesta rede** (o app o acha sozinho quando está na mesma rede) ou escreva o endereço dele, e conecte: o app **copia um código** para a área de transferência e o navegador abre a página do servidor, onde você **cola o código** (ou digita o que o app mostra) para **permitir este computador** — ninguém cola token. A página nunca pega o código de um link: um link que alguém mandou para você, com o código do aparelho dele, não aprova nada até você colar o código do app à sua frente. Depois do código, a página diz **quem pediu** — o nome do aparelho, o endereço e a hora do pedido — e pergunta: *Foi você quem pediu, neste aparelho?* **Aprovar este aparelho** ou **Não fui eu: recusar**. Um endereço e uma hora que não são os seus: recuse. Depois, escolha uma pasta do servidor (no seletor de pastas, ou **Abrir aqui** em Ajustes › Servidores): o app pergunta **onde guardar uma cópia** dela — no computador, você escolhe a pasta onde ela fica — e mostra antes quantos arquivos e quantos MB ela tem. **Escolher onde e baixar…** baixa a pasta inteira, mostra o andamento e a abre; ela fica **sincronizada** com o servidor (como em *Sincronizar*, abaixo) e abre mesmo sem rede. Escolher a mesma pasta de novo abre a cópia, sem perguntar. Para trabalhar direto no servidor, sem cópia, há **Abrir só no servidor, sem cópia** — só com internet.
+Em **Ajustes › Servidores**, escolha o servidor em **Encontrados nesta rede** (o app o acha sozinho quando está na mesma rede) ou escreva o endereço dele, e conecte: o app **copia um código** para a área de transferência e o navegador abre a página do servidor, onde você **cola o código** (ou digita o que o app mostra) para **permitir este computador** — ninguém cola token. A página nunca pega o código de um link: um link que alguém mandou para você, com o código do aparelho dele, não aprova nada até você colar o código do app à sua frente. Depois do código, a página diz **quem pediu** — o nome do aparelho, o endereço e a hora do pedido — e pergunta: *Foi você quem pediu, neste aparelho?* **Aprovar este aparelho** ou **Não fui eu: recusar**. Um endereço e uma hora que não são os seus: recuse. Se a entrada é recusada, ou os dez minutos do código passam, **Ajustes › Servidores** diz isso no lugar de *Esperando…*, com **Tentar de novo**, que pede um código novo. Depois, escolha uma pasta do servidor (no seletor de pastas, ou **Abrir aqui** em Ajustes › Servidores): o app pergunta **onde guardar uma cópia** dela — no computador, você escolhe a pasta onde ela fica — e mostra antes quantos arquivos e quantos MB ela tem. **Escolher onde e baixar…** baixa a pasta inteira, mostra o andamento e a abre; ela fica **sincronizada** com o servidor (como em *Sincronizar*, abaixo) e abre mesmo sem rede. Escolher a mesma pasta de novo abre a cópia, sem perguntar. Para trabalhar direto no servidor, sem cópia, há **Abrir só no servidor, sem cópia** — só com internet.
 
 Ali também fica o **nome deste aparelho** — por padrão, o nome do sistema. Dê um nome seu (dois computadores com o mesmo nome de sistema deixam de se confundir): ele vai no nome das cópias de conflito, na lista de sessões do servidor e nas últimas mudanças de cada pasta.
 
 ---
 
-**Sem servidor nenhum**: o app do computador também é um servidor, em **Ajustes › Transformar em servidor**. **Na minha rede**, ele serve as pastas que você marcar direto ao seu celular, sem conta e sem senha — o celular é pareado por um QR e você permite no computador; veja [[28 - Verso no Celular e no Tablet#Parear o Celular com o Seu Computador|Parear o celular com o seu computador]]. **Por um link na internet**, ele recebe gente de fora com convites, contas, a Mesa e os links de leitura, como um UniVerso, enquanto o computador fica ligado; o Verso de quem você convidou conecta por **Ajustes › Servidores** com o endereço do link. Veja [[29 - Mesa pela Internet]].
+**Sem servidor nenhum**: o app do computador também é um servidor, em **Ajustes › Transformar em servidor**. **Na minha rede**, ele serve as pastas que você marcar direto ao seu celular, sem conta e sem senha — o celular é pareado por um QR e você permite no computador; veja [[29 - Verso no Celular e no Tablet#Parear o Celular com o Seu Computador|Parear o celular com o seu computador]]. **Por um link na internet**, ele recebe gente de fora com convites, contas, a Mesa e os links de leitura, como um UniVerso, enquanto o computador fica ligado; o Verso de quem você convidou conecta por **Ajustes › Servidores** com o endereço do link. Veja [[30 - Mesa pela Internet]].
 
 ## Sincronizar uma pasta deste computador
 
@@ -138,10 +138,10 @@ Quem só **lê** uma nota não recebe os blocos `[!secret]` dela: o segredo do m
 
 Para que jogadores, ou qualquer pessoa, **leiam** o mundo sem fazer uma conta, a dona da pasta faz um **link de leitura**: clique com o botão direito na pasta e escolha **Link de leitura…**, ou numa nota e escolha **Copiar link de leitura…**. Escolha a validade (sem validade, 1, 7 ou 30 dias, ou até uma data) e, se quiser, uma **senha**. O endereço (`/r/…`) aparece **uma vez**, já copiado: o servidor guarda só uma marca dele. Quem o abrir lê, num navegador, só o que o link aponta — a pasta, ou a nota e o que ela incorpora —, na visão do leitor: **sem** os blocos `[!secret]`, sem editar, sem histórico, e um link para uma nota que não foi compartilhada aparece como texto simples *(não compartilhado)*. Os dados rolam no navegador de quem lê e não escrevem nada.
 
-Antes de o link ser feito, o diálogo diz quantas notas têm segredos e que quem lê não as verá. A árvore marca o que tem um link ativo, e o painel lista os links com quem fez cada um e quando foi aberto pela última vez. **Revogar** acaba o link na hora, até nas páginas que já estavam abertas. Os links de leitura **começam desligados**: quem administra liga em *Administração › Servidor* (no app que serve pela internet, em **Ligar os links de leitura**; veja [[29 - Mesa pela Internet#Links de leitura]]), e desligar encerra todos. Uma senha errada conta como um login recusado, e a dona é avisada por e-mail quando são muitas — se o servidor tem um servidor de e-mail configurado (`VERSO_SMTP_URL`).
+Antes de o link ser feito, o diálogo diz quantas notas têm segredos e que quem lê não as verá. A árvore marca o que tem um link ativo, e o painel lista os links com quem fez cada um e quando foi aberto pela última vez. **Revogar** acaba o link na hora, até nas páginas que já estavam abertas. Os links de leitura **começam desligados**: quem administra liga em *Administração › Servidor* (no app que serve pela internet, em **Ligar os links de leitura**; veja [[30 - Mesa pela Internet#Links de leitura]]), e desligar encerra todos. Uma senha errada conta como um login recusado, e a dona é avisada por e-mail quando são muitas — se o servidor tem um servidor de e-mail configurado (`VERSO_SMTP_URL`).
 
 ---
 
-Para o celular e o tablet, veja [[28 - Verso no Celular e no Tablet]]; para rolar dados e sortear numa tabela, [[22 - Dados e Tabelas Sorteadas]].
+Para o celular e o tablet, veja [[29 - Verso no Celular e no Tablet]]; para rolar dados e sortear numa tabela, [[22 - Dados e Tabelas Sorteadas]].
 
-Anterior: [[29 - Mesa pela Internet]] · Próxima: [[31 - Instalar o seu UniVerso, Passo a Passo]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[30 - Mesa pela Internet]] · Próxima: [[32 - Instalar o seu UniVerso, Passo a Passo]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

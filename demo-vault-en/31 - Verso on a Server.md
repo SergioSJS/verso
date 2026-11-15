@@ -17,7 +17,7 @@ tags:
 
 ## Installing
 
-A step-by-step guide for people who have never set up a server, with commands to copy, is in [[31 - Installing Your UniVerso, Step by Step]]. The summary:
+A step-by-step guide for people who have never set up a server, with commands to copy, is in [[32 - Installing Your UniVerso, Step by Step]]. The summary:
 
 Three ways, all the same program (the full guide is in `docs/reference/server-install.md`):
 
@@ -25,7 +25,7 @@ Three ways, all the same program (the full guide is in `docs/reference/server-in
 - **CasaOS and ZimaOS**, through a compose file;
 - a **`.deb` or `.rpm`** package with a systemd service, for a machine without Docker — or the **guided installer** `universo.sh`, which downloads, checks and installs the right package on a Linux machine with systemd (Ubuntu, Debian, Fedora…) and takes care of HTTPS, the first admin and backups.
 
-On a NAS or a VPS, step by step: [[32 - Installing the server on a NAS or a VPS]]; on Oracle's free server: [[33 - UniVerso on a Free Oracle Server]]. And, for a game session, the desktop app itself can be the server, with nothing to install: [[29 - A Table over the Internet]].
+On a NAS or a VPS, step by step: [[33 - Installing the server on a NAS or a VPS]]; on Oracle's free server: [[34 - UniVerso on a Free Oracle Server]]. And, for a game session, the desktop app itself can be the server, with nothing to install: [[30 - A Table over the Internet]].
 
 Two folders matter: `VERSO_DATA_DIR`, on a local disk, with the accounts and the indexes; and `VERSO_FOLDERS_DIR`, with the note folders, which can live on a NAS. The backup covers both.
 
@@ -75,13 +75,13 @@ In a note, a board or a text file that changed on disk while you were typing, th
 
 ## From the desktop app
 
-In **Settings › Servers**, pick the server under **Found on this network** (the app finds it on its own when it is on the same network) or type its address, and connect: the app **copies a code** to the clipboard and the browser opens the server's page, where you **paste the code** (or type the one the app shows) to **allow this computer** — nobody pastes a token. The page never takes the code from a link: a link someone sent you, with the code of their device, approves nothing until you paste the code from the app in front of you. After the code, the page says **who asked** — the device name, the address and the time of the request — and asks: *Was it you who asked, on this device?* **Approve this device** or **It was not me: refuse**. An address and a time that are not yours: refuse. Then pick a folder on the server (in the folder switcher, or **Open here** in Settings › Servers): the app asks **where to keep a copy** of it — on a computer, you choose the folder it goes in — and first says how many files and how many MB it has. **Choose where and download…** downloads the whole folder, shows its progress and opens it; it stays **synced** with the server (as in *Syncing*, below) and opens without a network. Choosing the same folder again opens the copy, with nothing asked. To work on the server directly, with no copy, there is **Open on the server only, no copy** — online only.
+In **Settings › Servers**, pick the server under **Found on this network** (the app finds it on its own when it is on the same network) or type its address, and connect: the app **copies a code** to the clipboard and the browser opens the server's page, where you **paste the code** (or type the one the app shows) to **allow this computer** — nobody pastes a token. The page never takes the code from a link: a link someone sent you, with the code of their device, approves nothing until you paste the code from the app in front of you. After the code, the page says **who asked** — the device name, the address and the time of the request — and asks: *Was it you who asked, on this device?* **Approve this device** or **It was not me: refuse**. An address and a time that are not yours: refuse. If the sign-in is refused, or the code's ten minutes run out, **Settings › Servers** says so in place of *Waiting…*, with **Try again**, which asks for a new code. Then pick a folder on the server (in the folder switcher, or **Open here** in Settings › Servers): the app asks **where to keep a copy** of it — on a computer, you choose the folder it goes in — and first says how many files and how many MB it has. **Choose where and download…** downloads the whole folder, shows its progress and opens it; it stays **synced** with the server (as in *Syncing*, below) and opens without a network. Choosing the same folder again opens the copy, with nothing asked. To work on the server directly, with no copy, there is **Open on the server only, no copy** — online only.
 
 That is also where **this device's name** lives — by default, the system's name. Give it a name of your own (two computers with the same system name stop being confused with each other): it goes into the name of conflict copies, the server's session list and each folder's latest changes.
 
 ---
 
-**With no server at all**: the desktop app is a server too, in **Settings › Turn into a server**. **On my network**, it serves the folders you mark straight to your phone, with no account and no password — the phone is paired by a QR and you allow it on the computer; see [[28 - Verso on Phone and Tablet#Pair the Phone with Your Computer|Pair the phone with your computer]]. **By an internet link**, it takes in people from outside with invitations, accounts, the Table and read links, like a UniVerso, while the computer stays on; the Verso of someone you invited connects through **Settings › Servers** with the link's address. See [[29 - A Table over the Internet]].
+**With no server at all**: the desktop app is a server too, in **Settings › Turn into a server**. **On my network**, it serves the folders you mark straight to your phone, with no account and no password — the phone is paired by a QR and you allow it on the computer; see [[29 - Verso on Phone and Tablet#Pair the Phone with Your Computer|Pair the phone with your computer]]. **By an internet link**, it takes in people from outside with invitations, accounts, the Table and read links, like a UniVerso, while the computer stays on; the Verso of someone you invited connects through **Settings › Servers** with the link's address. See [[30 - A Table over the Internet]].
 
 ## Syncing a folder from this computer
 
@@ -138,10 +138,10 @@ Whoever only **reads** a note does not receive its `[!secret]` blocks: the game 
 
 For players, or anyone, to **read** the world without making an account, the folder's owner makes a **read link**: right-click the folder and choose **Read link…**, or a note and choose **Copy read link…**. Pick the expiry (none, 1, 7 or 30 days, or until a date) and, if you like, a **password**. The address (`/r/…`) shows **once**, already copied: the server keeps only a mark of it. Whoever opens it reads, in a browser, only what the link points at — the folder, or the note and what it embeds —, in the reader's view: **without** the `[!secret]` blocks, no editing, no history, and a link to a note that was not shared shows as plain text *(not shared)*. Dice roll in the reader's browser and write nothing.
 
-Before the link is made, the dialog says how many notes have secrets and that readers will not see them. The tree marks what has a live link, and the panel lists the links with who made each and when it was last opened. **Revoke** ends the link at once, open pages included. Read links **start off**: whoever runs the server turns them on in *Administration › Server* (in the app serving over the internet, with **Turn read links on**; see [[29 - A Table over the Internet#Read links]]), and turning them off ends them all. A wrong password counts as a refused sign-in, and the owner is mailed when there are many — if the server has a mail server set up (`VERSO_SMTP_URL`).
+Before the link is made, the dialog says how many notes have secrets and that readers will not see them. The tree marks what has a live link, and the panel lists the links with who made each and when it was last opened. **Revoke** ends the link at once, open pages included. Read links **start off**: whoever runs the server turns them on in *Administration › Server* (in the app serving over the internet, with **Turn read links on**; see [[30 - A Table over the Internet#Read links]]), and turning them off ends them all. A wrong password counts as a refused sign-in, and the owner is mailed when there are many — if the server has a mail server set up (`VERSO_SMTP_URL`).
 
 ---
 
-For the phone and the tablet, see [[28 - Verso on Phone and Tablet]]; to roll dice and draw from a table, [[22 - Dice and Random Tables]].
+For the phone and the tablet, see [[29 - Verso on Phone and Tablet]]; to roll dice and draw from a table, [[22 - Dice and Random Tables]].
 
-Previous: [[29 - A Table over the Internet]] · Next: [[31 - Installing Your UniVerso, Step by Step]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[30 - A Table over the Internet]] · Next: [[32 - Installing Your UniVerso, Step by Step]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

@@ -79,7 +79,7 @@ In Obsidian, the note shows the same properties the Obsidian way: nothing in the
 ## Search and Agents
 
 - In search, `type:character` lists the notes of the type — together with `tag:`, `path:` and the words.
-- An agent through MCP ([[35 - Terminal, CLI and AI Agents]]) receives each note's type and declared properties, and lists the notes of a type.
+- An agent through MCP ([[36 - Terminal, CLI and AI Agents]]) receives each note's type and declared properties, and lists the notes of a type.
 
 ---
 

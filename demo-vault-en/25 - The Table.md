@@ -64,7 +64,7 @@ With **3D dice** on, other people's rolls also fall in 3D on your screen. To kee
 
 **Table sound.** When someone else sends a **message** (or a roll that does not fall in 3D) at the Table, the window plays a short sound — never for what **you** send, and not while you are writing in the Table's box. In **Settings › Notifications** pick **Table sound** (Soft, Bell, Pop or Off; it starts on Soft) and the **volume**; choosing plays it once so you can hear it. The dice have their own sound, switched on separately. If the browser has not yet allowed audio (it does so only after you touch the page), the sound stays silent instead of playing late.
 
-In a folder that is **not** a UniVerso's (only on your computer), the Table shows your rolls and the ones you hear in shared notes **this session**, and says it is neither shared nor kept. In a UniVerso folder, or in one your own Verso serves with the window sitting at the table ([[29 - A Table over the Internet]]), it is **everyone's table**: see below.
+In a folder that is **not** a UniVerso's (only on your computer), the Table shows your rolls and the ones you hear in shared notes **this session**, and says it is neither shared nor kept. In a UniVerso folder, or in one your own Verso serves with the window sitting at the table ([[30 - A Table over the Internet]]), it is **everyone's table**: see below.
 
 ---
 

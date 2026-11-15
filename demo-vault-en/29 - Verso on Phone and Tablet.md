@@ -65,7 +65,7 @@ On the tablet (760 to 1180 px) the side bars stay, and the tree's rows are talle
 
 ## On a Server
 
-What the server is and how to install it: [[30 - Verso on a Server]].
+What the server is and how to install it: [[31 - Verso on a Server]].
 
 - **Someone who only reads** the folder sees a closed lock beside its name (*You only read this folder*), and nothing that changes the folder shows up; if they try to write, move or rename something, a short notice says they only read it, near where they tried.
 - **Copy link** gives the note's address on the server, and **Open in a new browser tab** does the job of the new window.
@@ -75,7 +75,7 @@ What the server is and how to install it: [[30 - Verso on a Server]].
 
 ## Pair the Phone with Your Computer
 
-With nothing to install: Verso on your computer can itself serve the folders you tick to the phone's browser, **over the network both are on** (your home, for example). It is the same server as `verso serve`, inside the app. **Turn into a server** has two boxes, **On my network** and **By an internet link (Cloudflare, testing mode)**; a phone pairs **over the network only**, and the link for playing with people who are away is [[29 - A Table over the Internet]]. It stays **off** until you turn it on, and turns off again when the app closes. While it serves, the **Verso icon** (the app's mark) shows in the Mac's menu bar (or in Windows' notification area), with a menu **Serving N folders… / Stop / Open Settings**; on Linux the mark sits in the app's status bar.
+With nothing to install: Verso on your computer can itself serve the folders you tick to the phone's browser, **over the network both are on** (your home, for example). It is the same server as `verso serve`, inside the app. **Turn into a server** has two boxes, **On my network** and **By an internet link (Cloudflare, testing mode)**; a phone pairs **over the network only**, and the link for playing with people who are away is [[30 - A Table over the Internet]]. It stays **off** until you turn it on, and turns off again when the app closes. While it serves, the **Verso icon** (the app's mark) shows in the Mac's menu bar (or in Windows' notification area), with a menu **Serving N folders… / Stop / Open Settings**; on Linux the mark sits in the app's status bar.
 
 1. On the computer, **Settings › Turn into a server**. The folder open in the window comes first, with its tree of folders; the other folders you have already opened are in the **Recent** group. Tick the folders the phone may see — none comes ticked. To serve **only some folders inside** a folder, tick it and choose in its tree (the open folder's is already open; for recent ones, **Choose folders**). Tick only what the phone may see: each ticked folder reaches the phone as a folder of its own, the rest of the folder does not show up for it, not even by name, and the folder's attachments folder (the one Obsidian configures) goes along, read-only and files only (unticking the last one stops serving the folder; to serve it whole, **Serve the whole folder** in the tree). In **Where to serve**, leave **On my network** ticked (it comes ticked). Then tap **Turn the server on**. The first time, Verso explains what the system is going to ask (local network, firewall) before asking; if you refuse, it says how to allow it, without touching the firewall on its own.
 2. Tap **Pair a phone**. The computer shows a **QR**, the address and an **eight-letter code**, valid for **2 minutes** and one use.
@@ -85,7 +85,7 @@ With nothing to install: Verso on your computer can itself serve the folders you
 
 What stays out on purpose: the phone **never** opens folders you did not tick, does not see your disk, does not make the computer open anything in the system, does not change the app's settings and does not open a folder someone else shared with you on a UniVerso (in that case, open the UniVerso's address on the phone; that folder's page and Settings say *shared with you on …: only its owner can serve it*). If the computer's address changes — another network, a VPN that connects —, the server **stops by itself** and warns you; you have to turn it on and pair again. On a network with client isolation (a café, a hotel) the phone cannot reach the computer, and Verso says so.
 
-The phone **never syncs**: it uses the browser's window, and only another person's Verso app that you invited syncs (see [[29 - A Table over the Internet]]). The app's certificate is **not from a known authority**, so the phone's browser treats it as insecure and does not let the folder be [[#Offline|available offline]]. For that, use a UniVerso with real HTTPS, or `tailscale serve` — see [[30 - Verso on a Server]].
+The phone **never syncs**: it uses the browser's window, and only another person's Verso app that you invited syncs (see [[30 - A Table over the Internet]]). The app's certificate is **not from a known authority**, so the phone's browser treats it as insecure and does not let the folder be [[#Offline|available offline]]. For that, use a UniVerso with real HTTPS, or `tailscale serve` — see [[31 - Verso on a Server]].
 
 ---
 
@@ -99,7 +99,7 @@ On a server with HTTPS (over plain HTTP this option is off, and Verso says how t
 4. What you change waits, and the status bar says how many changes are waiting. When the network returns, they go up **by the same sync rules as the desktop app**: two notes that only gained lines at the end become one; a note changed on both sides keeps the server's version and yours in a copy, listed in **Settings › Offline**; deleting many files at once asks for your confirmation. A message says *Back online: n changes sent*.
 5. **Signing out** deletes this device's copy, after saying how many changes have not gone up yet; if the server ends the session, the copy goes away at the next connection. The copy is **not encrypted**: the browser's storage is as safe as the unlocked device.
 
-Someone who only reads the folder keeps what the server hands them — without what is hidden from readers ([[30 - Verso on a Server]]).
+Someone who only reads the folder keeps what the server hands them — without what is hidden from readers ([[31 - Verso on a Server]]).
 
 ---
 
@@ -107,7 +107,7 @@ Someone who only reads the folder keeps what the server hands them — without w
 
 The Android app is the same Verso as on the computer, in an APK you install on the phone (outside the store: Android asks once to allow installing apps from elsewhere). The screen is the one the rest of this note describes; what changes:
 
-- **The phone's folder** lives **inside the app**: the first time it makes the folder *Verso* and offers this tutorial. No other app sees it, and it is **deleted with the app if Verso is uninstalled** — **Settings › Sync** says so. To keep a copy, sync it with a UniVerso or with a cloud (WebDAV, S3, see [[34 - Syncing with a Cloud]]); the cloud's password stays in Android's encrypted store. Sync runs **while the app is open** and carries on where it stopped when it opens again; with **Sync in the background** on (**Settings › Sync**, off by default) it goes on with Verso closed, under a notification — optionally **Wi-Fi only** or **Only while charging**.
+- **The phone's folder** lives **inside the app**: the first time it makes the folder *Verso* and offers this tutorial. No other app sees it, and it is **deleted with the app if Verso is uninstalled** — **Settings › Sync** says so. To keep a copy, sync it with a UniVerso or with a cloud (WebDAV, S3, see [[35 - Syncing with a Cloud]]); the cloud's password stays in Android's encrypted store. Sync runs **while the app is open** and carries on where it stopped when it opens again; with **Sync in the background** on (**Settings › Sync**, off by default) it goes on with Verso closed, under a notification — optionally **Wi-Fi only** or **Only while charging**.
 - **A UniVerso**: in **Settings › Servers**, **Connect** opens the server's page in the phone's browser for you to sign in; then its folders show in the folder switcher (the folder's name, at the top of the drawer). The phone's name for the server is the one you gave it in Android's settings.
 - **A server's folder becomes a copy on the phone, which opens offline**: tapping a server's folder in the switcher (or **Open here**, in **Settings › Servers**) asks where to keep the copy and first says how much it takes (*12 files · 3.4 MB*):
   - **Inside the app** — only Verso sees it; it is **deleted if the app is uninstalled** (the server keeps everything).
@@ -134,7 +134,7 @@ Through **AltStore PAL** (no computer needed) Verso comes later, and **for now i
 
 What differs from Android:
 
-- **The app's folder** shows in the **Files** app, under *On My iPad › Verso* (or *On My iPhone*): other apps open its notes there, and Verso sees what they change when it comes back to the screen. It is deleted with Verso unless it syncs.
+- **The app's folder** shows in the **Files** app, under *On My iPad › Verso* (or *On My iPhone*): other apps open its notes there, and Verso sees what they change when it comes back to the screen. It is deleted with Verso unless it syncs. iOS opens only the folders in Verso's **Documents**: the folder switcher has no *Open another folder…*, which on Android walks the phone's storage.
 - **A UniVerso** and **the device as a server** work as on Android, but iOS lets it serve only while Verso is on the screen. A server's folder you choose also becomes a copy that opens offline, always in Verso's **Documents**: it shows in Files under *On My iPad › Verso*, beside the *Verso* folder, with the server folder's name.
 - **Not on iOS**: the internet link, the terminal, the command line and agents, and updates from the app itself (AltStore brings them).
 
@@ -144,4 +144,4 @@ With VoiceOver (iPhone and iPad) or TalkBack (Android), a double tap and hold do
 
 ---
 
-Previous: [[27 - Sound and Music at the Table]] · Next: [[29 - A Table over the Internet]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[28 - How Will You Use Verso]] · Next: [[30 - A Table over the Internet]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]

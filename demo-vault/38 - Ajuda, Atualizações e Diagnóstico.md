@@ -56,7 +56,7 @@ Embaixo da janela: o botão de mostrar e ocultar os arquivos, as mensagens do ap
 
 ## O Menu do Mac
 
-Além dos comandos do Verso (veja [[36 - Ajustes, Aparência e Atalhos#A Barra de Menus (macOS)]]), a barra tem os itens da própria janela:
+Além dos comandos do Verso (veja [[37 - Ajustes, Aparência e Atalhos#A Barra de Menus (macOS)]]), a barra tem os itens da própria janela:
 
 - **Verso**: **Ajustes…** (`⌘,`) e **Encerrar o Verso** (`⌘Q`).
 - **Arquivo**: **Nova janela**, **Abrir pasta…** (`⌘⇧O`), **Abrir arquivo…**, **Abrir recente**, **Fechar aba** (`⌘W`) e **Fechar janela**.
@@ -73,4 +73,4 @@ Este cofre de exemplo veio de **Importar cofre de exemplo** (na paleta, no menu 
 
 ---
 
-Anterior: [[36 - Ajustes, Aparência e Atalhos]] · Próxima: [[38 - Compatibilidade com o Obsidian]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[37 - Ajustes, Aparência e Atalhos]] · Próxima: [[39 - Compatibilidade com o Obsidian]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

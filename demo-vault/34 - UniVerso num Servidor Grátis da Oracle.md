@@ -11,7 +11,7 @@ status: ativo
 
 # UniVerso num Servidor Grátis da Oracle
 
-Esta nota é o roteiro para quem **nunca montou um servidor** e quer o seu UniVerso funcionando no celular, de graça, em uns 30 minutos. Você vai criar uma máquina pequena na nuvem da Oracle, entrar nela, baixar o instalador e escolher as opções num **menu**: o instalador faz o resto (o endereço seguro, a conta de admin, o aviso do que está errado). Para os caminhos mais manuais (Docker, CasaOS, o seu domínio), a nota é a [[31 - Instalar o seu UniVerso, Passo a Passo]]; o que o UniVerso faz depois de pronto está na [[30 - Verso num Servidor]].
+Esta nota é o roteiro para quem **nunca montou um servidor** e quer o seu UniVerso funcionando no celular, de graça, em uns 30 minutos. Você vai criar uma máquina pequena na nuvem da Oracle, entrar nela, baixar o instalador e escolher as opções num **menu**: o instalador faz o resto (o endereço seguro, a conta de admin, o aviso do que está errado). Para os caminhos mais manuais (Docker, CasaOS, o seu domínio), a nota é a [[32 - Instalar o seu UniVerso, Passo a Passo]]; o que o UniVerso faz depois de pronto está na [[31 - Verso num Servidor]].
 
 > [!WARNING] Verso está em testes
 > O que a Oracle dá de graça é decisão dela e pode mudar: confira a página "Always Free" dela antes. Os menus do console da Oracle abaixo foram escritos pela documentação dela e podem ter outro nome ou lugar; os comandos do instalador foram testados num Ubuntu 24.04 com systemd, mas não numa máquina da Oracle de verdade.
@@ -83,7 +83,7 @@ Escolha **Criar o primeiro admin**. Digite o **e-mail** e a **senha** (12 caract
 
 ## 8. Abrir no celular
 
-No navegador do celular, abra o endereço `https://…` que o instalador imprimiu, entre com o e-mail e a senha — e pronto: o UniVerso no bolso. Com HTTPS, o modo offline e as notificações funcionam ([[28 - Verso no Celular e no Tablet]]). No app do computador: Ajustes › Servidores, com o mesmo endereço ([[31 - Instalar o seu UniVerso, Passo a Passo#6. O primeiro admin, e conectar o app|conectar o app]]).
+No navegador do celular, abra o endereço `https://…` que o instalador imprimiu, entre com o e-mail e a senha — e pronto: o UniVerso no bolso. Com HTTPS, o modo offline e as notificações funcionam ([[29 - Verso no Celular e no Tablet]]). No app do computador: Ajustes › Servidores, com o mesmo endereço ([[32 - Instalar o seu UniVerso, Passo a Passo#6. O primeiro admin, e conectar o app|conectar o app]]).
 
 ---
 
@@ -97,6 +97,6 @@ No navegador do celular, abra o endereço `https://…` que o instalador imprimi
 > [!NOTE] A Oracle pode tomar a máquina de volta
 > Uma máquina grátis que a Oracle julga parada (pouco uso de CPU, rede e memória por sete dias) pode ser recuperada por ela. Um servidor de notas para poucas pessoas pode parecer parado: **guarde backups fora da máquina**.
 
-Para ver o que fazer com o servidor no ar, vá à [[30 - Verso num Servidor]]; para a mesa de jogo, [[26 - Rodando uma Mesa]].
+Para ver o que fazer com o servidor no ar, vá à [[31 - Verso num Servidor]]; para a mesa de jogo, [[26 - Rodando uma Mesa]].
 
-Anterior: [[32 - Instalar o servidor num NAS ou VPS]] · Próxima: [[34 - Sincronizar com uma Nuvem]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]
+Anterior: [[33 - Instalar o servidor num NAS ou VPS]] · Próxima: [[35 - Sincronizar com uma Nuvem]] · [[00 - Bem-vindo ao Verso|Página Inicial]] · [[Tour do Verso.canvas|Tour do Verso]]

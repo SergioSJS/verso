@@ -22,7 +22,7 @@ The list on the left comes in four groups. A section only shows where it applies
 - **General**: the language (**System**, **Português (Brasil)** or **English**), the autosave delay, updates and the app's version, the developer console, remote content, the sites allowed in notes and the **Maps' background**.
 - **Appearance**: theme, dark tone, text size and width and the **Themes** gallery — one click changes the look; **Copy** and **Edit** open the **Theme builder** —, with themes to share.
 - **Features**: turns the optional features on and off (data diagram, colour swatches, terminal), with the **Everything**, **Writing only** and **Custom** shortcuts. Turning a feature off changes no file.
-- **Notifications**: for each kind — sync, conflicts, sharing, updates, quota, trash, presence, table — **Notice and list**, **List only** or **Off**, the **Table sound** and the system's notifications (see [[37 - Help, Updates and Diagnostics#Notifications]]).
+- **Notifications**: for each kind — sync, conflicts, sharing, updates, quota, trash, presence, table — **Notice and list**, **List only** or **Off**, the **Table sound** and the system's notifications (see [[38 - Help, Updates and Diagnostics#Notifications]]).
 - **Hotkeys**: the keys for each command.
 - **Credits and acknowledgements**: who and what Verso draws from, with the notices each licence asks for.
 
@@ -38,15 +38,15 @@ The list on the left comes in four groups. A section only shows where it applies
 - **Dice and RPG**, **Oracles & Solo RPG** and **Statblock Templates**: the RPG features, one switch each, and their settings (see [[22 - Dice and Random Tables]]).
 
 **Network & System**
-- **Sync**, **Servers** and **Turn into a server**: the folder with a server or a cloud, the servers you sign in to and this computer serving its own folders (see [[30 - Verso on a Server]] and [[28 - Verso on Phone and Tablet]]).
-- **Terminal and agents**: the `verso` command, the terminal and Verso in AI agents (see [[35 - Terminal, CLI and AI Agents]]).
+- **Sync**, **Servers** and **Turn into a server**: the folder with a server or a cloud, the servers you sign in to and this computer serving its own folders (see [[31 - Verso on a Server]] and [[29 - Verso on Phone and Tablet]]).
+- **Terminal and agents**: the `verso` command, the terminal and Verso in AI agents (see [[36 - Terminal, CLI and AI Agents]]).
 - **Account**: your account, when the window is a server's.
 
 ---
 
 ## From the Folder or from This Machine
 
-Four settings belong to the folder, not to the computer: the **build folders** and the **`.gitignore`** (in **Files and links**), and the **Folder note name** and the **Bookmarks** (in **Organizing**). They live inside the folder itself, in `.verso/settings.json`, and travel with it: open the synced folder on another computer — through Verso's sync (see [[30 - Verso on a Server]]), iCloud, OneDrive, Syncthing or git — and they are there. Beside each one, Settings says **Of the folder** or **Of this machine**: of this machine as long as the folder does not have the file, which only appears on the first change — opening a folder never creates it. Whoever can only read a server folder keeps its bookmarks on this computer, and the star works the same way: beside them, Settings says **Of this machine**.
+Four settings belong to the folder, not to the computer: the **build folders** and the **`.gitignore`** (in **Files and links**), and the **Folder note name** and the **Bookmarks** (in **Organizing**). They live inside the folder itself, in `.verso/settings.json`, and travel with it: open the synced folder on another computer — through Verso's sync (see [[31 - Verso on a Server]]), iCloud, OneDrive, Syncthing or git — and they are there. Beside each one, Settings says **Of the folder** or **Of this machine**: of this machine as long as the folder does not have the file, which only appears on the first change — opening a folder never creates it. Whoever can only read a server folder keeps its bookmarks on this computer, and the star works the same way: beside them, Settings says **Of this machine**.
 
 Try it: in **Files and links**, turn off **Ignore build folders** and watch the label change to **Of the folder**; turn it on again to go back.
 
@@ -128,4 +128,4 @@ The buttons on the left ribbon (search, open, today's note, graph…) can be dra
 
 ---
 
-Previous: [[35 - Terminal, CLI and AI Agents]] · Next: [[37 - Help, Updates and Diagnostics]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
+Previous: [[36 - Terminal, CLI and AI Agents]] · Next: [[38 - Help, Updates and Diagnostics]] · [[00 - Welcome to Verso|Home Page]] · [[Verso Tour.canvas|Verso Tour]]
