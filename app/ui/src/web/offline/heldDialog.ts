@@ -43,10 +43,9 @@ export function heldZip(folders: HeldFolder[]): Uint8Array {
 
 function save(bytes: Uint8Array, name: string): void {
   const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/zip" }));
-  const a = el("a", { href: url, download: name });
-  document.body.append(a);
-  a.click();
-  a.remove();
+  // Never in the document: the window's guard of links (main.ts) hears
+  // every click there and would take this one for a link to follow.
+  el("a", { href: url, download: name }).click();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 

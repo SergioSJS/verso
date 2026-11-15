@@ -615,9 +615,9 @@ test("the server ending the session deletes the copy at the device's next connec
 
 /** A folder kept, a note edited offline, and the session ended elsewhere
  *  while this window's connection is down; the network back, the window is
- *  on the sign-in page. */
-async function endedWithAChange(page, browser, label) {
-  await signedIn(page);
+ *  on the sign-in page. `already`: the admin is signed in on `page`. */
+async function endedWithAChange(page, browser, label, { already = false } = {}) {
+  if (!already) await signedIn(page);
   const folder = await newFolder(page, label);
   await put(page, folder, "a.md", "a\n");
   // Routed from the start: a socket made before the route is not its.
@@ -690,7 +690,7 @@ test("another account signing in on that browser never sends the kept change: it
   const bia = { email: `bia-held-${info.project.name}@verso.test`, password: "a senha da bia", name: "Bia" };
   const made = await account(browser, page, { ...bia, folder: hers, role: "editor" });
   await made.context.close();
-  const folder = await endedWithAChange(page, browser, `Fim alheio ${info.project.name}`);
+  const folder = await endedWithAChange(page, browser, `Fim alheio ${info.project.name}`, { already: true });
   // Bia signs in on this browser.
   await page.goto("/signin");
   await signInAs(page, bia);
