@@ -373,7 +373,17 @@ the network with the browser's offline mode and a WebSocket route.
   not gone up; after it, Safari's Settings › Advanced › Website Data shows
   nothing for the server beyond the page's code. The console's *End sessions
   and tokens* on a phone that is offline: at its next connection the copy is
-  deleted and the page says so.
+  deleted and the page says so — but for the writes not sent, which it says
+  are kept (revised 2026-11-15).
+- [ ] **Kept changes on a real phone** (A): the phone offline with an edit
+  in a kept folder; on a computer, *End my other sessions*; the phone back on
+  the network: it goes to *Entrar* and says *1 mudança … ficou guardada
+  neste navegador*. Sign in with the same account: *1 mudança guardada
+  quando a sessão terminou está sendo enviada*, and the note on the server
+  has the edit. Again, but sign in as another account: the dialog *Mudanças
+  de outra conta* offers *Baixar como arquivos* (the zip opens in the phone's
+  Files app with the note) and *Descartar*; its buttons are reachable at
+  390×844 and sideways, and the screen reader names them.
 - [ ] **A reader's phone** (A): a reader keeps a folder with a secret
   block; offline, the note has no block, and *View as a reader* on the
   owner's side shows the same text.
