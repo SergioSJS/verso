@@ -1039,7 +1039,8 @@ pub(crate) async fn pass(ctx: &Ctx, s: &Syncer, l: &mut Link) -> Result<Passed, 
     // only there, never seen (no base by its name), is not read for its
     // hash: its download is its one read (I4 part 2).
     let based: HashSet<String> = state.base.keys().map(|p| engine::folded(p)).collect();
-    let unseen = |p: &str| !based.contains(&engine::folded(p));
+    let cloud = s.cloud.is_some();
+    let unseen = |p: &str| cloud && !based.contains(&engine::folded(p));
     let named = match tokio::task::block_in_place(|| {
         rem::refresh_planning(&*remote, &mut l.known, &mut state.tokens, &unseen)
     }) {
