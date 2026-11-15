@@ -130,17 +130,23 @@ test("what keeps the finger keeps the swipe: a sideways scroll, a marked view, a
     await swipe(page, 300, box.y + 60, -20);
     await expect(body(page), sel).not.toHaveClass(/\bright-open\b/);
   }
-  // A selection of text: its handles are being dragged.
-  await page.locator(".leaf:not([hidden]) .preview p").first().evaluate((p) => {
+  // A selection of text: its handles are being dragged. The finger lands in
+  // that paragraph's text.
+  const para = page.locator(".leaf:not([hidden]) .preview p").first();
+  await para.scrollIntoViewIfNeeded();
+  const pb = await para.boundingBox();
+  // Its first line, clear of the bars.
+  const py = pb.y + Math.min(12, pb.height / 2);
+  await para.evaluate((p) => {
     const r = document.createRange();
     r.selectNodeContents(p);
     getSelection().removeAllRanges();
     getSelection().addRange(r);
   });
-  await swipe(page, 300, 650, -20);
+  await swipe(page, 300, py, -20);
   await expect(body(page)).not.toHaveClass(/\bright-open\b/);
   await page.evaluate(() => getSelection().removeAllRanges());
-  await swipe(page, 300, 650, -20);
+  await swipe(page, 300, py, -20);
   await expect(body(page)).toHaveClass(/\bright-open\b/);
 });
 

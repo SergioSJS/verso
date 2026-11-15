@@ -75,6 +75,8 @@ test("held still first is a long press, not a swipe", () => {
   const s = start();
   const held = [{ x: s.x + 1, y: s.y, t: 500 }, ...path(s, -15, 0, 10, 500)];
   assert.equal(decideSwipe(s, held, {}, W), "none");
+  // Held without a move at all, then a big first move across: still a long press.
+  assert.equal(classify(s, { x: s.x - 20, y: s.y, t: 700 }, {}), "none");
   assert.equal(classify(s, { x: s.x + 2, y: s.y, t: 100 }, {}), "wait");
 });
 

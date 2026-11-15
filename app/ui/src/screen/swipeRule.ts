@@ -109,8 +109,10 @@ export function classify(s: Start, at: Point, blocks: Blocks): Intent | "wait" {
   if (s.x < edges.left || s.x > s.viewport - edges.right) return "none";
   const dx = at.x - s.x;
   const dy = at.y - s.y;
-  // Held still first: a long press (a menu, a drag of a row, a selection).
-  if (Math.hypot(dx, dy) < SLOP_PX) return at.t - s.t >= HOLD_MS ? "none" : "wait";
+  // Still undecided after a long press's time: the finger was held (a menu,
+  // a drag of a row, a selection), whatever the first move after it.
+  if (at.t - s.t >= HOLD_MS) return "none";
+  if (Math.hypot(dx, dy) < SLOP_PX) return "wait";
   if (Math.abs(dx) < DOMINANCE * Math.abs(dy)) return "none";
   if (blocks.noSwipe || blocks.scrollX || blocks.field || blocks.selection || blocks.overlay) return "none";
   if (dx > 0) {
