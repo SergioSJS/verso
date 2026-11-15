@@ -164,17 +164,20 @@ Features deliberately deferred until after the V1 release:
 8. **Merge by block of offline edits** and the three-way merge of an outside program's edit into a live room ([ADR 0082](adr/0082-live-co-editing-of-a-synced-folder.md) Consequences, [ADR 0073](adr/0073-self-hosted-server-first.md) item 10): two people who edited one note offline end with a copy today; kept for later by the maintainer on 2026-10-10 because it needs the base's bytes kept, not only its hash. Its own ADR first. *(2026-10-31: put to the maintainer as "after V1, with its own ADR" and not accepted. **2026-11-01: moved into V1 as V.50** by the maintainer, after the terminal and the music are polished.)*
 9. **Opening one `.md` file without a folder** (maintainer's request, 2026-10-30; [ADR 0114](adr/0114-opening-one-markdown-file-without-a-folder.md), **Accepted** 2026-10-30, built on `feat/single-file` 2026-10-30). Verso declared a handler for `.md`/`.markdown` on the three systems — never the default by itself; a double-clicked file opens in a loose-files window with no tree, no index and nothing written beside the file, through a `verso-fs` root scoped to that one file (pictures beside it readable, siblings not); "Open the whole folder in Verso" as the way back. Index, search, backlinks, MCP, sync and history are off in that window. Listed here as a proposal; whether it enters V1 (Q11 of the ADR) is the maintainer's call. *(2026-11-15: merged and released in 0.8.4-beta.1, with N1's data files; Q11 still unanswered, so it is built but not counted in V1.)*
 10. **The bucket's pre-signed URL** (V.52 until 2026-11-14, [ADR 0044](adr/0044-verso-fs-semantics.md), [ADR 0073](adr/0073-self-hosted-server-first.md) item 4(b)): a UniVerso that keeps its files in a bucket hands each file over by a short-lived link of the bucket itself, signed after the access check, instead of passing the bytes through the server; with it, the server's bucket mode. Moved after V1 by the maintainer on 2026-11-14 (*"Ah tá, fica pra depois mesmo, tem que tá no roadmap"*), after the explanation of what it is.
-11. **A virtual tabletop layer on the board** (maintainer's request, 2026-11-15, after the Atlas VTT survey [`reference/atlas-vtt-survey-2026-11-15.md`](reference/atlas-vtt-survey-2026-11-15.md); [ADR 0121](adr/0121-a-virtual-tabletop-layer-on-the-board.md), **Proposed**, nothing decided). Asked for before and left as "later" inside [0090](adr/0090-maps-on-the-board.md) (Consequences), [0110](adr/0110-a-table-is-a-campaign-folder.md) item 16 and [0120](adr/0120-maps-from-watabous-generators.md) items 3 and 11, with no row of its own until now. Listed here as a proposal; whether it waits for after V1 (recommended) or enters V1 is the maintainer's call (0121 Q1). Proposed order:
+11. **A virtual tabletop layer on the board** (maintainer's request, 2026-11-15, after the Atlas VTT survey [`reference/atlas-vtt-survey-2026-11-15.md`](reference/atlas-vtt-survey-2026-11-15.md); [ADR 0121](adr/0121-a-virtual-tabletop-layer-on-the-board.md), **Proposed**, nothing decided; revised the same day after its review [`review/2026-11-15-adr-0121-review.md`](review/2026-11-15-adr-0121-review.md)). Asked for before and left as "later" inside [0090](adr/0090-maps-on-the-board.md) (Consequences), [0110](adr/0110-a-table-is-a-campaign-folder.md) item 16 and [0120](adr/0120-maps-from-watabous-generators.md) items 3 and 11, with no row of its own until now. Listed here as a proposal; whether it waits for after V1 (recommended) or enters V1 is the maintainer's call (0121 Q1). The central question is Q0, what a scene is (recommended: a group on the board carrying the scene's grid, fog and walls, with its own play view; a scene file as the fallback). Proposed order (the author's sizes, not a plan):
 
     | # | Step | Size | State |
     |---|---|---|---|
-    | T1 | Grid per board: square, hex pointy, hex flat; alignment on the map; snap; cell numbers (the hexcrawl of 0120 item 11) | M | Proposed |
-    | T2 | Ruler in the grid's units, shared live | S | Proposed |
-    | T3 | Tokens: a note's file card, size in cells, snapped, the note's tracker as a bar | M | Proposed |
-    | T4 | Hide a drawn element from players | S | Proposed |
-    | T5 | Initiative tracker in the Table panel | M | Proposed |
-    | T6 | Universal VTT import (`.dd2vtt`, `.uvtt`, `.df2vtt`) into a board with walls | S–M | Proposed |
-    | T7 | Readers follow a board live; players move only their tokens; walls block moves | M–L | Proposed |
-    | T8 | Manual fog of war, left out of every path a player has; map tiles under fog withheld | L | Proposed |
-    | T9 | Walls and doors editor; token vision computed on the server; explored areas per table | L–XL | Proposed |
-    | T10 | A player window (second screen / TV) | S–M | Proposed; needs V.43 "see as player" |
+    | T0 | The board's projection serves only the keys it knows (top level being fixed 2026-11-15: `verso.walls` and secret doors reached players), then nodes' keys | S | Proposed; top level in progress |
+    | T1 | Scenes on the board and their grid: square, hex pointy, hex flat; alignment on the map; snap; cell numbers (the hexcrawl of 0120 item 11) | M | Proposed (Q0) |
+    | T2 | Players who only see a board follow it live, read-only | M | Proposed (Q8) |
+    | T3 | Ruler in the grid's units, shared live | S | Proposed |
+    | T4 | Tokens: a note's file card with its own public face, size in cells, snapped, the tracker as a bar | L | Proposed (Q2, Q12) |
+    | T5 | Hide a drawn element from players | S–M | Proposed |
+    | T6 | Initiative tracker in the Table panel, hidden entries by default | L | Proposed (Q9, Q15) |
+    | T7 | The play view ("Open the scene") and a player window (second screen / TV) | M | Proposed (Q16); needs V.43 "see as player" |
+    | T8 | Walls and doors editor | S–M | Proposed |
+    | T9 | Universal VTT import (`.dd2vtt`, `.uvtt`, `.df2vtt`) into a scene with walls | S–M | Proposed (Q11) |
+    | T10 | Players move only their tokens; walls block moves | M | Proposed (Q3, Q14b) |
+    | T11 | Manual fog of war, left out of every path a player has; map tiles masked under fog | XL | Proposed (Q4, Q6, Q13) |
+    | T12 | Token vision computed on the server; explored areas | L–XL | Proposed (Q5, Q7, Q18) |

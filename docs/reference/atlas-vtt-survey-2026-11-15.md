@@ -289,7 +289,7 @@ as a server [0117](../adr/0117-this-app-is-a-universo-server.md).
 | Laser pointer, live pointers | Has | board presence (`pointer`, `laser`) |
 | Tokens (sized, snapped, rotated) | Not | file cards exist; no token kind |
 | HP / resources / clocks | Partly | statblock **trackers** write into the note (0099 item 5); nothing on the board |
-| Hide a token from players | Has (as a mechanism) | `secret` on any node (0090 revised 2026-10-15); server leaves it out |
+| Hide a token from players | Has (as a mechanism) | `secret` on any node (0090 revised 2026-10-15); server leaves it out. Caveat (review of ADR 0121, B5): a token of a note the players do not see is a Locked card today, and its picture, name and tracker would leak if drawn; ADR 0121 Q12 |
 | Token ownership, player moves only theirs | Partly | a player with *Edits* on a board edits through a per-account shadow room (0113 H); no per-token owner |
 | Walls and doors | Partly | stored for Watabou dungeons (`verso.walls`, 0120 item 3); nothing reads them; no wall tool |
 | Fog of war (manual) | Not | 0110 item 16: "later, each in its own ADR when asked for" |
@@ -305,8 +305,8 @@ as a server [0117](../adr/0117-this-app-is-a-universo-server.md).
 | Encounters | Not | — |
 | Universal VTT import | Not | Watabou importer exists (0120) |
 | Sound with moods and crossfade | Partly | 0116 phase 1–2 built; ambience layer and crossfade after V1 |
-| Online play | Has, more | UniVerso self-hosted and the app as a server, LAN and Cloudflare link (0073, 0117); players on browser, PWA, Android, iOS |
-| Phone | Has, more | the GM's side runs on the phone too (0057 phone board; 0118, 0119) |
+| Online play | Has | UniVerso self-hosted and the app as a server, LAN and Cloudflare link (0073, 0117); players on browser, PWA, Android, iOS |
+| Phone | Has | the GM's side runs on the phone too (0057 phone board; 0118, 0119) |
 
 ## Source files read for behaviour only
 
