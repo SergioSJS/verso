@@ -192,6 +192,9 @@ export class Syncer {
    *  a pass sent. */
   sentCount = 0;
   private running: Promise<Passed> | null = null;
+  /** Files sent this pass that were edited here while they went: a pass
+   *  runs again for them. */
+  private newerHere = 0;
   private log: SyncLogEntry[] = [];
   private refused = new Map<string, SyncRefused>();
   private piece: number;
@@ -472,6 +475,7 @@ export class Syncer {
     });
     let done = 0;
     let again = 0;
+    this.newerHere = 0;
     // Paths a step of this pass could not carry out: a later step on the
     // same file waits for the next pass.
     const stuck = new Set<string>();
@@ -528,7 +532,7 @@ export class Syncer {
       s.refused = [...apart.values()];
       s.last = stamp(this.now());
     });
-    return { actions: done, paused: null, again };
+    return { actions: done, paused: null, again: again + this.newerHere };
   }
 
   /** A file that changed or went while a pass ran: the first time, read
@@ -660,9 +664,14 @@ export class Syncer {
       const end = Math.min(size, offset + this.piece);
       const a = await this.remote.put({ path, offset, size, hash: f.hash, base }, f.bytes.subarray(offset, end));
       if (a.done) {
-        // Edited here while it went: the next pass sends the new text.
+        // The server took it: what it holds now is what was sent, and that
+        // is the base, as the desktop's upload records it. Edited here
+        // while it went, the newer text is a change of this side alone,
+        // sent by a pass right after — never refused here, which left the
+        // base behind and made this device's own upload look like the
+        // server's edit (a conflict copy; a note's tail joined twice).
         const now = (await this.store.listing(this.id)).get(path);
-        if (now?.hash !== f.hash) throw hold({ t: "again", path, message: "changed while it crossed" });
+        if (now?.hash !== f.hash) this.newerHere++;
         return { hash: f.hash, size, landed: a.path ?? path };
       }
       if (end >= size) throw hold({ t: "again", path, message: "changed while it crossed" });

@@ -313,6 +313,12 @@ export class Offline {
     try {
       await r.syncer.settle();
     } finally {
+      // The window may be answered from the copy meanwhile (its own
+      // connection down while this one is up, or another tab offline): what
+      // the pass wrote into the store is read into the core again, so the
+      // window reads it and a write over the old version is refused as
+      // changed, never kept over the server's (invariant 11).
+      if (this.core && this.coreFor === id && this.store) await this.core.catchUp(this.store).catch(() => undefined);
       this.refreshWaiting(id);
       for (const f of r.settled.splice(0)) f();
     }
