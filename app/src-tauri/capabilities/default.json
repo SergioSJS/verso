@@ -230,6 +230,7 @@
     "allow-local-server-whole",
     "allow-local-server-phone-role",
     "allow-local-server-settings",
+    "allow-local-server-app-idle",
     "allow-local-server-start",
     "allow-local-server-stop",
     "allow-local-server-pair-open",

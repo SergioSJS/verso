@@ -854,6 +854,7 @@ macro_rules! commands_for {
                 local_server_parts::<$runtime>,
                 local_server_whole::<$runtime>,
                 local_server_settings::<$runtime>,
+                local_server_app_idle::<$runtime>,
                 local_server_start::<$runtime>,
                 local_server_stop::<$runtime>,
                 local_server_pair_open::<$runtime>,

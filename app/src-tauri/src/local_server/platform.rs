@@ -175,6 +175,7 @@ pub(super) fn status_of<R: tauri::Runtime>(
         key_file: set.key_file,
         host_name: set.host_name,
         max_connected: set.max_connected,
+        app_idle_days: local.app_idle_days()?,
         dropped: s
             .dropped
             .iter()
@@ -364,6 +365,20 @@ pub(super) async fn settings<R: tauri::Runtime>(
             max_connected,
             ..was
         })?;
+        status_of(&app, &local)
+    })
+    .await
+}
+
+/// How many days a paired Verso app lasts without speaking to this
+/// computer (`0`: never).
+pub(super) async fn app_idle<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    days: u32,
+) -> Result<LocalServerStatus, ContractError> {
+    let local = server(&app)?;
+    blocking(move || {
+        local.set_app_idle_days(days)?;
         status_of(&app, &local)
     })
     .await

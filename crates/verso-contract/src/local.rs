@@ -51,6 +51,10 @@ pub struct LocalServerStatus {
     /// Phones connected at once, at most, 1 to 16 (item 13, amended
     /// 2026-10-16: the ceiling is a setting; the default is 4).
     pub max_connected: u32,
+    /// How many days a paired Verso app lasts without speaking to this
+    /// computer, `0` for never (ADR 0117 D19 item 3; 7 to 365, 90 by
+    /// default). A browser's phone keeps 14.
+    pub app_idle_days: u32,
     /// Chosen folders this start left out for not being on the disk, each as
     /// `folder/chosen`: the window says so.
     pub dropped: Vec<String>,

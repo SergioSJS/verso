@@ -83,6 +83,7 @@ export class LocalServerHarness {
     ].map(([name, place], i) => ({ key: `many-${i}`, name: name!, place: place!, ticked: false, parts: [], missing: [], attachments: null, received_from: null, tables: 0 })),
   ];
   private maxConnected = 4;
+  private appIdleDays = 90;
   /** How many tables the server holds in the window's folder: the
    *  harness's campaign says (`harness.ts`). */
   tablesOf: () => number = () => 0;
@@ -255,6 +256,7 @@ export class LocalServerHarness {
       phones_paired: this.paired.length,
       phones_connected: this.serving ? Math.min(this.paired.length, this.maxConnected) : 0,
       max_connected: this.maxConnected,
+      app_idle_days: this.appIdleDays,
       pairing_open: this.open,
       fingerprint: this.lan ? this.fingerprint : null,
       certificate: this.cert.cert_file ? "files" : "own",
@@ -345,6 +347,13 @@ export class LocalServerHarness {
       if (!Number.isInteger(most) || most < 1 || most > 16) refuse("phones connected at once: between 1 and 16");
       this.maxConnected = most;
       this.cert = { cert_file: (a["certFile"] as string | null) || null, key_file: (a["keyFile"] as string | null) || null, host_name: (a["hostName"] as string | null) || null };
+      return this.status();
+    },
+    local_server_app_idle: (a): LocalServerStatus => {
+      const days = Number(a["days"]);
+      if (!(days === 0 || (Number.isInteger(days) && days >= 7 && days <= 365))) refuse("a paired app's limit: never, or between 7 and 365 days");
+      this.appIdleDays = days;
+      this.log("app_idle_set");
       return this.status();
     },
     local_server_start: (): LocalServerStatus => {

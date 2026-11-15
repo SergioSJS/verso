@@ -25,6 +25,7 @@ import { linkStrings, markSaid } from "./localServerLinkStrings";
 import { invitations } from "./localServerInvites";
 import { accountsBlock } from "./localServerAccounts";
 import { playersBlock } from "./localServerPlayers";
+import { appIdleBlock } from "./localServerAppIdle";
 import { hearSeat, lookAgain, onSeatChange, setOpener } from "./localServerSeat";
 import type { openFolderBy } from "../open";
 import { drawQr } from "./qr";
@@ -325,6 +326,8 @@ export function localServerBody(_item: Item): HTMLElement {
   phonesHead.tabIndex = -1;
   const phones = h("ul", "ls-phones");
   const danger = h("div", "ls-danger");
+  // How long a paired Verso app lasts without a word (ADR 0117 D19 item 3).
+  const appIdle = appIdleBlock(say, failed);
   // Certificate.
   const cert = h("div", "ls-cert");
   // Log.
@@ -516,10 +519,11 @@ export function localServerBody(_item: Item): HTMLElement {
     // The mark from the answer the section draws, at once.
     drawMark(s);
     unsupported.hidden = s.supported;
-    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, ownerName.el, invites.el, players.el, accounts.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, danger, cert, log]) el.hidden = !s.supported;
+    for (const el of [foldersHead, foldersLead, folders, run, state, boxes.el, ownerName.el, invites.el, players.el, accounts.el, keepLabel, keepHelp, mostLabel, mostHelp, pair, pairHelp, phonesHead, phones, appIdle.el, danger, cert, log]) el.hidden = !s.supported;
     if (!s.supported) return;
     keep.checked = s.keep_on;
     most.value = String(s.max_connected);
+    appIdle.draw(s);
     run.textContent = s.serving ? w.turnOff : w.turnOn;
     blocked.hidden = !(s.serving && s.unreachable);
     if (!blocked.hidden) {
@@ -645,7 +649,7 @@ export function localServerBody(_item: Item): HTMLElement {
     block(invites.el),
     block(players.el),
     block(accounts.el),
-    block(phonesHead, pair, pairHelp, phones, mostLabel, mostHelp),
+    block(phonesHead, pair, pairHelp, phones, mostLabel, mostHelp, appIdle.el),
     block(cert, danger, log),
   );
   void redraw();
