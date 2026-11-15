@@ -50,6 +50,8 @@ mod tests;
 #[cfg(test)]
 mod tests_accounts;
 #[cfg(test)]
+mod tests_app_home;
+#[cfg(test)]
 mod tests_devices;
 #[cfg(test)]
 mod tests_link;
@@ -939,6 +941,10 @@ impl LocalServer {
             *inner = Some(running);
         }
         *lock(&self.shared.last_stop) = None;
+        // Said on the network while it serves there (`announce.rs`).
+        if let Some(r) = lock(&self.shared.inner).as_ref() {
+            r.policy.start_announcing();
+        }
         self.spawn_watcher(id);
         (self.shared.events)(Event::Changed);
         self.status()
@@ -1018,7 +1024,7 @@ impl LocalServer {
                 && !net::same_set(&self.addresses(&self.shared.ifaces.list()), &r.nets);
             if slept && !changed {
                 crate::log::info("the computer woke; the addresses are the same, serving goes on");
-                if r.policy.pairing_open(Instant::now()) {
+                if r.policy.announced() {
                     // The goodbye was lost with the sleep: announce again.
                     r.policy.stop_announcing();
                     r.policy.start_announcing();
@@ -1166,7 +1172,6 @@ impl LocalServer {
         };
         let url = qr::url(&payload);
         let matrix = qr::matrix(&url)?;
-        r.policy.start_announcing();
         r.policy.audit(&r.server, "pair_open", None, None);
         crate::log::info(&format!("the pairing window opened, for {}", chosen_net.ip));
         (self.shared.events)(Event::Changed);

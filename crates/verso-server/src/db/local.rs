@@ -9,10 +9,93 @@
 //! laptop holds. The same database file, in the app's configuration
 //! directory and `0600` (`Db::open`); nothing of it is in a served folder.
 
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
-use super::{Account, Db, R, Role, SESSION_IDLE, SESSION_MAX, e, now};
+use super::{Account, DEVICE_MAX, Db, R, Role, SESSION_IDLE, SESSION_MAX, e, now};
 use crate::crypto;
+
+/// How many days a paired Verso app lasts without speaking to this
+/// computer (ADR 0117 D19 item 3, the maintainer's 2026-11-15: *"90 dias
+/// com prazo configurável"*): the default, and the bounds of the setting.
+/// `0` is *never*: the app's pairing then ends only by *Revoke*, *Forget
+/// all phones* or *Replace this computer's identity*. A browser's phone
+/// keeps 14 days idle and 90 at most (D12).
+pub const APP_IDLE_DAYS: u32 = 90;
+pub const APP_IDLE_LEAST: u32 = 7;
+pub const APP_IDLE_MOST: u32 = 365;
+
+/// Where the setting is kept, in this database's settings: one value read
+/// at each look at an app's session, the same for every open of the file.
+const APP_IDLE_KEY: &str = "local.app_idle_days";
+
+/// Whether `days` is a value the setting takes: *never* (`0`), or
+/// [`APP_IDLE_LEAST`]..=[`APP_IDLE_MOST`].
+#[must_use]
+pub fn app_idle_valid(days: u32) -> bool {
+    days == 0 || (APP_IDLE_LEAST..=APP_IDLE_MOST).contains(&days)
+}
+
+/// The setting as read over `conn`; the default when it was never set (a
+/// pairing made before the setting existed takes the default too).
+fn app_idle_days_on(conn: &Connection) -> R<u32> {
+    let kept: Option<String> = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            [APP_IDLE_KEY],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(e)?;
+    Ok(kept
+        .and_then(|v| v.parse::<u32>().ok())
+        .filter(|d| app_idle_valid(*d))
+        .unwrap_or(APP_IDLE_DAYS))
+}
+
+/// The earliest last use an app's session may have at `at` and stand:
+/// `i64::MIN` for *never*.
+fn app_earliest(conn: &Connection, at: i64) -> R<i64> {
+    Ok(match app_idle_days_on(conn)? {
+        0 => i64::MIN,
+        days => at - i64::from(days) * 24 * 3600,
+    })
+}
+
+/// How long session `id` of `kind` lasts unused, and at most since it was
+/// made, in seconds; `None` for no bound. A paired Verso app — a device's
+/// session with a phone's row — lasts the setting's days unused and has no
+/// bound since it was made: its credential is held to this computer's key
+/// on the home network, and the setting is the one clock the owner
+/// chooses. Every other session: 14 days unused, and 90 at most.
+pub(super) fn limits(conn: &Connection, id: &str, kind: &str) -> R<(Option<i64>, Option<i64>)> {
+    if kind == "device" {
+        let phone: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM phones WHERE session = ?1)",
+                [id],
+                |r| r.get(0),
+            )
+            .map_err(e)?;
+        if phone {
+            let days = app_idle_days_on(conn)?;
+            return Ok(((days > 0).then(|| i64::from(days) * 24 * 3600), None));
+        }
+        return Ok((Some(SESSION_IDLE), Some(DEVICE_MAX)));
+    }
+    Ok((Some(SESSION_IDLE), Some(SESSION_MAX)))
+}
+
+/// Whether a session last used at `last`, made at `created`, has expired
+/// at `at` under `limits`.
+pub(super) fn expired(
+    limits: (Option<i64>, Option<i64>),
+    created: i64,
+    last: i64,
+    at: i64,
+) -> bool {
+    let (idle, max) = limits;
+    idle.is_some_and(|i| at - last > i) || max.is_some_and(|m| at - created > m)
+}
 
 /// Schema 12: the phones paired with a computer that serves. A phone is a
 /// session; ending the session (revoking it, forgetting all) takes its row
@@ -123,10 +206,11 @@ impl Db {
         let at = now();
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(e)?;
+        let apps = app_earliest(&tx, at)?;
         let live: i64 = tx
             .query_row(
                 &live_sql("count(*)"),
-                params![at - SESSION_IDLE, at - SESSION_MAX],
+                params![at - SESSION_IDLE, at - SESSION_MAX, apps],
                 |r| r.get(0),
             )
             .map_err(e)?;
@@ -195,18 +279,20 @@ impl Db {
             > 0)
     }
 
-    /// The phones paired and still standing (not idle for 14 days, not
-    /// older than 90), freshest use first.
+    /// The phones paired and still standing (a browser's: not idle for 14
+    /// days, not older than 90; an app's: not idle past the setting),
+    /// freshest use first.
     pub fn phones(&self) -> R<Vec<Phone>> {
         let at = now();
         let conn = self.reader();
+        let apps = app_earliest(&conn, at)?;
         let mut st = conn
             .prepare(&format!(
                 "{} ORDER BY s.last_used DESC",
                 live_sql("s.id, s.device, p.role, s.created, s.last_used, s.address")
             ))
             .map_err(e)?;
-        st.query_map(params![at - SESSION_IDLE, at - SESSION_MAX], |r| {
+        st.query_map(params![at - SESSION_IDLE, at - SESSION_MAX, apps], |r| {
             let role: String = r.get(2)?;
             Ok(Phone {
                 id: r.get(0)?,
@@ -225,11 +311,12 @@ impl Db {
     /// How many phones are paired and standing.
     pub fn phone_count(&self) -> R<usize> {
         let at = now();
-        let n: i64 = self
-            .reader()
+        let conn = self.reader();
+        let apps = app_earliest(&conn, at)?;
+        let n: i64 = conn
             .query_row(
                 &live_sql("count(*)"),
-                params![at - SESSION_IDLE, at - SESSION_MAX],
+                params![at - SESSION_IDLE, at - SESSION_MAX, apps],
                 |r| r.get(0),
             )
             .map_err(e)?;
@@ -239,12 +326,46 @@ impl Db {
     /// Sessions of phones that expired, ended: their rows go with them.
     pub fn purge_phones(&self) -> R<usize> {
         let at = now();
+        let conn = self.conn();
+        let apps = app_earliest(&conn, at)?;
+        conn.execute(
+            "DELETE FROM sessions WHERE id IN (SELECT session FROM phones)
+             AND ((kind = 'device' AND last_used < ?3)
+               OR (kind != 'device' AND (last_used < ?1 OR created < ?2)))",
+            params![at - SESSION_IDLE, at - SESSION_MAX, apps],
+        )
+        .map_err(e)
+    }
+
+    /// How many days a paired Verso app lasts without speaking to this
+    /// computer; `0` for never ([`APP_IDLE_DAYS`]).
+    pub fn app_idle_days(&self) -> R<u32> {
+        app_idle_days_on(&self.reader())
+    }
+
+    /// Set that limit: *never* (`0`) or [`APP_IDLE_LEAST`]..=
+    /// [`APP_IDLE_MOST`] days. It holds at once for every app paired,
+    /// those paired before included: an app idle past a shorter limit
+    /// pairs again (its copy stays on the device).
+    pub fn set_app_idle_days(&self, days: u32) -> R<()> {
+        if !app_idle_valid(days) {
+            return Err(format!(
+                "a paired app's limit: never, or between {APP_IDLE_LEAST} and {APP_IDLE_MOST} days"
+            ));
+        }
+        self.set_setting(APP_IDLE_KEY, &days.to_string())
+    }
+
+    /// Every session made and used `by` seconds earlier than it was: time
+    /// passing, for the tests of the limits.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn age_sessions_for_tests(&self, by: i64) -> R<()> {
         self.conn()
             .execute(
-                "DELETE FROM sessions WHERE id IN (SELECT session FROM phones)
-                 AND (last_used < ?1 OR created < ?2)",
-                params![at - SESSION_IDLE, at - SESSION_MAX],
+                "UPDATE sessions SET last_used = last_used - ?1, created = created - ?1",
+                [by],
             )
+            .map(|_| ())
             .map_err(e)
     }
 
@@ -283,10 +404,13 @@ impl Db {
 }
 
 /// The phones standing: `select` over the join, with `?1` the earliest a
-/// session may have been used and `?2` the earliest it may have been made.
+/// browser's phone may have been used and `?2` the earliest it may have
+/// been made, and `?3` the earliest an app may have been used
+/// ([`app_earliest`]; an app has no bound since it was made).
 fn live_sql(select: &str) -> String {
     format!(
         "SELECT {select} FROM phones p JOIN sessions s ON s.id = p.session
-         WHERE s.last_used >= ?1 AND s.created >= ?2"
+         WHERE (s.kind = 'device' AND s.last_used >= ?3)
+            OR (s.kind != 'device' AND s.last_used >= ?1 AND s.created >= ?2)"
     )
 }
