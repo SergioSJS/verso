@@ -76,6 +76,13 @@ const offStatus = (): SyncStatus => ({
 const SCAN = 300_000;
 
 /** The error a command gets for what only the server can answer. */
+/** A sync status for the window. Before the page's bridge is up (web.ts
+ *  starts it after the session check) there is no window to hear it, and
+ *  the event's call rejects: nobody is told, which is what it would say. */
+function tell(status: SyncStatus): void {
+  void emit("sync-status", status).catch(() => undefined);
+}
+
 /** A notification for the window to raise (notify/sources.ts hears it). */
 function raise(detail: Record<string, unknown>): void {
   dispatchEvent(new CustomEvent("verso:notify", { detail }));
@@ -148,7 +155,7 @@ export class Offline {
         const m = e.data as { type: string; id?: string; status?: SyncStatus };
         if (m.type === "status" && m.id && m.status) {
           this.statuses.set(m.id, m.status);
-          void emit("sync-status", m.status);
+          tell(m.status);
         } else if (m.type === "wiped") void this.forget();
         else if (m.type === "kept") void this.reload();
       };
@@ -277,7 +284,7 @@ export class Offline {
     }
     this.statuses.set(id, st);
     this.channel?.postMessage({ type: "status", id, status: st });
-    void emit("sync-status", st);
+    tell(st);
     if (r && st.state === "synced") {
       for (const f of r.settled.splice(0)) f();
     }
@@ -605,7 +612,7 @@ export class Offline {
     this.channel?.postMessage({ type: "kept" });
     const off = { ...offStatus(), folder: id };
     this.statuses.set(id, off);
-    void emit("sync-status", off);
+    tell(off);
   }
 
   async setAttachments(id: string, mode: "opened" | "all"): Promise<void> {
