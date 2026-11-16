@@ -10,4 +10,3 @@ export * from "./held";
 export * from "./sha256";
 export * from "./store";
 export * from "./sync";
-export * from "./zip";

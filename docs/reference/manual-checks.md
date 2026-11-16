@@ -381,8 +381,8 @@ the network with the browser's offline mode and a WebSocket route.
   neste navegador*. Sign in with the same account: *1 mudança guardada
   quando a sessão terminou está sendo enviada*, and the note on the server
   has the edit. Again, but sign in as another account: the dialog *Mudanças
-  de outra conta* offers *Baixar como arquivos* (the zip opens in the phone's
-  Files app with the note) and *Descartar*; its buttons are reachable at
+  de outra conta* offers only *Descartar* and *Agora não* (no download of the
+  other account's content); its buttons are reachable at
   390×844 and sideways, and the screen reader names them.
 - [ ] **A reader's phone** (A): a reader keeps a folder with a secret
   block; offline, the note has no block, and *View as a reader* on the

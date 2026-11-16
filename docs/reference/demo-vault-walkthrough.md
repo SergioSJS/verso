@@ -1147,8 +1147,8 @@ hand, on a phone and an iPad, the server's window in the browser.
     deletes it at the next connection but for the writes not sent, which
     the page says are kept — signing in again with the same account sends
     them (one changed on the server meanwhile is a conflict's copy), and
-    another account signing in is offered them as a zip or to discard,
-    never sent nor shown in its folders (revised 2026-11-15); a full store is refused where the
+    another account signing in is told they exist and may only discard them
+    (no download), never sent nor shown in its folders (revised 2026-11-15); a full store is refused where the
     write was made; plain HTTP says offline needs HTTPS. Level: H; E:
     `e2e-server/offline.spec.mjs` (Chromium, WebKit and a phone), the sync's
     property test (`test/offlineSync.test.mjs`) and the engine's cases made

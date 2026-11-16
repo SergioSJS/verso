@@ -18,7 +18,7 @@ await esbuild.build({
 });
 const lib = await import("./.bundles/offline-sync.test-bundle.mjs");
 const { FakeServer, err } = await import("./offlineModel.mjs");
-const { Syncer, MemoryStore, StoreFull, sha256, plan, conflictName, newState, waiting, holdChanges, restoreChanges, heldChanges, heldCount, discardChanges, zip, crc32, HELD } = lib;
+const { Syncer, MemoryStore, StoreFull, sha256, plan, conflictName, newState, waiting, holdChanges, restoreChanges, heldChanges, heldCount, discardChanges, HELD } = lib;
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -531,36 +531,6 @@ describe("a session the server ended with changes not sent (ADR 0092 item 6, rev
     await d.store.putFact(HELD, [...(await heldChanges(d.store)), mine]);
     await discardChanges(d.store, (h) => h.account !== "b2");
     assert.deepEqual((await heldChanges(d.store)).map((h) => h.account), ["b2"]);
-  });
-
-  test("a zip of the changes holds each file whole, by its folder", async () => {
-    const files = [
-      { name: "Pasta/a.md", bytes: enc.encode("um\n") },
-      { name: "Pasta/Notas/café.md", bytes: enc.encode("dois") },
-    ];
-    const z = zip(files, new Date(2026, 10, 15, 12, 0, 0));
-    const v = new DataView(z.buffer, z.byteOffset, z.byteLength);
-    const end = z.length - 22;
-    assert.equal(v.getUint32(end, true), 0x06054b50);
-    assert.equal(v.getUint16(end + 10, true), 2);
-    let at = v.getUint32(end + 16, true);
-    const found = [];
-    for (let i = 0; i < 2; i++) {
-      assert.equal(v.getUint32(at, true), 0x02014b50);
-      const crc = v.getUint32(at + 16, true);
-      const size = v.getUint32(at + 24, true);
-      const nameLen = v.getUint16(at + 28, true);
-      const local = v.getUint32(at + 42, true);
-      const name = dec.decode(z.subarray(at + 46, at + 46 + nameLen));
-      const skip = 30 + v.getUint16(local + 26, true) + v.getUint16(local + 28, true);
-      const bytes = z.subarray(local + skip, local + skip + size);
-      assert.equal(crc32(bytes), crc);
-      found.push([name, dec.decode(bytes)]);
-      at += 46 + nameLen;
-    }
-    assert.deepEqual(found, [["Pasta/a.md", "um\n"], ["Pasta/Notas/café.md", "dois"]]);
-    const { crc32: nodeCrc } = await import("node:zlib");
-    if (nodeCrc) assert.equal(crc32(enc.encode("dois")), nodeCrc(Buffer.from("dois")));
   });
 });
 

@@ -132,17 +132,20 @@ recommended and is marked `[DECIDED 2026-10-14]`.
      again. The window says how many are being sent.
    - **Another account signs in on that browser**: the kept changes are
      never sent under it and never shown among its folders. A dialog says
-     this browser keeps changes of another account and offers to download
-     them as files (one zip, a folder per folder, the files written and a
-     list of the ones deleted) or to discard them (asked once more); *Not
-     now* leaves them, and the question comes back at the next page.
+     this browser keeps changes of another account, kept for it until it
+     signs in again here, and offers only to discard them (asked once
+     more); *Not now* leaves them, and the question comes back at the next
+     page. A download of them as files was built first and removed before
+     release 0.9.0-beta.4: a person signed in under another account is
+     never handed another account's content; the changes wait for their
+     own account.
    - Tests: `app/ui/test/offlineSync.test.mjs` (what is kept, the same
      account's changes sent and judged — an edit over the server's version
      and one over a version changed since — another account's discarded
-     only on the word, the zip) and `app/ui/e2e-server/offline.spec.mjs`
+     only on the word) and `app/ui/e2e-server/offline.spec.mjs`
      (a session ended while offline with an edit: sign in again, the edit
-     lands; another account: offered as a zip, discarded, never on the
-     server).
+     lands; another account: offered only to discard, no download, never on
+     the server).
 7. **What the window says** ([0027](0027-runtime-capabilities.md)): online,
    offline, syncing, and the count of writes waiting, in the status bar
    and the folder's settings; a write that cannot go up says why where it
