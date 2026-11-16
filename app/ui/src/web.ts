@@ -131,7 +131,7 @@ async function start(): Promise<void> {
       // out in another tab, or the server ended it). What this device kept
       // goes, but for the changes not sent, kept for the account until it
       // signs in again (ADR 0092 item 6, revised 2026-11-15).
-      const held = await offline.hold();
+      const held = await offline.hold().catch(() => earlier ?? 0);
       notice(o().heldByServer(Math.max(held, earlier ?? 0)), "error");
     } else if (earlier !== null) notice(o().heldByServer(earlier), "error");
   }
