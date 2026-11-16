@@ -32,13 +32,15 @@ export type MapDeps = {
   dragFrom: RefObject<Map<string, [number, number]>>;
   /** The tracing this window shows (ADR 0120): view-only, never written. */
   shownTrace: RefObject<ShownTracing<ExcalidrawElement>>;
+  /** A change the board makes by itself, not counted as the user's edit. */
+  own: (update: (a: Api) => void) => void;
 };
 
 const withNode = (e: ExcalidrawElement, node: CanvasNode): ExcalidrawElement =>
   newElementWith(e, { customData: { ...(e.customData ?? {}), canvas: node } } as never);
 
 /** The map commands of one board. */
-export function mapActions({ api, host, touched, center, dragFrom, shownTrace }: MapDeps) {
+export function mapActions({ api, host, touched, center, dragFrom, shownTrace, own }: MapDeps) {
   const ms = mapStrings(host.lang);
   const scene = (): readonly ExcalidrawElement[] => api.current?.getSceneElementsIncludingDeleted() ?? [];
   const find = (id: string): ExcalidrawElement | undefined => scene().find((e) => e.id === id && !e.isDeleted);
@@ -159,7 +161,8 @@ export function mapActions({ api, host, touched, center, dragFrom, shownTrace }:
         return s && s.version === e.version ? s.original : newElementWith(e, tracingLook(false));
       });
       if (!show) kept.clear();
-      a.updateScene({ elements, captureUpdate: CaptureUpdateAction.NEVER });
+      // The board's own change: no edit of the user's, so nothing is saved.
+      own((b) => b.updateScene({ elements, captureUpdate: CaptureUpdateAction.NEVER }));
       host.rememberTracing?.(show);
       if (!quiet) host.status(show ? ms.tracingShown : ms.tracingHidden);
     },

@@ -938,7 +938,7 @@ function Board({
   // Maps (ADR 0090): the commands, the pointer on the pins, and the
   // writer's "view as a reader".
   const dragFrom = useRef(new Map<string, [number, number]>());
-  const mapAct = mapActions({ api, host, touched, center, dragFrom, shownTrace });
+  const mapAct = mapActions({ api, host, touched, center, dragFrom, shownTrace, own });
   const watch = useCallback<Watch>((cb) => {
     watchers.current.add(cb);
     if (liveRef.current.width > 0) cb(liveRef.current);
