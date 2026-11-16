@@ -175,7 +175,7 @@ x-casaos:
   category: Productivity
   author: Verso
   developer: Sérgio J. Sousa
-  version: "0.9.0-beta.3"
+  version: "0.9.0-beta.4"
   # A placeholder: the project's app icon; the store submission (ADR 0075,
   # Consequences) brings an icon.svg of its own.
   icon: https://raw.githubusercontent.com/SergioSJS/verso/main/app/src-tauri/icons/128x128@2x.png

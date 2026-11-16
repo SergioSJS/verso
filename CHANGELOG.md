@@ -12,6 +12,10 @@ test release.
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.9.0-beta.4 — 2026-11-16
+
 - **The English tutorial has English screenshots.** The server lesson's three pictures (first start, approving a device, the app connected) were the Portuguese ones in both vaults; `node scripts/demo-vault.mjs shots` now makes the English ones in Docker, from the window in English, so they are made again after any change to those screens.
 
 - **The iPad and iPhone build carries the release's version.** The `.ipa` said `1.0.0` instead of the version AltStore's source states; the release now builds it with the version and build number derived from the workspace version, and fails if the built `.ipa` disagrees.
