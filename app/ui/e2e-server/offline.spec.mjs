@@ -680,7 +680,7 @@ test("a session ended while the connection was down keeps the change, and signin
   expect(errors.filter((e) => !/session|signed|unauthor|401/i.test(e))).toEqual([]);
 });
 
-test("another account signing in on that browser never sends the kept change: it is offered as files, or discarded", async ({ page, browser }, info) => {
+test("another account signing in on that browser never sends the kept change nor sees it: a count, discarded on her word", async ({ page, browser }, info) => {
   chromiumOnly();
   test.setTimeout(300_000);
   const errors = watch(page);
@@ -699,16 +699,10 @@ test("another account signing in on that browser never sends the kept change: it
   await expect(dialog).toContainText("Este navegador guarda 1 mudança de outra conta");
   // Never among her folders, never kept as hers.
   expect(await keptPaths(page, folder)).toEqual([]);
-  // Offered as files: a zip that holds the note as it was written.
-  const saving = page.waitForEvent("download");
-  await dialog.getByRole("button", { name: "Baixar como arquivos" }).click();
-  const file = await saving;
-  expect(file.suggestedFilename()).toBe("verso-mudancas-guardadas.zip");
-  const { readFile } = await import("node:fs/promises");
-  const bytes = await readFile(await file.path());
-  expect(bytes.subarray(0, 4).toString("hex")).toBe("504b0304");
-  expect(bytes.includes(Buffer.from("escrito antes do fim\n"))).toBe(true);
-  await expect(dialog).toContainText("Baixado.");
+  // Never handed to her: a count and a way to discard, no download, no content.
+  await expect(dialog.getByRole("button", { name: "Baixar como arquivos" })).toHaveCount(0);
+  await expect(dialog).not.toContainText("escrito antes do fim");
+  await expect(dialog.getByRole("button", { name: "Agora não" })).toBeVisible();
   // Discarded on her word, asked once more.
   await dialog.getByRole("button", { name: "Descartar", exact: true }).click();
   const ask = page.locator("dialog.web-dialog:not(.web-held)");
