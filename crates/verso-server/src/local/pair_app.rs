@@ -140,6 +140,42 @@ pub(super) fn whereabouts(db: &Db, policy: &Policy) -> (Vec<String>, u16) {
 }
 
 impl LocalServer {
+    /// How many days a paired Verso app lasts without speaking to this
+    /// computer; `0` for never (ADR 0117 D19 item 3; `db::APP_IDLE_DAYS`).
+    pub fn app_idle_days(&self) -> Result<u32, String> {
+        self.with_db(Db::app_idle_days)
+    }
+
+    /// Set that limit (Settings › Turn into a server, under *Paired
+    /// phones*): at once, for the apps paired before as well. Logged and in
+    /// the audit; serving on or off.
+    pub fn set_app_idle_days(&self, days: u32) -> Result<(), String> {
+        self.with_db(|db| {
+            db.set_app_idle_days(days)?;
+            let said = if days == 0 {
+                "never".to_owned()
+            } else {
+                format!("{days} days")
+            };
+            // The value is the log's: the audit's subject is shown as it
+            // is, and "90 days" is in one language.
+            db.audit(&crate::db::Audit {
+                actor: None,
+                action: "app_idle_set",
+                subject: None,
+                folder: None,
+                address: None,
+                ok: true,
+            })?;
+            crate::log::info(&format!(
+                "a paired app now leaves after {said} without speaking to this computer"
+            ));
+            Ok(())
+        })?;
+        (self.shared.events)(Event::Changed);
+        Ok(())
+    }
+
     /// The laptop's answer to "Was it you?": Allow, at a role, or Refuse.
     pub fn answer(&self, allow: bool, role: Role) -> Result<(), String> {
         let running = lock(&self.shared.inner);
@@ -214,7 +250,6 @@ impl LocalServer {
             session,
             proof: asked.proof.clone(),
         }));
-        r.policy.stop_announcing();
         let what = if asked.app { "app_" } else { "" };
         r.policy.audit(
             &r.server,

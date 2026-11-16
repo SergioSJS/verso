@@ -1103,6 +1103,12 @@ export const commands = {
 	localServerWhole: (key: string) => typedError<LocalFolder[], ContractError>(__TAURI_INVOKE("local_server_whole", { key })),
 	/**  Keep on at start, and the host's own certificate (item 5 (d)). */
 	localServerSettings: (keepOn: boolean, certFile: string | null, keyFile: string | null, hostName: string | null, maxConnected: number) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_settings", { keepOn, certFile, keyFile, hostName, maxConnected })),
+	/**
+	 *  How many days a paired Verso app lasts without speaking to this
+	 *  computer: 7 to 365, or `0` for never (ADR 0117 D19 item 3). At once, for
+	 *  the apps paired before too.
+	 */
+	localServerAppIdle: (days: number) => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_app_idle", { days })),
 	localServerStart: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_start")),
 	localServerStop: () => typedError<LocalServerStatus, ContractError>(__TAURI_INVOKE("local_server_stop")),
 	localServerPairOpen: (address: string | null) => typedError<LocalPairing, ContractError>(__TAURI_INVOKE("local_server_pair_open", { address })),
@@ -2066,6 +2072,12 @@ export type CampaignStatus = {
 	 *  has no account yet (only the server's admin may: ADR 0081 item 4).
 	 */
 	can_invite: boolean,
+	/**
+	 *  Only in the answer of `campaign_make`: how many people were live on
+	 *  boards of the new table's folder through a share, who now join them
+	 *  again as players (ADR 0081 item 11). 0 everywhere else.
+	 */
+	rejoined?: number,
 };
 
 /**  A folder made a table (ADR 0110 item 1). */
@@ -2440,6 +2452,12 @@ export type CollabRoll = {
 export type CollabState = {
 	path: string,
 	revision: string | null,
+	/**
+	 *  Why the room closed, when the window can say: `"table-made"` — a table
+	 *  was made in the folder of a board a share's window was live on, and it
+	 *  joins again as a player (ADR 0081 item 11). Absent otherwise.
+	 */
+	reason: string | null,
 };
 
 /**
@@ -3650,6 +3668,12 @@ export type LocalServerStatus = {
 	 *  2026-10-16: the ceiling is a setting; the default is 4).
 	 */
 	max_connected: number,
+	/**
+	 *  How many days a paired Verso app lasts without speaking to this
+	 *  computer, `0` for never (ADR 0117 D19 item 3; 7 to 365, 90 by
+	 *  default). A browser's phone keeps 14.
+	 */
+	app_idle_days: number,
 	/**
 	 *  Chosen folders this start left out for not being on the disk, each as
 	 *  `folder/chosen`: the window says so.

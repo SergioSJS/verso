@@ -813,12 +813,9 @@ impl Db {
             .map_err(e)?;
         let Some(row) = row else { return Ok(None) };
         let at = now();
-        let max = if row.kind == "device" {
-            DEVICE_MAX
-        } else {
-            SESSION_MAX
-        };
-        if at - row.last_used > SESSION_IDLE || at - row.created > max {
+        // A paired Verso app's limit is the owner's setting (`local.rs`).
+        let limits = local::limits(&conn, &row.id, &row.kind)?;
+        if local::expired(limits, row.created, row.last_used, at) {
             conn.execute("DELETE FROM sessions WHERE id = ?1", [&row.id])
                 .map_err(e)?;
             return Ok(None);
@@ -1226,14 +1223,13 @@ impl Db {
             .optional()
             .map_err(e)?;
         let at = now();
-        let alive = row.as_ref().is_some_and(|(kind, created, last)| {
-            let max = if kind == "device" {
-                DEVICE_MAX
-            } else {
-                SESSION_MAX
-            };
-            at - last <= SESSION_IDLE && at - created <= max
-        });
+        let alive = match &row {
+            Some((kind, created, last)) => {
+                let limits = local::limits(&self.reader(), id, kind)?;
+                !local::expired(limits, *created, *last, at)
+            }
+            None => false,
+        };
         // A window that only speaks over its WebSocket is in use too: its
         // session is touched as a request's is, at most once a minute.
         if alive && row.is_some_and(|(_, _, last)| at - last > 60) {
@@ -1409,7 +1405,10 @@ mod tokens;
 mod trash;
 pub use console::{AccountRow, AuditFilter, FolderRow, Page, PageQuery};
 pub use invitations::{Lost, Still};
-pub use local::{LOCAL_OWNER, LOCAL_OWNER_UNNAMED, Phone, VAULT_HOLDER, is_this_computer};
+pub use local::{
+    APP_IDLE_DAYS, APP_IDLE_LEAST, APP_IDLE_MOST, LOCAL_OWNER, LOCAL_OWNER_UNNAMED, Phone,
+    VAULT_HOLDER, app_idle_valid, is_this_computer,
+};
 pub use readlinks::{NewReadLink, ReadLink};
 pub use shares::{Share, covers};
 pub use sync::{Change, Known, Made, Notice, Notices, ReaderOf, Recorded};

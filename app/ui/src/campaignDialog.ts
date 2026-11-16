@@ -19,6 +19,7 @@ import { folderName } from "./folder";
 import { name } from "./paths";
 import { moveCard } from "./tableMoveCard";
 import { tm } from "./tableMoveStrings";
+import { rejoinedText } from "./tableMade";
 
 const MB = 1024 * 1024;
 
@@ -34,7 +35,7 @@ function card(title: string, id: string, ...body: HTMLElement[]): HTMLElement {
 
 /** The dialog of the table at `root` (`""` the whole folder). `undo`: it
  *  opens with the question of undoing it asked. */
-export function openCampaignDialog(root: string, undo = false): void {
+export function openCampaignDialog(root: string, undo = false, rejoined = 0): void {
   const whole = root === "";
   const overlay = h("div", "quick share-overlay campaign-overlay");
   const dialog = h("div", "web-dialog share-dialog campaign-dialog");
@@ -141,7 +142,15 @@ export function openCampaignDialog(root: string, undo = false): void {
 
   const body = h("div", "cd-body");
   body.append(open, move, invite, playersCard, notes, limits, h("p", "cd-hint cd-undo-note", cp.undoNote), footer);
-  dialog.append(title, h("p", "cd-hint", cp.intro2), body);
+  dialog.append(title, h("p", "cd-hint", cp.intro2));
+  // People live on boards through a share join again as players (ADR 0081 item 11).
+  if (rejoined > 0) {
+    const note = h("p", "cd-hint cd-rejoined", rejoinedText(document.documentElement.lang.startsWith("pt"), rejoined));
+    note.setAttribute("role", "status");
+    note.dataset["testid"] = "campaign-rejoined";
+    dialog.append(note);
+  }
+  dialog.append(body);
   document.body.append(overlay);
   opened(overlay);
   // The title takes the focus, not the switch: a stray key must not close the table.

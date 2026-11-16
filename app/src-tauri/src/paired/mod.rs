@@ -29,6 +29,9 @@
 //!   as a network to retry every few seconds.
 //! - **Pairing** (`pair.rs`) is the only place a key is learnt: by the code's
 //!   proofs, through [`FirstSight`].
+//! - **Found again** (`find.rs`): when none of the addresses known answers,
+//!   the computer is looked for on the network by its pin, and an address
+//!   found is kept only once a handshake there showed the pinned key.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
@@ -43,7 +46,10 @@ use verso_contract::ContractError;
 use verso_server::local::pin;
 use verso_service::lock;
 
+mod find;
 pub(crate) mod pair;
+
+pub(crate) use find::find_again;
 
 #[cfg(test)]
 mod tests;
@@ -52,11 +58,15 @@ mod tests;
 /// which the sync reads as its problem (`sync::problem_of`).
 pub(crate) const CHANGED: &str = "this computer's identity changed";
 
-/// A paired computer as this app holds it in memory.
+/// A paired computer as this app holds it in memory: with the address it
+/// is kept under and the configuration it is kept in, to keep an address
+/// found for it (`find.rs`).
 #[derive(Debug, Clone)]
 struct Entry {
     pin: String,
     addresses: Vec<IpAddr>,
+    url: String,
+    config: Option<std::path::PathBuf>,
 }
 
 /// The paired computers, by name (lower case, no port).
@@ -96,6 +106,8 @@ pub(crate) fn load(config: Option<&Path>) {
             Entry {
                 pin: p.pin,
                 addresses,
+                url: p.url,
+                config: config.map(Path::to_path_buf),
             },
         );
     }
@@ -177,6 +189,10 @@ pub(crate) struct Pinned {
     host: String,
     pin: String,
     algs: WebPkiSupportedAlgorithms,
+    /// A probe of an address found on the network (`find.rs`): another key
+    /// there is someone else announcing the pin, refused and not said as
+    /// this computer's identity changed.
+    quiet: bool,
 }
 
 impl Pinned {
@@ -185,6 +201,15 @@ impl Pinned {
             host: host.to_owned(),
             pin: pin.to_owned(),
             algs: algorithms(),
+            quiet: false,
+        }
+    }
+
+    /// The verifier of a probe: the same check, without its say.
+    pub(crate) fn probe(host: &str, pin: &str) -> Self {
+        Self {
+            quiet: true,
+            ..Self::new(host, pin)
         }
     }
 
@@ -192,6 +217,9 @@ impl Pinned {
     fn key_of(&self, cert: &CertificateDer<'_>) -> Result<Vec<u8>, rustls::Error> {
         let spki = pin::spki(cert).map_err(|_| bad_certificate())?;
         if self.pin.is_empty() || !pin::same(&pin::of_key(&spki), &self.pin) {
+            if self.quiet {
+                return Err(bad_certificate());
+            }
             lock(&CHANGED_AT).insert(self.host.clone());
             crate::log::write(
                 "WARN",
@@ -219,7 +247,9 @@ impl ServerCertVerifier for Pinned {
         // Not the name (the name is this app's own) nor the dates (the
         // computer makes its certificate again over the same key): the key.
         self.key_of(end_entity)?;
-        lock(&CHANGED_AT).remove(&self.host);
+        if !self.quiet {
+            lock(&CHANGED_AT).remove(&self.host);
+        }
         Ok(ServerCertVerified::assertion())
     }
 

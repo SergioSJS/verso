@@ -125,6 +125,18 @@ pub(crate) async fn local_server_settings<R: tauri::Runtime>(
     platform::settings(app, keep_on, cert_file, key_file, host_name, max_connected).await
 }
 
+/// How many days a paired Verso app lasts without speaking to this
+/// computer: 7 to 365, or `0` for never (ADR 0117 D19 item 3). At once, for
+/// the apps paired before too.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_server_app_idle<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    days: u32,
+) -> Result<LocalServerStatus, ContractError> {
+    platform::app_idle(app, days).await
+}
+
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn local_server_start<R: tauri::Runtime>(

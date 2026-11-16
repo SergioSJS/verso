@@ -330,7 +330,7 @@ Needs the installed app on a Mac, a Linux or a Windows computer, a real phone (a
 - [ ] **A café-like network** (A): on a Wi-Fi with client isolation (a phone hotspot with isolation, or a guest network) the phone cannot reach the computer; the app, which can reach itself, does not claim otherwise — say what the phone's browser shows and whether the pairing dialog's wording helps. On a VPN turning on while serving: serving stops (a new address).
 - [ ] **Revoke and forget** (A): *Revoke* on a connected phone: its page loses the window at once and a reload asks to pair; *Forget all phones*; *Replace this computer's identity* (the fingerprint changes; every phone must pair again, and its browser warns again).
 - [ ] **The notification** (A): the first connection of a paired phone raises *Phone connected* in the window (a toast and a line in the list), not a system notification; the second connection raises nothing.
-- [ ] **mDNS** (A): while the pairing dialog is open, `dns-sd -B _verso-local._tcp` (macOS) or `avahi-browse -rt _verso-local._tcp` (Linux) on another machine lists `Verso-xxxx` with a TXT of `v` and `port` and nothing else; closing the dialog makes it disappear within seconds (the goodbye), and with the dialog closed nothing is announced.
+- [ ] **mDNS** (A; revised 2026-11-15, ADR 0117 D19 item 5): while the computer serves **on the network**, `dns-sd -B _verso-local._tcp` then `dns-sd -L Verso-xxxx _verso-local._tcp` (macOS) or `avahi-browse -rt _verso-local._tcp` (Linux) on another machine lists `Verso-xxxx` at host `verso-<20 hex digits>.local` with a TXT of `v=2`, `port` and `pin` (the key's SHA-256, the same as the end of the fingerprint's hash) and nothing else; opening and closing the pairing dialog changes nothing; **Parar** makes it disappear within seconds (the goodbye); with only *Por um link na internet* ticked nothing is announced.
 - [ ] **The updater** (A): with a phone connected, *Check for updates* › a version with *Restart now*: the card says how many phones are connected and will be disconnected; after the restart the phone's page reloads when the contract changed.
 - [ ] **The installed bundle** (A): the app carries `ui-web` (the window's files for the phone): with it missing the server refuses to start and says so. `ui-web` has no `*.map` file (49 MB in 1 022 files, measured 2026-10-15; it was 103 MB with them): the phone's window still opens and works. Say the size the installed app gained.
 - [ ] **The menu-bar mark** (A, macOS and Windows; ADR 0096 item 1, built 2026-10-15): while serving, an icon of the book appears in the menu bar (macOS: black on a light bar, white on a dark one, as the system tints it) or the notification area (Windows). Its menu reads *Serving N folders…* (grey), *Stop*, *Open Settings*, in the window's language (change it in Settings: the words follow). A phone connecting changes the tooltip's count. *Stop* turns the server off: the icon goes, and the window's status bar mark goes with it. *Open Settings* brings a window forward on *This app is a server*. Stopping from Settings, or the network changing, also removes the icon; quitting the app removes it. With VoiceOver (macOS) or Narrator (Windows) the icon is announced with its tooltip and each menu line is read. On Linux there is no icon, by design.
@@ -373,7 +373,17 @@ the network with the browser's offline mode and a WebSocket route.
   not gone up; after it, Safari's Settings › Advanced › Website Data shows
   nothing for the server beyond the page's code. The console's *End sessions
   and tokens* on a phone that is offline: at its next connection the copy is
-  deleted and the page says so.
+  deleted and the page says so — but for the writes not sent, which it says
+  are kept (revised 2026-11-15).
+- [ ] **Kept changes on a real phone** (A): the phone offline with an edit
+  in a kept folder; on a computer, *End my other sessions*; the phone back on
+  the network: it goes to *Entrar* and says *1 mudança … ficou guardada
+  neste navegador*. Sign in with the same account: *1 mudança guardada
+  quando a sessão terminou está sendo enviada*, and the note on the server
+  has the edit. Again, but sign in as another account: the dialog *Mudanças
+  de outra conta* offers only *Descartar* and *Agora não* (no download of the
+  other account's content); its buttons are reachable at
+  390×844 and sideways, and the screen reader names them.
 - [ ] **A reader's phone** (A): a reader keeps a folder with a secret
   block; offline, the note has no block, and *View as a reader* on the
   owner's side shows the same text.
@@ -1133,6 +1143,14 @@ in a note long enough to scroll.
   Ana's presence shows, and the outside card stays locked for her. In the
   server's log, no `ERROR`.
 
+- [ ] **A table made while a share's window is live on a board** (ADR 0081
+  item 11, 2026-11-15): Ana has a share of *Sub* (edits) and has a board of
+  it open and live next to Sérgio's window. Sérgio makes *Sub* a table:
+  his table dialog says "1 pessoa estava num board desta pasta por um
+  compartilhamento…"; Ana's status bar says "A mesa foi criada nesta pasta:
+  você agora está no board como jogador." and her board opens again as a
+  player's (its secret pins and hidden files cut by the table).
+
 - [ ] **A revoked share's sync turns off with a notice** (ADR 0081 item 8,
   `873921a`): in the installed app, Ana syncs a share of Sérgio's; Sérgio
   removes her in *Compartilhar…*. Within seconds Ana's app shows a notice
@@ -1725,7 +1743,7 @@ Built on `feat/watabou-import`. The import, the drawing, the region and the gene
 7. **A player is not shown the walls nor the secret doors** (A, a UniVerso table, fix of 2026-11-15; the server's tests run every path, `tests_board_walls.rs`): as the game master, import a One Page Dungeon that has a secret door (a dashed line across a way; regenerate until one shows) into the table's folder and release its board. On a player's phone and in a player's browser, open the board: no dashed line where the game master sees one, the rest of the dungeon whole; the player's synced copy of the `.canvas` (desktop app, the folder on disk) holds no `"walls"`. Then a board imported **before** this build (already in the folder, door unmarked): the same.
 8. **A board through a share, in a folder with no table, has no live room** (A, a UniVerso, fix of 2026-11-15; the server's tests run every path, `tests_board_shares.rs`, `tests_board_leaks.rs`): share a sub-folder holding a board, whose cards name a note inside the share and one beside it, to a second account as *edits*. With the owner's window on the board, open it in the second account's browser: it opens, the card beside the share locked, no presence of the owner in it; move a card and wait for the save: no error, and the owner's window shows the move once the file is saved (not live); the locked card is still the owner's on disk. Its history (⋯ › History) shows past versions with the card beside the share locked.
 
-9. **Watabou's own drawing in the app** (A, item 2 revised 2026-11-15; the browser harness runs the import with a cut-down SVG, `watabou-import.spec.mjs`, and the alignment was seen in screenshots of the harness in Docker): from the generators' real pages, export a One Page Dungeon with *Export as › PNG…* (Shift+E, 70) and JSON and import it: the map square at the origin, transparent round it, the pins in their rooms; then the whole page (JSON, SVG, *Save as PNG*, Markdown) and import it: the PNG drawn from tiles, sharp when zoomed in, its own fonts; the numbered pins on the picture's numbers at every zoom; *Mostrar o traçado* shows the walls on the picture's walls, in light and dark themes; hide it, quit and reopen: still hidden. A dungeon with only its SVG: the picture shown (its text in the system's fonts). A Dwellings house with a basement, each floor exported as SVG and PNG: each floor's picture in its frame. A village with JSON and PNG (a large PNG, ~20 MB): cut into tiles, the board opens without a stall. On the phone (Android app): the same dungeon, pins tappable, ⋯ › Board › *Mostrar o traçado*.
+9. **Watabou's own drawing in the app** (A, item 2 revised 2026-11-15; the browser harness runs the import with a cut-down SVG, `watabou-import.spec.mjs`, and the alignment was seen in screenshots of the harness in Docker): from the generators' real pages, export a One Page Dungeon with *Export as › PNG…* (Shift+E, 70) and JSON and import it: the map square at the origin, transparent round it, the pins in their rooms; then the whole page (JSON, SVG, *Save as PNG*, Markdown) and import it: the PNG drawn from tiles, sharp when zoomed in, its own fonts; the numbered pins on the picture's numbers at every zoom; *Mostrar o traçado* shows the walls on the picture's walls, in light and dark themes; hide it, quit and reopen: still hidden; shown, quit and reopen: shown again (kept for this window), and the .canvas file never changes. A dungeon with only its SVG: the picture shown (its text in the system's fonts). A Dwellings house with a basement, each floor exported as SVG and PNG: each floor's picture in its frame. A village with JSON and PNG (a large PNG, ~20 MB): cut into tiles, the board opens without a stall. On the phone (Android app): the same dungeon, pins tappable, ⋯ › Board › *Mostrar o traçado*.
 
 ## A server's folder picked in the app: its copy on the device (2026-11-15)
 
@@ -1746,14 +1764,26 @@ Review findings I6 and #4 of 2026-11-15. The hold between two files runs in the 
 2. **Android, charging only** (A): the same with *só carregando*, unplugging the charger.
 3. **iPad or iPhone** (A): the folder switcher has no *Abrir outra pasta…*; the palette's *Abrir pasta* says, in a notice, that the app opens only the folders in its Documents.
 
+## The Mac beta signed with a fixed local certificate (ADR 0051 amendment, N2, 2026-11-15)
+
+1. **Create the identity once** (A, the Mac): `scripts/mac/local-signing-cert.sh` (type the login keychain password, and again when macOS asks to trust the certificate); `security find-identity -p codesigning` lists "Verso Local Signing". `--remove` takes it away.
+2. **Two installs in a row** (A): `scripts/install-beta.sh` twice (the first says *signed with "Verso Local Signing"*); open a folder under Downloads or Documents after the first install and allow it: after the second install the app opens it with no new question, and Keychain items it saved are read without a prompt. Without the identity the script says *signed AD HOC* and macOS asks again. `codesign -d -r- "/Applications/Verso Beta.app"` shows the same `certificate leaf = H"…"` both times.
+
 ## The Verso app paired with a computer at home (ADR 0117, 2026-11-15)
 
 The pairing's proofs, the pin, a copy synced both ways and a replaced identity run against a real local server on loopback in the host's tests (`app/src-tauri/src/paired/tests.rs`) and the server's (`crates/verso-server/src/local/tests_pair_app.rs`); the form in the harness (`e2e/pair-computer.spec.mjs`). What only devices on a real home network can try:
 
 1. **Android, paired at home** (A, the Mac serving a folder on its Wi-Fi, the phone on the same Wi-Fi): on the Mac, **Parear um celular**; on the phone, **Ajustes › Servidores › Parear com um computador de casa**, the address and the code as shown: the Mac asks *Foi você quem digitou este código no app Verso?*; **Permitir** (editor): the phone lists **Computador de casa · <name>**; **Abrir aqui** on the folder, **Dentro do app**, **Baixar e abrir**: the notes open. No certificate warning anywhere.
 2. **Away and back** (A): airplane mode on the phone, close Verso, open it: the copy opens, the status says *Longe do computador de casa…*; edit a note. Airplane mode off at home with the Mac serving: within the sync's wait (or **Sincronizar agora**) the edit is on the Mac's disk; an edit on the Mac comes to the phone. With the Mac not serving: the same calm status, no error notices piling up.
-3. **The Mac on its other network** (A, a laptop with cable and Wi-Fi): pair on the Wi-Fi; plug the cable, turn the Wi-Fi off, turn serving on again: the phone finds the Mac at the cable's address (both were served on, so both are tried). Then make the router give the Mac a new address (or use another network the phone has never seen the Mac on): the phone says the computer does not answer; pair again: the same copy stays bound, nothing downloaded again, and the Mac's phone list shows one phone, not two.
+3. **The Mac on its other network** (A, a laptop with cable and Wi-Fi): pair on the Wi-Fi; plug the cable, turn the Wi-Fi off, turn serving on again: the phone finds the Mac at the cable's address (both were served on, so both are tried). Then **a new address from the router** (2026-11-15: in the router's DHCP page give the Mac another reservation, or forget its lease, and renew it on the Mac — *System Settings › Network › Wi-Fi › Details › TCP/IP › Renew DHCP Lease*; turn serving on again): within the sync's wait (or **Sincronizar agora**) the phone syncs again **without pairing** — its `verso.log` says *the computer at home was found on the network at a new address*. With *Na minha rede* unticked (the link alone) the phone does not find it. Then pair again anyway: the same copy stays bound, nothing downloaded again, and the Mac's phone list shows one phone, not two.
+8. **Found on each platform** (A): repeat item 3's new address with the Android app (it asks for the multicast lock only while it looks), the iPhone or iPad app (iOS asks *Verso would like to find devices on your local network* the first time; it finds the Mac through the system's `verso-….local` name, not a browse) and the Windows or Linux app. On a lab network, a second machine running `dns-sd -R Verso-ffff _verso-local._tcp local <port> v=2 port=<port> pin=<the Mac's pin>` with the Mac off the network: the phone tries it, keeps nothing, says the computer does not answer — never *a identidade do computador de casa mudou*.
+9. **The idle limit** (A): on the Mac set *Um app pareado sai depois de…* to *7 dias*; leave the phone away (airplane mode) past the limit, or set the Mac's clock forward 8 days with serving off: back home the phone's sync says to sign in or pair again, and pairing again keeps the copy. Set *Nunca*: it stays paired. A phone paired through its browser still leaves after 14 days.
 4. **Replace this computer's identity** (A): on the Mac; the phone's next sync says *a identidade do computador de casa mudou… Pareie de novo* and sends nothing; pairing again works.
 5. **iPad or iPhone** (A, the AltStore build): the same pairing and copy; the copy is in Verso's Documents in Files; iOS lets the app sync only while it is on the screen.
 6. **Another computer as the app** (A): the Windows or Linux app pairs with the Mac the same way, **Escolher onde e baixar…** making its copy.
 7. **Someone in the middle** (A, optional, a lab network): a TLS-intercepting proxy between the phone and the Mac: nothing is paired — *O código não confere…* when the proxy passes the request on (the Mac counts one of the window's three tries and shows no *Foi você?*), *a resposta não veio do computador que mostra este código…* when it answers in the Mac's place.
+
+## Intel Mac and Linux ARM64 app packages (V.21, V.22)
+
+1. **A real Intel Mac** (A, if one is ever at hand): unzip `Verso-…-macos-x64.zip`, allow it once, open a folder; Settings › Check for updates offers the `-macos-x64.zip`, never the `-arm64` one. Until then it is only run under Rosetta on the Apple-silicon Mac.
+2. **A real ARM64 Linux** (A, a Raspberry Pi 4/5 with a 64-bit desktop): install the `-linux-arm64.deb` (or the `.AppImage`), open a folder; Check for updates offers the `arm64`/`aarch64` file.

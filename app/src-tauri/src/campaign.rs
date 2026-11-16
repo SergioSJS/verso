@@ -29,6 +29,7 @@ pub fn campaign_status() -> Result<CampaignStatus, ContractError> {
         notes: Vec::new(),
         players: Vec::new(),
         can_invite: false,
+        rejoined: 0,
     })
 }
 

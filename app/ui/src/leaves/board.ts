@@ -426,6 +426,21 @@ export class BoardLeaf extends TextLeaf {
           // No storage: the board opens with all of it in view.
         }
       },
+      tracingShown: () => {
+        try {
+          return localStorage.getItem(`${this.viewKey()}:tracing`) === "1";
+        } catch {
+          return false;
+        }
+      },
+      rememberTracing: (shown) => {
+        try {
+          if (shown) localStorage.setItem(`${this.viewKey()}:tracing`, "1");
+          else localStorage.removeItem(`${this.viewKey()}:tracing`);
+        } catch {
+          // No storage: the tracing is hidden again at the next opening.
+        }
+      },
       name: () => name(this.path).replace(/\.canvas$/i, ""),
       saveImage: async (file, base64) => {
         // A player at a table only reads the folder: the server writes a new

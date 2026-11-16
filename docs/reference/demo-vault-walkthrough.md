@@ -98,7 +98,9 @@ point 13).
 4. With the window in English, import into an empty folder. Expect: the
    English vault of `demo-vault-en/` (file names such as `00 - Welcome to
    Verso.md` and `Verso Tour.canvas`) plus the shared `assets/` of
-   `demo-vault/`, no Portuguese note; the English welcome note opens, the
+   `demo-vault/` (the server lesson's three screenshots are English ones,
+   `assets/server-*.png`, made by `node scripts/demo-vault.mjs shots`), no
+   Portuguese note; the English welcome note opens, the
    tour opens with its stops in English, and a translated note opens from it.
    The palette's "Import the demo content in Portuguese (Português)" writes
    the Portuguese vault instead (and, in a Portuguese window, "Importar cofre
@@ -1142,7 +1144,11 @@ hand, on a phone and an iPad, the server's window in the browser.
     appended to is joined, one both changed keeps a listed copy) and a
     notification says how many were sent; signing out says how many writes
     have not gone up and deletes the copy; the server ending the session
-    deletes it at the next connection; a full store is refused where the
+    deletes it at the next connection but for the writes not sent, which
+    the page says are kept — signing in again with the same account sends
+    them (one changed on the server meanwhile is a conflict's copy), and
+    another account signing in is told they exist and may only discard them
+    (no download), never sent nor shown in its folders (revised 2026-11-15); a full store is refused where the
     write was made; plain HTTP says offline needs HTTPS. Level: H; E:
     `e2e-server/offline.spec.mjs` (Chromium, WebKit and a phone), the sync's
     property test (`test/offlineSync.test.mjs`) and the engine's cases made
@@ -1619,7 +1625,9 @@ the folder `Campanha Fractal/` beside it ([ADR
    number — hover: the note's preview; click: the note opens. The map
    tools' *Mostrar o traçado* shows Verso's tracing in blue: every wall on
    the picture's walls, the columns on the picture's columns; press again:
-   hidden; ⌘Z undoes each. The recommended export: *Export as › PNG…*
+   hidden. It is this window's own view: the file's bytes do not change (check the
+   .canvas), no undo step, and a second window or browser on the same
+   board still sees none; reopening the board shows it again. The recommended export: *Export as › PNG…*
    (Shift+E, cell size 70) and *Export as › JSON* alone: the dialog says
    *alinhado às salas* with no word about turning; the map (no title, no
    numbers, transparent round it) lies square at the board's origin and
@@ -2229,3 +2237,5 @@ ADR 0117, "The Verso app paired". Notes 28 (scenario 2: the browser with no copy
 5. On the computer, **Ajustes › Transformar em servidor › Parear um celular**: under the address and the code, a line says how the Verso app pairs; when the app asks, the heading is *Foi você quem digitou este código no app Verso?* with *É o app Verso, não o navegador…*. Level: H; E: `e2e/pair-computer.spec.mjs` ("the computer's dialog tells about the app…").
 6. The lessons: note 28's scenario 2 has two ways and its diagram two arrows (the browser's one way, the app's both ways with a copy); note 29's *O App Verso Pareado* steps exist in the app as written (**Ajustes › Servidores › Parear com um computador de casa**, **Abrir aqui**, **Baixar e abrir**). Level: H; E: `node scripts/demo-vault.mjs check`.
 7. The site's wiki is made from these vaults (ADR 0058 points 16–18): import it again in `versomd-site`; notes 28 and 29's pages show the new sections and the diagram. Level: A.
+8. On the computer, **Ajustes › Transformar em servidor**, under *Celulares pareados*: **Um app pareado sai depois de quantos dias sem falar com o computador** shows *90 dias (padrão)*; choosing *30 dias* says *Um app pareado sai depois de 30 dias sem falar com o computador.*, *Nunca* says it no longer leaves; the section drawn again keeps the choice, and *O que aconteceu* lists the change. Note 29's item 5 of *O App Verso Pareado* (*The Verso App Paired*) says the same words. Level: H; E: `e2e/local-server.spec.mjs` ("a paired app leaves after 90 days…", to run in Docker); S: server test `a_paired_app_lasts_the_owners_limit_and_a_browsers_phone_its_fourteen_days`.
+9. The computer found at a new address (note 29's item 4): with only its old addresses known, the app finds the computer by its key's pin and syncs; an impostor announcing the pin is tried and kept nowhere. Level: S: host tests `a_computer_at_a_new_address_is_found_by_its_pin_and_syncs`, `an_impostor_announcing_the_pin_is_tried_and_never_kept`; server tests `this_computer_is_announced_while_and_only_while_it_serves_on_the_network`, `the_announcement_says_only_that_a_verso_computer_is_here_and_its_pin`; A: the manual check below (a real router).

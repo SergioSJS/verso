@@ -2,11 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Signing out (ADR 0092 item 6): what this device kept for the account goes
-// with the session, after saying how many writes have not gone up. The
-// server ending the session does the same at the device's next connection
-// (web.ts, and the sync connection's `gone`), without asking: nobody is
-// there to ask.
+// Signing out (ADR 0092 item 6): what this device kept goes with the
+// session, after saying how many writes have not gone up — the changes kept
+// for an account whose session the server ended (held.ts) among them. The
+// server ending the session keeps those changes instead, and deletes the
+// rest at the device's next connection (web.ts, and the sync connection's
+// `gone`), without asking: nobody is there to ask.
 
 import { el } from "../form";
 import { offline } from "./manager";
@@ -40,8 +41,9 @@ function confirm(text: string, yes: string, no: string): Promise<boolean> {
  *  then deletes the copy. False when the person said no. */
 export async function leave(signOut: () => Promise<void>): Promise<boolean> {
   const s = o();
-  if (offline.available && offline.keptFolders().length > 0) {
-    const n = await offline.waitingTotal().catch(() => 0);
+  const held = offline.available ? await offline.heldTotal() : 0;
+  if (offline.available && (offline.keptFolders().length > 0 || held > 0)) {
+    const n = (await offline.waitingTotal().catch(() => 0)) + held;
     const sure = await confirm(s.signOutAsk(n), s.signOutYes, s.cancel);
     if (!sure) return false;
   }

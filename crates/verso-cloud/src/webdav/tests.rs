@@ -483,3 +483,35 @@ fn a_first_listing_cut_short_does_not_read_again_what_it_read() {
     assert_eq!(k.files.len(), 6);
     assert_eq!(k.files["pasta/n6.md"].hash, sha(b"conteudo 5"));
 }
+
+/// A first listing of a folder whose files this device never saw (I4 part
+/// 2, 2026-11-15): none is read for its hash — each is fetched once, by its
+/// download — and one with a base is read as before.
+#[test]
+fn a_first_listing_reads_no_file_only_there() {
+    use std::collections::BTreeMap;
+    use verso_core::sync::remote::{UNREAD, refresh_planning};
+    let dav = Dav::start(mode());
+    for i in 1..=4 {
+        dav.put(
+            &format!("pasta/n{i}.md"),
+            format!("conteudo {i}").as_bytes(),
+        );
+    }
+    let w = connect(&dav);
+    let (mut known, mut tokens) = (None, BTreeMap::new());
+    refresh_planning(&w, &mut known, &mut tokens, &|p| p != "pasta/n2.md").unwrap();
+    let gets: Vec<String> = dav
+        .requests()
+        .into_iter()
+        .filter_map(|r| r.strip_prefix("GET /dav/").map(str::to_owned))
+        .filter(|p| p.starts_with("pasta/"))
+        .collect();
+    assert_eq!(gets, vec!["pasta/n2.md"]);
+    let k = known.unwrap();
+    assert_eq!(k.files.len(), 4);
+    assert_eq!(k.files["pasta/n1.md"].hash, UNREAD);
+    assert_eq!(k.files["pasta/n2.md"].hash, sha(b"conteudo 2"));
+    assert_eq!(k.unread.len(), 3);
+    assert_eq!(tokens.len(), 1);
+}

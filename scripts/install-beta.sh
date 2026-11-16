@@ -16,7 +16,7 @@
 #  2. Builds the bundle the way release.yml builds it: `tauri build --bundles
 #     app` with the beta's identifier and name (Info.plist merged, the .md
 #     and data-file document types, the icons, ui-web/ — whatever the configuration says),
-#     then `verso` (the command line) beside `verso-app`, signed ad hoc.
+#     then `verso` (the command line) beside `verso-app`, signed with "Verso Local Signing" (scripts/mac/local-signing-cert.sh) or ad hoc.
 #     Natively (arch -arm64): an x86_64 Node under Rosetta breaks the native
 #     packages. `cargo clean -p verso-app` first, so the embedded window is
 #     never a stale one. With the Command Line Tools' MacOSX27.0.sdk beside
@@ -93,7 +93,18 @@ stage="$(mktemp -d "${TMPDIR:-/tmp}/verso-beta.XXXXXX")"
 new="$stage/Verso Beta.app"
 ditto "$built" "$new"
 cp "$target/release/verso" "$new/Contents/MacOS/verso"
-codesign --force --deep --sign - "$new"
+# Signed with the fixed local identity of scripts/mac/local-signing-cert.sh
+# when the login keychain has it (macOS then keeps the permissions it gave
+# the beta: folders, Keychain items), ad hoc otherwise (ADR 0051, amendment
+# of 2026-10-31).
+sign_name="Verso Local Signing"
+if security find-identity -p codesigning 2>/dev/null | grep -qF "\"$sign_name\""; then
+  codesign --force --deep --sign "$sign_name" "$new"
+  echo "signed with \"$sign_name\" (fixed identity: macOS keeps the beta's permissions)"
+else
+  codesign --force --deep --sign - "$new"
+  echo "signed AD HOC: no \"$sign_name\" in the keychain, so macOS asks again for folder access; run scripts/mac/local-signing-cert.sh once"
+fi
 
 step "3/5 the bundle against its sources"
 plist="$new/Contents/Info.plist"

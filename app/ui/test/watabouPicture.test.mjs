@@ -357,4 +357,26 @@ describe("The tracing", () => {
     assert.deepEqual(tracing.tracingLook(true), { opacity: 100, locked: false });
     assert.deepEqual(tracing.tracingLook(false), { opacity: 0, locked: true });
   });
+
+  test("shown in one window only: what the file and the room get is the hidden form, the same objects", () => {
+    const hidden = { id: "w1", version: 3, opacity: 0, locked: true, customData: { verso: { traced: true } } };
+    const other = { id: "n1", version: 1, opacity: 100, locked: false, customData: null };
+    // This window shows it: a new version, seen and unlocked.
+    const seen = { ...hidden, version: 4, ...tracing.tracingLook(true) };
+    const shown = new Map([["w1", { version: 4, original: hidden }]]);
+    const out = tracing.hideLocal([seen, other], shown);
+    assert.equal(out[0], hidden);
+    assert.equal(out[1], other);
+    // The file's bytes are the same as before it was shown, and nothing is sent.
+    const doc = { nodes: [], edges: [] };
+    assert.equal(JSON.stringify(model.fromElements([...out], doc)), JSON.stringify(model.fromElements([hidden, other], doc)));
+    // Nothing shown: the very same list.
+    const list = [hidden, other];
+    assert.equal(tracing.hideLocal(list, new Map()), list);
+    // A wall moved while shown is a real change, kept, but still hidden.
+    const moved = { ...seen, version: 5, x: 10 };
+    const [edited] = tracing.hideLocal([moved], shown);
+    assert.equal(edited.x, 10);
+    assert.deepEqual([edited.opacity, edited.locked], [0, true]);
+  });
 });

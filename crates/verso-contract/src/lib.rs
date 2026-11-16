@@ -763,6 +763,10 @@ pub struct CollabUpdate {
 pub struct CollabState {
     pub path: String,
     pub revision: Option<String>,
+    /// Why the room closed, when the window can say: `"table-made"` — a table
+    /// was made in the folder of a board a share's window was live on, and it
+    /// joins again as a player (ADR 0081 item 11). Absent otherwise.
+    pub reason: Option<String>,
 }
 
 /// A server this app signed in to (ADR 0074 item 8; the maintainer's

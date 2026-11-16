@@ -121,6 +121,11 @@ pub struct CampaignStatus {
     /// Whether this account may make an invitation link for a person who
     /// has no account yet (only the server's admin may: ADR 0081 item 4).
     pub can_invite: bool,
+    /// Only in the answer of `campaign_make`: how many people were live on
+    /// boards of the new table's folder through a share, who now join them
+    /// again as players (ADR 0081 item 11). 0 everywhere else.
+    #[serde(default)]
+    pub rejoined: u32,
 }
 
 /// An invitation to a table (`campaign_invite`): a link to copy, single

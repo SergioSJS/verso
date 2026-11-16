@@ -40,7 +40,7 @@ async fn present(lab: &Lab, code: &str, seen: &str) -> (u16, Value) {
 }
 
 /// The app pairs at `role`: the bearer token and this computer's proof.
-async fn pair_app(lab: &Lab, role: Role) -> (String, String) {
+pub(super) async fn pair_app(lab: &Lab, role: Role) -> (String, String) {
     let view = lab.local.pair_open().unwrap();
     let (status, asked) = present(lab, &view.code, &served_pin(lab)).await;
     assert_eq!(status, 200, "{asked}");
@@ -69,7 +69,7 @@ async fn pair_app(lab: &Lab, role: Role) -> (String, String) {
     )
 }
 
-async fn bearer_get(lab: &Lab, path: &str, token: &str) -> (u16, Value) {
+pub(super) async fn bearer_get(lab: &Lab, path: &str, token: &str) -> (u16, Value) {
     let res = lab
         .client
         .get(lab.url(path))

@@ -674,3 +674,124 @@ fn a_webdav_folder_that_is_gone_is_an_error_not_an_empty_folder() {
     // Nothing here was deleted for it.
     assert_eq!(files(&a).len(), 3);
 }
+
+/// The files of the folder the fake WebDAV server was asked to send, in
+/// order of the asking (its own probe left out).
+fn fetched(fake: &Fake) -> Vec<String> {
+    let Fake::Dav(d) = fake else {
+        return Vec::new();
+    };
+    d.requests()
+        .into_iter()
+        .filter_map(|r| r.strip_prefix("GET /dav/").map(str::to_owned))
+        .filter(|p| !p.starts_with(".verso-"))
+        .collect()
+}
+
+/// How many times each of `fetched` was asked for.
+fn times(fetched: &[String]) -> std::collections::BTreeMap<String, usize> {
+    let mut out = std::collections::BTreeMap::new();
+    for p in fetched {
+        *out.entry(p.clone()).or_insert(0) += 1;
+    }
+    out
+}
+
+/// A WebDAV folder with `names` only there, and a device that has two files
+/// of its own: one the same as there, one not.
+fn first_sync_folder(names: &[&str]) -> (Fake, Device) {
+    let fake = dav();
+    if let Fake::Dav(d) = &fake {
+        for (i, p) in names.iter().enumerate() {
+            d.put(p, format!("# {i}\n").as_bytes());
+        }
+        d.put("Igual.md", b"# igual\n");
+        d.put("Outra.md", b"# de la\n");
+    }
+    let b = device_on(
+        &fake,
+        &[("Igual.md", "# igual\n"), ("Outra.md", "# daqui\n")],
+    );
+    (fake, b)
+}
+
+/// A first sync with a WebDAV folder fetches each file that is only there
+/// once — not once to learn its hash and again to keep it (I4 of the sync
+/// review, part 2, 2026-11-15) — and keeps the version it fetched, so the
+/// next pass reads nothing. A file of the same name here is still read for
+/// its hash and compared: the same, agreed without a fetch; another, kept
+/// beside as a conflict.
+#[test]
+fn a_first_sync_fetches_each_file_once() {
+    let names = ["Uma.md", "Duas.md", "Notas/Tres.md", "Notas/Café & chá.md"];
+    let (fake, b) = first_sync_folder(&names);
+    csync(&b);
+    for (i, p) in names.iter().enumerate() {
+        assert_eq!(text(&b, p), Some(format!("# {i}\n")), "{p}");
+    }
+    let got = times(&fetched(&fake));
+    for p in names {
+        assert_eq!(got.get(p), Some(&1), "{p}: {got:?}");
+    }
+    // Read once for its hash, the same as here: nothing more.
+    assert_eq!(got.get("Igual.md"), Some(&1), "{got:?}");
+    // Read for its hash, then fetched as the conflict's winner.
+    assert_eq!(got.get("Outra.md"), Some(&2), "{got:?}");
+    assert_eq!(text(&b, "Outra.md").as_deref(), Some("# de la\n"));
+    assert!(files(&b).iter().any(|p| p.starts_with("Outra (conflito, ")));
+    // The versions fetched are what the state keeps: nothing read again.
+    let state = engine::load(b.ctx.config.as_deref(), &b.key)
+        .unwrap()
+        .unwrap();
+    for p in names {
+        assert!(state.tokens.contains_key(p), "{p}");
+    }
+    let before = fetched(&fake).len();
+    changed(&b, &[]);
+    assert_eq!(csync(&b).actions, 0);
+    assert_eq!(fetched(&fake).len(), before);
+}
+
+/// A first sync whose link drops at a download keeps what it fetched
+/// before (I4 part 1, with part 2): the next try fetches only the rest,
+/// each once, and the file whose fetch failed once more.
+#[test]
+fn a_first_sync_cut_short_fetches_only_the_rest_on_the_next_try() {
+    let names: Vec<String> = (1..=6).map(|i| format!("n{i}.md")).collect();
+    let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    let (fake, b) = first_sync_folder(&refs);
+    if let Fake::Dav(d) = &fake {
+        // The GETs of files so far are none of the folder's; the fourth
+        // from now fails as a dropped link (500).
+        let so_far = d
+            .requests()
+            .iter()
+            .filter(|r| r.starts_with("GET "))
+            .count();
+        d.mode(|m| m.fail_get = u32::try_from(so_far).unwrap() + 4);
+    }
+    let cut = tauri::async_runtime::block_on(async {
+        let mut l = cloud::link(&b.ctx, &b.s).await.unwrap();
+        pass(&b.ctx, &b.s, &mut l).await
+    });
+    assert!(cut.is_err(), "{cut:?}");
+    changed(&b, &[]);
+    csync(&b);
+    for (i, p) in names.iter().enumerate() {
+        assert_eq!(text(&b, p), Some(format!("# {i}\n")), "{p}");
+    }
+    let got = times(&fetched(&fake));
+    let twice: Vec<&String> = got
+        .iter()
+        .filter(|(_, n)| **n == 2)
+        .map(|(p, _)| p)
+        .collect();
+    // The one whose fetch failed, and Outra.md (its hash, then the
+    // conflict's fetch); every other once.
+    assert_eq!(twice.len(), 2, "{got:?}");
+    assert!(twice.iter().any(|p| *p == "Outra.md"), "{got:?}");
+    assert!(got.values().all(|n| *n <= 2), "{got:?}");
+    for p in &names {
+        assert!(got.contains_key(p), "{p}: {got:?}");
+    }
+}

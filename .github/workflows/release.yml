@@ -18,10 +18,10 @@
 # way to see this workflow work before its first real tag, which cannot be
 # taken back once published.
 #
-# macOS, arm64 (ADR 0022), and since its port Windows, x64 (ADR 0069 item
+# macOS, arm64 (ADR 0022) and x64 (ADR 0095 item 9, cross-compiled on the
+# arm64 runner), and since its port Windows, x64 (ADR 0069 item
 # 6): an NSIS installer per user, unsigned (ADR 0069), with `verso.exe`
-# beside the app; and Linux, x64 (ADR 0071; ARM64 once the repository is
-# public): an AppImage, a
+# beside the app; and Linux, x64 and ARM64 (ADR 0071): an AppImage, a
 # `.deb` and an `.rpm`, built on Ubuntu 22.04 so they run on the oldest
 # base supported. A test release is
 # built as "Verso Beta", with an identifier of its own, so that it installs
@@ -47,9 +47,10 @@
 # `release.mjs per-file-signatures` — the version after the bridge turns
 # it off there, and nothing here changes.
 #
-# Cost: one macOS job, about ten minutes, each billed as ten Linux ones; one
-# Windows job, about fifteen, each billed as about two; one Linux job, x64,
-# about twenty minutes (estimated: not run yet); the server, two Linux
+# Cost: two macOS jobs (arm64, x64), about ten minutes each, each billed as
+# ten Linux ones (the x64 one estimated: not run yet); one
+# Windows job, about fifteen, each billed as about two; two Linux jobs, x64
+# and ARM64, about twenty minutes each (estimated: not run yet); the server, two Linux
 # jobs, about twenty-five minutes and five (estimated: not run yet); a
 # minute or two of Linux for the checksums list, and one to publish.
 
@@ -111,10 +112,22 @@ jobs:
           esac
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
+  # macOS (ADR 0095 item 9): arm64 natively, and x64 cross-compiled on the
+  # same arm64 runner (`--target x86_64-apple-darwin`; no Intel runner,
+  # which GitHub bills dearer and is retiring). The Intel files are named
+  # `-macos-x64` for the updater (update/pick.rs).
   macos:
-    name: Verso for macOS (${{ needs.decide.outputs.tag }})
+    name: Verso for macOS ${{ matrix.arch }} (${{ needs.decide.outputs.tag }})
     needs: decide
     if: needs.decide.outputs.tag != ''
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: arm64
+            triple: aarch64-apple-darwin
+          - arch: x64
+            triple: x86_64-apple-darwin
     runs-on: macos-latest
     # Builds only: no write token for a build step (publish has it).
     permissions:
@@ -156,44 +169,54 @@ jobs:
             *) echo "beta=false" >> "$GITHUB_OUTPUT"; echo "name=Verso" >> "$GITHUB_OUTPUT" ;;
           esac
       - name: toolchain from rust-toolchain.toml
-        run: rustup show
+        run: |
+          rustup show
+          rustup target add "${{ matrix.triple }}"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: ${{ matrix.triple }}
       - name: the UI bundle
         working-directory: app/ui
         run: npm ci && npm run build
+      # Always with an explicit target, so both architectures build into
+      # `target/<triple>/release/` the same way.
       - name: the app
         env:
           BETA: ${{ steps.version.outputs.beta }}
+          TRIPLE: ${{ matrix.triple }}
         run: |
           if [ "$BETA" = true ]; then
-            npm --prefix app/ui exec -- tauri build --bundles app \
+            npm --prefix app/ui exec -- tauri build --target "$TRIPLE" --bundles app \
               --config '{"identifier":"com.versomd.app.beta","productName":"Verso Beta"}'
           else
-            npm --prefix app/ui exec -- tauri build --bundles app
+            npm --prefix app/ui exec -- tauri build --target "$TRIPLE" --bundles app
           fi
       - name: the command line
         env:
           VERSO_APP_NAME: ${{ steps.version.outputs.name }}
-        run: cargo build --release --locked -p verso-cli
+        run: cargo build --release --locked --target "${{ matrix.triple }}" -p verso-cli
       # The command line travels inside the app too, beside its binary, where
       # the settings' "Install" links it from (ADR 0054); the bundle is
       # signed again, ad hoc as before, so that its seal covers it.
       - name: the command line inside the app
         env:
           NAME: ${{ steps.version.outputs.name }}
+          OUT: target/${{ matrix.triple }}/release
         run: |
-          cp target/release/verso "target/release/bundle/macos/$NAME.app/Contents/MacOS/verso"
-          codesign --force --deep --sign - "target/release/bundle/macos/$NAME.app"
-          codesign --verify --deep --strict "target/release/bundle/macos/$NAME.app"
+          cp "$OUT/verso" "$OUT/bundle/macos/$NAME.app/Contents/MacOS/verso"
+          codesign --force --deep --sign - "$OUT/bundle/macos/$NAME.app"
+          codesign --verify --deep --strict "$OUT/bundle/macos/$NAME.app"
       # ditto keeps the app's signature and extended attributes in the zip.
       - name: the release's files
         env:
           VERSION: ${{ steps.version.outputs.version }}
           NAME: ${{ steps.version.outputs.name }}
+          MACARCH: ${{ matrix.arch }}
+          OUT: target/${{ matrix.triple }}/release
         run: |
           slug="$(printf '%s' "$NAME" | tr ' ' '-')"
-          ditto -c -k --keepParent "target/release/bundle/macos/$NAME.app" "$slug-$VERSION-macos-arm64.zip"
-          tar -czf "verso-cli-$VERSION-macos-arm64.tar.gz" -C target/release verso
+          ditto -c -k --keepParent "$OUT/bundle/macos/$NAME.app" "$slug-$VERSION-macos-$MACARCH.zip"
+          tar -czf "verso-cli-$VERSION-macos-$MACARCH.tar.gz" -C "$OUT" verso
       # Each file signed with Verso's release key (ADR 0055, revised
       # 2026-10-09): the apps up to 0.8.2 install an update only when its
       # `.sig` verifies against the public key they carry. Only while
@@ -206,7 +229,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          for f in ./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz; do
+          for f in ./*-macos-*.zip ./verso-cli-*-macos-*.tar.gz; do
             npm --prefix app/ui exec -- tauri signer sign "$f"
             test -s "$f.sig"
           done
@@ -215,17 +238,27 @@ jobs:
       # (a published release is permanent).
       - name: verify the signatures with the app's key
         if: steps.version.outputs.sigs == 'true'
-        run: target/release/verso-app --verify-signature ./*-macos-arm64.zip ./verso-cli-*-macos-arm64.tar.gz
+        env:
+          MACARCH: ${{ matrix.arch }}
+          OUT: target/${{ matrix.triple }}/release
+        run: |
+          # The x64 build runs on the arm64 runner under Rosetta.
+          if [ "$MACARCH" = x64 ]; then
+            softwareupdate --install-rosetta --agree-to-license || true
+            arch -x86_64 "$OUT/verso-app" --verify-signature ./*-macos-*.zip ./verso-cli-*-macos-*.tar.gz
+          else
+            "$OUT/verso-app" --verify-signature ./*-macos-*.zip ./verso-cli-*-macos-*.tar.gz
+          fi
       - name: keep the files for the publish job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: release-macos-arm64
+          name: release-macos-${{ matrix.arch }}
           if-no-files-found: error
           path: |
-            ./*-macos-arm64.zip
-            ./*-macos-arm64.zip.sig
-            ./verso-cli-*-macos-arm64.tar.gz
-            ./verso-cli-*-macos-arm64.tar.gz.sig
+            ./*-macos-*.zip
+            ./*-macos-*.zip.sig
+            ./verso-cli-*-macos-*.tar.gz
+            ./verso-cli-*-macos-*.tar.gz.sig
           # Only carried to the publishing job; the release keeps the files
           # (Actions storage is billed by the day, the default is 90).
           retention-days: 1
@@ -361,13 +394,10 @@ jobs:
 
   # Linux (ADR 0071, items 2, 3 and 6): one build per architecture on the
   # oldest base of the family, Ubuntu 22.04 (glibc 2.35), so the packages run
-  # there and later, on Debian 12 and on current Fedora — x64 only for now:
-  # ARM64 waits until the repository is public, since GitHub's ARM runners
-  # (`ubuntu-22.04-arm`) are for public repositories, and one runner that
-  # never comes would hold every platform's publish (the maintainer,
-  # 2026-10-09). Its matrix entry, when it comes back: arch aarch64, runner
-  # ubuntu-22.04-arm, triple aarch64-unknown-linux-gnu, deb arm64; and the
-  # publish job's count grows by 8. A beta installs beside the release:
+  # there and later, on Debian 12 and on current Fedora — x64, and ARM64 on
+  # GitHub's ARM runner (`ubuntu-22.04-arm`, free for public repositories;
+  # it waited for the repository to be public, since a runner that never
+  # comes would hold every platform's publish). A beta installs beside the release:
   # its binary is `verso-app-beta` and its command line `verso-beta`, or the
   # two packages would fight over /usr/bin.
   linux:
@@ -382,6 +412,10 @@ jobs:
             runner: ubuntu-22.04
             triple: x86_64-unknown-linux-gnu
             deb: amd64
+          - arch: aarch64
+            runner: ubuntu-22.04-arm
+            triple: aarch64-unknown-linux-gnu
+            deb: arm64
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -692,7 +726,11 @@ jobs:
         run: npm ci && npm run build
       - name: the .ipa
         working-directory: app/src-tauri
-        run: npm --prefix ../ui exec -- tauri ios build --no-sign --export-method debugging
+        # Tauri's config names no version, so the regenerated Info.plist
+        # said 1.0.0: the numbers come from the workspace version (ADR 0119 A16).
+        run: |
+          config="$(node ../../scripts/release.mjs ios-config)"
+          npm --prefix ../ui exec -- tauri ios build --no-sign --export-method debugging --config "$config"
       - name: the release's files
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -704,6 +742,19 @@ jobs:
           # The static library is linked, not shipped (433 MB before).
           if unzip -l "$ipa" | grep -q 'libapp\.a'; then
             echo "::error::the .ipa carries libapp.a"
+            exit 1
+          fi
+          # The bundle carries the version AltStore's source states
+          # (it said 1.0.0 in 0.9.0-beta.3).
+          want="$(node scripts/release.mjs ios-config)"
+          want_short="$(printf '%s' "$want" | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version')"
+          want_build="$(printf '%s' "$want" | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).bundle.iOS.bundleVersion')"
+          plist="$(mktemp -d)/Info.plist"
+          unzip -p "$ipa" 'Payload/*.app/Info.plist' > "$plist"
+          got_short="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")"
+          got_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
+          if [ "$got_short" != "$want_short" ] || [ "$got_build" != "$want_build" ]; then
+            echo "::error::the .ipa says $got_short ($got_build), not $want_short ($want_build)"
             exit 1
           fi
           cp "$ipa" "$slug-$VERSION-ios.ipa"
@@ -967,7 +1018,7 @@ jobs:
         run: |
           list="verso-$VERSION-SHA256SUMS"
           mapfile -t covered < <(node scripts/release.mjs files "$VERSION")
-          if [ "${#covered[@]}" -ne 16 ]; then echo "::error::expected sixteen files to list, got: ${covered[*]}"; exit 1; fi
+          if [ "${#covered[@]}" -ne 22 ]; then echo "::error::expected twenty-two files to list, got: ${covered[*]}"; exit 1; fi
           (cd files && sha256sum -- "${covered[@]}") > "$list"
           cat "$list"
       # The Tauri CLI, at the version app/ui's lockfile pins, for `tauri
@@ -1051,12 +1102,12 @@ jobs:
           esac
           node scripts/release.mjs notes "$version" > notes.md
           files=(files/*)
-          # Exactly the files release.mjs names: macOS 2, Windows 2, Linux 4
-          # (x64; ARM64 waits for a public repository), Android 1, iOS 1 (an
+          # Exactly the files release.mjs names: macOS 4 (arm64 and x64), Windows
+          # 2, Linux 8 (x64 and ARM64), Android 1, iOS 1 (an
           # unsigned .ipa, ADR 0119), the server 6 (an
           # archive, a .deb and an .rpm for x64 and for ARM64), the signed
-          # checksums list and its .sig — 16; and in the 0.8.3 bridge each
-          # file's own .sig too — 30 (ADR 0055, revised 2026-10-14).
+          # checksums list and its .sig — 24; and in the 0.8.3 bridge each
+          # file's own .sig too — 46 (ADR 0055, revised 2026-10-14).
           want="$(node scripts/release.mjs assets "$version" | LC_ALL=C sort)"
           have="$(cd files && ls -1 | LC_ALL=C sort)"
           if [ "$want" != "$have" ]; then

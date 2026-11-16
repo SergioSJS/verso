@@ -220,6 +220,7 @@ fn main() {
         "local_server_parts",
         "local_server_whole",
         "local_server_settings",
+        "local_server_app_idle",
         "local_server_start",
         "local_server_stop",
         "local_server_pair_open",

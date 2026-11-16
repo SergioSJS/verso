@@ -2,15 +2,17 @@
 // made available offline opens with no network, is read and edited from the
 // browser's own store, and what was written goes up by sync's rules when the
 // network returns — a note both sides appended to joined, one both changed
-// kept as a copy; the sign-out and the server ending the session delete the
-// copy; a full store and a refusal to keep are said; plain HTTP says why it
-// cannot. In Chromium, WebKit and at a phone's width, as the server's other
+// kept as a copy; the sign-out deletes the copy, and the server ending the
+// session deletes it but for the changes not sent, which the same account
+// sends on signing in again and another account is offered as files; a
+// full store and a refusal to keep are said; plain HTTP says why it cannot. In Chromium, WebKit and at a phone's width, as the server's other
 // tests. The network is the browser's (offline mode) and the WebSocket's (a
 // route that drops the page's connections and refuses new ones).
 
 import { expect, test as base } from "@playwright/test";
 
 import { leakFixtures } from "../e2e/leaks.mjs";
+import { account, api } from "./access-helpers.mjs";
 
 const test = base.extend(leakFixtures);
 
@@ -211,6 +213,36 @@ async function keptPaths(page, folder) {
         };
       }),
     folder,
+  );
+}
+
+/** The changes the browser keeps for an account whose session the server
+ *  ended (offline/held.ts): `[account, path, text | null]` per change. */
+async function held(page) {
+  return page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const open = indexedDB.open("verso-offline");
+        open.onerror = () => resolve([]);
+        open.onsuccess = () => {
+          const db = open.result;
+          if (!db.objectStoreNames.contains("facts")) {
+            db.close();
+            resolve([]);
+            return;
+          }
+          const get = db.transaction("facts", "readonly").objectStore("facts").get("held");
+          get.onsuccess = () => {
+            db.close();
+            const dec = new TextDecoder();
+            resolve((get.result ?? []).flatMap((h) => h.files.map((f) => [h.account, f.path, f.bytes ? dec.decode(f.bytes) : null])));
+          };
+          get.onerror = () => {
+            db.close();
+            resolve([]);
+          };
+        };
+      }),
   );
 }
 
@@ -581,12 +613,12 @@ test("the server ending the session deletes the copy at the device's next connec
   expect(errors.filter((e) => !/session|signed|unauthor/i.test(e))).toEqual([]);
 });
 
-test("a session ended while the connection was down sends the window to sign in, and says the changes that were waiting", async ({ page, browser }, info) => {
-  chromiumOnly();
-  test.setTimeout(240_000);
-  const errors = watch(page);
-  await signedIn(page);
-  const folder = await newFolder(page, `Fim fora ${info.project.name}`);
+/** A folder kept, a note edited offline, and the session ended elsewhere
+ *  while this window's connection is down; the network back, the window is
+ *  on the sign-in page. `already`: the admin is signed in on `page`. */
+async function endedWithAChange(page, browser, label, { already = false } = {}) {
+  if (!already) await signedIn(page);
+  const folder = await newFolder(page, label);
   await put(page, folder, "a.md", "a\n");
   // Routed from the start: a socket made before the route is not its.
   const net = await network(page);
@@ -614,8 +646,73 @@ test("a session ended while the connection was down sends the window to sign in,
   // and goes to sign in — not "offline" for ever, taking edits.
   await net.on();
   await page.waitForURL(/\/signin/, { timeout: 60_000 });
-  // The copy goes (ADR 0092 item 6), and the change that waited is said.
-  await expect(page.locator("body")).toContainText(/O servidor encerrou esta sessão.*1 mudança/, { timeout: 30_000 });
+  // The copy goes, but for the change that waited, kept in this browser
+  // for the account (ADR 0092 item 6, revised 2026-11-15), and said.
+  await expect(page.locator("body")).toContainText(/O servidor encerrou esta sessão\. 1 mudança que ainda não tinha subido ficou guardada neste navegador/, { timeout: 30_000 });
   await expect.poll(() => keptPaths(page, folder), { timeout: 30_000 }).toEqual([]);
+  await expect.poll(() => held(page), { timeout: 30_000 }).toEqual([[expect.any(String), "a.md", "escrito antes do fim\n"]]);
+  return folder;
+}
+
+/** Sign in on the page shown, as `who`. */
+async function signInAs(page, who) {
+  await page.getByLabel("E-mail").fill(who.email);
+  await page.getByLabel("Senha", { exact: true }).fill(who.password);
+  expect((await enter(page)).status()).toBe(200);
+  await page.waitForURL((u) => !u.pathname.startsWith("/signin"), { timeout: 30_000 });
+}
+
+test("a session ended while the connection was down keeps the change, and signing in again with the same account sends it", async ({ page, browser }, info) => {
+  chromiumOnly();
+  test.setTimeout(300_000);
+  const errors = watch(page);
+  const folder = await endedWithAChange(page, browser, `Fim fora ${info.project.name}`);
+  // The same account signs in again on this browser: the change goes up,
+  // judged by the server as any sync's (the base it was written over is
+  // still the server's version: an edit, not a copy).
+  await signInAs(page, ADMIN);
+  await expect(page.locator("body")).toContainText("1 mudança guardada quando a sessão terminou está sendo enviada", { timeout: 30_000 });
+  await expect.poll(() => read(page, folder, "a.md"), { timeout: 60_000 }).toBe("escrito antes do fim\n");
+  expect((await listing(page, folder)).filter((p) => /conflito|conflict/.test(p))).toEqual([]);
+  await expect.poll(() => held(page), { timeout: 30_000 }).toEqual([]);
+  // The folder is kept on this device again, and in step.
+  await expect.poll(() => kept(page, folder, "a.md"), { timeout: 30_000 }).toBe("escrito antes do fim\n");
   expect(errors.filter((e) => !/session|signed|unauthor|401/i.test(e))).toEqual([]);
+});
+
+test("another account signing in on that browser never sends the kept change nor sees it: a count, discarded on her word", async ({ page, browser }, info) => {
+  chromiumOnly();
+  test.setTimeout(300_000);
+  const errors = watch(page);
+  // Another person, with a folder of her own, made while the admin can.
+  await signedIn(page);
+  const hers = await newFolder(page, `Da Bia ${info.project.name}`);
+  const bia = { email: `bia-held-${info.project.name}@verso.test`, password: "a senha da bia", name: "Bia" };
+  const made = await account(browser, page, { ...bia, folder: hers, role: "editor" });
+  await made.context.close();
+  const folder = await endedWithAChange(page, browser, `Fim alheio ${info.project.name}`, { already: true });
+  // Bia signs in on this browser.
+  await page.goto("/signin");
+  await signInAs(page, bia);
+  const dialog = page.locator("dialog.web-held");
+  await expect(dialog).toBeVisible({ timeout: 30_000 });
+  await expect(dialog).toContainText("Este navegador guarda 1 mudança de outra conta");
+  // Never among her folders, never kept as hers.
+  expect(await keptPaths(page, folder)).toEqual([]);
+  // Never handed to her: a count and a way to discard, no download, no content.
+  await expect(dialog.getByRole("button", { name: "Baixar como arquivos" })).toHaveCount(0);
+  await expect(dialog).not.toContainText("escrito antes do fim");
+  await expect(dialog.getByRole("button", { name: "Agora não" })).toBeVisible();
+  // Discarded on her word, asked once more.
+  await dialog.getByRole("button", { name: "Descartar", exact: true }).click();
+  const ask = page.locator("dialog.web-dialog:not(.web-held)");
+  await expect(ask).toContainText("Descartar 1 mudança de outra conta?");
+  await ask.getByRole("button", { name: "Descartar mesmo" }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => held(page), { timeout: 30_000 }).toEqual([]);
+  // The server never got it: the admin's note is as it was.
+  const away = await elsewhere(browser);
+  expect(await read(away.page, folder, "a.md")).toBe("a\n");
+  await away.close();
+  expect(errors.filter((e) => !/session|signed|unauthor|401|403|not found/i.test(e))).toEqual([]);
 });

@@ -18,7 +18,8 @@
   item 8 (the desktop connects to a server; the device approval),
   [0083](0083-security-hardening-of-universo.md) (the device approval
   page), [0096](archive/0096-this-app-is-a-server.md) item 8 (the other mDNS
-  announcement, `_verso-local._tcp`, while the pairing dialog is open),
+  announcement, `_verso-local._tcp`, while the computer serves on the
+  network since 2026-11-15),
   [0050](0050-outbound-network-access.md) (inbound and mDNS),
   [0029](0029-guardrails-in-ci.md) (the `std::fs` confinement, an exception
   declared here), [0069](0069-windows-port.md), `docs/reference/threat-model.md`.
@@ -76,8 +77,9 @@ already in the tree since [0096](archive/0096-this-app-is-a-server.md).
    speaks TLS) and `id` (the same six digits). Addresses are the machine's
    own, followed as they change. The other service,
    `_verso-local._tcp` ([0096](archive/0096-this-app-is-a-server.md) item 8), is
-   not merged with this one: it is the laptop's, short-lived and for
-   pairing. A fourth key, `url`, is added **only when `VERSO_PUBLIC_URL` is
+   not merged with this one: it is the laptop's, for pairing and, since
+   2026-11-15, for a paired Verso app to find it again by its pin (0117
+   D19 item 5). A fourth key, `url`, is added **only when `VERSO_PUBLIC_URL` is
    set**: that address (`scheme://host[:port]`, at most 200 characters) is
    the only one the server answers (it refuses other `Host` names), so it is
    what a client must use, and `https` then says whether *it* is https.

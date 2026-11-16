@@ -13,7 +13,7 @@ const embed = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url),
 const pathsOf = (text) => [...text.matchAll(/"path": ("(?:[^"\\]|\\.)*")/g)].map((m) => JSON.parse(m[1]));
 const PT = pathsOf(embed("demoVault.ts"));
 const EN = pathsOf(embed("demoVaultEn.ts"));
-const EN_FILES = [...EN, ...PT.filter((p) => p.startsWith("assets/"))].sort();
+const EN_FILES = [...EN, ...PT.filter((p) => p.startsWith("assets/") && !/servidor-/.test(p))].sort();
 const tour = JSON.parse(readFileSync(new URL("../../../demo-vault-en/Verso Tour.canvas", import.meta.url), "utf8"));
 const STOPS = tour.nodes.filter((n) => n.type === "group").map((n) => n.label);
 

@@ -264,6 +264,24 @@ test("the devices connected at once is a number from 1 to 16, 4 by default, kept
   await expect(body.getByLabel("Aparelhos conectados ao mesmo tempo")).toHaveValue("2");
 });
 
+test("a paired app leaves after 90 days without a word by default, a choice from 7 to 365 or never, kept (ADR 0117 D19)", async ({ app, page }) => {
+  await app.open();
+  await section(app);
+  const body = page.locator(".settings-body");
+  const idle = body.getByLabel("Um app pareado sai depois de quantos dias sem falar com o computador");
+  await expect(idle).toHaveValue("90");
+  await expect(idle.locator("option:checked")).toHaveText("90 dias (padrão)");
+  await expect(body.getByText("Um celular pareado pelo navegador sai depois de 14 dias.", { exact: false })).toBeVisible();
+  await idle.selectOption("30");
+  await expect(body.getByText("Um app pareado sai depois de 30 dias sem falar com o computador.")).toBeVisible();
+  await idle.selectOption("0");
+  await expect(body.getByText("Um app pareado não sai mais por ficar sem falar com o computador.")).toBeVisible();
+  // Kept: the section drawn again shows it, and the log says it changed.
+  await app.key("Escape");
+  await section(app);
+  await expect(body.getByLabel("Um app pareado sai depois de quantos dias sem falar com o computador")).toHaveValue("0");
+});
+
 test("many folders are listed as in the folder switcher: the command's order, no groups, twins told apart, a filter, a count, and it fits a phone @layout", async ({ app, page }) => {
   await app.open();
   await section(app);

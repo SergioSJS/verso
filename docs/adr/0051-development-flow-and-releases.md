@@ -224,7 +224,7 @@ modificações até gerar versão, considerando changelog inclusive"*.
 Accepted.
 
 **Amendment (2026-10-31): the Mac beta signed with a fixed local
-certificate.** `[DECIDED 2026-10-31, to be built]` The beta that
+certificate.** `[DECIDED 2026-10-31, built 2026-11-15]` The beta that
 `scripts/install-beta.sh` installs is signed ad hoc (Consequences, the
 paragraph of 2026-10-20), so each build is a new app to macOS and the
 permissions it was given (Local Network, files, and the like) are asked
@@ -239,6 +239,15 @@ keychain, which he creates once with one keychain command; without it the
 script says so. The release builds stay ad hoc
 ([0095](0095-mac-notarization-and-windows-code-signing.md), revised
 2026-10-15); this concerns the beta on this Mac only.
+
+*As built (2026-11-15):* `scripts/mac/local-signing-cert.sh`, run once,
+makes a self-signed certificate "Verso Local Signing" (code-signing key
+usage), imports it with its key into the login keychain and trusts it for
+code signing only (it asks for the keychain password; `--remove` undoes it;
+nothing is stored in the repository). `scripts/install-beta.sh` signs with
+that identity when the keychain has it, and otherwise signs ad hoc and says so
+in one line. The designated requirement is then the certificate's hash,
+the same on every build. `release.yml` is unchanged.
 
 **Amendment (2026-11-14): channels — beta and final, and 0.9.**
 `[DECIDED 2026-11-14]` The release cut as 0.8.5-beta.1 is released as
@@ -287,3 +296,10 @@ whether to update by itself every Sunday, yes by default; and the same
 `schedule update` for Docker (backup, `docker compose pull`, `up -d`) on
 the channel's tag. The maintainer: *"depois a gente decide se a gente muda
 esse fluxo"*.
+
+*As built (2026-11-15), item 6:* the release builds the app for macOS in two
+legs, arm64 and x64 ([0095](0095-mac-notarization-and-windows-code-signing.md)
+item 9), and for Linux in two, x64 and ARM64 ([0071](0071-linux-port.md)),
+beside Windows, Android, iOS and the server; `publish` waits for all of them
+and for the checksums list, and the release carries 22 files plus the list
+and its signature.

@@ -489,9 +489,25 @@ impl SendRetrying for reqwest::blocking::RequestBuilder {
                         // Sent again only if it can end differently (see
                         // `worth_retrying`): the same address again would
                         // fail the same way, and take as long.
-                        match resolve(&host) {
-                            Ok(now) if worth_retrying(&tried, tcp_level(&e), &now) => again.send(),
-                            _ => Err(e),
+                        let retried = match resolve(&host) {
+                            Ok(now) if worth_retrying(&tried, tcp_level(&e), &now) => again
+                                .try_clone()
+                                .map(reqwest::blocking::RequestBuilder::send),
+                            _ => None,
+                        };
+                        let e = match retried {
+                            Some(Ok(answer)) => return Ok(answer),
+                            Some(Err(e)) => e,
+                            None => e,
+                        };
+                        // A computer at home none of whose addresses
+                        // answered: looked for on the network by its pin,
+                        // and sent once more if it was found holding its key
+                        // (`paired/find.rs`).
+                        if e.is_connect() && crate::paired::find_again(&host) {
+                            again.send()
+                        } else {
+                            Err(e)
                         }
                     }
                     _ => Err(e),

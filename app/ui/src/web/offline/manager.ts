@@ -21,6 +21,7 @@ import type { OfflineCore } from "./core";
 import { SyncLink } from "./link";
 import { o } from "./strings";
 import { IdbStore, type Kept, type Store, waiting } from "./store";
+import { discardChanges, heldChanges, heldCount, type HeldFolder, holdChanges, restoreChanges } from "./held";
 import { isAttachment, Syncer, WireRemote } from "./sync";
 
 export type Preview = {
@@ -75,12 +76,28 @@ const offStatus = (): SyncStatus => ({
 const SCAN = 300_000;
 
 /** The error a command gets for what only the server can answer. */
+/** A sync status for the window. Before the page's bridge is up (web.ts
+ *  starts it after the session check) there is no window to hear it, and
+ *  the event's call rejects: nobody is told, which is what it would say. */
+function tell(status: SyncStatus): void {
+  void emit("sync-status", status).catch(() => undefined);
+}
+
 /** A notification for the window to raise (notify/sources.ts hears it). */
 function raise(detail: Record<string, unknown>): void {
   dispatchEvent(new CustomEvent("verso:notify", { detail }));
 }
 
 const unreachable = (): ContractError => ({ kind: "unreachable", message: location.host });
+
+/** `work` alone among this device's tabs (the Web Locks API; a browser
+ *  without it runs it as it comes): the changes kept when a session ends
+ *  are read and written by one tab at a time, never two writing over each
+ *  other's list. */
+function alone<T>(work: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== "undefined" && "locks" in navigator) return navigator.locks.request("verso-offline-held", work) as Promise<T>;
+  return work();
+}
 
 function deviceName(): string {
   const ua = navigator.userAgent;
@@ -103,6 +120,9 @@ export class Offline {
   private down = false;
   private worker: { done: number; total: number; ready: boolean; failed: string | null } = { done: 0, total: 0, ready: false, failed: null };
   private name = deviceName();
+  private holding: Promise<number> | null = null;
+  /** The server ended the session, heard on this page. */
+  private ended = false;
 
   /** Whether this browser can keep folders at all. */
   static supported(): boolean {
@@ -135,7 +155,7 @@ export class Offline {
         const m = e.data as { type: string; id?: string; status?: SyncStatus };
         if (m.type === "status" && m.id && m.status) {
           this.statuses.set(m.id, m.status);
-          void emit("sync-status", m.status);
+          tell(m.status);
         } else if (m.type === "wiped") void this.forget();
         else if (m.type === "kept") void this.reload();
       };
@@ -264,7 +284,7 @@ export class Offline {
     }
     this.statuses.set(id, st);
     this.channel?.postMessage({ type: "status", id, status: st });
-    void emit("sync-status", st);
+    tell(st);
     if (r && st.state === "synced") {
       for (const f of r.settled.splice(0)) f();
     }
@@ -347,19 +367,24 @@ export class Offline {
 
   private async gone(id: string, what: "session" | "folder", reason: string | null): Promise<void> {
     if (what === "session") {
-      // The server ended this device's session (ADR 0092 item 6): the copy
-      // goes at this connection. The count of changes that had not gone up
-      // is kept for the tab before the copy goes: the window is leaving for
-      // the sign-in page, which says it (web.ts), even when this page is
-      // gone before the copy is.
-      const lost = await this.waitingTotal().catch(() => 0);
+      // Heard once per page: each folder's connection may say it, and a
+      // page loaded signed out holds the changes itself (web.ts).
+      if (this.ended) return;
+      this.ended = true;
+      // The server ended this device's session (ADR 0092 item 6, revised
+      // 2026-11-15): at this connection the copy goes, but for the changes
+      // it had not sent, kept for the account to send once it signs in
+      // again (held.ts). Their count is kept for the tab first: the window
+      // is leaving for the sign-in page, which says it (web.ts), even when
+      // this page is gone before the copy is.
+      const waited = await this.waitingTotal().catch(() => 0);
       try {
-        sessionStorage.setItem("verso.wipedWith", String(lost));
+        sessionStorage.setItem("verso.heldWith", String(waited));
       } catch {
         /* no storage for the tab: the status below still says it */
       }
-      await this.wipe();
-      raise({ kind: "sync", key: "offline:wiped", state: "wiped", level: "error", title: o().section, sentence: o().wipedByServer(lost), folder: "", folderName: "" });
+      const held = await this.hold().catch(() => waited);
+      raise({ kind: "sync", key: "offline:held", state: "held", level: "error", title: o().section, sentence: o().heldByServer(Math.max(held, waited)), folder: "", folderName: "" });
       return;
     }
     // The folder is not there for this account any more: the copy stays, and
@@ -587,7 +612,7 @@ export class Offline {
     this.channel?.postMessage({ type: "kept" });
     const off = { ...offStatus(), folder: id };
     this.statuses.set(id, off);
-    void emit("sync-status", off);
+    tell(off);
   }
 
   async setAttachments(id: string, mode: "opened" | "all"): Promise<void> {
@@ -628,6 +653,64 @@ export class Offline {
 
   progress(): { done: number; total: number; ready: boolean; failed: string | null } {
     return { ...this.worker };
+  }
+
+  // ---- A session ended with changes not sent (ADR 0092 item 6, revised) ------------------
+
+  /** The session is over: every folder kept here leaves only what it had
+   *  not sent, kept for its account (held.ts); the rest of the copy goes.
+   *  Returns how many changes are kept. One at a time, whoever asks. */
+  hold(): Promise<number> {
+    if (this.holding) return this.holding;
+    this.ended = true;
+    const store = this.store;
+    if (!store) return Promise.resolve(0);
+    this.holding = (async () => {
+      await this.forget();
+      const n = await alone(() => holdChanges(store));
+      this.channel?.postMessage({ type: "kept" });
+      return n;
+    })().finally(() => {
+      this.holding = null;
+    });
+    return this.holding;
+  }
+
+  /** `account` signed in on this browser: the changes it left when its
+   *  session ended are kept again, in their folders, and their sync sends
+   *  them by sync's rules — the server judges each one. Returns how many. */
+  async release(account: string): Promise<number> {
+    const store = this.store;
+    if (!store || !account) return 0;
+    const { folders, count } = await alone(() => restoreChanges(store, account));
+    for (const k of folders) {
+      this.kept.set(k.id, k);
+      this.start(k.id);
+    }
+    if (folders.length > 0) {
+      this.channel?.postMessage({ type: "kept" });
+      if (Offline.workerPossible()) void this.register().catch(() => undefined);
+    }
+    return count;
+  }
+
+  /** The changes another account left on this browser: never this
+   *  account's, never sent, never among its folders. */
+  async heldElsewhere(account: string): Promise<HeldFolder[]> {
+    if (!this.store) return [];
+    return (await heldChanges(this.store).catch(() => [])).filter((h) => h.account !== account || account === "");
+  }
+
+  /** The other accounts' changes, discarded on the person's word. */
+  async discardElsewhere(account: string): Promise<void> {
+    const store = this.store;
+    if (!store) return;
+    await alone(() => discardChanges(store, (h) => h.account !== account || account === ""));
+  }
+
+  /** How many changes are kept for accounts whose session ended. */
+  async heldTotal(): Promise<number> {
+    return this.store ? heldCount(this.store).catch(() => 0) : 0;
   }
 
   // ---- Leaving the device --------------------------------------------------------------

@@ -12,6 +12,7 @@
 import { setByApp, setStateFallback, state, stateWasKept } from "./web/api";
 import { offline } from "./web/offline/manager";
 import { o } from "./web/offline/strings";
+import type { HeldFolder } from "./web/offline/held";
 import { currentFolderId, linkedNote, startBridge, startVisitorBridge } from "./web/bridge";
 import { pullSettings, pushSettings } from "./web/settingsSync";
 import { notice } from "./web/notice";
@@ -68,14 +69,14 @@ async function visitor(token: string): Promise<void> {
   openHeld();
 }
 
-/** How many changes a page before this one deleted with the copy when the
- *  server ended the session (`verso.wipedWith`, offline/manager.ts), taken
- *  once; null when none did. */
-function takeWipedEarlier(): number | null {
+/** How many changes a page before this one kept when the server ended the
+ *  session (`verso.heldWith`, offline/manager.ts), taken once; null when
+ *  none did. */
+function takeHeldEarlier(): number | null {
   try {
-    const kept = sessionStorage.getItem("verso.wipedWith");
+    const kept = sessionStorage.getItem("verso.heldWith");
     if (kept === null) return null;
-    sessionStorage.removeItem("verso.wipedWith");
+    sessionStorage.removeItem("verso.heldWith");
     const n = Number(kept);
     return Number.isFinite(n) && n > 0 ? n : 0;
   } catch {
@@ -104,24 +105,35 @@ async function start(): Promise<void> {
   setByApp(Boolean(s.local));
   setPasskeysOffered(s.passkeys !== false);
   setLang(s.account?.lang);
+  /** Another account's changes kept on this browser, offered once the
+   *  window is up. */
+  let others: HeldFolder[] = [];
   if (stateWasKept()) {
     // Offline: the folders kept open the window; nothing else is asked.
     notice(offline.keptFolders().length > 0 ? o().startOffline : o().nothingKept);
   } else if (s.account) {
     void offline.rememberState({ ...s, csrf: null });
+    // Signed in again after the server ended the session: the changes this
+    // browser kept for this account go up now, judged by the server as any
+    // sync's (ADR 0092 item 6, revised 2026-11-15); another account's are
+    // offered as files, never sent as this one's (offline/heldDialog.ts).
+    const sent = await offline.release(s.account.id).catch(() => 0);
+    if (sent > 0) notice(o().heldSending(sent));
+    others = await offline.heldElsewhere(s.account.id);
   } else {
-    // A page before this one may have deleted the copy, or begun to, when
+    // A page before this one may have kept the changes, or begun to, when
     // its sync connection heard the session end (offline/manager.ts): its
     // count is said here, where the person reads it, never dropped in
     // silence. The same changes both times, so the larger count, not both.
-    const earlier = takeWipedEarlier();
+    const earlier = takeHeldEarlier();
     if (offline.keptFolders().length > 0) {
       // The server says nobody is signed in here: the session ended (signed
-      // out in another tab, or the server ended it), and what this device
-      // kept for the account goes (ADR 0092 item 6).
-      const lost = await offline.wipe();
-      notice(o().wipedByServer(Math.max(lost, earlier ?? 0)), "error");
-    } else if (earlier !== null) notice(o().wipedByServer(earlier), "error");
+      // out in another tab, or the server ended it). What this device kept
+      // goes, but for the changes not sent, kept for the account until it
+      // signs in again (ADR 0092 item 6, revised 2026-11-15).
+      const held = await offline.hold().catch(() => earlier ?? 0);
+      notice(o().heldByServer(Math.max(held, earlier ?? 0)), "error");
+    } else if (earlier !== null) notice(o().heldByServer(earlier), "error");
   }
   const path = location.pathname;
   const token = (prefix: string) => decodeURIComponent(path.slice(prefix.length));
@@ -205,6 +217,13 @@ async function start(): Promise<void> {
   });
   const window_ = await import("./main");
   openHeld();
+  if (others.length > 0) {
+    const me = s.account.id;
+    void window_.started
+      .catch(() => undefined)
+      .then(() => import("./web/offline/heldDialog"))
+      .then((m) => m.offerHeld(others, me));
+  }
   // A link's note (`/?folder=…&note=…`) opens as a tab once its folder is
   // shown — if the person sees it. One they do not (hidden from them, not
   // there, outside the folder) opens nothing and is named nowhere: the

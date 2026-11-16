@@ -216,6 +216,8 @@ fn a_table_made_while_a_share_window_is_in_the_room_closes_its_shadow() {
         assert!(joined.get("ok").is_some(), "{joined}");
         let made = c.owner.call("campaign_make", json!({ "root": "" })).await;
         assert!(made.get("ok").is_some(), "{made}");
+        // The owner is told how many were live through shares.
+        assert_eq!(made["ok"]["rejoined"], 1, "{made}");
         // She may edit the board at the table, as a player.
         let folder = crate::campaign::folder_of_key(&c.r.server, &c.key).unwrap();
         let set = NodeSet {
@@ -229,6 +231,13 @@ fn a_table_made_while_a_share_window_is_in_the_room_closes_its_shadow() {
         owner_sends(&mut c, &put(&gm, "c-open", 3, 71, &open)).await;
         let heard = hear(&mut c.ana, 500, LEAKS).await;
         let closed = heard.iter().any(|e| e["event"] == "collab-closed");
+        // The close says why, so that her window can put it in words.
+        assert!(
+            heard
+                .iter()
+                .any(|e| e["event"] == "collab-closed" && e["payload"]["reason"] == "table-made"),
+            "{heard:?}"
+        );
         let mine = put(
             &ana.doc,
             "c-new",

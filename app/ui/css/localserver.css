@@ -20,6 +20,8 @@
 .ls .ls-step:hover:not(:disabled), .settings-steps .ls-step:hover:not(:disabled) { background: var(--paper-3); color: var(--ink); }
 .ls .ls-step:disabled, .settings-steps .ls-step:disabled { color: var(--ink-3); opacity: .5; }
 @media (pointer: coarse) { .ls-steps input, .ls .ls-step, .settings-steps .ls-step { min-height: 44px; } .ls .ls-step, .settings-steps .ls-step { width: 44px; } }
+.ls-app-idle select { font: inherit; font-size: .9rem; min-height: 34px; max-width: 100%; padding: .2rem .4rem; border: 1px solid var(--control-line); border-radius: 8px; background: var(--paper); color: var(--ink); }
+@media (pointer: coarse) { .ls-app-idle select { min-height: 44px; } }
 .ls-phones, .ls-log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
 .ls-folder { display: flex; flex-direction: column; gap: .1rem; padding: .2rem 0; }
 .ls-phone { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap; padding: .4rem 0; border-bottom: 1px solid var(--hair); }

@@ -170,10 +170,17 @@ test("a dungeon with Watabou's own picture: the picture is the map, the keys pin
   const traced = () => page.evaluate(() => window.__VERSO_TEST__.board.getSceneElements().filter((e) => e.customData?.verso?.traced).map((e) => e.opacity));
   expect((await traced()).length).toBeGreaterThan(20);
   expect(new Set(await traced())).toEqual(new Set([0]));
+  // Shown in this window only: the scene shows it, the file keeps it hidden and locked.
+  const fileTraced = async () => JSON.parse(await app.file(`${DIR}/${DIR}.canvas`));
+  const bytes = await app.file(`${DIR}/${DIR}.canvas`);
   await app.boardVerb("tracing", "board-tool-tracing");
   await expect.poll(async () => [...new Set(await traced())]).toEqual([100]);
+  await page.waitForTimeout(1500);
+  expect(await app.file(`${DIR}/${DIR}.canvas`)).toBe(bytes);
+  expect((await fileTraced()).verso.drawing.every((e) => !e.customData?.verso?.traced || (e.opacity === 0 && e.locked === true))).toBe(true);
   await app.boardVerb("tracing", "board-tool-tracing");
   await expect.poll(async () => [...new Set(await traced())]).toEqual([0]);
+  expect(await app.file(`${DIR}/${DIR}.canvas`)).toBe(bytes);
 });
 
 test("a dungeon's map alone (Export as › PNG…) with its JSON: the PNG placed on the rooms by its size, the keys pins on it @layout", async ({ app, page }) => {

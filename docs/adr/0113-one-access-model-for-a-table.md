@@ -1,6 +1,11 @@
 # ADR 0113 — One access model for a table: a seat, per-path access, per-player rights
 
 - Date: 2026-10-24
+- Amended in part by [0121](0121-a-virtual-tabletop-layer-on-the-board.md) (Accepted 2026-11-15, not built): section B (a
+  `MoveToken` action), H (table players who only see a board follow it
+  live), K.6 (inside a scene a non-game-master writes only the position of
+  their own tokens) and the review of S7, (1) (the wall oracle accepted).
+  This text is amended when the step that builds each is merged.
 - Source: the maintainer's live test of a table on 2026-10-24 (his report is
   quoted in Context), the read-only audit made the same day at his request
   ([review 2026-10-24](../review/2026-10-24-permissions-audit.md), on

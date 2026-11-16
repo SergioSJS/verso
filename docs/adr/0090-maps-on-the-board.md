@@ -1,6 +1,10 @@
 # ADR 0090 — Maps on the board: a picture under the board, pins that open notes, secret pins
 
 - Date: 2026-10-14
+- Amended in part by [0121](0121-a-virtual-tabletop-layer-on-the-board.md) (Accepted 2026-11-15, not built): its revision of
+  2026-10-15, pick 1 (a fogged JPEG or WebP map converted on the game
+  master's device) and pick 2 (table players who only see a board follow it
+  live). This text is amended when the step that builds each is merged.
 - Source: the maintainer, on 2026-10-14 at 11:36 UTC, sending a plan of
   new features drafted with another assistant whose third item is an
   "Atlas" of interactive maps — a large picture with pins that open notes,

@@ -82,9 +82,10 @@ Uma versão de teste sai como "Verso Beta" — os arquivos dela começam com
 
 | Seu computador | Arquivo | Primeira vez |
 |---|---|---|
-| Mac com chip Apple (M1, M2, M3, M4…); um Mac com processador Intel não é suportado | `Verso-X.Y.Z-macos-arm64.zip`: descompacte em `/Applications` | assinado ad hoc, não por um desenvolvedor registrado: permita uma vez em Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim" |
+| Mac com chip Apple (M1, M2, M3, M4…) | `Verso-X.Y.Z-macos-arm64.zip`: descompacte em `/Applications` | assinado ad hoc, não por um desenvolvedor registrado: permita uma vez em Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim" |
+| Mac com processador Intel | `Verso-X.Y.Z-macos-x64.zip`: descompacte em `/Applications` | assinado ad hoc, não por um desenvolvedor registrado: permita uma vez em Ajustes do Sistema → Privacidade e Segurança → "Abrir Mesmo Assim" |
 | Windows 10 e 11, x64 (rodado até agora no Windows 11) | `Verso-X.Y.Z-windows-x64-setup.exe`, um instalador para o seu usuário | sem assinatura: o SmartScreen pergunta uma vez: em Mais informações, mande executar |
-| Linux, x64 | `Verso-X.Y.Z-linux-amd64.deb` para Ubuntu (22.04 e posteriores), Linux Mint, Debian (12 e posteriores), Pop!_OS; `Verso-X.Y.Z-linux-x86_64.rpm` para Fedora (36 e posteriores); `Verso-X.Y.Z-linux-x86_64.AppImage` para qualquer outro | o AppImage: torne-o executável e rode. O ARM64 vem quando o repositório for público |
+| Linux, x64 e ARM64 | `Verso-X.Y.Z-linux-amd64.deb` para Ubuntu (22.04 e posteriores), Linux Mint, Debian (12 e posteriores), Pop!_OS; `Verso-X.Y.Z-linux-x86_64.rpm` para Fedora (36 e posteriores); `Verso-X.Y.Z-linux-x86_64.AppImage` para qualquer outro; em ARM64 (um Raspberry Pi 4 ou 5, 64 bits) os mesmos nomes dizem `arm64` (`.deb`) e `aarch64` (`.rpm`, `.AppImage`) | o AppImage: torne-o executável e rode |
 
 O `verso-X.Y.Z-SHA256SUMS` lista o sha256 de cada arquivo, e o `.sig`
 dele assina a lista com a chave acima: o atualizador do app e o

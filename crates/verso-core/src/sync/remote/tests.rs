@@ -339,3 +339,91 @@ fn a_first_listing_cut_short_keeps_the_hashes_it_read() {
     refresh(&remote, &mut fresh, &before).unwrap_err();
     assert!(before.is_empty() && fresh.is_none());
 }
+
+/// A file only there and never seen is not read for its hash when reading
+/// it is reading the whole file (I4 part 2): it is in the picture with its
+/// version and [`UNREAD`], kept out of the state's tokens and of what a
+/// later refresh takes as learned; one found here after all is read before
+/// the plan compares them, and one changed since its listing leaves the
+/// picture.
+#[test]
+fn a_file_only_there_is_listed_unread_and_read_only_when_wanted() {
+    let remote = Fake::default();
+    remote.set("a.md", b"one", 1);
+    remote.set("b.md", b"two", 1);
+    remote.set("c.md", b"three", 1);
+    let (mut known, mut tokens) = (None, BTreeMap::new());
+    // b.md has a base: it is read; the others are only there.
+    refresh_planning(&remote, &mut known, &mut tokens, &|p| p != "b.md").unwrap();
+    assert_eq!(remote.reads.lock().unwrap().clone(), vec!["b.md"]);
+    let mut k = known.clone().unwrap();
+    assert_eq!(k.unread.iter().collect::<Vec<_>>(), vec!["a.md", "c.md"]);
+    assert_eq!(k.files["a.md"].hash, UNREAD);
+    assert_eq!(k.files["a.md"].size, 3);
+    assert_eq!(k.unread_version("a.md"), Some("1"));
+    assert_eq!(k.unread_version("b.md"), None);
+    assert_eq!(k.tokens().keys().collect::<Vec<_>>(), vec!["b.md"]);
+    assert_eq!(tokens.keys().collect::<Vec<_>>(), vec!["b.md"]);
+    // The next refresh takes no unread hash for a learned one.
+    refresh_planning(&remote, &mut known, &mut tokens, &|p| p != "b.md").unwrap();
+    assert_eq!(remote.reads.lock().unwrap().len(), 1);
+    assert_eq!(known.as_ref().unwrap().files["c.md"].hash, UNREAD);
+    // c.md turned up here: read for its hash, and kept.
+    read_unread(&remote, &mut k, &mut tokens, &|p| p == "c.md").unwrap();
+    assert_eq!(remote.reads.lock().unwrap().clone(), vec!["b.md", "c.md"]);
+    assert_eq!(k.files["c.md"].hash, sha(b"three"));
+    assert!(!k.unread.contains("c.md"));
+    assert_eq!(tokens["c.md"].hash, sha(b"three"));
+    // a.md changed since it was listed: out of the picture, listed again
+    // on the next pass.
+    remote.set("a.md", b"one, edited", 2);
+    read_unread(&remote, &mut k, &mut tokens, &|_| true).unwrap();
+    assert!(!k.files.contains_key("a.md") && !k.unread.contains("a.md"));
+    assert!(!tokens.contains_key("a.md"));
+    // A download puts the real hash in the unread one's place.
+    let mut j = known.unwrap();
+    j.put(
+        "a.md".to_owned(),
+        FileState {
+            hash: sha(b"one"),
+            size: 3,
+        },
+        "1".to_owned(),
+    );
+    assert!(!j.unread.contains("a.md"));
+    assert!(j.tokens().contains_key("a.md"));
+}
+
+/// A remote whose fingerprint is not a read of the file (S3's `HEAD`) is
+/// asked for every new version, as before.
+#[test]
+fn a_remote_whose_fingerprint_is_metadata_is_asked_as_before() {
+    struct Head(Fake);
+    impl Remote for Head {
+        fn list(&self, after: Option<&str>) -> Result<Listing> {
+            self.0.list(after)
+        }
+        fn fingerprint_reads_the_file(&self) -> bool {
+            false
+        }
+        fn read(&self, path: &str, sink: &mut dyn Sink) -> Result<Read> {
+            self.0.read(path, sink)
+        }
+        fn write(&self, _: &str, _: &Condition, _: &Meta, _: &mut dyn Source) -> Result<Written> {
+            unreachable!()
+        }
+        fn delete(&self, _: &str, _: &Condition) -> Result<()> {
+            unreachable!()
+        }
+        fn rename(&self, _: &str, _: &str, _: &Condition) -> Result<Written> {
+            unreachable!()
+        }
+    }
+    let remote = Head(Fake::default());
+    remote.0.set("a.md", b"one", 1);
+    let (mut known, mut tokens) = (None, BTreeMap::new());
+    refresh_planning(&remote, &mut known, &mut tokens, &|_| true).unwrap();
+    let k = known.unwrap();
+    assert!(k.unread.is_empty());
+    assert_eq!(k.files["a.md"].hash, sha(b"one"));
+}

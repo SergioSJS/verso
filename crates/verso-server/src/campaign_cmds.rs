@@ -157,9 +157,13 @@ pub async fn command(
     let mut events: Vec<Event> = Vec::new();
     // Whom the command was about, for the audit log.
     let mut subject: Option<String> = None;
+    // The people live on boards through a share, told by the answer of the
+    // table's making: they join again as players (ADR 0081 item 11).
+    let mut rejoined = 0usize;
     match cmd {
         "campaign_make" => {
             let root = root_arg(&args)?;
+            rejoined = crate::collab::players::share_members_under(server, &key, &root);
             let (s, k, r) = (Arc::clone(server), key.clone(), root.clone());
             let exists = blocking(move || {
                 Ok(r.is_empty() || s.service.with_key(&k, |ws| Ok(ws.is_folder(&r)))?)
@@ -283,7 +287,11 @@ pub async fn command(
         let root: String = arg(&args, "root")?;
         opened(server, &folder, &root, &who.account.id).await;
     }
-    status(server, who, client).await
+    let mut out = status(server, who, client).await?;
+    if cmd == "campaign_make" {
+        out["rejoined"] = json!(rejoined);
+    }
+    Ok(out)
 }
 
 /// The table at `root` of `folder` was opened by `owner`: every other
@@ -732,6 +740,7 @@ async fn status(
                 notes: Vec::new(),
                 players: Vec::new(),
                 can_invite: false,
+                rejoined: 0,
             });
         };
         // A table that cannot be read is not a table of the folder: the
@@ -814,6 +823,7 @@ async fn status(
                 notes,
                 players,
                 can_invite,
+                rejoined: 0,
             });
         }
         // A player: the tables, and the notes it may edit — only those. A
@@ -876,6 +886,7 @@ async fn status(
             notes,
             players: Vec::new(),
             can_invite: false,
+            rejoined: 0,
         })
     })
     .await?;

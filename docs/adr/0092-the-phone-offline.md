@@ -89,11 +89,63 @@ recommended and is marked `[DECIDED 2026-10-14]`.
    when it applies; a reader's offline edits are refused, as sync refuses
    them ([0079](0079-sync-a-local-folder-with-a-server.md) item 1).
 6. **Leaving the device.** Signing out clears the folders kept on it,
-   after saying how many writes have not gone up; an admin ending the
-   device's sessions ([0077](0077-the-server-administration-console-and-folder-quotas.md))
-   clears them at its next connection. `[DECIDED 2026-10-14]`: encrypting the store at
+   after saying how many writes have not gone up. The server ending the
+   session — an admin ending the device's sessions
+   ([0077](0077-the-server-administration-console-and-folder-quotas.md)),
+   the account ending its other sessions, the idle limit — clears them at
+   the device's next connection **but for the writes that had not gone
+   up, which stay** (revised 2026-11-15, below). `[DECIDED 2026-10-14]`: encrypting the store at
    rest. Decided: **not in V1** — the browser's storage is as safe as
    the unlocked phone — said in the setting.
+   *2026-11-15 — revised by the maintainer.* Asked (decisions of
+   2026-11-15, 5.1) whether a browser session the server ended while
+   offline should go on deleting the copy and saying how many changes were
+   lost (a) or keep the changes until the person signs in again and send
+   them (b), with the recommendation (b) — *"the session is ended to close
+   the access, not to lose the work of the person who had it; on signing
+   in again, the server judges each change"* — he answered **"B"**. Built
+   (`app/ui/src/web/offline/held.ts`, `heldDialog.ts`):
+   - **What stays.** Per folder kept, only its changes not sent: each file
+     written here since the base, with its bytes and the base it was
+     written over, and each file of the base deleted here, kept for the
+     account that kept the folder. The rest of the copy — the files that
+     did not change, the attachments, the sync's state, the account last
+     seen — goes as before: they are the server's, fetched again on
+     signing in, and keeping them would leave the account's folder
+     readable in a browser no one is signed in to (a shared computer).
+     *Chosen in the code*, as the brief allowed: the point is that no work
+     is lost, and that is all that is kept.
+   - **Where.** In the same store as the copy (IndexedDB `verso-offline`, a
+     fact of the device), in this browser only, as protected as the copy
+     is — not encrypted (above); wiped with everything when the person
+     signs out, the sign-out's question counting them among the writes
+     not sent.
+   - **The window says it**: the session ended, how many changes are kept,
+     and to sign in again with the same account to send them.
+   - **The same account signs in again on that browser**: its folders are
+     kept again with those files and a base of only their paths, and sync
+     sends them by its own rules (item 1, [0079](0079-sync-a-local-folder-with-a-server.md)) —
+     the server judges each one: the role (a reader's is refused and
+     stays), the base it was written over (invariant 11: a file changed
+     there since is a conflict's copy or two appends joined, never an
+     overwrite), deletions to the trash; the rest of the folder is fetched
+     again. The window says how many are being sent.
+   - **Another account signs in on that browser**: the kept changes are
+     never sent under it and never shown among its folders. A dialog says
+     this browser keeps changes of another account, kept for it until it
+     signs in again here, and offers only to discard them (asked once
+     more); *Not now* leaves them, and the question comes back at the next
+     page. A download of them as files was built first and removed before
+     release 0.9.0-beta.4: a person signed in under another account is
+     never handed another account's content; the changes wait for their
+     own account.
+   - Tests: `app/ui/test/offlineSync.test.mjs` (what is kept, the same
+     account's changes sent and judged — an edit over the server's version
+     and one over a version changed since — another account's discarded
+     only on the word) and `app/ui/e2e-server/offline.spec.mjs`
+     (a session ended while offline with an edit: sign in again, the edit
+     lands; another account: offered only to discard, no download, never on
+     the server).
 7. **What the window says** ([0027](0027-runtime-capabilities.md)): online,
    offline, syncing, and the count of writes waiting, in the status bar
    and the folder's settings; a write that cannot go up says why where it
@@ -144,7 +196,7 @@ decided as recommended, marked `[DECIDED 2026-10-14]` in place. In V1
 (`docs/roadmap.md`, Phase 4 — V1). [0073](0073-self-hosted-server-first.md) gains a Revisions line, and the roadmap's Phase 3 row is struck (R1).
 
 
-**Accepted (2026-10-15), the build's two deviations and its known risks.** The maintainer, answering the recommendation with *"bora"* (let us go), accepted two deviations of the build from this ADR. (1) The offline core is the browser harness's TypeScript core, not `verso-dialect` compiled to wasm: `wasm-bindgen` would write `unsafe`, which the workspace forbids outside `web_clip`. (2) The browser's sync engine is a TypeScript port held to the Rust engine's vectors (`crates/verso-core/src/sync/vectors.rs` to `app/ui/test/sync-vectors.json`), so two engines exist. Known risks the builder listed: the offline-edit e2e runs on Chromium only; a fresh server database, or an anonymous load, wipes the edits not yet sent, and the notice counts them.
+**Accepted (2026-10-15), the build's two deviations and its known risks.** The maintainer, answering the recommendation with *"bora"* (let us go), accepted two deviations of the build from this ADR. (1) The offline core is the browser harness's TypeScript core, not `verso-dialect` compiled to wasm: `wasm-bindgen` would write `unsafe`, which the workspace forbids outside `web_clip`. (2) The browser's sync engine is a TypeScript port held to the Rust engine's vectors (`crates/verso-core/src/sync/vectors.rs` to `app/ui/test/sync-vectors.json`), so two engines exist. Known risks the builder listed: the offline-edit e2e runs on Chromium only; a fresh server database, or an anonymous load, wipes the edits not yet sent, and the notice counts them. *(2026-11-15: an anonymous load after the server ended the session now keeps the edits not yet sent, item 6 revised.)*
 
 *(History, before the acceptance above:)* Proposed (2026-10-14). In V1 by the maintainer's word of 2026-10-14
 (*"VAI SER TUDO NA V1"*; `docs/roadmap.md`, revision 8). For the

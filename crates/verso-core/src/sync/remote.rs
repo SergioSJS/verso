@@ -20,9 +20,13 @@
 //! The engine compares files by the SHA-256 of their bytes. A cloud knows
 //! its versions, not those hashes: [`refresh`] asks the remote for a hash
 //! ([`Remote::fingerprint`]) only for a file whose version it has not seen
-//! before, and the state keeps what it learned ([`Token`]).
+//! before, and the state keeps what it learned ([`Token`]). A file that is
+//! only there and was never seen — nothing here by its name, no base — is
+//! not read for its hash at all when reading it is a download
+//! ([`refresh_planning`]): the plan fetches it, and the download hashes it
+//! as it is written, so a first sync reads each such file once.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -246,6 +250,17 @@ pub trait Remote: Send + Sync {
         Ok((read.version, sink.finish()))
     }
 
+    /// Whether [`Remote::fingerprint`] reads the whole file to hash it, as
+    /// the default does (WebDAV). Then a file that is only there and never
+    /// seen is not fingerprinted before a first sync fetches it: the
+    /// download reads it once and hashes it as it is written
+    /// ([`refresh_planning`]). A remote whose fingerprint is its metadata
+    /// (S3's `HEAD` with the hash kept on upload) says no and is asked as
+    /// before.
+    fn fingerprint_reads_the_file(&self) -> bool {
+        true
+    }
+
     /// Whether the file is there. Asked before a deletion here that a
     /// listing alone asks for: a listing that lags behind a write (a
     /// service that is not strongly consistent) must not delete a file the
@@ -374,6 +389,11 @@ pub struct Token {
     pub size: u64,
 }
 
+/// The hash a picture holds for a file it has not read ([`Known::unread`]):
+/// never the SHA-256 of any bytes (64 hexadecimal digits), so it equals no
+/// base and no file here, and the plan can only fetch that file.
+pub const UNREAD: &str = "unread";
+
 /// The remote's files as a pass compares them, with the version each has
 /// and the feed's cursor.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -381,6 +401,12 @@ pub struct Known {
     pub files: Files,
     /// Path → version, in step with `files`.
     pub versions: BTreeMap<String, String>,
+    /// Files listed but not read for their hash: only there, never seen
+    /// (no base, nothing here by the name). Their hash in `files` is
+    /// [`UNREAD`]; the download that fetches one hashes it as it is written
+    /// and puts the real hash in its place ([`Known::put`]). Never kept in
+    /// the state ([`Known::tokens`]), never taken for a hash learned.
+    pub unread: BTreeSet<String>,
     pub cursor: Option<String>,
     /// What the feed said was renamed since this picture began: the name
     /// there now → the name it had before the first of its renames (a
@@ -417,6 +443,7 @@ impl Known {
     pub fn tokens(&self) -> BTreeMap<String, Token> {
         self.files
             .iter()
+            .filter(|(p, _)| !self.unread.contains(*p))
             .filter_map(|(p, f)| {
                 self.versions.get(p).map(|v| {
                     (
@@ -435,12 +462,38 @@ impl Known {
     /// A file written, renamed or fetched by this pass: the picture now
     /// holds it so that the next step on the same path has its version.
     pub fn put(&mut self, path: String, state: FileState, version: String) {
+        self.unread.remove(&path);
         self.versions.insert(path.clone(), version);
         self.files.insert(path, state);
     }
 
+    /// A file listed but not read: its version, and [`UNREAD`] for a hash.
+    fn put_unread(&mut self, path: String, size: u64, version: String) {
+        self.versions.insert(path.clone(), version);
+        self.files.insert(
+            path.clone(),
+            FileState {
+                hash: UNREAD.to_owned(),
+                size,
+            },
+        );
+        self.unread.insert(path);
+    }
+
+    /// The version the picture holds for `path` when its hash was not read
+    /// ([`Known::unread`]): what a download of it must find, or the file
+    /// changed since it was listed.
+    #[must_use]
+    pub fn unread_version(&self, path: &str) -> Option<&str> {
+        self.unread
+            .contains(path)
+            .then(|| self.versions.get(path).map(String::as_str))
+            .flatten()
+    }
+
     /// A file gone from the picture (a delete or the source of a rename).
     pub fn remove(&mut self, path: &str) -> Option<(FileState, Option<String>)> {
+        self.unread.remove(path);
         let version = self.versions.remove(path);
         self.files.remove(path).map(|f| (f, version))
     }
@@ -514,6 +567,29 @@ pub fn refresh_learning(
     known: &mut Option<Known>,
     remembered: &mut BTreeMap<String, Token>,
 ) -> Result<Vec<Who>> {
+    refresh_planning(remote, known, remembered, &|_| false)
+}
+
+/// [`refresh_learning`], leaving unread the files `unseen` names — only
+/// there, never seen: no base under the name, in either form of it — when
+/// reading one for its hash is reading the whole file
+/// ([`Remote::fingerprint_reads_the_file`]). Such a file is in the picture
+/// with its version and [`UNREAD`] for a hash ([`Known::unread`]), so the
+/// plan fetches it, and the download hashes it as it is written: a first
+/// sync with a WebDAV folder reads each file once, not once for the hash
+/// and once more for the bytes (I4 of the sync review, part 2,
+/// 2026-11-15). A file of the same name found here after all is read for
+/// its hash before the plan compares them ([`read_unread`]).
+///
+/// # Errors
+/// As [`refresh`].
+pub fn refresh_planning(
+    remote: &dyn Remote,
+    known: &mut Option<Known>,
+    remembered: &mut BTreeMap<String, Token>,
+    unseen: &dyn Fn(&str) -> bool,
+) -> Result<Vec<Who>> {
+    let skips = remote.fingerprint_reads_the_file();
     let after = known.as_ref().and_then(|k| k.cursor.clone());
     let (listing, kept) = match remote.list(after.as_deref()) {
         Err(e) if e.kind == RemoteErrorKind::CursorLost => (remote.list(None)?, None),
@@ -531,6 +607,7 @@ pub fn refresh_learning(
                 let same = |t: &Token| t.version == entry.version;
                 let before = known
                     .as_ref()
+                    .filter(|k| !k.unread.contains(&entry.path))
                     .and_then(|k| k.versions.get(&entry.path).zip(k.files.get(&entry.path)))
                     .filter(|(v, _)| **v == entry.version)
                     .map(|(_, f)| f.hash.clone());
@@ -541,6 +618,15 @@ pub fn refresh_learning(
                         .map(|t| t.hash.clone())
                 }) {
                     Some(h) => Some(h),
+                    // Never seen, and only there: the download hashes it.
+                    None if skips && unseen(&entry.path) => {
+                        next.put_unread(entry.path.clone(), entry.size, entry.version.clone());
+                        return Ok(Who {
+                            path: entry.path.clone(),
+                            by: entry.by.clone(),
+                            device: entry.device.clone(),
+                        });
+                    }
                     None => match remote.fingerprint(&entry.path) {
                         Ok((version, hash)) if version == entry.version => {
                             remembered.insert(
@@ -615,6 +701,53 @@ pub fn refresh_learning(
     });
     *known = Some(next);
     Ok(named)
+}
+
+/// The files the picture holds unread ([`Known::unread`]) that `wanted`
+/// names — a file of the same name found here, which the plan must compare
+/// by hash — read for their hash now, as [`refresh_learning`] reads a new
+/// version: kept in `remembered` as soon as each is known; one changed
+/// since it was listed, or gone, leaves the picture (the next pass lists it
+/// again).
+///
+/// # Errors
+/// What a fingerprint failed with, other than the file being gone; what
+/// was read before it stays read.
+pub fn read_unread(
+    remote: &dyn Remote,
+    known: &mut Known,
+    remembered: &mut BTreeMap<String, Token>,
+    wanted: &dyn Fn(&str) -> bool,
+) -> Result<()> {
+    let paths: Vec<String> = known.unread.iter().filter(|p| wanted(p)).cloned().collect();
+    for path in paths {
+        let Some(listed) = known.versions.get(&path).cloned() else {
+            known.remove(&path);
+            continue;
+        };
+        let size = known.files.get(&path).map_or(0, |f| f.size);
+        match remote.fingerprint(&path) {
+            Ok((version, hash)) if version == listed => {
+                remembered.insert(
+                    path.clone(),
+                    Token {
+                        version: version.clone(),
+                        hash: hash.clone(),
+                        size,
+                    },
+                );
+                known.put(path, FileState { hash, size }, version);
+            }
+            Ok(_) => {
+                known.remove(&path);
+            }
+            Err(e) if e.kind == RemoteErrorKind::NotFound => {
+                known.remove(&path);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

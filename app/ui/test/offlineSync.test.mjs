@@ -18,7 +18,7 @@ await esbuild.build({
 });
 const lib = await import("./.bundles/offline-sync.test-bundle.mjs");
 const { FakeServer, err } = await import("./offlineModel.mjs");
-const { Syncer, MemoryStore, StoreFull, sha256, plan, conflictName, newState, waiting } = lib;
+const { Syncer, MemoryStore, StoreFull, sha256, plan, conflictName, newState, waiting, holdChanges, restoreChanges, heldChanges, heldCount, discardChanges, HELD } = lib;
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -429,6 +429,110 @@ async function run(seed) {
   const present = new Set([...serverMap.values(), ...(await Promise.all(devices.map((d) => d.disk()))).flatMap((m) => [...m.values()])]);
   for (const c of written) assert.ok(present.has(c) || seen.has(c), `${said}: the edit ${c} was lost unseen`);
 }
+
+describe("a session the server ended with changes not sent (ADR 0092 item 6, revised 2026-11-15)", () => {
+  /** A device that synced three notes, then, offline, edited one, made one
+   *  and deleted one: three changes wait. */
+  async function waitingThree() {
+    const s = new FakeServer();
+    s.write("a.md", "a\n");
+    s.write("b.md", "b\n");
+    s.write("c.md", "c\n");
+    const d = device(s);
+    await d.store.putFolder(d.kept);
+    await d.sync();
+    await d.write("a.md", "a\nescrito sem rede\n");
+    await d.write("nova.md", "nova\n");
+    await d.remove("c.md");
+    assert.equal(waiting(await d.store.listing("f1"), await d.store.state("f1")), 3);
+    return { s, d };
+  }
+
+  test("keeps only the changes, with the base each was made on, for the account; the rest of the copy goes", async () => {
+    const { d } = await waitingThree();
+    await d.store.putFact("state", { account: { id: "a1" } });
+    assert.equal(await holdChanges(d.store, "2026-11-15T12:00:00Z"), 3);
+    assert.deepEqual(await d.store.folders(), []);
+    assert.equal((await d.store.listing("f1")).size, 0, "the unchanged note is not kept");
+    assert.equal(await d.store.state("f1"), null);
+    assert.equal(await d.store.fact("state"), null, "nor the account last seen");
+    const [h, ...rest] = await heldChanges(d.store);
+    assert.equal(rest.length, 0);
+    assert.equal(h.account, "a1");
+    const by = new Map(h.files.map((f) => [f.path, f]));
+    assert.deepEqual([...by.keys()].sort(), ["a.md", "c.md", "nova.md"]);
+    assert.equal(dec.decode(by.get("a.md").bytes), "a\nescrito sem rede\n");
+    assert.equal(by.get("a.md").base, sha256(enc.encode("a\n")));
+    assert.equal(by.get("nova.md").base, null);
+    assert.equal(by.get("c.md").bytes, null, "a deletion");
+    assert.equal(by.get("c.md").base, sha256(enc.encode("c\n")));
+    assert.equal(await heldCount(d.store), 3);
+    // Done again (a page closed half-way, another tab): nothing doubled.
+    assert.equal(await holdChanges(d.store), 0);
+    assert.equal(await heldCount(d.store), 3);
+  });
+
+  test("a folder with nothing waiting keeps nothing", async () => {
+    const s = new FakeServer();
+    s.write("a.md", "a\n");
+    const d = device(s);
+    await d.store.putFolder(d.kept);
+    await d.sync();
+    assert.equal(await holdChanges(d.store), 0);
+    assert.deepEqual(await heldChanges(d.store), []);
+    assert.deepEqual(await d.store.folders(), []);
+  });
+
+  test("signed in again by the same account, the changes go up and the server judges each one", async () => {
+    const { s, d } = await waitingThree();
+    await holdChanges(d.store);
+    // Meanwhile, elsewhere: b.md, which this device did not touch, changed;
+    // and a.md changed too, so this device's edit is no longer over the
+    // server's version.
+    s.write("b.md", "b de fora\n");
+    s.write("a.md", "a de fora\n");
+    // Another account gets nothing.
+    assert.deepEqual(await restoreChanges(d.store, "b2"), { folders: [], count: 0 });
+    assert.deepEqual(await restoreChanges(d.store, ""), { folders: [], count: 0 });
+    const { folders, count } = await restoreChanges(d.store, "a1");
+    assert.equal(count, 3);
+    assert.deepEqual(folders.map((k) => k.id), ["f1"]);
+    assert.deepEqual(await heldChanges(d.store), [], "no longer kept apart");
+    const again = device(s, { store: d.store });
+    const r = await again.sync();
+    assert.equal(r.paused, null);
+    // The new note went up; the deletion went to the trash there; the
+    // note changed on both sides kept both (invariant 11: never over the
+    // server's version); the one only changed there came down.
+    assert.equal(serverText(s, "nova.md"), "nova\n");
+    assert.equal(serverText(s, "c.md"), null);
+    assert.equal(serverText(s, "a.md"), "a de fora\n");
+    const copy = [...s.files.keys()].find((p) => p.startsWith("a (conflict, "));
+    assert.ok(copy, [...s.files.keys()].join(", "));
+    assert.equal(serverText(s, copy), "a\nescrito sem rede\n");
+    assert.equal(await again.text("b.md"), "b de fora\n");
+    assert.equal(waiting(await again.store.listing("f1"), await again.store.state("f1")), 0);
+  });
+
+  test("an edit over the server's own version goes up as an edit, not a copy", async () => {
+    const { s, d } = await waitingThree();
+    await holdChanges(d.store);
+    await restoreChanges(d.store, "a1");
+    await device(s, { store: d.store }).sync();
+    assert.equal(serverText(s, "a.md"), "a\nescrito sem rede\n");
+    assert.ok(![...s.files.keys()].some((p) => p.includes("conflict")));
+    assert.equal(serverText(s, "b.md"), "b\n");
+  });
+
+  test("another account's are discarded only on the word, and only theirs", async () => {
+    const { d } = await waitingThree();
+    await holdChanges(d.store);
+    const mine = { account: "b2", id: "f9", key: "k", name: "Minha", role: "owner", attachments: "all", since: "", held: "", files: [{ path: "x.md", base: null, bytes: enc.encode("x"), hash: sha256(enc.encode("x")), modified: 1 }], made: [] };
+    await d.store.putFact(HELD, [...(await heldChanges(d.store)), mine]);
+    await discardChanges(d.store, (h) => h.account !== "b2");
+    assert.deepEqual((await heldChanges(d.store)).map((h) => h.account), ["b2"]);
+  });
+});
 
 describe("the guardrail (ADR 0079, Consequences) against the browser's store", () => {
   test("two devices and a server end alike and lose no edit, 300 seeds", async () => {

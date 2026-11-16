@@ -416,7 +416,19 @@ beyond the text above, recorded as built and not as the maintainer's
 decisions: the `exists` guard; a WebDAV root that answers 404 is an error;
 a secret over 2000 bytes is refused; S3 content hashes are kept in the
 uploaded object's metadata; the first connect to an existing WebDAV folder
-downloads each file once to learn its hash.
+downloads each file once to learn its hash. *2026-11-15 (I4 of the sync
+review): that first connect read a file only there twice — once to learn its
+hash, once more to keep it. Now a file only in the cloud that this device
+never saw (no base under its name, nothing here by it) is not read for its
+hash: it is in the picture by its version alone (`Known::unread`), the plan
+fetches it, and the download hashes it as it is written and keeps that
+version and hash as a token, refused as changed if the version read is not
+the one listed (invariant 11). A file of the same name here is still read
+for its hash before the two are compared (`read_unread`). What a first sync
+learned before its link dropped is kept (part 1, `refresh_learning`), so a
+retry fetches only the rest. S3 asks its `HEAD` as before
+(`Remote::fingerprint_reads_the_file`); the maintainer's answer to 5.2 of
+that day's decisions, "A": fix it now.*
 
 Also recorded 2026-10-21 (review of the afternoon batch,
 `verso-revisao-fable-tarde-2026-10-21.md`), the choices the paragraph above

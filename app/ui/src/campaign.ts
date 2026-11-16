@@ -183,7 +183,16 @@ export async function makeTable(root: string): Promise<void> {
   // A folder this app serves: the window sits at its table first, by itself
   // (ADR 0117 D4 Q3, revised 2026-11-05: no *Sentar à mesa* to press).
   if (!(await seatFirst())) return;
-  if (await run(() => commands.campaignMake(root), cp.madeTable)) openCampaignDialog(root);
+  // The answer says how many were live on boards of the folder through a
+  // share: they join again as players (ADR 0081 item 11), and are told so
+  // in the dialog, once.
+  let rejoined = 0;
+  const made = await run(async () => {
+    const r = await commands.campaignMake(root);
+    if (r.status === "ok") rejoined = r.data.rejoined ?? 0;
+    return r;
+  }, cp.madeTable);
+  if (made) openCampaignDialog(root, false, rejoined);
 }
 
 /** Turn the table at `root` back into a folder. */

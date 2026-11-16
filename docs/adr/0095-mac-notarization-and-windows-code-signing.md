@@ -319,3 +319,19 @@ the Windows option (item 3), Linux package signatures (item 5), when
 `scripts/install-beta.sh` is signed with a fixed local certificate, so macOS
 keeps its permissions ([0051](0051-development-flow-and-releases.md),
 amendment of the same day). The release builds stay ad hoc, as above.
+*As built (2026-11-15):* `scripts/mac/local-signing-cert.sh` creates the
+identity "Verso Local Signing"; `scripts/install-beta.sh` uses it when present
+(ad hoc with a notice otherwise); `release.yml` is unchanged.
+
+*As built, item 9 (2026-11-15):* the `macos` job of `release.yml` is a
+matrix, `arm64` and `x64`, on the same arm64 runner: the x64 leg adds the
+`x86_64-apple-darwin` target and builds with `--target`, signs ad hoc as the
+arm64 one, and ships `Verso-<version>-macos-x64.zip` and
+`verso-cli-<version>-macos-x64.tar.gz`, in the signed checksums list like the
+others (22 files now, `scripts/release-page.mjs`). The updater needed no
+change in what it matches: an Intel Mac's words (`x86_64`, `x64`, `amd64`)
+now find `-macos-x64.zip` (`update/pick.rs`, with a test per architecture);
+the release page gained its Intel row and lost "not available: Macs with an
+Intel processor". Built and run locally under Rosetta; first proven by the
+next release's run, where the x64 leg verifies its signatures under Rosetta
+on the runner.

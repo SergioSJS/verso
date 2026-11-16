@@ -55,6 +55,10 @@ pub struct Policy {
     pub(super) connected: Arc<Mutex<HashMap<String, u32>>>,
     pub(super) events: Sink,
     pub(super) announcer: Mutex<Option<announce::Announcer>>,
+    /// Whether this computer is meant to be announced now (`announce.rs`):
+    /// serving on the network, whether or not mDNS could start — what the
+    /// tests, which serve on loopback and announce nothing, look at.
+    pub(super) announced: std::sync::atomic::AtomicBool,
     pub(super) listening: RwLock<(u16, Vec<IpAddr>)>,
     pub(super) refused_said: crate::log::OnceAMinute,
     /// The setting `max_connected`, read at every new connection.
@@ -95,6 +99,7 @@ impl Policy {
             connected: Arc::new(Mutex::new(HashMap::new())),
             events,
             announcer: Mutex::new(None),
+            announced: std::sync::atomic::AtomicBool::new(false),
             listening: RwLock::new((0, Vec::new())),
             refused_said: crate::log::OnceAMinute::default(),
             connected_most: std::sync::atomic::AtomicU32::new(CONNECTED),
@@ -397,9 +402,9 @@ impl Policy {
         Some(p.poll(secret, now))
     }
 
-    /// The window ended: logged, audited, announced no more, told.
+    /// The window ended: logged, audited, told. The announcement is
+    /// serving's, not the window's (`announce.rs`): it stays.
     pub(super) fn ended(&self, server: &Server, why: Ended) {
-        self.stop_announcing();
         let (action, said) = match why {
             Ended::Closed => ("pair_closed", "closed"),
             Ended::Expired => ("pair_expired", "expired"),
@@ -415,18 +420,34 @@ impl Policy {
 
     /// Stop announcing on the network; the goodbye is sent as it drops.
     pub(super) fn stop_announcing(&self) {
+        self.announced.store(false, Ordering::Relaxed);
         let announcer = lock(&self.announcer).take();
         if let Some(a) = announcer {
             a.stop();
         }
     }
 
+    /// Whether this computer is meant to be announced on the network now:
+    /// while it serves there, never while only the internet link serves.
+    #[must_use]
+    pub fn announced(&self) -> bool {
+        self.announced.load(Ordering::Relaxed)
+    }
+
+    /// Announce this computer while it serves on the network, with its
+    /// key's pin (`announce.rs`): nothing without an address of the
+    /// network or a pin (the internet link alone has neither).
     pub(super) fn start_announcing(&self) {
         let (port, ips) = self
             .listening
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
+        let Some(pin) = self.pin() else { return };
+        if ips.is_empty() || port == 0 {
+            return;
+        }
+        self.announced.store(true, Ordering::Relaxed);
         // Nothing of a network to announce on: the tests' loopback alone,
         // where mDNS would still open its socket on every address (the
         // macOS firewall asked about each new test binary, 2026-11-04). A
@@ -434,11 +455,12 @@ impl Policy {
         if ips.iter().all(|ip| ip.to_canonical().is_loopback()) {
             return;
         }
-        match announce::Announcer::start(port, &ips) {
+        match announce::Announcer::start(port, &ips, &pin) {
             Ok(a) => {
                 *lock(&self.announcer) = Some(a);
             }
-            // Announcing is for a second desktop; a phone does not need it.
+            // Never fatal: a paired app still tries the addresses it knows,
+            // and a phone's browser pairs by the QR or the address.
             Err(e) => crate::log::warn(&format!("announcing on the local network: {e}")),
         }
     }
